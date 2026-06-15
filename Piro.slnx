@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Piro.Api/Piro.Api.csproj" />
+    <Project Path="src/Piro.Application/Piro.Application.csproj" />
+    <Project Path="src/Piro.Domain/Piro.Domain.csproj" />
+    <Project Path="src/Piro.Infrastructure/Piro.Infrastructure.csproj" />
+    <Project Path="src/Piro.Worker/Piro.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Piro.IntegrationTests/Piro.IntegrationTests.csproj" />
+    <Project Path="tests/Piro.UnitTests/Piro.UnitTests.csproj" />
+  </Folder>
+</Solution>

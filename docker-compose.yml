@@ -1,0 +1,64 @@
+services:
+  frontend:
+    image: ghcr.io/heva-co/piro-frontend:${FRONTEND_VERSION:-latest}
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PIRO_API_URL=http://api:8080
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/heva-co/piro-api:${API_VERSION:-latest}
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Database__ConnectionString=Host=db;Database=piro;Username=piro;Password=${POSTGRES_PASSWORD:-piro};SSL Mode=Disable
+      - Auth__JwtSecret=${JWT_SECRET:?JWT_SECRET is required}
+      - Auth__AccessTokenExpiryMinutes=${ACCESS_TOKEN_EXPIRY_MINUTES:-60}
+      - Auth__RefreshTokenExpiryDays=${REFRESH_TOKEN_EXPIRY_DAYS:-30}
+      - Email__Host=${EMAIL_HOST:-}
+      - Email__Port=${EMAIL_PORT:-587}
+      - Email__Username=${EMAIL_USERNAME:-}
+      - Email__Password=${EMAIL_PASSWORD:-}
+      - Email__From=${EMAIL_FROM:-}
+      - PIRO_API_WORKER=true
+      - PIRO_WORKER_REGION=${WORKER_REGION:-default}
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: piro
+      POSTGRES_USER: piro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-piro}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U piro -d piro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  api_uploads:

@@ -1,0 +1,78 @@
+using Microsoft.EntityFrameworkCore;
+using Piro.Application.Interfaces;
+using Piro.Domain.Entities;
+using Piro.Domain.Enums;
+
+namespace Piro.Infrastructure.Persistence.Repositories;
+
+/// <summary>EF Core implementation of <see cref="IMaintenanceRepository"/>.</summary>
+public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
+{
+    public async Task<IEnumerable<Maintenance>> GetAllAsync(CancellationToken ct = default) =>
+        await db.Maintenances
+            .Include(m => m.Events.Where(e => e.Status != MaintenanceEventStatus.Completed).OrderBy(e => e.StartDateTime))
+            .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
+            .OrderByDescending(m => m.StartDateTime)
+            .ToListAsync(ct);
+
+    public async Task<Maintenance?> GetByIdAsync(int id, CancellationToken ct = default) =>
+        await db.Maintenances
+            .Include(m => m.Events.OrderBy(e => e.StartDateTime))
+            .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
+            .FirstOrDefaultAsync(m => m.Id == id, ct);
+
+    public async Task<IEnumerable<Maintenance>> GetActiveAsync(CancellationToken ct = default) =>
+        await db.Maintenances
+            .Where(m => m.Status == MaintenanceStatus.Active)
+            .ToListAsync(ct);
+
+    public async Task<Maintenance> CreateAsync(Maintenance maintenance, CancellationToken ct = default)
+    {
+        db.Maintenances.Add(maintenance);
+        await db.SaveChangesAsync(ct);
+        return maintenance;
+    }
+
+    public async Task<Maintenance> UpdateAsync(Maintenance maintenance, CancellationToken ct = default)
+    {
+        db.Maintenances.Update(maintenance);
+        await db.SaveChangesAsync(ct);
+        return maintenance;
+    }
+
+    public async Task DeleteAsync(Maintenance maintenance, CancellationToken ct = default)
+    {
+        db.Maintenances.Remove(maintenance);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
+    {
+        db.MaintenanceEvents.AddRange(events);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteFutureEventsAsync(int maintenanceId, long fromTimestamp, CancellationToken ct = default)
+    {
+        var events = await db.MaintenanceEvents
+            .Where(e => e.MaintenanceId == maintenanceId
+                     && e.StartDateTime >= fromTimestamp
+                     && e.Status == MaintenanceEventStatus.Scheduled)
+            .ToListAsync(ct);
+
+        db.MaintenanceEvents.RemoveRange(events);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IEnumerable<MaintenanceEvent>> GetActiveEventsAsync(CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        return await db.MaintenanceEvents
+            .Where(e => e.Status != MaintenanceEventStatus.Completed
+                     && e.Status != MaintenanceEventStatus.Cancelled
+                     && e.StartDateTime <= now + 86400  // within next 24h or already started
+                     && e.EndDateTime >= now)
+            .Include(e => e.Maintenance).ThenInclude(m => m.MaintenanceServices)
+            .ToListAsync(ct);
+    }
+}
