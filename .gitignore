@@ -1,0 +1,43 @@
+# ── Kener (reference only, not part of this project) ────────────────────────
+kener/
+
+# ── .NET ────────────────────────────────────────────────────────────────────
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+*.db
+*.db-shm
+*.db-wal
+appsettings.Development.json
+
+# ── Node / frontend ──────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/.svelte-kit/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# ── Temp / scratch folders left from migration ───────────────────────────────
+frontend/src_components_tmp/
+frontend/src_ui_tmp/
+
+# ── Local config files (never commit — use .env.example as template) ─────────
+.env
+pg_hba.conf
+piro.yaml
+*.yaml.local
+src/Piro.Api/wwwroot/uploads/*
+!src/Piro.Api/wwwroot/uploads/.gitkeep
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp

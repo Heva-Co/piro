@@ -1,0 +1,316 @@
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Distributed;
+using Piro.Application.DTOs;
+using Piro.Application.Interfaces;
+using Piro.Domain.Entities;
+
+namespace Piro.Application.Services;
+
+/// <summary>
+/// Manages OIDC/OAuth2 provider configuration and the authorization code + PKCE sign-in flow.
+/// </summary>
+public class OidcService(
+    IOidcConfigRepository configRepo,
+    IDistributedCache cache,
+    UserManager<AppUser> userManager,
+    RoleManager<AppRole> roleManager,
+    ITokenService tokenService,
+    IDataProtectionProvider dataProtectionProvider,
+    IHttpClientFactory httpClientFactory) : IOidcService
+{
+    private IDataProtector Protector =>
+        dataProtectionProvider.CreateProtector("Piro.OidcClientSecret");
+
+    // ── Public contract ──────────────────────────────────────────────────────
+
+    public async Task<List<OidcProviderInfo>> GetEnabledProvidersAsync(CancellationToken ct = default) =>
+        (await configRepo.GetEnabledAsync(ct))
+            .Select(p => new OidcProviderInfo(p.Id, p.DisplayName))
+            .ToList();
+
+    public async Task<List<OidcProviderConfigDto>> GetAllConfigsAsync(CancellationToken ct = default) =>
+        (await configRepo.GetAllAsync(ct))
+            .Select(ToDto)
+            .ToList();
+
+    public async Task UpsertConfigAsync(UpsertOidcProviderRequest request, CancellationToken ct = default)
+    {
+        if (request.Id.Equals("owner", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("'owner' is a reserved provider ID.");
+
+        var existing = await configRepo.GetByIdAsync(request.Id, ct);
+
+        byte[] secretProtected;
+        if (!string.IsNullOrWhiteSpace(request.ClientSecret))
+            secretProtected = Protector.Protect(Encoding.UTF8.GetBytes(request.ClientSecret));
+        else if (existing is not null)
+            secretProtected = existing.ClientSecretProtected; // keep existing
+        else
+            throw new InvalidOperationException("Client secret is required when creating a new provider.");
+
+        var config = existing ?? new OidcProviderConfig();
+        config.Id = request.Id.ToLowerInvariant();
+        config.DisplayName = request.DisplayName;
+        config.Authority = request.Authority.TrimEnd('/');
+        config.ClientId = request.ClientId;
+        config.ClientSecretProtected = secretProtected;
+        config.RedirectUri = request.RedirectUri;
+        config.Scopes = request.Scopes;
+        config.AllowedDomains = string.IsNullOrWhiteSpace(request.AllowedDomains) ? null : request.AllowedDomains;
+        config.DefaultRole = request.DefaultRole == "Owner" ? "Member" : request.DefaultRole;
+        config.IsEnabled = request.IsEnabled;
+
+        await configRepo.UpsertAsync(config, ct);
+    }
+
+    public async Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default)
+    {
+        var config = await configRepo.GetByIdAsync(providerId, ct)
+            ?? throw new InvalidOperationException($"OIDC provider '{providerId}' not found or not enabled.");
+
+        if (!config.IsEnabled)
+            throw new InvalidOperationException($"OIDC provider '{providerId}' is disabled.");
+
+        var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
+
+        var state = Base64UrlEncode(RandomNumberGenerator.GetBytes(24));
+        var verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        var challenge = Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+
+        // Cache PKCE verifier keyed by state (10-minute TTL)
+        var cacheKey = $"oidc:state:{state}";
+        var payload = JsonSerializer.Serialize(new OidcStatePayload(providerId, verifier));
+        await cache.SetStringAsync(cacheKey, payload, new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+        }, ct);
+
+        var scopes = NormalizeScopes(config.Scopes);
+        return BuildAuthorizationUrl(discovery.AuthorizationEndpoint, config.ClientId, config.RedirectUri, scopes, state, challenge);
+    }
+
+    public async Task<SignInResponse> HandleCallbackAsync(string code, string state, CancellationToken ct = default)
+    {
+        // Retrieve and validate state
+        var cacheKey = $"oidc:state:{state}";
+        var payloadJson = await cache.GetStringAsync(cacheKey, ct)
+            ?? throw new InvalidOperationException("Invalid or expired OIDC state. Please try signing in again.");
+        await cache.RemoveAsync(cacheKey, ct);
+
+        var statePayload = JsonSerializer.Deserialize<OidcStatePayload>(payloadJson)!;
+        var config = await configRepo.GetByIdAsync(statePayload.ProviderId, ct)
+            ?? throw new InvalidOperationException("OIDC provider configuration not found.");
+
+        var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
+        var clientSecret = Encoding.UTF8.GetString(Protector.Unprotect(config.ClientSecretProtected));
+
+        // Exchange authorization code for tokens
+        var http = httpClientFactory.CreateClient("oidc-http");
+        var userInfo = await ExchangeAndFetchUserInfoAsync(http, discovery, config, code, statePayload.CodeVerifier, clientSecret, ct);
+
+        // Domain restriction
+        if (!string.IsNullOrWhiteSpace(config.AllowedDomains))
+        {
+            var allowed = config.AllowedDomains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var domain = userInfo.Email.Split('@').LastOrDefault() ?? "";
+            if (!allowed.Any(d => d.Equals(domain, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"Email domain '@{domain}' is not allowed for this SSO provider.");
+        }
+
+        var user = await UpsertUserAsync(userInfo, config.Id, config.DefaultRole, ct);
+        return await BuildResponseAsync(user);
+    }
+
+    public async Task<bool> TestProviderAsync(string providerId, CancellationToken ct = default)
+    {
+        var config = await configRepo.GetByIdAsync(providerId, ct)
+            ?? throw new InvalidOperationException($"Provider '{providerId}' not found.");
+        var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
+        return discovery.AuthorizationEndpoint is not null;
+    }
+
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private async Task<OidcDiscoveryDocument> GetDiscoveryDocumentAsync(string authority, CancellationToken ct)
+    {
+        var http = httpClientFactory.CreateClient("oidc-http");
+        var url = $"{authority.TrimEnd('/')}/.well-known/openid-configuration";
+        var doc = await http.GetFromJsonAsync<OidcDiscoveryDocument>(url, ct)
+            ?? throw new InvalidOperationException($"Failed to fetch OIDC discovery document from {url}.");
+        return doc;
+    }
+
+    private static string BuildAuthorizationUrl(
+        string authEndpoint, string clientId, string redirectUri,
+        string scopes, string state, string codeChallenge) =>
+        $"{authEndpoint}?" +
+        $"response_type=code" +
+        $"&client_id={Uri.EscapeDataString(clientId)}" +
+        $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+        $"&scope={Uri.EscapeDataString(scopes)}" +
+        $"&state={state}" +
+        $"&code_challenge={codeChallenge}" +
+        $"&code_challenge_method=S256";
+
+    private static string NormalizeScopes(string configured)
+    {
+        var parts = configured
+            .Split([',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Union(["openid", "email", "profile"])
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        return string.Join(" ", parts);
+    }
+
+    private async Task<OidcUserInfo> ExchangeAndFetchUserInfoAsync(
+        HttpClient http,
+        OidcDiscoveryDocument discovery,
+        OidcProviderConfig config,
+        string code,
+        string codeVerifier,
+        string clientSecret,
+        CancellationToken ct)
+    {
+        // Exchange code for tokens
+        var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["redirect_uri"] = config.RedirectUri,
+            ["client_id"] = config.ClientId,
+            ["client_secret"] = clientSecret,
+            ["code_verifier"] = codeVerifier,
+        });
+
+        var tokenResponse = await http.PostAsync(discovery.TokenEndpoint, tokenRequest, ct);
+        tokenResponse.EnsureSuccessStatusCode();
+
+        var tokenJson = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+        var accessToken = tokenJson.GetProperty("access_token").GetString()!;
+
+        // Fetch user info from userinfo endpoint
+        using var userInfoRequest = new HttpRequestMessage(HttpMethod.Get, discovery.UserInfoEndpoint);
+        userInfoRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var userInfoResponse = await http.SendAsync(userInfoRequest, ct);
+        userInfoResponse.EnsureSuccessStatusCode();
+
+        var userInfoJson = await userInfoResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+
+        var sub = GetStringClaim(userInfoJson, "sub")
+            ?? throw new InvalidOperationException("OIDC userinfo response missing 'sub' claim.");
+        var email = GetStringClaim(userInfoJson, "email")
+            ?? throw new InvalidOperationException("OIDC userinfo response missing 'email' claim.");
+        var name = GetStringClaim(userInfoJson, "name")
+            ?? GetStringClaim(userInfoJson, "given_name")
+            ?? email.Split('@')[0];
+
+        return new OidcUserInfo(sub, email, name);
+    }
+
+    private async Task<AppUser> UpsertUserAsync(OidcUserInfo info, string providerId, string defaultRole, CancellationToken ct)
+    {
+        // Look up by ExternalId + ExternalProvider (existing SSO user)
+        var existing = userManager.Users
+            .FirstOrDefault(u => u.ExternalId == info.Sub && u.ExternalProvider == providerId);
+
+        if (existing is not null)
+        {
+            // Keep name/email in sync
+            if (existing.Name != info.Name || existing.Email != info.Email)
+            {
+                existing.Name = info.Name;
+                existing.Email = info.Email;
+                existing.UserName = info.Email;
+                await userManager.UpdateAsync(existing);
+            }
+            return existing;
+        }
+
+        // First-time SSO login — check if local account with same email exists
+        var byEmail = await userManager.FindByEmailAsync(info.Email);
+        if (byEmail is not null)
+        {
+            // Link external identity to existing local account
+            byEmail.ExternalId = info.Sub;
+            byEmail.ExternalProvider = providerId;
+            byEmail.IsActive = true;
+            if (string.IsNullOrEmpty(byEmail.Name)) byEmail.Name = info.Name;
+            await userManager.UpdateAsync(byEmail);
+            return byEmail;
+        }
+
+        // Brand-new user — auto-provision
+        var newUser = new AppUser
+        {
+            UserName = info.Email,
+            Email = info.Email,
+            Name = info.Name,
+            ExternalId = info.Sub,
+            ExternalProvider = providerId,
+            IsActive = true,
+            EmailConfirmed = true,
+        };
+
+        var result = await userManager.CreateAsync(newUser);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Failed to create user: {errors}");
+        }
+
+        var role = await roleManager.FindByNameAsync(defaultRole) is not null ? defaultRole : "Member";
+        await userManager.AddToRoleAsync(newUser, role);
+
+        return newUser;
+    }
+
+    private async Task<SignInResponse> BuildResponseAsync(AppUser user)
+    {
+        var (accessToken, expires) = await tokenService.GenerateAccessTokenAsync(user);
+        var refreshToken = await tokenService.GenerateRefreshTokenAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
+        var expiresIn = (int)(expires - DateTime.UtcNow).TotalSeconds;
+
+        return new SignInResponse(
+            accessToken,
+            refreshToken,
+            expiresIn,
+            new UserDto(user.Id, user.Email!, user.Name, roles));
+    }
+
+    private static OidcProviderConfigDto ToDto(OidcProviderConfig p) =>
+        new(p.Id, p.DisplayName, p.Authority, p.ClientId, p.RedirectUri, p.Scopes, p.AllowedDomains, p.DefaultRole, p.IsEnabled);
+
+    private static string? GetStringClaim(JsonElement json, string key) =>
+        json.TryGetProperty(key, out var prop) ? prop.GetString() : null;
+
+    public Task<bool> GetSsoOnlyModeAsync(CancellationToken ct = default) =>
+        configRepo.GetSsoOnlyAsync(ct);
+
+    public Task SetSsoOnlyModeAsync(bool value, CancellationToken ct = default) =>
+        configRepo.SetSsoOnlyAsync(value, ct);
+
+    private static string Base64UrlEncode(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    // ── Inner types ──────────────────────────────────────────────────────────
+
+    private record OidcStatePayload(string ProviderId, string CodeVerifier);
+    private record OidcUserInfo(string Sub, string Email, string Name);
+
+    private sealed class OidcDiscoveryDocument
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("authorization_endpoint")]
+        public string AuthorizationEndpoint { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("token_endpoint")]
+        public string TokenEndpoint { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("userinfo_endpoint")]
+        public string UserInfoEndpoint { get; set; } = string.Empty;
+    }
+}
