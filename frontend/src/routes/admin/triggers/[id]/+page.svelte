@@ -21,8 +21,8 @@
   import DEFAULT_WEBHOOK_BODY from "$lib/templates/default-webhook.json?raw";
   import DEFAULT_SLACK_BODY from "$lib/templates/default-slack.json?raw";
 
-  const TRIGGER_TYPES = ["Webhook", "Email", "Slack", "PagerDuty", "MSTeams", "Telegram", "TwilioSms", "GoogleChat"];
-  const TRIGGER_LABELS: Record<string, string> = { MSTeams: "Microsoft Teams", TwilioSms: "Twilio SMS", GoogleChat: "Google Chat" };
+  const TRIGGER_TYPES = ["Webhook", "Email", "Slack", "PagerDuty", "MSTeams", "Telegram", "TwilioSms", "GoogleChat", "Discord", "Opsgenie", "Pushover", "Ntfy"];
+  const TRIGGER_LABELS: Record<string, string> = { MSTeams: "Microsoft Teams", TwilioSms: "Twilio SMS", GoogleChat: "Google Chat", Ntfy: "ntfy" };
 
   const id = $derived(page.params.id ?? "new");
   const isNew = $derived(id === "new");
@@ -61,6 +61,27 @@
   let twilioAuthToken = $state("");
   let twilioFromNumber = $state("");
   let twilioToNumber = $state("");
+
+  // Discord fields
+  let discordWebhookUrl = $state("");
+  let discordUsername = $state("");
+  let discordTemplate = $state("");
+
+  // Opsgenie fields
+  let opsgenieApiKey = $state("");
+  let opsgenieRegion = $state("us");
+  let opsgeniePriority = $state("");
+
+  // Pushover fields
+  let pushoverAppToken = $state("");
+  let pushoverUserKey = $state("");
+  let pushoverPriority = $state("");
+
+  // ntfy fields
+  let ntfyServerUrl = $state("");
+  let ntfyTopic = $state("");
+  let ntfyAccessToken = $state("");
+  let ntfyPriority = $state("");
 
   $effect(() => {
     if (triggerType === "Webhook" && !customBody.trim()) customBody = DEFAULT_WEBHOOK_BODY;
@@ -169,6 +190,14 @@
         return JSON.stringify({ accountSid: twilioAccountSid, authToken: twilioAuthToken, fromNumber: twilioFromNumber, toNumber: twilioToNumber });
       case "GoogleChat":
         return JSON.stringify({ webhookUrl: url, body: customBody || null });
+      case "Discord":
+        return JSON.stringify({ webhookUrl: discordWebhookUrl, username: discordUsername || null, template: discordTemplate || null });
+      case "Opsgenie":
+        return JSON.stringify({ apiKey: opsgenieApiKey, region: opsgenieRegion || null, priority: opsgeniePriority || null });
+      case "Pushover":
+        return JSON.stringify({ appToken: pushoverAppToken, userKey: pushoverUserKey, priority: pushoverPriority ? parseInt(pushoverPriority) : null });
+      case "Ntfy":
+        return JSON.stringify({ topic: ntfyTopic, serverUrl: ntfyServerUrl || null, accessToken: ntfyAccessToken || null, priority: ntfyPriority ? parseInt(ntfyPriority) : null });
       default:
         return JSON.stringify({ url });
     }
@@ -189,6 +218,19 @@
       twilioAuthToken = meta.authToken ?? "";
       twilioFromNumber = meta.fromNumber ?? "";
       twilioToNumber = meta.toNumber ?? "";
+      discordWebhookUrl = meta.webhookUrl && triggerType === "Discord" ? meta.webhookUrl : discordWebhookUrl;
+      discordUsername = meta.username ?? "";
+      discordTemplate = meta.template && triggerType === "Discord" ? meta.template : discordTemplate;
+      opsgenieApiKey = meta.apiKey ?? "";
+      opsgenieRegion = meta.region ?? "us";
+      opsgeniePriority = meta.priority ?? "";
+      pushoverAppToken = meta.appToken ?? "";
+      pushoverUserKey = meta.userKey ?? "";
+      pushoverPriority = meta.priority?.toString() ?? "";
+      ntfyTopic = meta.topic ?? "";
+      ntfyServerUrl = meta.serverUrl ?? "";
+      ntfyAccessToken = meta.accessToken ?? "";
+      ntfyPriority = meta.priority?.toString() ?? "";
       headers = meta.headers ?? [];
       if (meta.body) customBody = meta.body;
     } catch { /* ignore */ }
@@ -203,7 +245,12 @@
     if (triggerType === "TwilioSms" && !twilioAuthToken.trim()) return "Auth Token is required.";
     if (triggerType === "TwilioSms" && !twilioFromNumber.trim()) return "From Number is required.";
     if (triggerType === "TwilioSms" && !twilioToNumber.trim()) return "To Number is required.";
-    if (!["Email", "Telegram", "TwilioSms"].includes(triggerType) && !url.trim()) return "URL is required.";
+    if (triggerType === "Discord" && !discordWebhookUrl.trim()) return "Webhook URL is required.";
+    if (triggerType === "Opsgenie" && !opsgenieApiKey.trim()) return "API Key is required.";
+    if (triggerType === "Pushover" && !pushoverAppToken.trim()) return "App Token is required.";
+    if (triggerType === "Pushover" && !pushoverUserKey.trim()) return "User Key is required.";
+    if (triggerType === "Ntfy" && !ntfyTopic.trim()) return "Topic is required.";
+    if (!["Email", "Telegram", "TwilioSms", "Discord", "Opsgenie", "Pushover", "Ntfy"].includes(triggerType) && !url.trim()) return "URL is required.";
     return null;
   }
 
@@ -417,6 +464,123 @@
               </div>
             </div>
           </div>
+        {:else if triggerType === "Discord"}
+          <!-- Discord fields -->
+          <div class="space-y-1.5">
+            <Label>Webhook URL <span class="text-destructive">*</span></Label>
+            <Input bind:value={discordWebhookUrl} placeholder="https://discord.com/api/webhooks/..." />
+            <p class="text-xs text-muted-foreground">Create one under Server Settings → Integrations → Webhooks.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Bot Username</Label>
+            <Input bind:value={discordUsername} placeholder="Piro" />
+            <p class="text-xs text-muted-foreground">Override the webhook display name (optional).</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Custom Message Template</Label>
+            <p class="text-xs text-muted-foreground">
+              Leave blank to use the default embed. Use Mustache variables:
+              <span class="font-mono text-xs">alert_name, alert_for, alert_status, alert_severity, alert_description, alert_timestamp, is_resolved, is_triggered</span>
+            </p>
+            <Textarea bind:value={discordTemplate} class="font-mono text-sm min-h-24"
+              placeholder={"🚨 **{{alert_name}}** on {{alert_for}} is {{alert_status}}"} />
+          </div>
+        {:else if triggerType === "Opsgenie"}
+          <!-- Opsgenie fields -->
+          <div class="space-y-1.5">
+            <Label>API Key <span class="text-destructive">*</span></Label>
+            <Input bind:value={opsgenieApiKey} type="password" placeholder="Your Opsgenie API integration key" />
+            <p class="text-xs text-muted-foreground">Found under Teams → Integrations → API in Opsgenie.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Region</Label>
+            <Select.Root type="single" bind:value={opsgenieRegion}>
+              <Select.Trigger class="w-full">
+                {opsgenieRegion === "eu" ? "EU (api.eu.opsgenie.com)" : "US (api.opsgenie.com)"}
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="us">US (api.opsgenie.com)</Select.Item>
+                <Select.Item value="eu">EU (api.eu.opsgenie.com)</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Priority</Label>
+            <Select.Root type="single" bind:value={opsgeniePriority}>
+              <Select.Trigger class="w-full">
+                {opsgeniePriority || "Auto (based on severity)"}
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="">Auto (based on severity)</Select.Item>
+                <Select.Item value="P1">P1 — Critical</Select.Item>
+                <Select.Item value="P2">P2 — High</Select.Item>
+                <Select.Item value="P3">P3 — Moderate</Select.Item>
+                <Select.Item value="P4">P4 — Low</Select.Item>
+                <Select.Item value="P5">P5 — Informational</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
+        {:else if triggerType === "Pushover"}
+          <!-- Pushover fields -->
+          <div class="space-y-1.5">
+            <Label>App Token <span class="text-destructive">*</span></Label>
+            <Input bind:value={pushoverAppToken} type="password" placeholder="Your Pushover application token" />
+            <p class="text-xs text-muted-foreground">Created at <span class="font-mono">pushover.net/apps/build</span>.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>User / Group Key <span class="text-destructive">*</span></Label>
+            <Input bind:value={pushoverUserKey} placeholder="Your Pushover user or group key" />
+            <p class="text-xs text-muted-foreground">Found on your Pushover dashboard.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Priority</Label>
+            <Select.Root type="single" bind:value={pushoverPriority}>
+              <Select.Trigger class="w-full">
+                {pushoverPriority !== "" ? `${pushoverPriority}` : "Auto (based on severity)"}
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="">Auto (based on severity)</Select.Item>
+                <Select.Item value="2">2 — Emergency (requires acknowledgement)</Select.Item>
+                <Select.Item value="1">1 — High</Select.Item>
+                <Select.Item value="0">0 — Normal</Select.Item>
+                <Select.Item value="-1">-1 — Low</Select.Item>
+                <Select.Item value="-2">-2 — Lowest (no notification)</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
+        {:else if triggerType === "Ntfy"}
+          <!-- ntfy fields -->
+          <div class="space-y-1.5">
+            <Label>Topic <span class="text-destructive">*</span></Label>
+            <Input bind:value={ntfyTopic} placeholder="my-alerts" />
+            <p class="text-xs text-muted-foreground">The topic name to publish to.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Server URL</Label>
+            <Input bind:value={ntfyServerUrl} placeholder="https://ntfy.sh" />
+            <p class="text-xs text-muted-foreground">Leave blank to use <span class="font-mono">ntfy.sh</span>. Enter your self-hosted server URL if applicable.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Access Token</Label>
+            <Input bind:value={ntfyAccessToken} type="password" placeholder="tk_..." />
+            <p class="text-xs text-muted-foreground">Required for protected topics.</p>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Priority</Label>
+            <Select.Root type="single" bind:value={ntfyPriority}>
+              <Select.Trigger class="w-full">
+                {ntfyPriority !== "" ? `${ntfyPriority}` : "Auto (based on severity)"}
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="">Auto (based on severity)</Select.Item>
+                <Select.Item value="5">5 — Urgent</Select.Item>
+                <Select.Item value="4">4 — High</Select.Item>
+                <Select.Item value="3">3 — Default</Select.Item>
+                <Select.Item value="2">2 — Low</Select.Item>
+                <Select.Item value="1">1 — Min</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
         {:else if triggerType === "TwilioSms"}
           <!-- Twilio SMS fields -->
           <div class="space-y-1.5">
@@ -538,6 +702,17 @@
               <Label>Custom Card Payload</Label>
               <p class="text-xs text-muted-foreground">
                 Override the default Google Chat card with a custom JSON payload.
+                Use Mustache variables like <code class="bg-muted px-1 rounded text-xs">{"{{variable}}"}</code>.
+                Available: <span class="font-mono text-xs">alert_name, alert_for, alert_status, alert_severity, alert_description, alert_timestamp, is_resolved, is_triggered</span>
+              </p>
+              <Textarea bind:value={customBody} class="font-mono text-sm min-h-48" />
+            </div>
+          {:else if triggerType === "MSTeams"}
+            <!-- MSTeams custom body -->
+            <div class="space-y-1.5">
+              <Label>Custom Adaptive Card Payload</Label>
+              <p class="text-xs text-muted-foreground">
+                Override the default card with a custom JSON payload.
                 Use Mustache variables like <code class="bg-muted px-1 rounded text-xs">{"{{variable}}"}</code>.
                 Available: <span class="font-mono text-xs">alert_name, alert_for, alert_status, alert_severity, alert_description, alert_timestamp, is_resolved, is_triggered</span>
               </p>

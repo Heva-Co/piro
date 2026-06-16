@@ -164,6 +164,11 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ITriggerDispatcher, SlackTriggerDispatcher>();
         services.AddScoped<ITriggerDispatcher, TwilioSmsTriggerDispatcher>();
         services.AddScoped<ITriggerDispatcher, GoogleChatTriggerDispatcher>();
+        services.AddScoped<ITriggerDispatcher, MsTeamsTriggerDispatcher>();
+        services.AddScoped<ITriggerDispatcher, DiscordTriggerDispatcher>();
+        services.AddScoped<ITriggerDispatcher, OpsgenieTriggerDispatcher>();
+        services.AddScoped<ITriggerDispatcher, PushoverTriggerDispatcher>();
+        services.AddScoped<ITriggerDispatcher, NtfyTriggerDispatcher>();
 
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();
