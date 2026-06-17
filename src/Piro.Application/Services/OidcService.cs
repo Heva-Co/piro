@@ -76,13 +76,13 @@ public class OidcService(
         var siteConfig = await siteConfigRepo.GetAsync(ct);
         var baseUrl = siteConfig.Url?.TrimEnd('/');
 
-        // Fall back to env var for backwards compatibility
+        // Fall back to env var
         if (string.IsNullOrWhiteSpace(baseUrl))
-            baseUrl = configuration["App:FrontendUrl"]?.TrimEnd('/');
+            baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/');
 
         if (string.IsNullOrWhiteSpace(baseUrl))
             throw new InvalidOperationException(
-                "Site URL is not configured. Set it in Configuration → General or via the ORIGIN env var.");
+                "Site URL is not configured. Set it in Configuration → General or via the App__BaseUrl env var.");
 
         return $"{baseUrl}/auth/oidc/callback";
     }

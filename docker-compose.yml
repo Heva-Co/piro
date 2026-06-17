@@ -27,7 +27,7 @@ services:
       - Email__Username=${EMAIL_USERNAME:-}
       - Email__Password=${EMAIL_PASSWORD:-}
       - Email__From=${EMAIL_FROM:-}
-      - App__FrontendUrl=${ORIGIN:-http://localhost:3000}
+      - App__BaseUrl=${ORIGIN:-http://localhost:3000}
       - PIRO_API_WORKER=true
       - PIRO_WORKER_REGION=${WORKER_REGION:-default}
     volumes:

@@ -10,7 +10,8 @@ public class UserManagementService(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
     IEmailService emailService,
-    IConfiguration configuration) : IUserManagementService
+    IConfiguration configuration,
+    ISiteConfigRepository siteConfigRepo) : IUserManagementService
 {
     private const string InvitationTokenPurpose = "Invitation";
     private static readonly TimeSpan InvitationExpiry = TimeSpan.FromHours(48);
@@ -70,7 +71,10 @@ public class UserManagementService(
         var expiry = DateTimeOffset.UtcNow.Add(InvitationExpiry).ToUnixTimeSeconds().ToString();
         await userManager.SetAuthenticationTokenAsync(user, "Piro", "InvitationExpiry", expiry);
 
-        var baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+        var siteConfig = await siteConfigRepo.GetAsync(ct);
+        var baseUrl = siteConfig.Url?.TrimEnd('/')
+            ?? configuration["App:BaseUrl"]?.TrimEnd('/')
+            ?? "http://localhost:5173";
         var inviteUrl = $"{baseUrl}/invite/{Uri.EscapeDataString(token)}?userId={user.Id}";
 
         var html = BuildInvitationEmail(inviteUrl);
