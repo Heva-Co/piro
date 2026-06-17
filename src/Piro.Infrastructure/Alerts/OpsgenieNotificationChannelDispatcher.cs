@@ -9,20 +9,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Opens and closes Opsgenie alerts via the REST API.</summary>
-public class OpsgenieTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public class OpsgenieNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Opsgenie;
+    public NotificationChannelType Type => NotificationChannelType.Opsgenie;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<OpsgenieTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<OpsgenieTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Opsgenie trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.ApiKey))
         {
-            logger.LogWarning("Opsgenie trigger {TriggerId} has no API key configured.", trigger.Id);
+            logger.LogWarning("Opsgenie channel {ChannelId} has no API key configured.", channel.Id);
             return;
         }
 
@@ -75,7 +75,7 @@ public class OpsgenieTriggerDispatcher(IHttpClientFactory httpClientFactory, ILo
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Opsgenie request timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Opsgenie request timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Opsgenie request timed out after 15 seconds.");
         }
 

@@ -25,7 +25,7 @@
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import LockIcon from "@lucide/svelte/icons/lock";
   import { format } from "date-fns";
-  import type { CheckDataPointDto, AlertConfigDto, TriggerDto } from "$lib/api.js";
+  import type { CheckDataPointDto, AlertConfigDto, NotificationChannelDto } from "$lib/api.js";
   import { formatStatus } from "$lib/api.js";
 
   const serviceSlug = $derived(page.params.slug);
@@ -84,7 +84,7 @@
   let alertConfigs = $state<AlertConfigDto[]>([]);
   let alertConfigsLoading = $state(false);
   let alertConfigsLoaded = $state(false);
-  let triggers = $state<TriggerDto[]>([]);
+  let channels = $state<NotificationChannelDto[]>([]);
   let showNewAlertForm = $state(false);
   let newAlertFor = $state("Status");
   let newAlertValue = $state("DOWN");
@@ -307,14 +307,14 @@
   async function fetchAlertConfigs() {
     alertConfigsLoading = true;
     try {
-      const [configs, allTriggers] = await Promise.all([
+      const [configs, allChannels] = await Promise.all([
         fetch("/admin/api", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "getAlertConfigs", data: { serviceSlug, checkSlug } }) }).then(r => r.json()),
         fetch("/admin/api", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "getTriggers", data: {} }) }).then(r => r.json()),
+          body: JSON.stringify({ action: "getChannels", data: {} }) }).then(r => r.json()),
       ]);
       if (!configs.error) alertConfigs = configs;
-      if (!allTriggers.error) triggers = allTriggers;
+      if (!allChannels.error) channels = allTriggers;
     } catch { /* ignore */ }
     finally { alertConfigsLoading = false; alertConfigsLoaded = true; }
   }
@@ -328,7 +328,7 @@
           alertFor: newAlertFor, alertValue: newAlertValue,
           failureThreshold: newFailureThreshold, successThreshold: newSuccessThreshold,
           severity: newAlertSeverity, description: newAlertDescription || null,
-          triggerIds: newAlertTriggerIds,
+          notificationChannelIds: newAlertTriggerIds,
         }}) });
       const result = await res.json();
       if (!result.error) {
@@ -761,7 +761,7 @@
                       <p class="text-xs text-muted-foreground">
                         Fire after {cfg.failureThreshold} failure{cfg.failureThreshold !== 1 ? "s" : ""} ·
                         Resolve after {cfg.successThreshold} success{cfg.successThreshold !== 1 ? "es" : ""}
-                        {cfg.triggerIds.length > 0 ? ` · ${cfg.triggerIds.length} trigger${cfg.triggerIds.length !== 1 ? "s" : ""}` : " · No triggers"}
+                        {cfg.notificationChannelIds.length > 0 ? ` · ${cfg.notificationChannelIds.length} channel${cfg.notificationChannelIds.length !== 1 ? "s" : ""}` : " · No channels"}
                       </p>
                       {#if cfg.description}
                         <p class="text-xs text-muted-foreground">{cfg.description}</p>
@@ -825,14 +825,14 @@
                     <Label>Description (optional)</Label>
                     <Input bind:value={newAlertDescription} placeholder="Brief description of this alert rule" />
                   </div>
-                  {#if triggers.length > 0}
+                  {#if channels.length > 0}
                     <div class="flex flex-col gap-2">
                       <Label>Notification channels</Label>
                       {#if newAlertTriggerIds.length === 0}
                         <p class="text-xs text-amber-500">No channel selected — the alert will still fire but no notification will be sent.</p>
                       {/if}
                       <div class="flex flex-wrap gap-2">
-                        {#each triggers as t (t.id)}
+                        {#each channels as t (t.id)}
                           <label class="flex items-center gap-2 {t.isLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}">
                             <input type="checkbox"
                               checked={newAlertTriggerIds.includes(t.id) || t.isGlobal}
@@ -855,7 +855,7 @@
                     </div>
                   {:else}
                     <p class="text-xs text-muted-foreground">
-                      No notification channels configured. <a href="/admin/triggers" class="underline">Create triggers</a> first.
+                      No notification channels configured. <a href="/admin/channels" class="underline">Create channels</a> first.
                     </p>
                   {/if}
                   <div class="flex gap-2 justify-end">

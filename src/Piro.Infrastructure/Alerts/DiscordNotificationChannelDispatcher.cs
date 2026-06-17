@@ -10,20 +10,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Discord Incoming Webhook.</summary>
-public partial class DiscordTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class DiscordNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Discord;
+    public NotificationChannelType Type => NotificationChannelType.Discord;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<DiscordTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<DiscordTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Discord trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.WebhookUrl))
         {
-            logger.LogWarning("Discord trigger {TriggerId} has no webhook URL configured.", trigger.Id);
+            logger.LogWarning("Discord channel {ChannelId} has no webhook URL configured.", channel.Id);
             return;
         }
 
@@ -54,7 +54,7 @@ public partial class DiscordTriggerDispatcher(IHttpClientFactory httpClientFacto
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Discord webhook timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Discord webhook timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Discord webhook request timed out after 15 seconds.");
         }
 

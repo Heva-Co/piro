@@ -10,20 +10,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Slack Incoming Webhook URL.</summary>
-public partial class SlackTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<SlackTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class SlackNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<SlackNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Slack;
+    public NotificationChannelType Type => NotificationChannelType.Slack;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<SlackTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<SlackTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Slack trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.Url))
         {
-            logger.LogWarning("Slack trigger {TriggerId} has no webhook URL configured.", trigger.Id);
+            logger.LogWarning("Slack channel {ChannelId} has no webhook URL configured.", channel.Id);
             return;
         }
 
@@ -43,7 +43,7 @@ public partial class SlackTriggerDispatcher(IHttpClientFactory httpClientFactory
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Slack webhook timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Slack webhook timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Slack webhook request timed out after 15 seconds.");
         }
 

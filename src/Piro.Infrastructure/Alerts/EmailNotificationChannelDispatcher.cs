@@ -10,24 +10,24 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications via SMTP using MailKit.</summary>
-public partial class EmailTriggerDispatcher(
+public partial class EmailNotificationChannelDispatcher(
     IEmailService emailService,
     IConfiguration configuration,
     ISiteConfigRepository siteConfigRepo,
-    ILogger<EmailTriggerDispatcher> logger)
-    : ITriggerDispatcher
+    ILogger<EmailNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Email;
+    public NotificationChannelType Type => NotificationChannelType.Email;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = System.Text.Json.JsonSerializer.Deserialize<EmailTriggerMeta>(trigger.MetaJson,
+        var meta = System.Text.Json.JsonSerializer.Deserialize<EmailTriggerMeta>(channel.MetaJson,
             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid email trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.To))
         {
-            logger.LogWarning("Email trigger {TriggerId} has no recipient address configured.", trigger.Id);
+            logger.LogWarning("Email channel {ChannelId} has no recipient address configured.", channel.Id);
             return;
         }
 

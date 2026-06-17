@@ -9,76 +9,76 @@ using Piro.Domain.Enums;
 
 namespace Piro.Api.Controllers;
 
-/// <summary>Manages notification channel (trigger) configurations.</summary>
+/// <summary>Manages notification channel configurations.</summary>
 [Authorize]
 [ApiController]
-[Route("api/v1/triggers")]
+[Route("api/v1/notification-channels")]
 [Produces("application/json")]
-public class TriggersController(TriggerAppService triggerApp, IEnumerable<ITriggerDispatcher> dispatchers) : ControllerBase
+public class NotificationChannelsController(NotificationChannelAppService channelApp, IEnumerable<INotificationChannelDispatcher> dispatchers) : ControllerBase
 {
-    private readonly Dictionary<TriggerType, ITriggerDispatcher> _dispatchers =
+    private readonly Dictionary<NotificationChannelType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
-    /// <summary>Returns all configured triggers.</summary>
+    /// <summary>Returns all configured notification channels.</summary>
     [HttpGet]
-    [ProducesResponseType<IEnumerable<TriggerDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IEnumerable<NotificationChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        Ok(await triggerApp.GetAllAsync(ct));
+        Ok(await channelApp.GetAllAsync(ct));
 
-    /// <summary>Returns a single trigger by id.</summary>
+    /// <summary>Returns a single notification channel by id.</summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType<TriggerDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<NotificationChannelDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
-        Ok(await triggerApp.GetByIdAsync(id, ct));
+        Ok(await channelApp.GetByIdAsync(id, ct));
 
-    /// <summary>Creates a new notification trigger.</summary>
+    /// <summary>Creates a new notification channel.</summary>
     [HttpPost]
-    [ProducesResponseType<TriggerDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<NotificationChannelDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateTriggerRequest request, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateNotificationChannelRequest request, CancellationToken ct)
     {
-        var created = await triggerApp.CreateAsync(request, ct);
+        var created = await channelApp.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    /// <summary>Updates an existing trigger.</summary>
+    /// <summary>Updates an existing notification channel.</summary>
     [HttpPut("{id:int}")]
-    [ProducesResponseType<TriggerDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<NotificationChannelDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateTriggerRequest request, CancellationToken ct) =>
-        Ok(await triggerApp.UpdateAsync(id, request, ct));
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateNotificationChannelRequest request, CancellationToken ct) =>
+        Ok(await channelApp.UpdateAsync(id, request, ct));
 
-    /// <summary>Deletes a trigger.</summary>
+    /// <summary>Deletes a notification channel.</summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        await triggerApp.DeleteAsync(id, ct);
+        await channelApp.DeleteAsync(id, ct);
         return NoContent();
     }
 
     /// <summary>
-    /// Sends a test notification using the provided trigger configuration.
-    /// The trigger does not need to be saved first.
+    /// Sends a test notification using the provided channel configuration.
+    /// The channel does not need to be saved first.
     /// </summary>
     [HttpPost("test")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Test([FromBody] TestTriggerRequest request, CancellationToken ct)
+    public async Task<IActionResult> Test([FromBody] TestNotificationChannelRequest request, CancellationToken ct)
     {
-        if (!Enum.TryParse<TriggerType>(request.Type, out var triggerType))
-            return BadRequest(new { error = $"Unknown trigger type: {request.Type}" });
+        if (!Enum.TryParse<NotificationChannelType>(request.Type, out var channelType))
+            return BadRequest(new { error = $"Unknown notification channel type: {request.Type}" });
 
-        if (!_dispatchers.TryGetValue(triggerType, out var dispatcher))
+        if (!_dispatchers.TryGetValue(channelType, out var dispatcher))
             return BadRequest(new { error = $"No dispatcher available for type: {request.Type}" });
 
-        var trigger = new Trigger
+        var channel = new NotificationChannel
         {
             Id = 0,
-            Name = request.Name ?? "Test Trigger",
-            Type = triggerType,
+            Name = request.Name ?? "Test Channel",
+            Type = channelType,
             MetaJson = request.MetaJson ?? "{}"
         };
 
@@ -95,7 +95,7 @@ public class TriggersController(TriggerAppService triggerApp, IEnumerable<ITrigg
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            await dispatcher.DispatchAsync(trigger, context, cts.Token);
+            await dispatcher.DispatchAsync(channel, context, cts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -110,4 +110,4 @@ public class TriggersController(TriggerAppService triggerApp, IEnumerable<ITrigg
     }
 }
 
-public record TestTriggerRequest(string Type, string? MetaJson = null, string? Name = null);
+public record TestNotificationChannelRequest(string Type, string? MetaJson = null, string? Name = null);

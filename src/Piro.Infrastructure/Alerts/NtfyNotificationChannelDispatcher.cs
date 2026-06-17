@@ -9,20 +9,20 @@ using System.Text.Json;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via ntfy.sh or a self-hosted ntfy instance.</summary>
-public class NtfyTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public class NtfyNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Ntfy;
+    public NotificationChannelType Type => NotificationChannelType.Ntfy;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<NtfyTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<NtfyTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid ntfy trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.Topic))
         {
-            logger.LogWarning("ntfy trigger {TriggerId} has no topic configured.", trigger.Id);
+            logger.LogWarning("ntfy channel {ChannelId} has no topic configured.", channel.Id);
             return;
         }
 
@@ -70,7 +70,7 @@ public class NtfyTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("ntfy request timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("ntfy request timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("ntfy request timed out after 15 seconds.");
         }
 

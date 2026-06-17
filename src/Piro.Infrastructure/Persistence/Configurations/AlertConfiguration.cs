@@ -5,7 +5,7 @@ using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Configurations;
 
-/// <summary>EF Core mapping for <see cref="AlertConfig"/> and <see cref="AlertConfigTrigger"/>.</summary>
+/// <summary>EF Core mapping for <see cref="AlertConfig"/> and <see cref="AlertConfigNotificationChannel"/>.</summary>
 internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
 {
     public void Configure(EntityTypeBuilder<AlertConfig> builder)
@@ -24,20 +24,21 @@ internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
     }
 }
 
-internal class AlertConfigTriggerConfiguration : IEntityTypeConfiguration<AlertConfigTrigger>
+internal class AlertConfigNotificationChannelConfiguration : IEntityTypeConfiguration<AlertConfigNotificationChannel>
 {
-    public void Configure(EntityTypeBuilder<AlertConfigTrigger> builder)
+    public void Configure(EntityTypeBuilder<AlertConfigNotificationChannel> builder)
     {
-        builder.HasKey(at => new { at.AlertConfigId, at.TriggerId });
+        builder.ToTable("AlertConfigNotificationChannels");
+        builder.HasKey(ac => new { ac.AlertConfigId, ac.NotificationChannelId });
 
-        builder.HasOne(at => at.AlertConfig)
-            .WithMany(a => a.AlertConfigTriggers)
-            .HasForeignKey(at => at.AlertConfigId)
+        builder.HasOne(ac => ac.AlertConfig)
+            .WithMany(a => a.AlertConfigNotificationChannels)
+            .HasForeignKey(ac => ac.AlertConfigId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(at => at.Trigger)
-            .WithMany(t => t.AlertConfigTriggers)
-            .HasForeignKey(at => at.TriggerId)
+        builder.HasOne(ac => ac.NotificationChannel)
+            .WithMany(c => c.AlertConfigNotificationChannels)
+            .HasForeignKey(ac => ac.NotificationChannelId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -10,13 +10,13 @@ using Twilio.Rest.Api.V2010.Account;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications as SMS via the Twilio API.</summary>
-public class TwilioSmsTriggerDispatcher(ILogger<TwilioSmsTriggerDispatcher> logger) : ITriggerDispatcher
+public class TwilioSmsNotificationChannelDispatcher(ILogger<TwilioSmsNotificationChannelDispatcher> logger) : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.TwilioSms;
+    public NotificationChannelType Type => NotificationChannelType.TwilioSms;
 
-    public Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<TwilioSmsTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<TwilioSmsTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Twilio SMS trigger metadata.");
 

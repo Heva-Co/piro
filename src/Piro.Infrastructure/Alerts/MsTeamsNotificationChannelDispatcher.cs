@@ -10,20 +10,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Microsoft Teams Incoming Webhook using Adaptive Cards.</summary>
-public partial class MsTeamsTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<MsTeamsTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class MsTeamsNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<MsTeamsNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.MSTeams;
+    public NotificationChannelType Type => NotificationChannelType.MSTeams;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<MsTeamsTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<MsTeamsTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Microsoft Teams trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.Url))
         {
-            logger.LogWarning("Microsoft Teams trigger {TriggerId} has no webhook URL configured.", trigger.Id);
+            logger.LogWarning("Microsoft Teams channel {ChannelId} has no webhook URL configured.", channel.Id);
             return;
         }
 
@@ -43,7 +43,7 @@ public partial class MsTeamsTriggerDispatcher(IHttpClientFactory httpClientFacto
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Microsoft Teams webhook timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Microsoft Teams webhook timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Microsoft Teams webhook request timed out after 15 seconds.");
         }
 

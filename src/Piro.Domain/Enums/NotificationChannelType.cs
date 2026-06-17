@@ -1,7 +1,7 @@
 namespace Piro.Domain.Enums;
 
-/// <summary>Notification channel used by a trigger.</summary>
-public enum TriggerType
+/// <summary>Notification channel type.</summary>
+public enum NotificationChannelType
 {
     Email,
     Webhook,
