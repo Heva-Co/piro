@@ -141,29 +141,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       }
 
       // ── Triggers ─────────────────────────────────────────────────────────
-      case "getTriggers": {
-        const triggers = await adminApi.getTriggers(token);
+      case "getChannels": {
+        const triggers = await adminApi.getChannels(token);
         return json(triggers);
       }
-      case "getTrigger": {
-        const trigger = await adminApi.getTrigger(token, data.id);
+      case "getChannel": {
+        const trigger = await adminApi.getChannel(token, data.id);
         return json(trigger);
       }
-      case "createTrigger": {
-        const trigger = await adminApi.createTrigger(token, data);
+      case "createChannel": {
+        const trigger = await adminApi.createChannel(token, data);
         return json(trigger);
       }
-      case "updateTrigger": {
+      case "updateChannel": {
         const { id, ...rest } = data;
-        const trigger = await adminApi.updateTrigger(token, id, rest);
+        const trigger = await adminApi.updateChannel(token, id, rest);
         return json(trigger);
       }
-      case "deleteTrigger": {
-        await adminApi.deleteTrigger(token, data.id);
+      case "deleteChannel": {
+        await adminApi.deleteChannel(token, data.id);
         return json({ success: true });
       }
-      case "testTrigger": {
-        const result = await adminApi.testTrigger(token, { type: data.type, metaJson: data.metaJson, name: data.name });
+      case "testChannel": {
+        const result = await adminApi.testChannel(token, { type: data.type, metaJson: data.metaJson, name: data.name });
         return json(result);
       }
 

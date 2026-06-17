@@ -12,26 +12,26 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications via the Telegram Bot API (sendMessage).</summary>
-public partial class TelegramTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class TelegramNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Telegram;
+    public NotificationChannelType Type => NotificationChannelType.Telegram;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<TelegramTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<TelegramTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Telegram trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.BotToken))
         {
-            logger.LogWarning("Telegram trigger {TriggerId} has no bot token configured.", trigger.Id);
+            logger.LogWarning("Telegram channel {ChannelId} has no bot token configured.", channel.Id);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(meta.ChatId))
         {
-            logger.LogWarning("Telegram trigger {TriggerId} has no chat ID configured.", trigger.Id);
+            logger.LogWarning("Telegram channel {ChannelId} has no chat ID configured.", channel.Id);
             return;
         }
 
@@ -59,7 +59,7 @@ public partial class TelegramTriggerDispatcher(IHttpClientFactory httpClientFact
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Telegram request timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Telegram request timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Telegram request timed out after 15 seconds.");
         }
 

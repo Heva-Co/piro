@@ -2,10 +2,10 @@ using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
 
-public record TriggerDto(
+public record NotificationChannelDto(
     int Id,
     string Name,
-    TriggerType Type,
+    NotificationChannelType Type,
     string? Description,
     string? Status,
     string MetaJson,
@@ -16,16 +16,16 @@ public record TriggerDto(
     int AlertConfigCount = 0
 );
 
-public record CreateTriggerRequest(
+public record CreateNotificationChannelRequest(
     string Name,
-    TriggerType Type,
+    NotificationChannelType Type,
     string? Description = null,
     string MetaJson = "{}",
     bool IsGlobal = false,
     bool IsLocked = false
 );
 
-public record UpdateTriggerRequest(
+public record UpdateNotificationChannelRequest(
     string? Name,
     string? Description,
     string? Status,

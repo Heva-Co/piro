@@ -13,7 +13,7 @@ namespace Piro.Application.Services;
 public class YamlImportService(
     IServiceRepository serviceRepo,
     ICheckRepository checkRepo,
-    ITriggerRepository triggerRepo,
+    INotificationChannelRepository channelRepo,
     IAlertConfigRepository alertConfigRepo,
     ICheckSchedulerService checkScheduler)
 {
@@ -44,49 +44,49 @@ public class YamlImportService(
         var entries = new List<ImportPlanEntryDto>();
         var errors = new List<string>();
 
-        // ── Triggers ─────────────────────────────────────────────────────────
-        var existingTriggers = (await triggerRepo.GetAllAsync(ct))
-            .ToDictionary(t => t.Name, StringComparer.OrdinalIgnoreCase);
+        // ── Notification Channels ─────────────────────────────────────────────
+        var existingChannels = (await channelRepo.GetAllAsync(ct))
+            .ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
 
         foreach (var t in config.Triggers ?? [])
         {
             if (string.IsNullOrWhiteSpace(t.Name))
-            { errors.Add("Trigger entry missing required field 'name'."); continue; }
+            { errors.Add("Notification channel entry missing required field 'name'."); continue; }
             if (string.IsNullOrWhiteSpace(t.Type))
-            { errors.Add($"Trigger '{t.Name}' missing required field 'type'."); continue; }
-            if (!Enum.TryParse<TriggerType>(t.Type, ignoreCase: true, out var triggerType))
-            { errors.Add($"Trigger '{t.Name}': unknown type '{t.Type}'."); continue; }
+            { errors.Add($"Notification channel '{t.Name}' missing required field 'type'."); continue; }
+            if (!Enum.TryParse<NotificationChannelType>(t.Type, ignoreCase: true, out var channelType))
+            { errors.Add($"Notification channel '{t.Name}': unknown type '{t.Type}'."); continue; }
 
             var metaJson = ToJson(t.Meta);
 
-            if (existingTriggers.TryGetValue(t.Name, out var existing))
+            if (existingChannels.TryGetValue(t.Name, out var existing))
             {
-                bool changed = existing.Type != triggerType
+                bool changed = existing.Type != channelType
                     || existing.MetaJson != metaJson
                     || (existing.Status ?? "ACTIVE") != (t.Status ?? "ACTIVE")
                     || existing.Description != t.Description;
 
-                if (!changed) { entries.Add(Skip("Trigger", t.Name)); continue; }
+                if (!changed) { entries.Add(Skip("NotificationChannel", t.Name)); continue; }
 
-                entries.Add(Entry("Trigger", t.Name, null, null, "Update", $"type: {t.Type}"));
+                entries.Add(Entry("NotificationChannel", t.Name, null, null, "Update", $"type: {t.Type}"));
                 if (!dryRun)
                 {
-                    existing.Type = triggerType;
+                    existing.Type = channelType;
                     existing.MetaJson = metaJson;
                     existing.Status = t.Status ?? "ACTIVE";
                     existing.Description = t.Description;
                     existing.UpdatedAt = DateTime.UtcNow;
-                    await triggerRepo.UpdateAsync(existing, ct);
+                    await channelRepo.UpdateAsync(existing, ct);
                 }
             }
             else
             {
-                entries.Add(Entry("Trigger", t.Name, null, null, "Create", $"type: {t.Type}"));
+                entries.Add(Entry("NotificationChannel", t.Name, null, null, "Create", $"type: {t.Type}"));
                 if (!dryRun)
-                    await triggerRepo.CreateAsync(new Trigger
+                    await channelRepo.CreateAsync(new NotificationChannel
                     {
                         Name = t.Name,
-                        Type = triggerType,
+                        Type = channelType,
                         Status = t.Status ?? "ACTIVE",
                         Description = t.Description,
                         MetaJson = metaJson,

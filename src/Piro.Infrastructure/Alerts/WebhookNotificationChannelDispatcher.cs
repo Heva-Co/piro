@@ -12,20 +12,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>POSTs a JSON payload to a webhook URL when an alert fires or recovers.</summary>
-public partial class WebhookTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<WebhookTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class WebhookNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<WebhookNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.Webhook;
+    public NotificationChannelType Type => NotificationChannelType.Webhook;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<WebhookTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<WebhookTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid webhook trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.Url))
         {
-            logger.LogWarning("Webhook trigger {TriggerId} has no URL configured.", trigger.Id);
+            logger.LogWarning("Webhook channel {ChannelId} has no URL configured.", channel.Id);
             return;
         }
 
@@ -65,7 +65,7 @@ public partial class WebhookTriggerDispatcher(IHttpClientFactory httpClientFacto
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Webhook {Url} timed out for trigger {TriggerId}.", meta.Url, trigger.Id);
+            logger.LogWarning("Webhook {Url} timed out for channel {ChannelId}.", meta.Url, channel.Id);
             throw new InvalidOperationException($"Webhook request to {meta.Url} timed out after 15 seconds.");
         }
 

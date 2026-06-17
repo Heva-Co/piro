@@ -10,7 +10,7 @@ public class AlertConfigAppService(
     IAlertConfigRepository alertConfigRepository,
     ICheckRepository checkRepository,
     IServiceRepository serviceRepository,
-    ITriggerRepository triggerRepository)
+    INotificationChannelRepository channelRepository)
 {
     public async Task<IEnumerable<AlertConfigDto>> GetByCheckAsync(
         string serviceSlug, string checkSlug, CancellationToken ct = default)
@@ -50,12 +50,12 @@ public class AlertConfigAppService(
 
         var created = await alertConfigRepository.CreateAsync(config, ct);
 
-        // Merge requested triggers with all global triggers
-        var globalTriggers = await triggerRepository.GetGlobalAsync(ct);
-        var mergedIds = (request.TriggerIds ?? [])
-            .Union(globalTriggers.Select(t => t.Id))
+        // Merge requested channels with all global channels
+        var globalChannels = await channelRepository.GetGlobalAsync(ct);
+        var mergedIds = (request.NotificationChannelIds ?? [])
+            .Union(globalChannels.Select(c => c.Id))
             .ToList();
-        await SyncTriggersAsync(created, mergedIds, ct);
+        await SyncChannelsAsync(created, mergedIds, ct);
 
         var dto = ToDto(await alertConfigRepository.GetByIdAsync(created.Id, ct) ?? created);
         return dto;
@@ -80,8 +80,8 @@ public class AlertConfigAppService(
 
         await alertConfigRepository.UpdateAsync(config, ct);
 
-        if (request.TriggerIds is not null)
-            await SyncTriggersAsync(config, request.TriggerIds, ct);
+        if (request.NotificationChannelIds is not null)
+            await SyncChannelsAsync(config, request.NotificationChannelIds, ct);
 
         return ToDto(await alertConfigRepository.GetByIdAsync(id, ct) ?? config);
     }
@@ -106,30 +106,29 @@ public class AlertConfigAppService(
             ?? throw new NotFoundException(nameof(Check), checkSlug);
     }
 
-    /// <summary>Replaces the trigger associations on an alert config.</summary>
-    private async Task SyncTriggersAsync(AlertConfig config, List<int> triggerIds, CancellationToken ct)
+    /// <summary>Replaces the notification channel associations on an alert config.</summary>
+    private async Task SyncChannelsAsync(AlertConfig config, List<int> channelIds, CancellationToken ct)
     {
-        // Validate all trigger IDs exist
-        var existing = config.AlertConfigTriggers.ToList();
-        var existingIds = existing.Select(t => t.TriggerId).ToHashSet();
-        var requestedIds = triggerIds.ToHashSet();
+        var existing = config.AlertConfigNotificationChannels.ToList();
+        var existingIds = existing.Select(ac => ac.NotificationChannelId).ToHashSet();
+        var requestedIds = channelIds.ToHashSet();
 
-        // Remove triggers no longer in the list — skip locked ones
-        foreach (var act in existing.Where(t => !requestedIds.Contains(t.TriggerId)))
+        // Remove channels no longer in the list — skip locked ones
+        foreach (var ac in existing.Where(ac => !requestedIds.Contains(ac.NotificationChannelId)))
         {
-            if (act.Trigger?.IsLocked == true) continue;
-            config.AlertConfigTriggers.Remove(act);
+            if (ac.NotificationChannel?.IsLocked == true) continue;
+            config.AlertConfigNotificationChannels.Remove(ac);
         }
 
-        // Add new triggers
-        foreach (var triggerId in requestedIds.Where(id => !existingIds.Contains(id)))
+        // Add new channels
+        foreach (var channelId in requestedIds.Where(id => !existingIds.Contains(id)))
         {
-            var trigger = await triggerRepository.GetByIdAsync(triggerId, ct)
-                ?? throw new NotFoundException(nameof(Trigger), triggerId.ToString());
-            config.AlertConfigTriggers.Add(new AlertConfigTrigger
+            var channel = await channelRepository.GetByIdAsync(channelId, ct)
+                ?? throw new NotFoundException(nameof(NotificationChannel), channelId.ToString());
+            config.AlertConfigNotificationChannels.Add(new AlertConfigNotificationChannel
             {
                 AlertConfigId = config.Id,
-                TriggerId = trigger.Id
+                NotificationChannelId = channel.Id
             });
         }
 
@@ -141,7 +140,7 @@ public class AlertConfigAppService(
         a.FailureThreshold, a.SuccessThreshold,
         a.Description, a.CreateIncident, a.IsActive, a.IsAlerting,
         a.Severity,
-        a.AlertConfigTriggers.Select(t => t.TriggerId).ToList(),
+        a.AlertConfigNotificationChannels.Select(ac => ac.NotificationChannelId).ToList(),
         a.CreatedAt, a.UpdatedAt
     );
 }

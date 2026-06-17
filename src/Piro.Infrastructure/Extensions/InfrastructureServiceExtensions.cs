@@ -152,7 +152,7 @@ public static class InfrastructureServiceExtensions
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
-        services.AddScoped<ITriggerRepository, TriggerRepository>();
+        services.AddScoped<INotificationChannelRepository, NotificationChannelRepository>();
 
         // Log repository
         services.AddScoped<ILogRepository, LogRepository>();
@@ -160,18 +160,18 @@ public static class InfrastructureServiceExtensions
         // Site config repository
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
 
-        // Alert dispatchers — registered as IEnumerable<ITriggerDispatcher>
-        services.AddScoped<ITriggerDispatcher, EmailTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, WebhookTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, TelegramTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, SlackTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, TwilioSmsTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, GoogleChatTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, MsTeamsTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, DiscordTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, OpsgenieTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, PushoverTriggerDispatcher>();
-        services.AddScoped<ITriggerDispatcher, NtfyTriggerDispatcher>();
+        // Alert dispatchers — registered as IEnumerable<INotificationChannelDispatcher>
+        services.AddScoped<INotificationChannelDispatcher, EmailNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, WebhookNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, TelegramNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, SlackNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, TwilioSmsNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, GoogleChatNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, MsTeamsNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, DiscordNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, OpsgenieNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, PushoverNotificationChannelDispatcher>();
+        services.AddScoped<INotificationChannelDispatcher, NtfyNotificationChannelDispatcher>();
 
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();

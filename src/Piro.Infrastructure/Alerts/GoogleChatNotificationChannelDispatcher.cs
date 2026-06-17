@@ -10,20 +10,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Google Chat Incoming Webhook.</summary>
-public partial class GoogleChatTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public partial class GoogleChatNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
-    public TriggerType Type => TriggerType.GoogleChat;
+    public NotificationChannelType Type => NotificationChannelType.GoogleChat;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<GoogleChatTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<GoogleChatTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Google Chat trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.WebhookUrl))
         {
-            logger.LogWarning("Google Chat trigger {TriggerId} has no webhook URL configured.", trigger.Id);
+            logger.LogWarning("Google Chat channel {ChannelId} has no webhook URL configured.", channel.Id);
             return;
         }
 
@@ -43,7 +43,7 @@ public partial class GoogleChatTriggerDispatcher(IHttpClientFactory httpClientFa
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Google Chat webhook timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Google Chat webhook timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Google Chat webhook request timed out after 15 seconds.");
         }
 

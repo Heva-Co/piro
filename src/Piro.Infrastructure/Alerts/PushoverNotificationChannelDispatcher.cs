@@ -9,22 +9,22 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via the Pushover API.</summary>
-public class PushoverTriggerDispatcher(IHttpClientFactory httpClientFactory, ILogger<PushoverTriggerDispatcher> logger)
-    : ITriggerDispatcher
+public class PushoverNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<PushoverNotificationChannelDispatcher> logger)
+    : INotificationChannelDispatcher
 {
     private const string PushoverApiUrl = "https://api.pushover.net/1/messages.json";
 
-    public TriggerType Type => TriggerType.Pushover;
+    public NotificationChannelType Type => NotificationChannelType.Pushover;
 
-    public async Task DispatchAsync(Trigger trigger, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<PushoverTriggerMeta>(trigger.MetaJson,
+        var meta = JsonSerializer.Deserialize<PushoverTriggerMeta>(channel.MetaJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Invalid Pushover trigger metadata.");
 
         if (string.IsNullOrWhiteSpace(meta.AppToken) || string.IsNullOrWhiteSpace(meta.UserKey))
         {
-            logger.LogWarning("Pushover trigger {TriggerId} is missing app token or user key.", trigger.Id);
+            logger.LogWarning("Pushover channel {ChannelId} is missing app token or user key.", channel.Id);
             return;
         }
 
@@ -68,7 +68,7 @@ public class PushoverTriggerDispatcher(IHttpClientFactory httpClientFactory, ILo
         }
         catch (TaskCanceledException)
         {
-            logger.LogWarning("Pushover request timed out for trigger {TriggerId}.", trigger.Id);
+            logger.LogWarning("Pushover request timed out for channel {ChannelId}.", channel.Id);
             throw new InvalidOperationException("Pushover request timed out after 15 seconds.");
         }
 
