@@ -149,7 +149,7 @@ builder.Services.AddScoped<CheckAppService>();
 builder.Services.AddScoped<DependencyService>();
 builder.Services.AddScoped<AlertEvaluationService>();
 builder.Services.AddScoped<AlertConfigAppService>();
-builder.Services.AddScoped<TriggerAppService>();
+builder.Services.AddScoped<NotificationChannelAppService>();
 builder.Services.AddScoped<CheckRunnerService>();
 builder.Services.AddScoped<ServiceStatusService>();
 builder.Services.AddScoped<IncidentAppService>();

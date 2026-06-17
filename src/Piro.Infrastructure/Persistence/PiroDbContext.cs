@@ -28,9 +28,9 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<Maintenance> Maintenances => Set<Maintenance>();
     public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
     public DbSet<MaintenanceService> MaintenanceServices => Set<MaintenanceService>();
-    public DbSet<Trigger> Triggers => Set<Trigger>();
+    public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
     public DbSet<AlertConfig> AlertConfigs => Set<AlertConfig>();
-    public DbSet<AlertConfigTrigger> AlertConfigTriggers => Set<AlertConfigTrigger>();
+    public DbSet<AlertConfigNotificationChannel> AlertConfigNotificationChannels => Set<AlertConfigNotificationChannel>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();

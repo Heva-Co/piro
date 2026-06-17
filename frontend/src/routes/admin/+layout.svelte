@@ -30,7 +30,7 @@
     { title: "Checks",        url: "/admin/checks",       icon: ActivityIcon },
     { title: "Incidents",     url: "/admin/incidents",    icon: CloudAlertIcon },
     { title: "Maintenances",  url: "/admin/maintenances", icon: ClockAlertIcon },
-    { title: "Notification Channels", url: "/admin/triggers", icon: BellIcon },
+    { title: "Notification Channels", url: "/admin/channels", icon: BellIcon },
     { title: "Logs",          url: "/admin/logs",         icon: ScrollTextIcon },
   ];
 

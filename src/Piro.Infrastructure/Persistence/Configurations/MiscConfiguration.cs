@@ -5,18 +5,19 @@ using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Configurations;
 
-/// <summary>EF Core mappings for <see cref="Trigger"/>, <see cref="ApiKey"/>, and <see cref="SiteData"/>.</summary>
-internal class TriggerConfiguration : IEntityTypeConfiguration<Trigger>
+/// <summary>EF Core mappings for <see cref="NotificationChannel"/>, <see cref="ApiKey"/>, and <see cref="SiteData"/>.</summary>
+internal class NotificationChannelConfiguration : IEntityTypeConfiguration<NotificationChannel>
 {
-    public void Configure(EntityTypeBuilder<Trigger> builder)
+    public void Configure(EntityTypeBuilder<NotificationChannel> builder)
     {
-        builder.HasKey(t => t.Id);
-        builder.HasIndex(t => t.Id);
-        builder.Property(t => t.Name).HasMaxLength(255).IsRequired();
-        builder.Property(t => t.Type).HasConversion<string>();
-        builder.Property(t => t.MetaJson).HasColumnType("jsonb").HasDefaultValue("{}");
-        builder.Property(t => t.IsGlobal).HasDefaultValue(false);
-        builder.Property(t => t.IsLocked).HasDefaultValue(false);
+        builder.ToTable("NotificationChannels");
+        builder.HasKey(c => c.Id);
+        builder.HasIndex(c => c.Id);
+        builder.Property(c => c.Name).HasMaxLength(255).IsRequired();
+        builder.Property(c => c.Type).HasConversion<string>();
+        builder.Property(c => c.MetaJson).HasColumnType("jsonb").HasDefaultValue("{}");
+        builder.Property(c => c.IsGlobal).HasDefaultValue(false);
+        builder.Property(c => c.IsLocked).HasDefaultValue(false);
     }
 }
 
