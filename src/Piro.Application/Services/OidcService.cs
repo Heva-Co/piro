@@ -16,6 +16,7 @@ namespace Piro.Application.Services;
 /// </summary>
 public class OidcService(
     IOidcConfigRepository configRepo,
+    ISiteConfigRepository siteConfigRepo,
     IConfiguration configuration,
     IDistributedCache cache,
     UserManager<AppUser> userManager,
@@ -66,18 +67,24 @@ public class OidcService(
         await configRepo.UpsertAsync(config, ct);
     }
 
-    private string ResolveRedirectUri(OidcProviderConfig config)
+    private async Task<string> ResolveRedirectUriAsync(OidcProviderConfig config, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(config.RedirectUri))
             return config.RedirectUri;
 
-        var frontendUrl = configuration["App:FrontendUrl"]?.TrimEnd('/');
-        if (string.IsNullOrWhiteSpace(frontendUrl))
-            throw new InvalidOperationException(
-                "RedirectUri is not set and App:FrontendUrl is not configured. " +
-                "Set ORIGIN in your .env file.");
+        // Prefer site URL stored in DB (Configuration → General → Site URL)
+        var siteConfig = await siteConfigRepo.GetAsync(ct);
+        var baseUrl = siteConfig.Url?.TrimEnd('/');
 
-        return $"{frontendUrl}/auth/oidc/callback";
+        // Fall back to env var for backwards compatibility
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            baseUrl = configuration["App:FrontendUrl"]?.TrimEnd('/');
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new InvalidOperationException(
+                "Site URL is not configured. Set it in Configuration → General or via the ORIGIN env var.");
+
+        return $"{baseUrl}/auth/oidc/callback";
     }
 
     public async Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default)
@@ -107,7 +114,7 @@ public class OidcService(
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
         }, ct);
 
-        var redirectUri = ResolveRedirectUri(config);
+        var redirectUri = await ResolveRedirectUriAsync(config, ct);
         var scopes = NormalizeScopes(config.Scopes);
         return BuildAuthorizationUrl(discovery.AuthorizationEndpoint, config.ClientId, redirectUri, scopes, state, challenge);
     }
@@ -125,7 +132,7 @@ public class OidcService(
             ?? throw new InvalidOperationException("OIDC provider configuration not found.");
 
         var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
-        var redirectUri = ResolveRedirectUri(config);
+        var redirectUri = await ResolveRedirectUriAsync(config, ct);
 
         // Exchange authorization code for tokens
         var http = httpClientFactory.CreateClient("oidc-http");
