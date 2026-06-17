@@ -162,6 +162,7 @@ builder.Services.AddScoped<WorkerAppService>();
 var app = builder.Build();
 
 // Apply pending EF Core migrations and initialize check scheduler on startup
+string emailProviderLabel;
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PiroDbContext>();
@@ -169,6 +170,12 @@ using (var scope = app.Services.CreateScope())
 
     var scheduler = scope.ServiceProvider.GetRequiredService<ICheckSchedulerService>();
     await scheduler.InitializeFromDatabaseAsync();
+
+    var emailConfig = scope.ServiceProvider.GetRequiredService<IEmailConfigRepository>();
+    var cfg = await emailConfig.GetAsync();
+    emailProviderLabel = (cfg.Provider ?? "smtp").ToUpperInvariant();
+    if (cfg.Provider is null && !string.IsNullOrWhiteSpace(app.Configuration["Email:Host"]))
+        emailProviderLabel = "SMTP (env)";
 }
 
 // Startup banner
@@ -176,9 +183,9 @@ var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
 var env = app.Environment;
 startupLogger.LogInformation("=== Piro {Version} started ===", apiVersion);
 startupLogger.LogInformation("Environment : {AspNetEnvironment}", env.EnvironmentName);
-startupLogger.LogInformation("Telemetry   : {Telemetry}", env.IsDevelopment() ? "disabled (dev)" : "enabled");
 startupLogger.LogInformation("Sentry      : {Sentry}", (!env.IsDevelopment() && !string.IsNullOrWhiteSpace(sentryDsn)) ? "enabled" : "disabled");
 startupLogger.LogInformation("DB          : {Db}", (app.Configuration["Database:ConnectionString"] ?? "").Split(';')[0]);
+startupLogger.LogInformation("Email       : {EmailProvider}", emailProviderLabel);
 
 app.UseCors();
 app.UseStaticFiles();

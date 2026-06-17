@@ -29,6 +29,7 @@ export const actions: Actions = {
       return fail(400, { error: msg, email, name });
     }
 
-    redirect(302, "/admin");
+    // Return success — client advances to step 2 (email config)
+    return { accountCreated: true };
   },
 };

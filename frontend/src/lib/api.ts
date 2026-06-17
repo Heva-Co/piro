@@ -368,6 +368,30 @@ export interface SiteConfigDto {
   ogImageUrl: string | null;
 }
 
+export interface EmailConfigDto {
+  provider: "smtp" | "resend";
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUsername: string | null;
+  hasSmtpPassword: boolean;
+  smtpFrom: string | null;
+  smtpUseTls: boolean | null;
+  hasResendApiKey: boolean;
+  resendFrom: string | null;
+}
+
+export interface UpdateEmailConfigDto {
+  provider: string;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUsername?: string | null;
+  smtpPassword?: string | null;
+  smtpFrom?: string | null;
+  smtpUseTls?: boolean | null;
+  resendApiKey?: string | null;
+  resendFrom?: string | null;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function request<T>(
@@ -614,6 +638,14 @@ export const adminApi = {
     request<void>("/api/v1/site/config", { method: "PUT", body: JSON.stringify(data) }, token),
   deleteSiteAsset: (token: string, type: "logo" | "favicon" | "og-image") =>
     request<void>(`/api/v1/site/upload/${type}`, { method: "DELETE" }, token),
+
+  // Email config
+  getEmailConfig: (token: string) =>
+    request<EmailConfigDto>("/api/v1/email/config", {}, token),
+  updateEmailConfig: (token: string, data: UpdateEmailConfigDto) =>
+    request<void>("/api/v1/email/config", { method: "PUT", body: JSON.stringify(data) }, token),
+  testEmailConfig: (token: string) =>
+    request<{ message: string }>("/api/v1/email/config/test", { method: "POST" }, token),
 };
 
 // ── Public user endpoints (no auth) ──────────────────────────────────────────
