@@ -14,8 +14,8 @@ internal class OidcProviderConfigConfiguration : IEntityTypeConfiguration<OidcPr
         builder.Property(x => x.DisplayName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Authority).HasMaxLength(500).IsRequired();
         builder.Property(x => x.ClientId).HasMaxLength(500).IsRequired();
-        builder.Property(x => x.ClientSecretProtected).IsRequired();
-        builder.Property(x => x.RedirectUri).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.ClientSecret).HasMaxLength(1000).IsRequired();
+        builder.Property(x => x.RedirectUri).HasMaxLength(500);
         builder.Property(x => x.Scopes).HasMaxLength(500).IsRequired();
         builder.Property(x => x.AllowedDomains).HasMaxLength(1000);
         builder.Property(x => x.DefaultRole).HasMaxLength(50).IsRequired();
