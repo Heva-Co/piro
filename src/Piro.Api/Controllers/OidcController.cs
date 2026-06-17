@@ -11,7 +11,7 @@ namespace Piro.Api.Controllers;
 [Route("api/v1/auth/oidc")]
 [Produces("application/json")]
 [AllowAnonymous]
-public class OidcController(IOidcService oidcService, IConfiguration configuration) : ControllerBase
+public class OidcController(IOidcService oidcService, IConfiguration configuration, ISiteConfigRepository siteConfigRepo) : ControllerBase
 {
     /// <summary>Returns OIDC providers enabled for the sign-in page.</summary>
     [HttpGet("providers")]
@@ -57,7 +57,10 @@ public class OidcController(IOidcService oidcService, IConfiguration configurati
         [FromQuery] string? error,
         CancellationToken ct)
     {
-        var frontendUrl = configuration["App:FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+        var siteConfig = await siteConfigRepo.GetAsync(ct);
+        var frontendUrl = (siteConfig.Url?.TrimEnd('/'))
+            ?? configuration["App:BaseUrl"]?.TrimEnd('/')
+            ?? "http://localhost:5173";
         var errorRedirect = $"{frontendUrl}/auth/sign-in?oidc_error=1";
 
         if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
