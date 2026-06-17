@@ -1,11 +1,10 @@
 /**
  * Typed client for the Piro ASP.NET Core API.
- * All functions are safe to call from SvelteKit server-side code (load functions, +server.ts).
- * Never call these directly from Svelte components — use the load functions instead.
+ * SSR: uses PIRO_API_URL env var (internal Docker URL, e.g. http://api:8080)
+ * Browser: uses "" (same origin — routed through SvelteKit proxy at /api/[...path])
  */
-
 export const PIRO_API =
-  (typeof process !== "undefined" ? process.env.PIRO_API_URL : undefined) ?? "http://localhost:5117";
+  (typeof process !== "undefined" ? process.env.PIRO_API_URL ?? "http://localhost:5117" : undefined) ?? "";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
