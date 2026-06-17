@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Piro.Application.DTOs;
@@ -16,15 +15,13 @@ namespace Piro.Application.Services;
 /// </summary>
 public class OidcService(
     IOidcConfigRepository configRepo,
+    ISiteConfigRepository siteConfigRepo,
     IDistributedCache cache,
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
     ITokenService tokenService,
-    IDataProtectionProvider dataProtectionProvider,
     IHttpClientFactory httpClientFactory) : IOidcService
 {
-    private IDataProtector Protector =>
-        dataProtectionProvider.CreateProtector("Piro.OidcClientSecret");
 
     // ── Public contract ──────────────────────────────────────────────────────
 
@@ -45,11 +42,11 @@ public class OidcService(
 
         var existing = await configRepo.GetByIdAsync(request.Id, ct);
 
-        byte[] secretProtected;
+        string clientSecret;
         if (!string.IsNullOrWhiteSpace(request.ClientSecret))
-            secretProtected = Protector.Protect(Encoding.UTF8.GetBytes(request.ClientSecret));
+            clientSecret = request.ClientSecret;
         else if (existing is not null)
-            secretProtected = existing.ClientSecretProtected; // keep existing
+            clientSecret = existing.ClientSecret; // keep existing
         else
             throw new InvalidOperationException("Client secret is required when creating a new provider.");
 
@@ -58,14 +55,29 @@ public class OidcService(
         config.DisplayName = request.DisplayName;
         config.Authority = request.Authority.TrimEnd('/');
         config.ClientId = request.ClientId;
-        config.ClientSecretProtected = secretProtected;
-        config.RedirectUri = request.RedirectUri;
+        config.ClientSecret = clientSecret;
+        config.RedirectUri = string.IsNullOrWhiteSpace(request.RedirectUri) ? null : request.RedirectUri;
         config.Scopes = request.Scopes;
         config.AllowedDomains = string.IsNullOrWhiteSpace(request.AllowedDomains) ? null : request.AllowedDomains;
         config.DefaultRole = request.DefaultRole == "Owner" ? "Member" : request.DefaultRole;
         config.IsEnabled = request.IsEnabled;
 
         await configRepo.UpsertAsync(config, ct);
+    }
+
+    private async Task<string> ResolveRedirectUriAsync(OidcProviderConfig config, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(config.RedirectUri))
+            return config.RedirectUri;
+
+        var siteConfig = await siteConfigRepo.GetAsync(ct);
+        var baseUrl = siteConfig.Url?.TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new InvalidOperationException(
+                "RedirectUri is not set and no site URL is configured. " +
+                "Set a Site URL under Configuration → Site, or provide a RedirectUri in the SSO provider settings.");
+
+        return $"{baseUrl}/api/v1/auth/oidc/callback";
     }
 
     public async Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default)
@@ -75,6 +87,11 @@ public class OidcService(
 
         if (!config.IsEnabled)
             throw new InvalidOperationException($"OIDC provider '{providerId}' is disabled.");
+
+        if (string.IsNullOrWhiteSpace(config.ClientSecret))
+            throw new InvalidOperationException(
+                $"OIDC provider '{providerId}' has no client secret configured. " +
+                "Re-enter the secret in Configuration → SSO.");
 
         var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
 
@@ -90,8 +107,9 @@ public class OidcService(
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
         }, ct);
 
+        var redirectUri = await ResolveRedirectUriAsync(config, ct);
         var scopes = NormalizeScopes(config.Scopes);
-        return BuildAuthorizationUrl(discovery.AuthorizationEndpoint, config.ClientId, config.RedirectUri, scopes, state, challenge);
+        return BuildAuthorizationUrl(discovery.AuthorizationEndpoint, config.ClientId, redirectUri, scopes, state, challenge);
     }
 
     public async Task<SignInResponse> HandleCallbackAsync(string code, string state, CancellationToken ct = default)
@@ -107,11 +125,11 @@ public class OidcService(
             ?? throw new InvalidOperationException("OIDC provider configuration not found.");
 
         var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
-        var clientSecret = Encoding.UTF8.GetString(Protector.Unprotect(config.ClientSecretProtected));
+        var redirectUri = await ResolveRedirectUriAsync(config, ct);
 
         // Exchange authorization code for tokens
         var http = httpClientFactory.CreateClient("oidc-http");
-        var userInfo = await ExchangeAndFetchUserInfoAsync(http, discovery, config, code, statePayload.CodeVerifier, clientSecret, ct);
+        var userInfo = await ExchangeAndFetchUserInfoAsync(http, discovery, config, code, statePayload.CodeVerifier, config.ClientSecret, redirectUri, ct);
 
         // Domain restriction
         if (!string.IsNullOrWhiteSpace(config.AllowedDomains))
@@ -173,6 +191,7 @@ public class OidcService(
         string code,
         string codeVerifier,
         string clientSecret,
+        string redirectUri,
         CancellationToken ct)
     {
         // Exchange code for tokens
@@ -180,7 +199,7 @@ public class OidcService(
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
-            ["redirect_uri"] = config.RedirectUri,
+            ["redirect_uri"] = redirectUri,
             ["client_id"] = config.ClientId,
             ["client_secret"] = clientSecret,
             ["code_verifier"] = codeVerifier,
@@ -283,7 +302,7 @@ public class OidcService(
     }
 
     private static OidcProviderConfigDto ToDto(OidcProviderConfig p) =>
-        new(p.Id, p.DisplayName, p.Authority, p.ClientId, p.RedirectUri, p.Scopes, p.AllowedDomains, p.DefaultRole, p.IsEnabled);
+        new(p.Id, p.DisplayName, p.Authority, p.ClientId, !string.IsNullOrEmpty(p.ClientSecret), p.RedirectUri, p.Scopes, p.AllowedDomains, p.DefaultRole, p.IsEnabled);
 
     private static string? GetStringClaim(JsonElement json, string key) =>
         json.TryGetProperty(key, out var prop) ? prop.GetString() : null;
