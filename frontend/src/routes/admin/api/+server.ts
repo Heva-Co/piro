@@ -167,6 +167,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json(result);
       }
 
+      // ── Email Config ──────────────────────────────────────────────────────
+      case "getEmailConfig": {
+        const config = await adminApi.getEmailConfig(token);
+        return json(config);
+      }
+      case "updateEmailConfig": {
+        await adminApi.updateEmailConfig(token, data);
+        return json({ success: true });
+      }
+      case "testEmailConfig": {
+        const result = await adminApi.testEmailConfig(token);
+        return json(result);
+      }
+
       // ── Alert Configs ─────────────────────────────────────────────────────
       case "getAlertConfigs": {
         const configs = await adminApi.getAlertConfigs(token, data.serviceSlug, data.checkSlug);

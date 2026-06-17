@@ -20,6 +20,7 @@
   import UsersIcon from "@lucide/svelte/icons/users";
   import KeyRoundIcon from "@lucide/svelte/icons/key-round";
   import GlobeIcon from "@lucide/svelte/icons/globe";
+  import MailIcon from "@lucide/svelte/icons/mail";
 
   let { children, data } = $props();
 
@@ -40,6 +41,7 @@
     { title: "Users",    url: "/admin/configuration/users",     icon: UsersIcon },
     { title: "SSO",       url: "/admin/configuration/sso",       icon: KeyRoundIcon },
     { title: "Site",      url: "/admin/configuration/site",      icon: GlobeIcon },
+    { title: "Email",     url: "/admin/configuration/email",     icon: MailIcon },
   ];
 
   const allItems = [...navItems, ...configNavItems];
