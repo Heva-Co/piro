@@ -10,5 +10,9 @@ public enum TriggerType
     MSTeams,
     Telegram,
     TwilioSms,
-    GoogleChat
+    GoogleChat,
+    Discord,
+    Opsgenie,
+    Pushover,
+    Ntfy
 }
