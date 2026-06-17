@@ -14,7 +14,7 @@ public record AlertConfigDto(
     bool IsActive,
     bool IsAlerting,
     AlertSeverity Severity,
-    List<int> TriggerIds,
+    List<int> NotificationChannelIds,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -28,7 +28,7 @@ public record CreateAlertConfigRequest(
     bool CreateIncident = false,
     bool IsActive = true,
     AlertSeverity Severity = AlertSeverity.Warning,
-    List<int>? TriggerIds = null
+    List<int>? NotificationChannelIds = null
 );
 
 public record UpdateAlertConfigRequest(
@@ -40,5 +40,5 @@ public record UpdateAlertConfigRequest(
     bool? CreateIncident,
     bool? IsActive,
     AlertSeverity? Severity,
-    List<int>? TriggerIds
+    List<int>? NotificationChannelIds
 );

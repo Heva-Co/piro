@@ -8,17 +8,17 @@ namespace Piro.Application.Services;
 
 /// <summary>
 /// Evaluates alert thresholds after a check executes and dispatches notifications
-/// via registered <see cref="ITriggerDispatcher"/> implementations.
+/// via registered <see cref="INotificationChannelDispatcher"/> implementations.
 /// </summary>
 public class AlertEvaluationService(
     IAlertConfigRepository alertConfigRepository,
     ICheckDataPointRepository dataPointRepository,
     ICheckRepository checkRepository,
     IServiceRepository serviceRepository,
-    IEnumerable<ITriggerDispatcher> dispatchers,
+    IEnumerable<INotificationChannelDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger)
 {
-    private readonly Dictionary<TriggerType, ITriggerDispatcher> _dispatchers =
+    private readonly Dictionary<NotificationChannelType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>
@@ -88,26 +88,26 @@ public class AlertEvaluationService(
             SuccessThreshold: config.SuccessThreshold
         );
 
-        // Dispatch to each linked trigger
-        foreach (var alertConfigTrigger in config.AlertConfigTriggers)
+        // Dispatch to each linked notification channel
+        foreach (var alertConfigChannel in config.AlertConfigNotificationChannels)
         {
-            var trigger = alertConfigTrigger.Trigger;
-            if (trigger.Status == "INACTIVE") continue;
-            if (!_dispatchers.TryGetValue(trigger.Type, out var dispatcher))
+            var channel = alertConfigChannel.NotificationChannel;
+            if (channel.Status == "INACTIVE") continue;
+            if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher))
             {
-                logger.LogWarning("No dispatcher registered for trigger type {Type}.", trigger.Type);
+                logger.LogWarning("No dispatcher registered for notification channel type {Type}.", channel.Type);
                 continue;
             }
 
             try
             {
-                await dispatcher.DispatchAsync(trigger, context, ct);
-                logger.LogInformation("Trigger {TriggerName} ({TriggerType}) dispatched for check {CheckName} — {Event}.",
-                    trigger.Name, trigger.Type, check.Name, shouldRecover ? "recovery" : "alert");
+                await dispatcher.DispatchAsync(channel, context, ct);
+                logger.LogInformation("Notification channel {ChannelName} ({ChannelType}) dispatched for check {CheckName} — {Event}.",
+                    channel.Name, channel.Type, check.Name, shouldRecover ? "recovery" : "alert");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Dispatcher {Type} failed for trigger {TriggerId}.", trigger.Type, trigger.Id);
+                logger.LogError(ex, "Dispatcher {Type} failed for notification channel {ChannelId}.", channel.Type, channel.Id);
             }
         }
 

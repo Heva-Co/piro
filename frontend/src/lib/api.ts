@@ -22,14 +22,14 @@ const STATUS_LABELS: Record<string, string> = {
 export function formatStatus(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
-export type TriggerType = "Email" | "Webhook" | "Slack" | "PagerDuty" | "MSTeams" | "Telegram" | "TwilioSms" | "GoogleChat";
+export type NotificationChannelType = "Email" | "Webhook" | "Slack" | "PagerDuty" | "MSTeams" | "Telegram" | "TwilioSms" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
 export type AlertFor = "Status" | "Latency" | "Uptime";
 export type AlertSeverity = "Info" | "Warning" | "Critical";
 
-export interface TriggerDto {
+export interface NotificationChannelDto {
   id: number;
   name: string;
-  type: TriggerType;
+  type: NotificationChannelType;
   description: string | null;
   status: string | null;
   metaJson: string;
@@ -52,7 +52,7 @@ export interface AlertConfigDto {
   isActive: boolean;
   isAlerting: boolean;
   severity: AlertSeverity;
-  triggerIds: number[];
+  notificationChannelIds: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -547,17 +547,17 @@ export const adminApi = {
   deleteIncident: (token: string, id: number) =>
     request<void>(`/api/v1/incidents/${id}`, { method: "DELETE" }, token),
 
-  // Triggers (notification channels)
-  getTriggers: (token: string) => request<TriggerDto[]>("/api/v1/triggers", {}, token),
-  getTrigger: (token: string, id: number) => request<TriggerDto>(`/api/v1/triggers/${id}`, {}, token),
-  testTrigger: (token: string, data: { type: string; metaJson: string; name?: string }) =>
-    request<{ message: string }>("/api/v1/triggers/test", { method: "POST", body: JSON.stringify(data) }, token),
-  createTrigger: (token: string, data: unknown) =>
-    request<TriggerDto>("/api/v1/triggers", { method: "POST", body: JSON.stringify(data) }, token),
-  updateTrigger: (token: string, id: number, data: unknown) =>
-    request<TriggerDto>(`/api/v1/triggers/${id}`, { method: "PUT", body: JSON.stringify(data) }, token),
-  deleteTrigger: (token: string, id: number) =>
-    request<void>(`/api/v1/triggers/${id}`, { method: "DELETE" }, token),
+  // Notification channels
+  getChannels: (token: string) => request<NotificationChannelDto[]>("/api/v1/notification-channels", {}, token),
+  getChannel: (token: string, id: number) => request<NotificationChannelDto>(`/api/v1/notification-channels/${id}`, {}, token),
+  testChannel: (token: string, data: { type: string; metaJson: string; name?: string }) =>
+    request<{ message: string }>("/api/v1/notification-channels/test", { method: "POST", body: JSON.stringify(data) }, token),
+  createChannel: (token: string, data: unknown) =>
+    request<NotificationChannelDto>("/api/v1/notification-channels", { method: "POST", body: JSON.stringify(data) }, token),
+  updateChannel: (token: string, id: number, data: unknown) =>
+    request<NotificationChannelDto>(`/api/v1/notification-channels/${id}`, { method: "PUT", body: JSON.stringify(data) }, token),
+  deleteChannel: (token: string, id: number) =>
+    request<void>(`/api/v1/notification-channels/${id}`, { method: "DELETE" }, token),
 
   // Alert configs
   getAlertConfigs: (token: string, serviceSlug: string, checkSlug: string) =>
