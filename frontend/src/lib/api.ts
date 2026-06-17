@@ -145,7 +145,8 @@ export interface OidcProviderConfigDto {
   displayName: string;
   authority: string;
   clientId: string;
-  redirectUri: string;
+  hasClientSecret: boolean;
+  redirectUri: string | null;
   scopes: string;
   allowedDomains: string | null;
   defaultRole: string;
@@ -158,7 +159,7 @@ export interface UpsertOidcProviderRequest {
   authority: string;
   clientId: string;
   clientSecret: string | null;
-  redirectUri: string;
+  redirectUri: string | null;
   scopes: string;
   allowedDomains: string | null;
   defaultRole: string;

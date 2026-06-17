@@ -14,9 +14,11 @@
   import CheckCircleIcon from "@lucide/svelte/icons/check-circle";
   import CopyIcon from "@lucide/svelte/icons/copy";
   import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
-  import { PIRO_API, type RoleDto } from "$lib/api.js";
+  import type { RoleDto } from "$lib/api.js";
 
-  const DEFAULT_REDIRECT_URI = `${PIRO_API}/api/v1/auth/oidc/callback`;
+  // Effective redirect URI: always points to the frontend's public /auth/oidc/callback route.
+  // page.url.origin gives the correct public origin in both dev and production.
+  const effectiveRedirectUri = $derived(`${page.url.origin}/auth/oidc/callback`);
 
   const providerId = $derived(page.params.id);
   const isNew = $derived(providerId === "new");
@@ -33,7 +35,6 @@
     authority: "",
     clientId: "",
     clientSecret: "",
-    redirectUri: DEFAULT_REDIRECT_URI,
     scopes: "openid, profile, email",
     allowedDomains: "",
     defaultRole: "Viewer",
@@ -65,7 +66,6 @@
             authority: found.authority,
             clientId: found.clientId,
             clientSecret: "",
-            redirectUri: found.redirectUri,
             scopes: found.scopes,
             allowedDomains: found.allowedDomains ?? "",
             defaultRole: found.defaultRole,
@@ -88,7 +88,7 @@
         authority: form.authority.trim(),
         clientId: form.clientId.trim(),
         clientSecret: form.clientSecret.trim() || null,
-        redirectUri: form.redirectUri.trim(),
+        redirectUri: null, // always auto-derived from site URL on the backend
         scopes: form.scopes.trim() || "openid, profile, email",
         allowedDomains: form.allowedDomains.trim() || null,
         defaultRole: form.defaultRole,
@@ -119,7 +119,7 @@
 
   async function copyRedirectUri() {
     try {
-      await navigator.clipboard.writeText(form.redirectUri);
+      await navigator.clipboard.writeText(effectiveRedirectUri);
       toast.success("Redirect URI copied.");
     } catch { toast.error("Failed to copy."); }
   }
@@ -198,12 +198,10 @@
         <div class="space-y-2">
           <Label for="oidc-redirect">Redirect URI</Label>
           <div class="flex gap-2">
-            <Input id="oidc-redirect" value={form.redirectUri} disabled class="font-mono text-xs" />
-            {#if form.redirectUri}
-              <Button variant="outline" size="icon" onclick={copyRedirectUri} title="Copy to clipboard">
-                <CopyIcon class="size-4" />
-              </Button>
-            {/if}
+            <Input id="oidc-redirect" value={effectiveRedirectUri} disabled class="font-mono text-xs" />
+            <Button variant="outline" size="icon" onclick={copyRedirectUri} title="Copy to clipboard">
+              <CopyIcon class="size-4" />
+            </Button>
           </div>
           <p class="text-xs text-muted-foreground">Register this in your provider's allowed redirect URIs.</p>
         </div>
