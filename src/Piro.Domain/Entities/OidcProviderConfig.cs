@@ -13,11 +13,11 @@ public class OidcProviderConfig
 
     public string ClientId { get; set; } = string.Empty;
 
-    /// <summary>Stored encrypted via ASP.NET Data Protection.</summary>
-    public byte[] ClientSecretProtected { get; set; } = [];
+    /// <summary>Stored as plain text. DB-level access controls are the operator's responsibility.</summary>
+    public string ClientSecret { get; set; } = string.Empty;
 
-    /// <summary>Callback URL registered with the provider. Should point to /api/v1/auth/oidc/callback.</summary>
-    public string RedirectUri { get; set; } = string.Empty;
+    /// <summary>Callback URL registered with the provider. When null/empty, auto-derived from site:url config.</summary>
+    public string? RedirectUri { get; set; }
 
     /// <summary>Space-separated scopes (e.g. "openid email profile"). openid is always added automatically.</summary>
     public string Scopes { get; set; } = "openid email profile";
