@@ -53,7 +53,10 @@ public static class InfrastructureServiceExtensions
         // Auth infrastructure services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ApiKeyService>();
-        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IEmailConfigRepository, EmailConfigRepository>();
+        services.AddScoped<SmtpEmailService>();
+        services.AddScoped<ResendEmailService>();
+        services.AddScoped<IEmailService, EmailServiceFactory>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
