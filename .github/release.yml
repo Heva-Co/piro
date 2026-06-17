@@ -1,10 +1,21 @@
 changelog:
   exclude:
     labels:
+      # Meta / triage labels — not meaningful in a changelog
       - ignore-for-release
       - duplicate
       - invalid
       - wontfix
+      - question
+      - help wanted
+      - good first issue
+      - partial
+      # Area labels — used for filtering issues, not for classifying changes
+      - auth
+      - backend
+      - frontend
+      - notifications
+      - config-as-code
   categories:
     - title: "New Features"
       labels:
@@ -15,9 +26,10 @@ changelog:
     - title: "Documentation"
       labels:
         - documentation
-    - title: "Infrastructure & Deployment"
+    - title: "Infrastructure & Developer Experience"
       labels:
         - infrastructure
+        - developer-experience
     - title: "Other Changes"
       labels:
         - "*"
