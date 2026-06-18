@@ -311,13 +311,6 @@ export default function SetupPage() {
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Skip for now
-              </button>
             </form>
           )}
 
