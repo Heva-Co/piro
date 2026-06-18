@@ -400,12 +400,8 @@ export interface SetupStatus {
 export const setupApi = {
   status: () => api.get<SetupStatus>(ENDPOINTS.SETUP.STATUS).then((r) => r.data),
 
-  complete: (data: {
-    siteName: string;
-    adminEmail: string;
-    adminName: string;
-    adminPassword: string;
-  }) => api.post(ENDPOINTS.SETUP.COMPLETE, data),
+  complete: (data: { email: string; password: string; name: string }) =>
+    api.post(ENDPOINTS.SETUP.COMPLETE, data),
 };
 
 // ─── Logs ─────────────────────────────────────────────────────────────────────
