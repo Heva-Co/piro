@@ -120,7 +120,7 @@ public class CheckAppService(
         return points
             .Where(p => region is null || p.WorkerRegion.Equals(region, StringComparison.OrdinalIgnoreCase))
             .Take(limit)
-            .Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType, p.ErrorMessage, p.WorkerRegion));
+            .Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType?.ToString(), p.ErrorMessage, p.WorkerRegion));
     }
 
     private static CheckDto ToDto(Check c) => new(

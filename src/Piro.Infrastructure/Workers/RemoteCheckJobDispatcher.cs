@@ -55,7 +55,7 @@ internal class RemoteCheckJobDispatcher(
                 CheckId = check.Id,
                 Timestamp = timestamp,
                 Status = ServiceStatus.NO_DATA,
-                DataType = "MONITOR_OUTAGE",
+                DataType = DataPointType.MONITOR_OUTAGE,
                 WorkerRegion = "monitor",
                 ErrorMessage = "No remote workers connected"
             };
@@ -122,7 +122,7 @@ internal class RemoteCheckJobDispatcher(
                 CheckId = check.Id,
                 Timestamp = timestamp,
                 Status = ServiceStatus.NO_DATA,
-                DataType = "MONITOR_OUTAGE",
+                DataType = DataPointType.MONITOR_OUTAGE,
                 WorkerRegion = "monitor",
                 ErrorMessage = "No default worker connected"
             };
