@@ -254,7 +254,7 @@ export default function SetupPage() {
                     <input
                       value={smtpFrom}
                       onChange={(e) => setSmtpFrom(e.target.value)}
-                      placeholder="no-reply@example.com"
+                      placeholder="Piro <no-reply@example.com>"
                       className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
@@ -288,7 +288,7 @@ export default function SetupPage() {
                     <input
                       value={resendFrom}
                       onChange={(e) => setResendFrom(e.target.value)}
-                      placeholder="no-reply@yourdomain.com"
+                      placeholder="Piro <no-reply@yourdomain.com>"
                       className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
