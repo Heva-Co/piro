@@ -1,30 +1,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Plus, AlertTriangle, Settings } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { channelsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
-const TYPE_COLORS: Record<string, string> = {
-  Webhook: "bg-purple-100 text-purple-700",
-  Email: "bg-blue-100 text-blue-700",
-  Slack: "bg-green-100 text-green-700",
-  PagerDuty: "bg-orange-100 text-orange-700",
-  MSTeams: "bg-indigo-100 text-indigo-700",
-  Telegram: "bg-sky-100 text-sky-700",
-  TwilioSms: "bg-red-100 text-red-700",
-  GoogleChat: "bg-yellow-100 text-yellow-700",
-  Discord: "bg-violet-100 text-violet-700",
-  Opsgenie: "bg-amber-100 text-amber-700",
-  Pushover: "bg-rose-100 text-rose-700",
-  Ntfy: "bg-teal-100 text-teal-700",
-};
+function Skeleton({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
+}
 
 export default function ChannelsPage() {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
 
   const { data: channels = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.CHANNELS,
@@ -32,106 +21,118 @@ export default function ChannelsPage() {
   });
 
   const filtered = channels.filter((c) => {
-    if (statusFilter === "active") return c.isActive;
-    if (statusFilter === "inactive") return !c.isActive;
+    if (statusFilter === "Active") return !c.isInactive;
+    if (statusFilter === "Inactive") return c.isInactive;
     return true;
   });
 
   return (
     <AdminLayout title="Notification Channels">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            {(["all", "active", "inactive"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-                  statusFilter === f
-                    ? "bg-indigo-600 text-white"
-                    : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Notification Channels</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Configure where alerts are sent when a check fails or recovers.
+            </p>
           </div>
           <button
             onClick={() => navigate(ROUTES.CHANNELS.NEW)}
-            className="flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            <Plus size={16} /> New Channel
+            <Plus size={14} /> New Channel
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Flags</th>
-                <th className="px-4 py-3 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-gray-400">Loading…</td>
+        {/* Status filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Status</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          >
+            {(["All", "Active", "Inactive"] as const).map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Table / empty state */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {isLoading ? (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Name</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Type</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                  <th className="px-5 py-2.5" />
                 </tr>
-              )}
-              {!isLoading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-gray-400">No channels found.</td>
+              </thead>
+              <tbody className="divide-y">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-5 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-5 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="px-5 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-5 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <p className="text-sm text-muted-foreground">No notification channels yet.</p>
+              <button
+                onClick={() => navigate(ROUTES.CHANNELS.NEW)}
+                className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                <Plus size={14} /> Create your first channel
+              </button>
+            </div>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Name</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Type</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                  <th className="px-5 py-2.5" />
                 </tr>
-              )}
-              {filtered.map((ch) => {
-                const cfg = ch.config as Record<string, unknown>;
-                const isGlobal = cfg?.isGlobal as boolean | undefined;
-                const isLocked = cfg?.isLocked as boolean | undefined;
-                return (
-                  <tr key={ch.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{ch.name}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[ch.type] ?? "bg-gray-100 text-gray-700"}`}>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((ch) => (
+                  <tr key={ch.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3 font-medium">{ch.name}</td>
+                    <td className="px-5 py-3">
+                      <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">
                         {ch.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${ch.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {ch.isActive ? "Active" : "Inactive"}
+                    <td className="px-5 py-3">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        !ch.isInactive
+                          ? "bg-green-50 text-green-700 border border-green-200"
+                          : "bg-muted text-muted-foreground border border-border"
+                      }`}>
+                        {!ch.isInactive ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 flex-wrap">
-                        {isGlobal && (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700">Global</span>
-                        )}
-                        {isLocked && (
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-xs bg-amber-100 text-amber-700">Locked</span>
-                        )}
-                        {!isGlobal && (
-                          <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs bg-orange-50 text-orange-600">
-                            <AlertTriangle size={11} /> No alerts linked
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => navigate(ROUTES.CHANNELS.DETAIL(ch.id))}
-                        className="rounded p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                        title="Configure"
+                        className="rounded-lg border px-3 py-1 text-sm font-medium hover:bg-muted transition-colors"
                       >
-                        <Settings size={15} />
+                        Configure
                       </button>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </AdminLayout>

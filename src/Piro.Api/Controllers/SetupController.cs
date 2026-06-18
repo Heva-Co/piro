@@ -15,6 +15,7 @@ public class SetupController(
     RoleManager<AppRole> roleManager,
     ISiteConfigRepository siteConfigRepo,
     IEmailConfigRepository emailConfigRepo,
+    IWorkerRegistrationRepository workerRepo,
     IUnitOfWork uow) : ControllerBase
 {
     private const string OwnerRole = "Owner";
@@ -91,6 +92,9 @@ public class SetupController(
                 await emailConfigRepo.SetAsync(cfg, ct);
             }
 
+            // Seed built-in API worker so it always appears in the Workers UI
+            await SeedBuiltInWorkerAsync(ct);
+
             await uow.CommitAsync(ct);
             return Ok(new SetupStatusResponse(false));
         }
@@ -107,6 +111,28 @@ public class SetupController(
     {
         var owners = await userManager.GetUsersInRoleAsync(OwnerRole);
         return owners.Count > 0;
+    }
+
+    // Well-known ID for the built-in API worker — must match ApiWorkerHostedService.ApiWorkerId
+    private static readonly Guid BuiltInWorkerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    private async Task SeedBuiltInWorkerAsync(CancellationToken ct)
+    {
+        var existing = await workerRepo.GetByIdAsync(BuiltInWorkerId, ct);
+        if (existing is null)
+        {
+            await workerRepo.CreateAsync(new WorkerRegistration
+            {
+                Id = BuiltInWorkerId,
+                Name = "API (built-in)",
+                Region = "default",
+                WorkerTokenHash = "builtin",
+                IsActive = true,
+                IsBuiltIn = true,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow,
+            }, ct);
+        }
     }
 
     private async Task SeedRolesAsync()

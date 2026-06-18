@@ -1,9 +1,35 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Copy, CheckCircle, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Copy, AlertCircle } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { authApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+
+// Modal backdrop
+function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 relative">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ModalClose({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none"
+    >
+      ×
+    </button>
+  );
+}
 
 export default function ApiKeysPage() {
   const qc = useQueryClient();
@@ -12,9 +38,9 @@ export default function ApiKeysPage() {
     queryFn: authApi.apiKeys,
   });
 
-  const [showCreate, setShowCreate] = useState(false);
+  const [modal, setModal] = useState<"none" | "create" | "secret">("none");
   const [name, setName] = useState("");
-  const [newSecret, setNewSecret] = useState<string | null>(null);
+  const [newSecret, setNewSecret] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -22,10 +48,10 @@ export default function ApiKeysPage() {
     mutationFn: () => authApi.createApiKey(name),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.API_KEYS });
-      setNewSecret(data.secret);
+      setNewSecret(data.rawKey ?? "");
       setName("");
-      setShowCreate(false);
       setCreateError("");
+      setModal("secret");
     },
     onError: () => setCreateError("Failed to create API key."),
   });
@@ -35,133 +61,161 @@ export default function ApiKeysPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.API_KEYS }),
   });
 
+  function openCreate() {
+    setName("");
+    setCreateError("");
+    setModal("create");
+  }
+
+  function closeModal() {
+    setModal("none");
+    setNewSecret("");
+    setCopied(false);
+  }
+
   function handleCopy() {
-    if (newSecret) {
-      navigator.clipboard.writeText(newSecret);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(newSecret);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleDelete(id: number, keyName: string) {
+    if (confirm(`Delete API key "${keyName}"?`)) {
+      deleteMutation.mutate(id);
     }
   }
 
   return (
     <AdminLayout title="API Keys">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">{keys.length} key{keys.length !== 1 ? "s" : ""}</p>
-          <button
-            onClick={() => { setShowCreate((v) => !v); setNewSecret(null); }}
-            className="flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <Plus size={16} /> Create API Key
-          </button>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Manage API keys for programmatic access to the Piro API.</p>
         </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+        >
+          <Plus size={15} /> New API Key
+        </button>
+      </div>
 
-        {newSecret && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-green-800 mb-2">
-              <CheckCircle size={16} /> API key created — copy it now, it won't be shown again.
+      {/* Keys list */}
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        {isLoading && (
+          <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
+        )}
+        {!isLoading && keys.length === 0 && (
+          <div className="py-16 text-center text-sm text-gray-400">
+            No API keys yet. Create one to get started.
+          </div>
+        )}
+        {keys.map((k, i) => (
+          <div
+            key={k.id}
+            className={`flex items-center justify-between px-5 py-4 ${i > 0 ? "border-t border-gray-100" : ""}`}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-gray-900">{k.name}</span>
+              <span className="text-xs font-mono text-gray-400">{k.maskedKey}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-white border border-green-200 px-3 py-2 text-sm font-mono text-green-900 break-all">
-                {newSecret}
-              </code>
+            <div className="flex items-center gap-4">
+              <span className="rounded-full bg-gray-900 px-3 py-0.5 text-xs font-semibold text-white">ACTIVE</span>
+              <span className="text-sm text-gray-500">
+                {new Date(k.createdAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}
+              </span>
               <button
-                onClick={handleCopy}
-                className="rounded-md border border-green-300 bg-white px-3 py-2 text-sm text-green-700 hover:bg-green-100 flex items-center gap-1.5"
+                onClick={() => handleDelete(k.id, k.name)}
+                className="text-gray-400 hover:text-red-600 transition-colors"
               >
-                <Copy size={14} />
-                {copied ? "Copied!" : "Copy"}
+                <Trash2 size={16} />
               </button>
             </div>
           </div>
-        )}
-
-        {showCreate && (
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold mb-3">New API Key</h3>
-            <form
-              onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
-              className="flex flex-col gap-3"
-            >
-              {createError && (
-                <div className="flex items-center gap-2 text-sm text-red-600">
-                  <AlertCircle size={14} /> {createError}
-                </div>
-              )}
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="Key name (e.g. CI/CD pipeline)"
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {createMutation.isPending ? "Creating…" : "Create"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(false)}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Created</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Last Used</th>
-                <th className="px-4 py-3 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-gray-400">Loading…</td>
-                </tr>
-              )}
-              {!isLoading && keys.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-gray-400">No API keys.</td>
-                </tr>
-              )}
-              {keys.map((k) => (
-                <tr key={k.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{k.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(k.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : "Never"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete API key "${k.name}"?`)) {
-                          deleteMutation.mutate(k.id);
-                        }
-                      }}
-                      className="rounded p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        ))}
       </div>
+
+      {/* Create modal */}
+      {modal === "create" && (
+        <Modal onClose={closeModal}>
+          <ModalClose onClose={closeModal} />
+          <h2 className="text-xl font-bold text-gray-900 mb-1">New API Key</h2>
+          <p className="text-sm text-gray-500 mb-5">Give your key a descriptive name.</p>
+          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}>
+            {createError && (
+              <div className="flex items-center gap-2 text-sm text-red-600 mb-3">
+                <AlertCircle size={14} /> {createError}
+              </div>
+            )}
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoFocus
+              placeholder="e.g. CI/CD Pipeline"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+            />
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={createMutation.isPending || !name.trim()}
+                className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+              >
+                {createMutation.isPending ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Secret reveal modal */}
+      {modal === "secret" && (
+        <Modal onClose={closeModal}>
+          <ModalClose onClose={closeModal} />
+          <h2 className="text-xl font-bold text-gray-900 mb-1">New API Key</h2>
+          <p className="text-sm text-gray-500 mb-5">Copy your API key now — it won't be shown again.</p>
+
+          <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 flex items-start gap-3 mb-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-500 mb-1">Your new API key:</p>
+              <code className="text-sm font-mono text-gray-900 break-all">{newSecret}</code>
+            </div>
+            <button
+              onClick={handleCopy}
+              title="Copy"
+              className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2 hover:bg-gray-100 transition-colors"
+            >
+              {copied
+                ? <span className="text-xs text-green-600 font-medium px-1">Copied!</span>
+                : <Copy size={16} className="text-gray-500" />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 mb-6">
+            <AlertCircle size={16} className="text-yellow-600 shrink-0" />
+            <p className="text-sm text-yellow-800">Store this key securely. You won't be able to see it again.</p>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={closeModal}
+              className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            >
+              Done
+            </button>
+          </div>
+        </Modal>
+      )}
     </AdminLayout>
   );
 }

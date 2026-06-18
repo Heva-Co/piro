@@ -42,6 +42,7 @@ export default function EmailConfigPage() {
     setSmtpFrom(data.smtpFrom ?? "");
     setSmtpUseTls(data.smtpUseTls ?? true);
     setResendFrom(data.resendFrom ?? "");
+    if (data.hasResendApiKey) setResendApiKey("re_••••••••");
   }, [data]);
 
   const saveMutation = useMutation({
@@ -59,7 +60,7 @@ export default function EmailConfigPage() {
             }
           : {
               provider: "resend",
-              resendApiKey: resendApiKey || undefined,
+              resendApiKey: (resendApiKey && resendApiKey !== "re_*••••••••") ? resendApiKey : undefined,
               resendFrom,
             }
       ),
@@ -203,7 +204,7 @@ export default function EmailConfigPage() {
                     value={resendApiKey}
                     onChange={(e) => setResendApiKey(e.target.value)}
                     type="password"
-                    placeholder={data?.hasResendApiKey ? "········ (saved — leave blank to keep)" : "re_..."}
+                    placeholder="re_..."
                     autoComplete="new-password"
                     className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                   />

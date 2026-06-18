@@ -1,9 +1,0 @@
-{
-  "alert_name": "{{alert_name}}",
-  "alert_for": "{{alert_for}}",
-  "alert_status": "{{alert_status}}",
-  "alert_severity": "{{alert_severity}}",
-  "alert_timestamp": "{{alert_timestamp}}",
-  "is_resolved": {{is_resolved}},
-  "is_triggered": {{is_triggered}}
-}

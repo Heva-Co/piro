@@ -121,6 +121,7 @@ export const QUERY_KEYS = {
   API_KEYS: ["api-keys"] as const,
   WORKERS: ["workers"] as const,
   OIDC_CONFIGS: ["oidc-configs"] as const,
+  OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,

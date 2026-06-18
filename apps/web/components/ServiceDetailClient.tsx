@@ -189,7 +189,7 @@ export function ServiceDetailClient({
         {tab === "status" && (
           <div className="p-5 flex flex-col gap-5">
             <div className="flex flex-col gap-0.5">
-              <p className="text-3xl font-bold">{overview.uptimePercent.toFixed(4)}%</p>
+              <p className="text-3xl font-bold">{overview.uptimePercent.toFixed(1)}%</p>
               <p className="text-xs text-muted-foreground">Uptime</p>
             </div>
 

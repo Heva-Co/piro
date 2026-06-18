@@ -44,7 +44,7 @@ export const authApi = {
     api.get<ApiKey[]>(ENDPOINTS.AUTH.API_KEYS).then((r) => r.data),
 
   createApiKey: (name: string) =>
-    api.post<ApiKey & { secret: string }>(ENDPOINTS.AUTH.API_KEYS, { name }).then((r) => r.data),
+    api.post<ApiKey & { rawKey: string; maskedKey: string }>(ENDPOINTS.AUTH.API_KEYS, { name }).then((r) => r.data),
 
   deleteApiKey: (id: number) => api.delete(ENDPOINTS.AUTH.API_KEY(id)),
 };
@@ -52,8 +52,10 @@ export const authApi = {
 export interface ApiKey {
   id: number;
   name: string;
+  maskedKey: string;
+  status: string;
   createdAt: string;
-  lastUsedAt: string | null;
+  lastUsedAt?: string | null;
 }
 
 // ─── Services ────────────────────────────────────────────────────────────────
@@ -62,8 +64,8 @@ export interface Service {
   slug: string;
   name: string;
   description?: string;
-  status: string;
-  isPublic: boolean;
+  currentStatus: string;
+  isHidden: boolean;
   displayOrder: number;
 }
 
@@ -72,10 +74,10 @@ export const servicesApi = {
 
   get: (slug: string) => api.get<Service>(ENDPOINTS.SERVICE(slug)).then((r) => r.data),
 
-  create: (data: Omit<Service, "slug" | "status">) =>
+  create: (data: Omit<Service, "currentStatus">) =>
     api.post<Service>(ENDPOINTS.SERVICES, data).then((r) => r.data),
 
-  update: (slug: string, data: Partial<Omit<Service, "slug" | "status">>) =>
+  update: (slug: string, data: Partial<Omit<Service, "slug" | "currentStatus">>) =>
     api.put<Service>(ENDPOINTS.SERVICE(slug), data).then((r) => r.data),
 
   delete: (slug: string) => api.delete(ENDPOINTS.SERVICE(slug)),
@@ -84,38 +86,75 @@ export const servicesApi = {
 // ─── Checks ──────────────────────────────────────────────────────────────────
 
 export interface Check {
+  id: number;
   slug: string;
   name: string;
-  serviceSlug: string;
+  description?: string;
   type: string;
-  status: string;
-  interval: number;
+  cron: string;
+  typeDataJson: string;
+  currentStatus: string;
+  defaultStatus: string;
   isActive: boolean;
-  config: Record<string, unknown>;
+  isMultiRegion: boolean;
+}
+
+export interface CreateCheck {
+  slug: string;
+  name: string;
+  description?: string;
+  type: string;
+  cron: string;
+  typeDataJson: string;
+  defaultStatus?: string;
+  isActive?: boolean;
+  isMultiRegion?: boolean;
+  failureThreshold?: number;
+  recoveryThreshold?: number;
 }
 
 export interface CheckLog {
-  id: number;
+  timestamp: number;
   status: string;
   latencyMs: number | null;
-  checkedAt: string;
-  message?: string;
+  dataType?: string;
+  errorMessage?: string;
+  workerRegion: string;
+}
+
+export interface CheckSummary {
+  id: number;
+  serviceSlug: string;
+  serviceName: string;
+  slug: string;
+  name: string;
+  description?: string;
+  type: string;
+  cron: string;
+  currentStatus: string;
+  isActive: boolean;
+  isMultiRegion: boolean;
+  updatedAt: string;
+  lastErrorMessage?: string;
 }
 
 export const checksApi = {
+  listAll: () =>
+    api.get<CheckSummary[]>(ENDPOINTS.CHECKS).then((r) => r.data),
+
   listForService: (serviceSlug: string) =>
     api.get<Check[]>(ENDPOINTS.SERVICE_CHECKS(serviceSlug)).then((r) => r.data),
 
   get: (serviceSlug: string, checkSlug: string) =>
     api.get<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug)).then((r) => r.data),
 
-  create: (serviceSlug: string, data: Omit<Check, "slug" | "status" | "serviceSlug">) =>
+  create: (serviceSlug: string, data: CreateCheck) =>
     api.post<Check>(ENDPOINTS.SERVICE_CHECKS(serviceSlug), data).then((r) => r.data),
 
   update: (
     serviceSlug: string,
     checkSlug: string,
-    data: Partial<Omit<Check, "slug" | "status" | "serviceSlug">>
+    data: Partial<Omit<Check, "id" | "slug" | "currentStatus">>
   ) =>
     api
       .put<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug), data)
@@ -127,8 +166,8 @@ export const checksApi = {
   run: (serviceSlug: string, checkSlug: string) =>
     api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
 
-  logs: (serviceSlug: string, checkSlug: string) =>
-    api.get<CheckLog[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug)).then((r) => r.data),
+  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string }) =>
+    api.get<CheckLog[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug), { params }).then((r) => r.data),
 };
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
@@ -140,6 +179,7 @@ export interface Incident {
   severity: string;
   startedAt: string;
   resolvedAt?: string;
+  isGlobal: boolean;
   services: { slug: string; name: string }[];
 }
 
@@ -189,8 +229,14 @@ export interface NotificationChannel {
   id: number;
   name: string;
   type: string;
-  config: Record<string, unknown>;
-  isActive: boolean;
+  description?: string;
+  isInactive: boolean;
+  metaJson: string;
+  isGlobal: boolean;
+  isLocked: boolean;
+  createdAt: string;
+  updatedAt: string;
+  alertConfigCount: number;
 }
 
 export const channelsApi = {
@@ -207,7 +253,7 @@ export const channelsApi = {
 
   delete: (id: number | string) => api.delete(ENDPOINTS.CHANNEL(id)),
 
-  test: (data: { type: string; config: Record<string, unknown> }) =>
+  test: (data: { type: string; metaJson: string; name?: string }) =>
     api.post(ENDPOINTS.CHANNEL_TEST, data),
 };
 
@@ -254,6 +300,7 @@ export interface Maintenance {
   scheduledStart: string;
   scheduledEnd: string;
   status: string;
+  isGlobal: boolean;
   services: { slug: string; name: string }[];
 }
 
@@ -294,26 +341,29 @@ export const usersApi = {
 
   delete: (id: number | string) => api.delete(ENDPOINTS.USER(id)),
 
-  updateRole: (id: number | string, role: string) =>
-    api.put(ENDPOINTS.USER_ROLE(id), { role }),
+  updateRole: (id: number | string, roleId: number) =>
+    api.put(ENDPOINTS.USER_ROLE(id), { roleId }),
 
-  invite: (email: string, role: string) =>
-    api.post(ENDPOINTS.USER_INVITE, { email, role }),
+  invite: (email: string, roleId: number) =>
+    api.post(ENDPOINTS.USER_INVITE, { email, roleId }),
 
   acceptInvite: (token: string, name: string, password: string) =>
     api.post(ENDPOINTS.USER_ACCEPT_INVITE, { token, name, password }),
 
-  roles: () => api.get<string[]>(ENDPOINTS.ROLES).then((r) => r.data),
+  roles: () =>
+    api.get<{ id: number; name: string }[]>(ENDPOINTS.ROLES).then((r) => r.data),
 };
 
 // ─── Site config ─────────────────────────────────────────────────────────────
 
 export interface SiteConfig {
-  title: string;
-  description?: string;
+  name?: string;
+  url?: string;
   logoUrl?: string;
   faviconUrl?: string;
-  url?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImageUrl?: string;
 }
 
 export const siteApi = {
@@ -335,24 +385,46 @@ export const siteApi = {
 
 // ─── OIDC config ─────────────────────────────────────────────────────────────
 
-export interface OidcConfig {
+export interface OidcProviderConfig {
   id: string;
-  provider: string;
+  displayName: string;
+  authority: string;
+  clientId: string;
+  hasClientSecret: boolean;
+  redirectUri?: string;
+  scopes: string;
+  allowedDomains?: string;
+  defaultRole: string;
+  isEnabled: boolean;
+}
+
+export interface UpsertOidcProvider {
+  id: string;
+  displayName: string;
+  authority: string;
   clientId: string;
   clientSecret?: string;
-  isActive: boolean;
+  redirectUri?: string;
+  scopes: string;
+  allowedDomains?: string;
+  defaultRole: string;
+  isEnabled: boolean;
 }
 
 export const oidcApi = {
-  get: () => api.get<OidcConfig>(ENDPOINTS.OIDC_CONFIG).then((r) => r.data),
+  list: () => api.get<OidcProviderConfig[]>(ENDPOINTS.OIDC_CONFIG).then((r) => r.data),
 
-  update: (data: Partial<OidcConfig>) =>
-    api.put<OidcConfig>(ENDPOINTS.OIDC_CONFIG, data).then((r) => r.data),
+  upsert: (data: UpsertOidcProvider) =>
+    api.put(ENDPOINTS.OIDC_CONFIG, data),
 
-  setSsoMode: (mode: string) =>
-    api.put(ENDPOINTS.OIDC_CONFIG_SSO_MODE, { mode }),
+  getSsoMode: () =>
+    api.get<{ ssoOnly: boolean }>(ENDPOINTS.OIDC_CONFIG_SSO_MODE).then((r) => r.data),
 
-  test: () => api.post(ENDPOINTS.OIDC_CONFIG_TEST),
+  setSsoMode: (ssoOnly: boolean) =>
+    api.put(ENDPOINTS.OIDC_CONFIG_SSO_MODE, { ssoOnly }),
+
+  test: (providerId: string) =>
+    api.post<{ success: boolean; message: string }>(ENDPOINTS.OIDC_CONFIG_TEST, { providerId }).then((r) => r.data),
 };
 
 // ─── Email config ─────────────────────────────────────────────────────────────
@@ -395,8 +467,14 @@ export const emailApi = {
 export interface Worker {
   id: string;
   name: string;
-  status: string;
-  lastSeenAt?: string;
+  region: string;
+  isConnected: boolean;
+  lastHeartbeat?: string | null;
+  createdAt: string;
+  isActive: boolean;
+  version?: string | null;
+  isBuiltIn: boolean;
+  isDefault: boolean;
 }
 
 export const workersApi = {
@@ -404,7 +482,16 @@ export const workersApi = {
 
   get: (id: string) => api.get<Worker>(ENDPOINTS.WORKER(id)).then((r) => r.data),
 
+  create: (name: string, region: string, isDefault?: boolean) =>
+    api.post(ENDPOINTS.WORKERS, { name, region, isDefault: isDefault ?? false }).then((r) => r.data),
+
   delete: (id: string) => api.delete(ENDPOINTS.WORKER(id)),
+
+  updateRegion: (id: string, region: string) =>
+    api.patch(ENDPOINTS.WORKER(id), { region }).then((r) => r.data),
+
+  toggleBuiltin: (disabled: boolean) =>
+    api.post(`${ENDPOINTS.WORKERS}/builtin/toggle`, { disabled }).then((r) => r.data),
 };
 
 // ─── Setup ────────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ internal class NotificationChannelConfiguration : IEntityTypeConfiguration<Notif
         builder.Property(c => c.MetaJson).HasColumnType("jsonb").HasDefaultValue("{}");
         builder.Property(c => c.IsGlobal).HasDefaultValue(false);
         builder.Property(c => c.IsLocked).HasDefaultValue(false);
+        builder.Property(c => c.IsInactive).HasDefaultValue(false);
     }
 }
 

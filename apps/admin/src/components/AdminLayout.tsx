@@ -10,7 +10,6 @@ import {
   Bell,
   ScrollText,
   Settings,
-  Upload,
   Key,
   Server,
   Users,
@@ -49,8 +48,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const configNavItems: NavItem[] = [
-  { label: "Import", to: ROUTES.CONFIG.IMPORT, icon: <Upload size={18} /> },
-  { label: "API Keys", to: ROUTES.CONFIG.API_KEYS, icon: <Key size={18} /> },
+{ label: "API Keys", to: ROUTES.CONFIG.API_KEYS, icon: <Key size={18} /> },
   { label: "Workers", to: ROUTES.CONFIG.WORKERS, icon: <Server size={18} /> },
   { label: "Users", to: ROUTES.CONFIG.USERS, icon: <Users size={18} /> },
   { label: "SSO", to: ROUTES.CONFIG.SSO, icon: <KeyRound size={18} /> },
@@ -76,7 +74,7 @@ function Sidebar({ onClose }: SidebarProps) {
     staleTime: 60_000,
   });
 
-  const siteName = siteConfig?.title || "Piro";
+  const siteName = siteConfig?.name || "Piro";
   const logoUrl = siteConfig?.logoUrl;
   const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 

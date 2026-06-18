@@ -39,7 +39,7 @@ export default async function ServiceDetailPage({ params }: Props) {
   const serviceMaintenances = maintenances.filter((m) => m.serviceSlugs.includes(slug));
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 flex flex-col gap-4">
+    <main className="mx-auto w-full max-w-screen-lg px-8 py-10 flex flex-col gap-4">
       <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
         ← Back
       </Link>

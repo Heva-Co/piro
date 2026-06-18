@@ -1,9 +1,0 @@
-{
-  "text": "Alert: {{alert_name}} is {{alert_status}}",
-  "blocks": [
-    {
-      "type": "section",
-      "text": { "type": "mrkdwn", "text": "*{{alert_name}}* — {{alert_for}}\nStatus: *{{alert_status}}*\nSeverity: {{alert_severity}}" }
-    }
-  ]
-}

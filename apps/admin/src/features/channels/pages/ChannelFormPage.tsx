@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Trash2, FlaskConical } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { channelsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 const CHANNEL_TYPES = [
   "Webhook", "Email", "Slack", "PagerDuty", "MSTeams", "Telegram",
@@ -14,39 +16,400 @@ const CHANNEL_TYPES = [
 
 interface Header { key: string; value: string }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <div className="relative">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only peer" />
-        <div className="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-indigo-600 transition-colors" />
-        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-      </div>
-      <span className="text-sm font-medium">{label}</span>
-    </label>
-  );
-}
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+const inp = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
+const sel = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
+
+// ── Toggle row ────────────────────────────────────────────────────────────────
+
+function ToggleRow({
+  label, description, checked, onChange,
+}: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium">{label}</label>
-      {children}
+    <div className="flex items-center justify-between border-b border-border py-4">
+      <div>
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+          checked ? "bg-foreground" : "bg-input"
+        }`}
+      >
+        <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`} />
+      </button>
     </div>
   );
 }
 
-const inputCls = "rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
-const selectCls = "rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
-const textareaCls = "rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500";
+// ── Default bodies ────────────────────────────────────────────────────────────
 
-// Default JSON bodies
 const DEFAULT_WEBHOOK_BODY = `{
-  "text": "{{message}}"
+  "alert_name": "{{alert_name}}",
+  "alert_for": "{{alert_for}}",
+  "alert_status": "{{alert_status}}",
+  "alert_severity": "{{alert_severity}}",
+  "alert_timestamp": "{{alert_timestamp}}",
+  "is_resolved": {{is_resolved}},
+  "is_triggered": {{is_triggered}}
 }`;
+
 const DEFAULT_SLACK_BODY = `{
-  "text": "{{message}}"
+  "text": "{{alert_name}} is {{alert_status}}"
 }`;
+
+// ── Type-specific config panels ───────────────────────────────────────────────
+
+function WebhookConfig({
+  url, setUrl, secret, setSecret, body, setBody, headers, setHeaders,
+}: {
+  url: string; setUrl: (v: string) => void;
+  secret: string; setSecret: (v: string) => void;
+  body: string; setBody: (v: string) => void;
+  headers: Header[]; setHeaders: (h: Header[]) => void;
+}) {
+  function addHeader() { setHeaders([...headers, { key: "", value: "" }]); }
+  function updateHeader(i: number, f: "key" | "value", v: string) {
+    setHeaders(headers.map((h, idx) => idx === i ? { ...h, [f]: v } : h));
+  }
+  function removeHeader(i: number) { setHeaders(headers.filter((_, idx) => idx !== i)); }
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/webhook" className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Secret</label>
+        <input value={secret} onChange={(e) => setSecret(e.target.value)}
+          placeholder="Used to sign the payload via HMAC-SHA256 (optional)" className={inp} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Headers</label>
+        {headers.map((h, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input placeholder="Header name" value={h.key}
+              onChange={(e) => updateHeader(i, "key", e.target.value)} className={inp} />
+            <input placeholder="Value" value={h.value}
+              onChange={(e) => updateHeader(i, "value", e.target.value)} className={inp} />
+            <button type="button" onClick={() => removeHeader(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={addHeader}
+          className="flex items-center gap-1.5 text-sm hover:underline self-start">
+          <Plus size={13} /> Add Header
+        </button>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Custom Webhook Body</label>
+        <p className="text-xs text-muted-foreground">Override the default JSON payload</p>
+        <p className="text-xs text-muted-foreground">
+          Use Mustache variables like <code className="font-mono">{`{{variable}}`}</code>. Available:{" "}
+          <code className="font-mono text-xs">alert_name, alert_for, alert_status, alert_severity, alert_timestamp, is_resolved, is_triggered</code>
+        </p>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function EmailConfig({ to, setTo, from, setFrom, template, setTemplate }: {
+  to: string; setTo: (v: string) => void;
+  from: string; setFrom: (v: string) => void;
+  template: string; setTemplate: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">To <span className="text-destructive">*</span></label>
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="a@example.com, b@example.com" className={inp} required />
+        <p className="text-xs text-muted-foreground">Comma-separated list of recipients</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">From</label>
+        <input type="email" value={from} onChange={(e) => setFrom(e.target.value)}
+          placeholder="Uses the from address configured in Email settings" className={inp} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">HTML Template</label>
+        <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={6}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function SlackConfig({ url, setUrl, body, setBody }: {
+  url: string; setUrl: (v: string) => void;
+  body: string; setBody: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://hooks.slack.com/..." className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Body (JSON template)</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function PagerDutyConfig({ apiKey, setApiKey, severity, setSeverity }: {
+  apiKey: string; setApiKey: (v: string) => void;
+  severity: string; setSeverity: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Integration Key <span className="text-destructive">*</span></label>
+        <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Severity</label>
+        <select value={severity} onChange={(e) => setSeverity(e.target.value)} className={sel}>
+          {["critical", "error", "warning", "info"].map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+    </>
+  );
+}
+
+function MSTeamsConfig({ url, setUrl, body, setBody }: {
+  url: string; setUrl: (v: string) => void;
+  body: string; setBody: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Body</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function TelegramConfig({ token, setToken, chatId, setChatId, template, setTemplate }: {
+  token: string; setToken: (v: string) => void;
+  chatId: string; setChatId: (v: string) => void;
+  template: string; setTemplate: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Bot Token <span className="text-destructive">*</span></label>
+        <input value={token} onChange={(e) => setToken(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Chat ID <span className="text-destructive">*</span></label>
+        <input value={chatId} onChange={(e) => setChatId(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Template</label>
+        <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={3}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function TwilioConfig({ sid, setSid, token, setToken, from, setFrom, to, setTo, msg, setMsg }: {
+  sid: string; setSid: (v: string) => void;
+  token: string; setToken: (v: string) => void;
+  from: string; setFrom: (v: string) => void;
+  to: string; setTo: (v: string) => void;
+  msg: string; setMsg: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Account SID <span className="text-destructive">*</span></label>
+        <input value={sid} onChange={(e) => setSid(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Auth Token <span className="text-destructive">*</span></label>
+        <input type="password" value={token} onChange={(e) => setToken(e.target.value)} className={inp} required />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">From <span className="text-destructive">*</span></label>
+          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="+15005550006" className={inp} required />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">To <span className="text-destructive">*</span></label>
+          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="+15005550006" className={inp} required />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Message</label>
+        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={3}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function GoogleChatConfig({ url, setUrl, body, setBody }: {
+  url: string; setUrl: (v: string) => void;
+  body: string; setBody: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Body</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function DiscordConfig({ url, setUrl, username, setUsername, body, setBody }: {
+  url: string; setUrl: (v: string) => void;
+  username: string; setUsername: (v: string) => void;
+  body: string; setBody: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Username</label>
+        <input value={username} onChange={(e) => setUsername(e.target.value)} className={inp} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Body</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
+      </div>
+    </>
+  );
+}
+
+function OpsgenieConfig({ apiKey, setApiKey, region, setRegion, priority, setPriority }: {
+  apiKey: string; setApiKey: (v: string) => void;
+  region: string; setRegion: (v: string) => void;
+  priority: string; setPriority: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">API Key <span className="text-destructive">*</span></label>
+        <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} className={inp} required />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Region</label>
+          <select value={region} onChange={(e) => setRegion(e.target.value)} className={sel}>
+            {["US", "EU"].map((r) => <option key={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
+            {["P1", "P2", "P3", "P4", "P5"].map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PushoverConfig({ userKey, setUserKey, appToken, setAppToken, priority, setPriority, device, setDevice }: {
+  userKey: string; setUserKey: (v: string) => void;
+  appToken: string; setAppToken: (v: string) => void;
+  priority: string; setPriority: (v: string) => void;
+  device: string; setDevice: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">User Key <span className="text-destructive">*</span></label>
+        <input value={userKey} onChange={(e) => setUserKey(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">App Token <span className="text-destructive">*</span></label>
+        <input value={appToken} onChange={(e) => setAppToken(e.target.value)} className={inp} required />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
+            {["-2", "-1", "0", "1", "2"].map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Device</label>
+          <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="Leave blank for all devices" className={inp} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function NtfyConfig({ url, setUrl, topic, setTopic, token, setToken, priority, setPriority, tags, setTags }: {
+  url: string; setUrl: (v: string) => void;
+  topic: string; setTopic: (v: string) => void;
+  token: string; setToken: (v: string) => void;
+  priority: string; setPriority: (v: string) => void;
+  tags: string; setTags: (v: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://ntfy.sh" className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Topic <span className="text-destructive">*</span></label>
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} className={inp} required />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Token</label>
+        <input value={token} onChange={(e) => setToken(e.target.value)} className={inp} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
+            {["1", "2", "3", "4", "5"].map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Tags</label>
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="warning, rotating_light" className={inp} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChannelFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -54,7 +417,7 @@ export default function ChannelFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  // Common fields
+  // Common
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("Webhook");
@@ -124,10 +487,10 @@ export default function ChannelFormPage() {
   const [ntfyPriority, setNtfyPriority] = useState("3");
   const [ntfyTags, setNtfyTags] = useState("");
 
-  // UI state
-  const [success, setSuccess] = useState(false);
+  // UI
   const [error, setError] = useState("");
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+  const [testMsg, setTestMsg] = useState("");
   const [testing, setTesting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
@@ -140,77 +503,42 @@ export default function ChannelFormPage() {
   useEffect(() => {
     if (!existing) return;
     setName(existing.name);
-    setIsActive(existing.isActive);
+    setIsActive(!existing.isInactive);
     setType(existing.type);
-    const cfg = existing.config as Record<string, unknown>;
-    setIsGlobal((cfg?.isGlobal as boolean) ?? false);
-    setIsLocked((cfg?.isLocked as boolean) ?? false);
-    setDescription((cfg?.description as string) ?? "");
-
-    const meta = cfg?.metaJson ? JSON.parse(cfg.metaJson as string) : {};
+    setIsGlobal(existing.isGlobal);
+    setIsLocked(existing.isLocked);
+    setDescription(existing.description ?? "");
+    const meta = existing.metaJson ? JSON.parse(existing.metaJson) : {};
     switch (existing.type) {
       case "Webhook":
-        setWhUrl(meta.url ?? "");
-        setWhSecret(meta.secret ?? "");
-        setWhBody(meta.body ?? DEFAULT_WEBHOOK_BODY);
+        setWhUrl(meta.url ?? ""); setWhSecret(meta.secret ?? ""); setWhBody(meta.body ?? DEFAULT_WEBHOOK_BODY);
         setWhHeaders(meta.headers ? Object.entries(meta.headers).map(([k, v]) => ({ key: k, value: v as string })) : []);
         break;
       case "Email":
-        setEmailTo(meta.to ?? "");
-        setEmailFrom(meta.from ?? "");
-        setEmailTemplate(meta.template ?? "");
-        break;
+        setEmailTo(meta.to ?? ""); setEmailFrom(meta.from ?? ""); setEmailTemplate(meta.template ?? ""); break;
       case "Slack":
-        setSlackUrl(meta.url ?? "");
-        setSlackBody(meta.body ?? DEFAULT_SLACK_BODY);
-        break;
+        setSlackUrl(meta.url ?? ""); setSlackBody(meta.body ?? DEFAULT_SLACK_BODY); break;
       case "PagerDuty":
-        setPdKey(meta.integrationKey ?? "");
-        setPdSeverity(meta.severity ?? "critical");
-        break;
+        setPdKey(meta.integrationKey ?? ""); setPdSeverity(meta.severity ?? "critical"); break;
       case "MSTeams":
-        setTeamsUrl(meta.url ?? "");
-        setTeamsBody(meta.body ?? "");
-        break;
+        setTeamsUrl(meta.url ?? ""); setTeamsBody(meta.body ?? ""); break;
       case "Telegram":
-        setTgToken(meta.botToken ?? "");
-        setTgChatId(meta.chatId ?? "");
-        setTgTemplate(meta.template ?? "");
-        break;
+        setTgToken(meta.botToken ?? ""); setTgChatId(meta.chatId ?? ""); setTgTemplate(meta.template ?? ""); break;
       case "TwilioSms":
-        setTwSid(meta.accountSid ?? "");
-        setTwToken(meta.authToken ?? "");
-        setTwFrom(meta.fromNumber ?? "");
-        setTwTo(meta.toNumber ?? "");
-        setTwMsg(meta.message ?? "");
-        break;
+        setTwSid(meta.accountSid ?? ""); setTwToken(meta.authToken ?? ""); setTwFrom(meta.fromNumber ?? "");
+        setTwTo(meta.toNumber ?? ""); setTwMsg(meta.message ?? ""); break;
       case "GoogleChat":
-        setGcUrl(meta.url ?? "");
-        setGcBody(meta.body ?? "");
-        break;
+        setGcUrl(meta.url ?? ""); setGcBody(meta.body ?? ""); break;
       case "Discord":
-        setDiscordUrl(meta.url ?? "");
-        setDiscordUsername(meta.username ?? "");
-        setDiscordBody(meta.body ?? "");
-        break;
+        setDiscordUrl(meta.url ?? ""); setDiscordUsername(meta.username ?? ""); setDiscordBody(meta.body ?? ""); break;
       case "Opsgenie":
-        setOgKey(meta.apiKey ?? "");
-        setOgRegion(meta.region ?? "US");
-        setOgPriority(meta.priority ?? "P2");
-        break;
+        setOgKey(meta.apiKey ?? ""); setOgRegion(meta.region ?? "US"); setOgPriority(meta.priority ?? "P2"); break;
       case "Pushover":
-        setPoUserKey(meta.userKey ?? "");
-        setPoAppToken(meta.appToken ?? "");
-        setPoPriority(meta.priority ?? "0");
-        setPoDevice(meta.device ?? "");
-        break;
+        setPoUserKey(meta.userKey ?? ""); setPoAppToken(meta.appToken ?? "");
+        setPoPriority(meta.priority ?? "0"); setPoDevice(meta.device ?? ""); break;
       case "Ntfy":
-        setNtfyUrl(meta.url ?? "");
-        setNtfyTopic(meta.topic ?? "");
-        setNtfyToken(meta.token ?? "");
-        setNtfyPriority(meta.priority ?? "3");
-        setNtfyTags(meta.tags ?? "");
-        break;
+        setNtfyUrl(meta.url ?? ""); setNtfyTopic(meta.topic ?? ""); setNtfyToken(meta.token ?? "");
+        setNtfyPriority(meta.priority ?? "3"); setNtfyTags(meta.tags ?? ""); break;
     }
   }, [existing]);
 
@@ -221,30 +549,18 @@ export default function ChannelFormPage() {
         whHeaders.forEach(({ key, value }) => { if (key) headers[key] = value; });
         return JSON.stringify({ url: whUrl, secret: whSecret, body: whBody, headers });
       }
-      case "Email":
-        return JSON.stringify({ to: emailTo, from: emailFrom, template: emailTemplate });
-      case "Slack":
-        return JSON.stringify({ url: slackUrl, body: slackBody });
-      case "PagerDuty":
-        return JSON.stringify({ integrationKey: pdKey, severity: pdSeverity });
-      case "MSTeams":
-        return JSON.stringify({ url: teamsUrl, body: teamsBody });
-      case "Telegram":
-        return JSON.stringify({ botToken: tgToken, chatId: tgChatId, template: tgTemplate });
-      case "TwilioSms":
-        return JSON.stringify({ accountSid: twSid, authToken: twToken, fromNumber: twFrom, toNumber: twTo, message: twMsg });
-      case "GoogleChat":
-        return JSON.stringify({ url: gcUrl, body: gcBody });
-      case "Discord":
-        return JSON.stringify({ url: discordUrl, username: discordUsername, body: discordBody });
-      case "Opsgenie":
-        return JSON.stringify({ apiKey: ogKey, region: ogRegion, priority: ogPriority });
-      case "Pushover":
-        return JSON.stringify({ userKey: poUserKey, appToken: poAppToken, priority: poPriority, device: poDevice });
-      case "Ntfy":
-        return JSON.stringify({ url: ntfyUrl, topic: ntfyTopic, token: ntfyToken, priority: ntfyPriority, tags: ntfyTags });
-      default:
-        return "{}";
+      case "Email": return JSON.stringify({ to: emailTo, from: emailFrom, template: emailTemplate });
+      case "Slack": return JSON.stringify({ url: slackUrl, body: slackBody });
+      case "PagerDuty": return JSON.stringify({ integrationKey: pdKey, severity: pdSeverity });
+      case "MSTeams": return JSON.stringify({ url: teamsUrl, body: teamsBody });
+      case "Telegram": return JSON.stringify({ botToken: tgToken, chatId: tgChatId, template: tgTemplate });
+      case "TwilioSms": return JSON.stringify({ accountSid: twSid, authToken: twToken, fromNumber: twFrom, toNumber: twTo, message: twMsg });
+      case "GoogleChat": return JSON.stringify({ url: gcUrl, body: gcBody });
+      case "Discord": return JSON.stringify({ url: discordUrl, username: discordUsername, body: discordBody });
+      case "Opsgenie": return JSON.stringify({ apiKey: ogKey, region: ogRegion, priority: ogPriority });
+      case "Pushover": return JSON.stringify({ userKey: poUserKey, appToken: poAppToken, priority: poPriority, device: poDevice });
+      case "Ntfy": return JSON.stringify({ url: ntfyUrl, topic: ntfyTopic, token: ntfyToken, priority: ntfyPriority, tags: ntfyTags });
+      default: return "{}";
     }
   }
 
@@ -252,8 +568,8 @@ export default function ChannelFormPage() {
     return {
       name,
       type,
-      description,
-      status: isActive ? "ACTIVE" : "INACTIVE",
+      description: description || undefined,
+      isInactive: !isActive,
       metaJson: buildMetaJson(),
       isGlobal,
       isLocked: isGlobal ? isLocked : false,
@@ -263,368 +579,193 @@ export default function ChannelFormPage() {
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload = buildPayload();
-      if (isEdit) return channelsApi.update(id!, payload as unknown as Parameters<typeof channelsApi.update>[1]);
-      return channelsApi.create(payload as unknown as Parameters<typeof channelsApi.create>[0]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (isEdit) return channelsApi.update(id!, payload as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return channelsApi.create(payload as any);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS });
-      setSuccess(true);
-      setError("");
-      setTimeout(() => setSuccess(false), 3000);
+      if (!isEdit && data && 'id' in (data as object)) {
+        navigate(ROUTES.CHANNELS.DETAIL((data as { id: number }).id));
+      }
     },
     onError: () => setError("Failed to save channel."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => channelsApi.delete(id!),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS });
-      navigate(ROUTES.CHANNELS.LIST);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS }); navigate(ROUTES.CHANNELS.LIST); },
     onError: () => setError("Failed to delete channel."),
   });
 
   async function handleTest() {
     setTesting(true);
     setTestResult(null);
+    setTestMsg("");
     try {
-      await channelsApi.test({ type, config: { metaJson: buildMetaJson() } });
+      await channelsApi.test({ type, metaJson: buildMetaJson(), name: name || "Test Channel" });
       setTestResult("success");
+      setTestMsg("Test notification sent successfully.");
     } catch {
       setTestResult("error");
+      setTestMsg("Test notification failed. Check your configuration.");
     } finally {
       setTesting(false);
     }
   }
 
-  function addHeader() {
-    setWhHeaders((h) => [...h, { key: "", value: "" }]);
-  }
-
-  function updateHeader(i: number, field: "key" | "value", val: string) {
-    setWhHeaders((h) => h.map((hdr, idx) => idx === i ? { ...hdr, [field]: val } : hdr));
-  }
-
-  function removeHeader(i: number) {
-    setWhHeaders((h) => h.filter((_, idx) => idx !== i));
-  }
-
-  const title = isEdit ? `Edit Channel${existing ? ` — ${existing.name}` : ""}` : "New Channel";
+  const pageTitle = isEdit ? (existing?.name ?? "Edit Channel") : "New Channel";
 
   return (
-    <AdminLayout title={title}>
-      <div className="max-w-2xl flex flex-col gap-6">
-        <form
-          onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}
-          className="flex flex-col gap-5"
-        >
-          {success && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              <CheckCircle size={16} /> Saved successfully.
-            </div>
-          )}
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-          {testResult === "success" && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              <CheckCircle size={16} /> Test notification sent successfully.
-            </div>
-          )}
-          {testResult === "error" && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle size={16} /> Test notification failed.
-            </div>
-          )}
+    <AdminLayout title={pageTitle}>
+      <div className="flex flex-col gap-6">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+          <button onClick={() => navigate(ROUTES.CHANNELS.LIST)} className="hover:text-foreground transition-colors">
+            Notification Channels
+          </button>
+          <span>/</span>
+          <span className="text-foreground font-medium">{pageTitle}</span>
+        </nav>
 
-          {/* Common fields */}
-          <Field label="Name">
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
-          </Field>
+        {/* Title */}
+        <div>
+          <h1 className="text-xl font-bold">{pageTitle}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Configure notification triggers for your monitors</p>
+        </div>
 
-          <Field label="Description">
-            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className={inputCls} />
-          </Field>
+        {/* Feedback banners */}
+        {error && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
+        )}
+        {testResult && (
+          <div className={`rounded-lg border px-4 py-3 text-sm ${
+            testResult === "success"
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-destructive/20 bg-destructive/5 text-destructive"
+          }`}>{testMsg}</div>
+        )}
 
-          <Field label="Type">
+        {/* Main card */}
+        <div className="rounded-xl border bg-card">
+          {/* Trigger type */}
+          <div className="px-6 pt-6 pb-4 border-b border-border">
+            <p className="text-sm font-semibold mb-1">Trigger Type</p>
+            <p className="text-xs text-muted-foreground mb-3">Select the type of notification to send</p>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
               disabled={isEdit}
-              className={selectCls}
+              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-48"
             >
               {CHANNEL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            {isEdit && <p className="text-xs text-gray-400">Type cannot be changed after creation.</p>}
-          </Field>
+            {isEdit && <p className="text-xs text-muted-foreground mt-1.5">Type cannot be changed after creation.</p>}
+          </div>
 
-          <Toggle checked={isActive} onChange={setIsActive} label="Active" />
-          <Toggle checked={isGlobal} onChange={setIsGlobal} label="Global (send to all checks)" />
-          {isGlobal && <Toggle checked={isLocked} onChange={setIsLocked} label="Locked" />}
-
-          {/* Type-specific config */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-gray-700">{type} Configuration</h3>
-
-            {type === "Webhook" && (
-              <>
-                <Field label="URL *">
-                  <input type="url" value={whUrl} onChange={(e) => setWhUrl(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Secret">
-                  <input type="text" value={whSecret} onChange={(e) => setWhSecret(e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="Body (JSON template)">
-                  <textarea value={whBody} onChange={(e) => setWhBody(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Headers</label>
-                  {whHeaders.map((h, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        placeholder="Header name"
-                        value={h.key}
-                        onChange={(e) => updateHeader(i, "key", e.target.value)}
-                        className={`flex-1 ${inputCls}`}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Value"
-                        value={h.value}
-                        onChange={(e) => updateHeader(i, "value", e.target.value)}
-                        className={`flex-1 ${inputCls}`}
-                      />
-                      <button type="button" onClick={() => removeHeader(i)} className="text-gray-400 hover:text-red-600">
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button" onClick={addHeader} className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 self-start">
-                    <Plus size={14} /> Add Header
-                  </button>
-                </div>
-              </>
-            )}
-
-            {type === "Email" && (
-              <>
-                <Field label="To (comma-separated) *">
-                  <input type="text" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} required className={inputCls} placeholder="a@example.com, b@example.com" />
-                </Field>
-                <Field label="From">
-                  <input type="email" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="HTML Template">
-                  <textarea value={emailTemplate} onChange={(e) => setEmailTemplate(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "Slack" && (
-              <>
-                <Field label="Webhook URL *">
-                  <input type="url" value={slackUrl} onChange={(e) => setSlackUrl(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Body (JSON template)">
-                  <textarea value={slackBody} onChange={(e) => setSlackBody(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "PagerDuty" && (
-              <>
-                <Field label="Integration Key *">
-                  <input type="text" value={pdKey} onChange={(e) => setPdKey(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Severity">
-                  <select value={pdSeverity} onChange={(e) => setPdSeverity(e.target.value)} className={selectCls}>
-                    {["critical", "error", "warning", "info"].map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </Field>
-              </>
-            )}
-
-            {type === "MSTeams" && (
-              <>
-                <Field label="Webhook URL *">
-                  <input type="url" value={teamsUrl} onChange={(e) => setTeamsUrl(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Body">
-                  <textarea value={teamsBody} onChange={(e) => setTeamsBody(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "Telegram" && (
-              <>
-                <Field label="Bot Token *">
-                  <input type="text" value={tgToken} onChange={(e) => setTgToken(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Chat ID *">
-                  <input type="text" value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Template">
-                  <textarea value={tgTemplate} onChange={(e) => setTgTemplate(e.target.value)} rows={3} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "TwilioSms" && (
-              <>
-                <Field label="Account SID *">
-                  <input type="text" value={twSid} onChange={(e) => setTwSid(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Auth Token *">
-                  <input type="password" value={twToken} onChange={(e) => setTwToken(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="From Number *">
-                  <input type="text" value={twFrom} onChange={(e) => setTwFrom(e.target.value)} required className={inputCls} placeholder="+15005550006" />
-                </Field>
-                <Field label="To Number *">
-                  <input type="text" value={twTo} onChange={(e) => setTwTo(e.target.value)} required className={inputCls} placeholder="+15005550006" />
-                </Field>
-                <Field label="Message">
-                  <textarea value={twMsg} onChange={(e) => setTwMsg(e.target.value)} rows={3} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "GoogleChat" && (
-              <>
-                <Field label="Webhook URL *">
-                  <input type="url" value={gcUrl} onChange={(e) => setGcUrl(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Body">
-                  <textarea value={gcBody} onChange={(e) => setGcBody(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "Discord" && (
-              <>
-                <Field label="Webhook URL *">
-                  <input type="url" value={discordUrl} onChange={(e) => setDiscordUrl(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Username">
-                  <input type="text" value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="Body">
-                  <textarea value={discordBody} onChange={(e) => setDiscordBody(e.target.value)} rows={5} className={textareaCls} />
-                </Field>
-              </>
-            )}
-
-            {type === "Opsgenie" && (
-              <>
-                <Field label="API Key *">
-                  <input type="text" value={ogKey} onChange={(e) => setOgKey(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Region">
-                  <select value={ogRegion} onChange={(e) => setOgRegion(e.target.value)} className={selectCls}>
-                    {["US", "EU"].map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </Field>
-                <Field label="Priority">
-                  <select value={ogPriority} onChange={(e) => setOgPriority(e.target.value)} className={selectCls}>
-                    {["P1", "P2", "P3", "P4", "P5"].map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-              </>
-            )}
-
-            {type === "Pushover" && (
-              <>
-                <Field label="User Key *">
-                  <input type="text" value={poUserKey} onChange={(e) => setPoUserKey(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="App Token *">
-                  <input type="text" value={poAppToken} onChange={(e) => setPoAppToken(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Priority">
-                  <select value={poPriority} onChange={(e) => setPoPriority(e.target.value)} className={selectCls}>
-                    {["-2", "-1", "0", "1", "2"].map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-                <Field label="Device">
-                  <input type="text" value={poDevice} onChange={(e) => setPoDevice(e.target.value)} className={inputCls} placeholder="Optional — leave blank for all devices" />
-                </Field>
-              </>
-            )}
-
-            {type === "Ntfy" && (
-              <>
-                <Field label="URL *">
-                  <input type="url" value={ntfyUrl} onChange={(e) => setNtfyUrl(e.target.value)} required className={inputCls} placeholder="https://ntfy.sh" />
-                </Field>
-                <Field label="Topic *">
-                  <input type="text" value={ntfyTopic} onChange={(e) => setNtfyTopic(e.target.value)} required className={inputCls} />
-                </Field>
-                <Field label="Token">
-                  <input type="text" value={ntfyToken} onChange={(e) => setNtfyToken(e.target.value)} className={inputCls} />
-                </Field>
-                <Field label="Priority">
-                  <select value={ntfyPriority} onChange={(e) => setNtfyPriority(e.target.value)} className={selectCls}>
-                    {["1", "2", "3", "4", "5"].map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-                <Field label="Tags">
-                  <input type="text" value={ntfyTags} onChange={(e) => setNtfyTags(e.target.value)} className={inputCls} placeholder="warning, rotating_light" />
-                </Field>
-              </>
+          {/* Status + Global toggles */}
+          <div className="px-6">
+            <ToggleRow
+              label="Status"
+              description="Enable or disable this trigger"
+              checked={isActive}
+              onChange={setIsActive}
+            />
+            <ToggleRow
+              label="Global"
+              description="Automatically apply this trigger to all existing and future alert configs"
+              checked={isGlobal}
+              onChange={setIsGlobal}
+            />
+            {isGlobal && (
+              <ToggleRow
+                label="Locked"
+                description="Prevent this trigger from being removed from alert configs"
+                checked={isLocked}
+                onChange={setIsLocked}
+              />
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={saveMutation.isPending}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saveMutation.isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Channel"}
-            </button>
+          {/* Common fields + type-specific */}
+          <div className="px-6 py-6 flex flex-col gap-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My Trigger" className={inp} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold">Description</label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" className={inp} />
+            </div>
+
+            {/* Type-specific */}
+            {type === "Webhook"    && <WebhookConfig url={whUrl} setUrl={setWhUrl} secret={whSecret} setSecret={setWhSecret} body={whBody} setBody={setWhBody} headers={whHeaders} setHeaders={setWhHeaders} />}
+            {type === "Email"      && <EmailConfig to={emailTo} setTo={setEmailTo} from={emailFrom} setFrom={setEmailFrom} template={emailTemplate} setTemplate={setEmailTemplate} />}
+            {type === "Slack"      && <SlackConfig url={slackUrl} setUrl={setSlackUrl} body={slackBody} setBody={setSlackBody} />}
+            {type === "PagerDuty"  && <PagerDutyConfig apiKey={pdKey} setApiKey={setPdKey} severity={pdSeverity} setSeverity={setPdSeverity} />}
+            {type === "MSTeams"    && <MSTeamsConfig url={teamsUrl} setUrl={setTeamsUrl} body={teamsBody} setBody={setTeamsBody} />}
+            {type === "Telegram"   && <TelegramConfig token={tgToken} setToken={setTgToken} chatId={tgChatId} setChatId={setTgChatId} template={tgTemplate} setTemplate={setTgTemplate} />}
+            {type === "TwilioSms"  && <TwilioConfig sid={twSid} setSid={setTwSid} token={twToken} setToken={setTwToken} from={twFrom} setFrom={setTwFrom} to={twTo} setTo={setTwTo} msg={twMsg} setMsg={setTwMsg} />}
+            {type === "GoogleChat" && <GoogleChatConfig url={gcUrl} setUrl={setGcUrl} body={gcBody} setBody={setGcBody} />}
+            {type === "Discord"    && <DiscordConfig url={discordUrl} setUrl={setDiscordUrl} username={discordUsername} setUsername={setDiscordUsername} body={discordBody} setBody={setDiscordBody} />}
+            {type === "Opsgenie"   && <OpsgenieConfig apiKey={ogKey} setApiKey={setOgKey} region={ogRegion} setRegion={setOgRegion} priority={ogPriority} setPriority={setOgPriority} />}
+            {type === "Pushover"   && <PushoverConfig userKey={poUserKey} setUserKey={setPoUserKey} appToken={poAppToken} setAppToken={setPoAppToken} priority={poPriority} setPriority={setPoPriority} device={poDevice} setDevice={setPoDevice} />}
+            {type === "Ntfy"       && <NtfyConfig url={ntfyUrl} setUrl={setNtfyUrl} topic={ntfyTopic} setTopic={setNtfyTopic} token={ntfyToken} setToken={setNtfyToken} priority={ntfyPriority} setPriority={setNtfyPriority} tags={ntfyTags} setTags={setNtfyTags} />}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border">
             <button
               type="button"
               onClick={handleTest}
               disabled={testing}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
             >
-              {testing ? "Testing…" : "Send Test"}
+              <FlaskConical size={14} />
+              {testing ? "Testing…" : "Test Trigger"}
             </button>
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.CHANNELS.LIST)}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.CHANNELS.LIST)}
+                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { setError(""); saveMutation.mutate(); }}
+                disabled={saveMutation.isPending || !name}
+                className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {saveMutation.isPending ? "Saving…" : isEdit ? "Save changes" : "Create Trigger"}
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
 
-        {/* Danger zone */}
+        {/* Danger Zone */}
         {isEdit && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-red-700">Danger Zone</h3>
-            <p className="text-sm text-red-600">
-              Delete this channel permanently. Type the channel name to confirm.
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex flex-col gap-4">
+            <p className="text-sm">
+              Permanently delete this channel. Type{" "}
+              <code className="font-mono font-semibold">{existing?.name}</code> to confirm.
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
               <input
-                type="text"
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
                 placeholder={existing?.name ?? ""}
-                className="flex-1 rounded-md border border-red-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive w-64"
               />
               <button
                 type="button"
                 disabled={deleteConfirm !== existing?.name || deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate()}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="rounded-lg bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
-                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                {deleteMutation.isPending ? "Deleting…" : "Delete Channel"}
               </button>
             </div>
           </div>

@@ -49,4 +49,7 @@ internal class WorkerRegistry : IWorkerRegistry
 
     public IReadOnlyList<WorkerInfo> GetAll() =>
         _byConnectionId.Values.ToList();
+
+    public WorkerInfo? GetDefaultWorker() =>
+        _byConnectionId.Values.FirstOrDefault(w => w.IsDefault);
 }

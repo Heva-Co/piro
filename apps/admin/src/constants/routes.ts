@@ -29,6 +29,8 @@ export const ROUTES = {
     LIST: "/admin/checks",
     DETAIL: (serviceSlug: string, checkSlug: string) =>
       `/admin/services/${serviceSlug}/checks/${checkSlug}`,
+    LOGS: (serviceSlug: string, checkSlug: string) =>
+      `/admin/services/${serviceSlug}/checks/${checkSlug}/logs`,
   },
 
   // Incidents
