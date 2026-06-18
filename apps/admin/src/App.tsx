@@ -1,7 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { AuthGuard } from "@/components/AuthGuard";
 import { ROUTES } from "@/constants/routes";
+
+// Auth pages
+import SignInPage from "@/features/auth/pages/SignInPage";
+import OidcCallbackPage from "@/features/auth/pages/OidcCallbackPage";
+import SetupPage from "@/features/auth/pages/SetupPage";
+import AcceptInvitePage from "@/features/auth/pages/AcceptInvitePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,14 +25,27 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Redirect root to admin dashboard */}
+            {/* Redirect root to admin */}
             <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-            {/* Placeholder — routes will be added in Phase 3 & 4 */}
+            {/* Public auth routes */}
+            <Route path={ROUTES.AUTH.SIGN_IN} element={<SignInPage />} />
+            <Route path={ROUTES.AUTH.OIDC_CALLBACK} element={<OidcCallbackPage />} />
+            <Route path={ROUTES.SETUP} element={<SetupPage />} />
+            <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
+
+            {/* Protected admin routes — Phase 4 */}
             <Route
               path={ROUTES.DASHBOARD}
-              element={<div className="p-8 text-foreground">Admin dashboard coming soon</div>}
+              element={
+                <AuthGuard>
+                  <div className="p-8 text-foreground">Admin dashboard coming in Phase 4</div>
+                </AuthGuard>
+              }
             />
+
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
