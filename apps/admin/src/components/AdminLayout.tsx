@@ -21,7 +21,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  Flame,
   MoreVertical,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,7 +96,7 @@ function Sidebar({ onClose }: SidebarProps) {
           {logoUrl ? (
             <img src={`${apiBase}${logoUrl}`} alt="Logo" className="size-5 rounded-sm object-contain" />
           ) : (
-            <Flame size={20} className="text-blue-500 shrink-0" />
+            <img src="/piro.svg" alt="Piro" className="size-5 rounded-sm object-contain" />
           )}
           <span className="text-base font-semibold">{siteName}</span>
         </NavLink>
