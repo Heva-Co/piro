@@ -110,7 +110,7 @@ export default function SetupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-      <div className="w-full max-w-sm flex flex-col gap-6">
+      <div className="w-full max-w-md flex flex-col gap-6">
         <div className="text-center">
           <a href="/" className="text-2xl font-bold tracking-tight">Piro</a>
           <p className="text-muted-foreground text-sm mt-1">Initial setup</p>
