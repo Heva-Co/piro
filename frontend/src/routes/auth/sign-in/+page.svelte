@@ -10,7 +10,7 @@
   import EyeIcon from "@lucide/svelte/icons/eye";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import CheckCircleIcon from "@lucide/svelte/icons/check-circle";
-  import { PIRO_API } from "$lib/api.js";
+
   import type { ActionData, PageData } from "./$types";
 
   let { form, data }: { form: ActionData; data: PageData } = $props();
@@ -102,7 +102,7 @@
         <div class="flex flex-col gap-2">
           {#each data.oidcProviders as provider (provider.id)}
             <a
-              href="{PIRO_API}/api/v1/auth/oidc/start?provider={provider.id}"
+              href="/api/v1/auth/oidc/start?provider={provider.id}"
               class="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               {provider.displayName}
