@@ -24,8 +24,8 @@ public class SetupController(
     [ProducesResponseType<SetupStatusResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Status(CancellationToken ct)
     {
-        var required = !await HasOwnerAsync();
-        return Ok(new SetupStatusResponse(required));
+        var isComplete = await HasOwnerAsync();
+        return Ok(new SetupStatusResponse(isComplete));
     }
 
     /// <summary>
@@ -120,7 +120,7 @@ public class SetupController(
     }
 }
 
-public record SetupStatusResponse(bool SetupRequired);
+public record SetupStatusResponse(bool IsComplete);
 
 public record CompleteSetupRequest(
     // User
