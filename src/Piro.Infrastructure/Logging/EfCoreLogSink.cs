@@ -39,7 +39,17 @@ public sealed class EfCoreLogSink(IServiceScopeFactory scopeFactory) : IBatchedL
             });
         }
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex) when (
+            ex.InnerException?.Message.Contains("relation") == true ||
+            ex.InnerException?.Message.Contains("does not exist") == true ||
+            ex.InnerException?.Message.Contains("42P01") == true)
+        {
+            // Table not yet created (first startup before migrations run) — discard silently.
+        }
     }
 
     public Task OnEmptyBatchAsync() => Task.CompletedTask;
