@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { AuthGuard } from "@/components/AuthGuard";
-import { AdminLayout } from "@/components/AdminLayout";
 import { ROUTES } from "@/constants/routes";
 
 // Auth pages
@@ -45,11 +44,7 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthGuard>
-      <AdminLayout>{children}</AdminLayout>
-    </AuthGuard>
-  );
+  return <AuthGuard>{children}</AuthGuard>;
 }
 
 export default function App() {
