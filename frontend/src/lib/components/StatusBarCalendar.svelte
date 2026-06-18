@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { DailyStatsDto } from "$lib/api.js";
+  import { formatLatency } from "$lib/utils";
 
   interface Props {
     data: DailyStatsDto[];
@@ -178,12 +179,6 @@
 
   function formatDay(ts: number): string {
     return new Date(ts * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }
-
-  function formatLatency(ms: number | null): string {
-    if (ms === null) return "";
-    if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
-    return `${Math.round(ms)}ms`;
   }
 
   function getStatusLabel(item: DailyStatsDto): string {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PublicService, ServiceOverviewDto } from "$lib/api";
+  import { formatLatency } from "$lib/utils";
   import StatusBarCalendar from "./StatusBarCalendar.svelte";
   import CircleCheck from "lucide-svelte/icons/circle-check";
   import CircleX from "lucide-svelte/icons/circle-x";
@@ -24,12 +25,6 @@
     MAINTENANCE: "text-indigo-500",
     NO_DATA:     "text-muted-foreground",
   };
-
-  function formatLatency(ms: number | null | undefined): string {
-    if (!ms) return "";
-    if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
-    return `${Math.round(ms)}ms`;
-  }
 
   const fromDate = $derived(
     overview

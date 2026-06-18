@@ -5,6 +5,7 @@
   import IncidentCard from "$lib/components/IncidentCard.svelte";
   import MaintenanceCard from "$lib/components/MaintenanceCard.svelte";
   import { publicApi, type ServiceOverviewDto, type DailyStatsDto, type StatusPoint } from "$lib/api.js";
+  import { formatLatency } from "$lib/utils";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -50,12 +51,6 @@
     MAINTENANCE: "text-blue-600 dark:text-blue-400",
     NO_DATA: "text-muted-foreground",
   };
-
-  function formatLatency(ms: number | null | undefined): string {
-    if (!ms) return "";
-    if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
-    return `${Math.round(ms)}ms`;
-  }
 
   function formatTs(ts: number): string {
     return new Date(ts * 1000).toLocaleString(undefined, {
