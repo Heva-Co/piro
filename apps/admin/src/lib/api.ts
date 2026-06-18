@@ -533,7 +533,7 @@ export interface LogEntry {
   level: string;
   message: string;
   source?: string;
-  createdAt: string;
+  timestamp: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -545,7 +545,7 @@ export const logsApi = {
     source?: string;
     from?: string;
     to?: string;
-  }) => api.get<{ items: LogEntry[]; total: number }>(ENDPOINTS.LOGS, { params }).then((r) => r.data),
+  }) => api.get<{ items: LogEntry[]; totalCount: number }>(ENDPOINTS.LOGS, { params }).then((r) => r.data),
 };
 
 // ─── Config import ────────────────────────────────────────────────────────────
