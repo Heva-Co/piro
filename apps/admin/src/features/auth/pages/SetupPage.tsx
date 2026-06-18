@@ -26,7 +26,7 @@ export default function SetupPage() {
 
   // Step 1 — General config
   const [siteName, setSiteName] = useState("Piro");
-  const [siteUrl, setSiteUrl] = useState("");
+  const [siteUrl, setSiteUrl] = useState(() => window.location.origin);
 
   // Step 2 — Email
   const [provider, setProvider] = useState<EmailProvider>("smtp");
