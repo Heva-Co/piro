@@ -90,7 +90,7 @@ function Sidebar({ onClose }: SidebarProps) {
     : user?.email?.slice(0, 2).toUpperCase() ?? "?";
 
   return (
-    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground w-60 border-r border-sidebar-border">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground w-60">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3">
         <NavLink to={ROUTES.DASHBOARD} className="flex items-center gap-2 px-1 py-1 rounded-md hover:bg-sidebar-accent transition-colors">
@@ -223,7 +223,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
     <div className="flex h-screen bg-muted/40 overflow-hidden p-2 gap-2">
       {/* Desktop sidebar */}
       {!sidebarCollapsed && (
-        <div className="hidden lg:flex flex-shrink-0 rounded-xl overflow-hidden">
+        <div className="hidden lg:flex flex-shrink-0 rounded-xl overflow-hidden border border-border shadow-sm">
           <Sidebar />
         </div>
       )}
