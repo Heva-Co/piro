@@ -13,7 +13,7 @@ import {
   type StoredAuth,
 } from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
-import axios from "axios";
+import api from "@/lib/axios";
 
 export interface UserDto {
   id: number;
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await axios.post<SignInResponse>(ENDPOINTS.AUTH.SIGN_IN, {
+    const res = await api.post<SignInResponse>(ENDPOINTS.AUTH.SIGN_IN, {
       email,
       password,
     });

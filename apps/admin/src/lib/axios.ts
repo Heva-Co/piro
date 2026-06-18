@@ -61,7 +61,7 @@ api.interceptors.response.use(
         if (!auth?.refreshToken) return null;
 
         try {
-          const res = await axios.post<{
+          const res = await api.post<{
             accessToken: string;
             refreshToken: string;
             expiresIn: number;
