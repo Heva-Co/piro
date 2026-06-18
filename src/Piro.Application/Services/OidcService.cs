@@ -84,7 +84,7 @@ public class OidcService(
             throw new InvalidOperationException(
                 "Site URL is not configured. Set it in Configuration → General or via the App__BaseUrl env var.");
 
-        return $"{baseUrl}/auth/oidc/callback";
+        return $"{baseUrl}/admin/auth/oidc/callback";
     }
 
     public async Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default)
