@@ -231,17 +231,17 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       )}
 
       {/* Main content */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 overflow-hidden bg-muted/40">
         {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
+        <header className="flex items-center gap-3 px-4 h-12 bg-background border-b border-border shrink-0">
           <button
-            className="lg:hidden text-gray-500 hover:text-gray-900"
+            className="lg:hidden text-muted-foreground hover:text-foreground"
             onClick={() => setMobileOpen(true)}
           >
-            <Menu size={22} />
+            <Menu size={20} />
           </button>
           {title && (
-            <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+            <h1 className="text-sm font-semibold">{title}</h1>
           )}
         </header>
 
