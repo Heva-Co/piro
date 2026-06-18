@@ -13,8 +13,8 @@ public class CheckDataPoint
     public ServiceStatus Status { get; set; }
     public double? LatencyMs { get; set; }
 
-    /// <summary>Origin of this data point: REALTIME, MAINTENANCE, INCIDENT, or DEFAULT.</summary>
-    public string? DataType { get; set; }
+    /// <summary>Origin of this data point. See <see cref="DataPointType"/> for possible values.</summary>
+    public DataPointType? DataType { get; set; }
 
     public string? ErrorMessage { get; set; }
 
