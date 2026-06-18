@@ -14,7 +14,8 @@ public class SetupController(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
     ISiteConfigRepository siteConfigRepo,
-    IEmailConfigRepository emailConfigRepo) : ControllerBase
+    IEmailConfigRepository emailConfigRepo,
+    IUnitOfWork uow) : ControllerBase
 {
     private const string OwnerRole = "Owner";
 
@@ -40,53 +41,64 @@ public class SetupController(
         if (await HasOwnerAsync())
             return Conflict(new { title = "Setup already completed.", status = 409 });
 
-        // Seed built-in roles
-        await SeedRolesAsync();
-
-        // Create owner user
-        var user = new AppUser
+        await uow.BeginAsync(ct);
+        try
         {
-            UserName = request.Email,
-            Email = request.Email,
-            Name = request.Name,
-            IsActive = true,
-            EmailConfirmed = true
-        };
+            // Seed built-in roles
+            await SeedRolesAsync();
 
-        var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            return BadRequest(new { title = "Failed to create owner account.", detail = errors, status = 400 });
+            // Create owner user
+            var user = new AppUser
+            {
+                UserName = request.Email,
+                Email = request.Email,
+                Name = request.Name,
+                IsActive = true,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(user, request.Password);
+            if (!result.Succeeded)
+            {
+                await uow.RollbackAsync(ct);
+                var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                return BadRequest(new { title = "Failed to create owner account.", detail = errors, status = 400 });
+            }
+
+            await userManager.AddToRoleAsync(user, OwnerRole);
+
+            // Save site config
+            if (!string.IsNullOrWhiteSpace(request.SiteTitle))
+                await siteConfigRepo.SetAsync("site:name", request.SiteTitle, ct);
+            if (!string.IsNullOrWhiteSpace(request.SiteUrl))
+                await siteConfigRepo.SetAsync("site:url", request.SiteUrl, ct);
+
+            // Save email config
+            if (!string.IsNullOrWhiteSpace(request.EmailHost) || !string.IsNullOrWhiteSpace(request.ResendApiKey))
+            {
+                var isResend = !string.IsNullOrWhiteSpace(request.ResendApiKey);
+                var cfg = new EmailProviderConfig(
+                    Provider:     isResend ? "resend" : "smtp",
+                    SmtpHost:     isResend ? null : request.EmailHost,
+                    SmtpPort:     isResend ? null : request.EmailPort ?? 587,
+                    SmtpUsername: isResend ? null : request.EmailUsername,
+                    SmtpPassword: isResend ? null : request.EmailPassword,
+                    SmtpFrom:     isResend ? null : request.EmailFrom,
+                    SmtpUseTls:   isResend ? null : request.EmailUseSsl ?? true,
+                    ResendApiKey: isResend ? request.ResendApiKey : null,
+                    ResendFrom:   isResend ? request.EmailFrom : null
+                );
+                await emailConfigRepo.SetAsync(cfg, ct);
+            }
+
+            await uow.CommitAsync(ct);
+            return Ok(new SetupStatusResponse(false));
         }
-
-        await userManager.AddToRoleAsync(user, OwnerRole);
-
-        // Save site config
-        if (!string.IsNullOrWhiteSpace(request.SiteTitle))
-            await siteConfigRepo.SetAsync("site:name", request.SiteTitle, ct);
-        if (!string.IsNullOrWhiteSpace(request.SiteUrl))
-            await siteConfigRepo.SetAsync("site:url", request.SiteUrl, ct);
-
-        // Save email config
-        if (!string.IsNullOrWhiteSpace(request.EmailHost) || !string.IsNullOrWhiteSpace(request.ResendApiKey))
+        catch
         {
-            var isResend = !string.IsNullOrWhiteSpace(request.ResendApiKey);
-            var cfg = new EmailProviderConfig(
-                Provider:      isResend ? "resend" : "smtp",
-                SmtpHost:      isResend ? null : request.EmailHost,
-                SmtpPort:      isResend ? null : request.EmailPort ?? 587,
-                SmtpUsername:  isResend ? null : request.EmailUsername,
-                SmtpPassword:  isResend ? null : request.EmailPassword,
-                SmtpFrom:      isResend ? null : request.EmailFrom,
-                SmtpUseTls:    isResend ? null : request.EmailUseSsl ?? true,
-                ResendApiKey:  isResend ? request.ResendApiKey : null,
-                ResendFrom:    isResend ? request.EmailFrom : null
-            );
-            await emailConfigRepo.SetAsync(cfg, ct);
+            await uow.RollbackAsync(ct);
+            throw;
         }
-
-        return Ok(new SetupStatusResponse(false));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
