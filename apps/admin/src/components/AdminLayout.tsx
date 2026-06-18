@@ -22,6 +22,7 @@ import {
   X,
   ChevronDown,
   MoreVertical,
+  PanelLeft,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { siteApi } from "@/lib/api";
@@ -209,13 +210,23 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const { data: siteConfig } = useQuery({
+    queryKey: QUERY_KEYS.SITE_CONFIG,
+    queryFn: () => siteApi.get(),
+    staleTime: 60_000,
+  });
+  const siteUrl = siteConfig?.url;
 
   return (
-    <div className="flex h-screen bg-muted/40 overflow-hidden">
+    <div className="flex h-screen bg-muted/40 overflow-hidden p-2 gap-2">
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex flex-shrink-0">
-        <Sidebar />
-      </div>
+      {!sidebarCollapsed && (
+        <div className="hidden lg:flex flex-shrink-0 rounded-xl overflow-hidden">
+          <Sidebar />
+        </div>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
@@ -231,17 +242,40 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
       )}
 
       {/* Main content — white "paper" panel */}
-      <div className="flex flex-col flex-1 overflow-hidden bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">
+      <div className="flex flex-col flex-1 overflow-hidden bg-background rounded-xl border border-border shadow-sm">
         {/* Top bar */}
-        <header className="flex items-center gap-3 px-4 h-12 bg-background border-b border-border shrink-0">
+        <header className="flex items-center gap-3 px-4 h-12 border-b border-border shrink-0">
+          {/* Mobile menu */}
           <button
             className="lg:hidden text-muted-foreground hover:text-foreground"
             onClick={() => setMobileOpen(true)}
           >
             <Menu size={20} />
           </button>
-          {title && (
-            <h1 className="text-sm font-semibold">{title}</h1>
+          {/* Desktop sidebar toggle */}
+          <button
+            className="hidden lg:flex text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+          >
+            <PanelLeft size={18} />
+          </button>
+
+          <div className="h-4 w-px bg-border mx-1" />
+
+          {title && <h1 className="text-sm font-semibold">{title}</h1>}
+
+          <div className="flex-1" />
+
+          {siteUrl && (
+            <a
+              href={siteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors font-medium"
+            >
+              Status Page
+            </a>
           )}
         </header>
 
