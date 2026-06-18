@@ -1,64 +1,115 @@
 /**
  * Server-side API functions for Next.js Server Components.
- * These run on the server and call the API directly (no browser auth needed
+ * These run on the server and call the backend directly (no browser auth needed
  * since the status page is fully public).
  */
 
 const API_BASE = process.env.INTERNAL_API_URL ?? "http://localhost:8080";
 
-async function get<T>(path: string): Promise<T> {
+async function get<T>(path: string, revalidate = 30): Promise<T> {
   const res = await fetch(`${API_BASE}/api/v1${path}`, {
-    next: { revalidate: 30 },
+    next: { revalidate },
   });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json() as Promise<T>;
 }
 
-// ─── Public types ─────────────────────────────────────────────────────────────
+// ─── Shared types (mirrors frontend/src/lib/api.ts) ───────────────────────────
+
+export type ServiceStatus = "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "NO_DATA";
+export type IncidentStatus = "Active" | "Resolved";
+export type IncidentState = "Investigating" | "Identified" | "Monitoring" | "Resolved";
+export type MaintenanceStatus = "Active" | "Cancelled";
+export type MaintenanceEventStatus = "Scheduled" | "Ongoing" | "Completed" | "Cancelled";
 
 export interface PublicService {
   slug: string;
   name: string;
-  description?: string;
-  status: string;
-  uptimePercent?: number;
-  latencyMs?: number;
+  description: string | null;
+  imageUrl: string | null;
+  status: ServiceStatus;
+  displayOrder: number;
+  historyDaysDesktop: number;
+  historyDaysMobile: number;
 }
 
-export interface PublicCheck {
+export interface DailyStatsDto {
+  timestamp: number;
+  countUp: number;
+  countDown: number;
+  countDegraded: number;
+  countMaintenance: number;
+  avgLatencyMs: number | null;
+  minLatencyMs: number | null;
+  maxLatencyMs: number | null;
+}
+
+export interface ServiceOverviewDto {
   slug: string;
   name: string;
-  type: string;
-  status: string;
-  latencyMs?: number | null;
-  uptimePercent?: number;
-}
-
-export interface UptimeDay {
-  date: string;
-  status: string;
+  description: string | null;
+  imageUrl: string | null;
+  currentStatus: ServiceStatus;
+  lastUpdatedAt: number;
+  lastLatencyMs: number | null;
   uptimePercent: number;
+  overallAvgLatencyMs: number | null;
+  overallMinLatencyMs: number | null;
+  overallMaxLatencyMs: number | null;
+  fromTimestamp: number;
+  toTimestamp: number;
+  dailyData: DailyStatsDto[];
 }
 
-export interface PublicIncident {
+export interface StatusPoint {
+  timestamp: number;
+  status: ServiceStatus;
+}
+
+export interface IncidentComment {
+  id: number;
+  comment: string;
+  commentedAt: number;
+  state: IncidentState;
+  status: IncidentStatus;
+}
+
+export interface IncidentService {
+  serviceSlug: string;
+  impact: ServiceStatus;
+}
+
+export interface Incident {
   id: number;
   title: string;
-  status: string;
-  severity: string;
-  startedAt: string;
-  resolvedAt?: string;
-  services: { slug: string; name: string }[];
-  latestUpdate?: string;
+  startDateTime: number;
+  endDateTime: number | null;
+  status: IncidentStatus;
+  state: IncidentState;
+  isGlobal: boolean;
+  source: string | null;
+  comments: IncidentComment[];
+  services: IncidentService[];
 }
 
-export interface PublicMaintenance {
+export interface MaintenanceEvent {
   id: number;
-  name: string;
-  description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
-  status: string;
-  services: { slug: string; name: string }[];
+  startDateTime: number;
+  endDateTime: number;
+  status: MaintenanceEventStatus;
+}
+
+export interface Maintenance {
+  id: number;
+  title: string;
+  description: string | null;
+  startDateTime: number;
+  rRule: string;
+  durationSeconds: number;
+  status: MaintenanceStatus;
+  isGlobal: boolean;
+  upcomingEvents: MaintenanceEvent[];
+  serviceSlugs: string[];
 }
 
 export interface SiteConfig {
@@ -77,14 +128,16 @@ export const publicApi = {
 
   service: (slug: string) => get<PublicService>(`/public/services/${slug}`),
 
-  serviceChecks: (slug: string) => get<PublicCheck[]>(`/public/services/${slug}/checks`),
+  overview: (slug: string, days: number) =>
+    get<ServiceOverviewDto>(`/public/services/${slug}/overview?days=${days}`),
 
-  serviceUptime: (slug: string, days = 90) =>
-    get<UptimeDay[]>(`/public/services/${slug}/uptime?days=${days}`),
+  history: (slug: string, from: number, to: number) =>
+    get<StatusPoint[]>(`/public/services/${slug}/history?from=${from}&to=${to}`, 0),
 
-  incidents: () => get<PublicIncident[]>("/public/incidents"),
+  incidents: (includeResolved = false) =>
+    get<Incident[]>(`/incidents?includeResolved=${includeResolved}`),
 
-  incident: (id: number | string) => get<PublicIncident>(`/public/incidents/${id}`),
+  incident: (id: number | string) => get<Incident>(`/incidents/${id}`),
 
-  maintenances: () => get<PublicMaintenance[]>("/public/maintenances"),
+  maintenances: () => get<Maintenance[]>("/maintenances"),
 };
