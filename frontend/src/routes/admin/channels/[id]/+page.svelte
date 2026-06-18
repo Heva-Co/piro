@@ -131,14 +131,14 @@
       const res = await fetch("/admin/api", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: isNew ? "createTrigger" : "updateTrigger",
+          action: isNew ? "createChannel" : "updateChannel",
           data: isNew ? payload : { id: parseInt(id), ...payload },
         }),
       });
       const result = await res.json();
       if (result.error) { error = result.error; return; }
       if (isNew) goto(`/admin/channels/${result.id}`);
-      else success = "Trigger saved.";
+      else success = "Channel saved.";
     } catch { error = "Failed to save trigger."; }
     finally { saving = false; }
   }
