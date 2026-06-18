@@ -14,6 +14,9 @@ public record SignInResponse(
 /// <summary>Request to exchange a refresh token for a new access token.</summary>
 public record RefreshRequest(string RefreshToken);
 
+/// <summary>SPA OIDC callback — exchanges authorization code for Piro tokens.</summary>
+public record OidcCallbackRequest(string Code, string State);
+
 /// <summary>Outbound representation of the authenticated user.</summary>
 public record UserDto(int Id, string Email, string Name, IEnumerable<string> Roles);
 
