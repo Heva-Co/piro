@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import { formatLatency } from "$lib/utils";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
@@ -648,7 +649,7 @@
                           </Table.Cell>
                           <Table.Cell>
                             {#if log.latencyMs !== null}
-                              <span class="text-sm">{log.latencyMs} ms</span>
+                              <span class="text-sm">{formatLatency(log.latencyMs)}</span>
                             {:else}
                               <span class="text-muted-foreground text-sm">—</span>
                             {/if}
