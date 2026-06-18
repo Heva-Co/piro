@@ -211,7 +211,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
+    <div className="flex h-screen bg-muted/40 overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
         <Sidebar />
@@ -230,8 +230,8 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
         </div>
       )}
 
-      {/* Main content */}
-      <div className="flex flex-col flex-1 overflow-hidden bg-muted/40">
+      {/* Main content — white "paper" panel */}
+      <div className="flex flex-col flex-1 overflow-hidden bg-background shadow-[-1px_0_0_0_hsl(var(--border))]">
         {/* Top bar */}
         <header className="flex items-center gap-3 px-4 h-12 bg-background border-b border-border shrink-0">
           <button
