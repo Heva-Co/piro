@@ -10,6 +10,7 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
     [
         "site:name", "site:url", "site:logo_url", "site:favicon_url",
         "site:meta_title", "site:meta_description", "site:og_image_url",
+        "worker:builtin_disabled",
     ];
 
     public async Task<SiteConfig> GetAsync(CancellationToken ct = default)
@@ -25,7 +26,9 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
             rows.GetValueOrDefault("site:favicon_url"),
             rows.GetValueOrDefault("site:meta_title"),
             rows.GetValueOrDefault("site:meta_description"),
-            rows.GetValueOrDefault("site:og_image_url")
+            rows.GetValueOrDefault("site:og_image_url"),
+            BuiltinWorkerDisabled: rows.TryGetValue("worker:builtin_disabled", out var flag) &&
+                                   string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase)
         );
     }
 

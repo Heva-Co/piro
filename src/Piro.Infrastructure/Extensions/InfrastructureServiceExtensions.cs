@@ -81,6 +81,7 @@ public static class InfrastructureServiceExtensions
                 },
             });
 
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<ICheckRepository, CheckRepository>();
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
@@ -180,18 +181,17 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<IWorkerRegistry, WorkerRegistry>();
 
         // PIRO_WORKER_REGION: region label for in-process check results (defaults to "default")
-        // PIRO_API_WORKER:   when "true", the API itself participates as a local worker in multi-region batches
         var workerRegion = configuration["PIRO_WORKER_REGION"] ?? "default";
-        var apiIsWorker = string.Equals(configuration["PIRO_API_WORKER"], "true", StringComparison.OrdinalIgnoreCase);
 
-        // LocalCheckJobDispatcher: always available — runs checks in-process for non-multi-region checks
+        // LocalCheckJobDispatcher: always available — runs checks in-process when built-in worker is active
         services.AddScoped<LocalCheckJobDispatcher>(sp =>
             new LocalCheckJobDispatcher(
                 sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
                 workerRegion));
 
-        // RemoteCheckJobDispatcher: fans out to all connected SignalR workers (+ API itself if PIRO_API_WORKER=true)
+        // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
+        // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it
         services.AddScoped<RemoteCheckJobDispatcher>(sp =>
             new RemoteCheckJobDispatcher(
                 sp.GetRequiredService<IHubContext<WorkerHub, IWorkerClient>>(),
@@ -200,23 +200,25 @@ public static class InfrastructureServiceExtensions
                 sp.GetRequiredService<ICheckDataPointRepository>(),
                 sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                apiIsWorker,
+                apiIsWorker: false,   // multi-region fan-out never includes the built-in API worker directly
                 workerRegion,
                 sp.GetRequiredService<ILogger<RemoteCheckJobDispatcher>>()));
 
-        // RoutingCheckJobDispatcher: routes per Check.IsMultiRegion flag
-        services.AddScoped<ICheckJobDispatcher, RoutingCheckJobDispatcher>();
+        // RoutingCheckJobDispatcher: checks registry at dispatch time to decide if built-in API worker is active
+        services.AddScoped<ICheckJobDispatcher>(sp =>
+            new RoutingCheckJobDispatcher(
+                sp.GetRequiredService<LocalCheckJobDispatcher>(),
+                sp.GetRequiredService<RemoteCheckJobDispatcher>(),
+                sp.GetRequiredService<IWorkerRegistry>()));
 
-        // Built-in API worker: shows up in Workers UI and participates in multi-region batches
-        if (apiIsWorker)
-        {
-            services.AddSingleton<IHostedService>(sp =>
-                new ApiWorkerHostedService(
-                    sp.GetRequiredService<IServiceScopeFactory>(),
-                    sp.GetRequiredService<IWorkerRegistry>(),
-                    workerRegion,
-                    sp.GetRequiredService<ILogger<ApiWorkerHostedService>>()));
-        }
+        // Built-in API worker: always registered so the DB record + UI entry always exist.
+        // Reads worker:builtin_disabled from SiteConfig at startup; restoring app applies the change.
+        services.AddSingleton<IHostedService>(sp =>
+            new ApiWorkerHostedService(
+                sp.GetRequiredService<IServiceScopeFactory>(),
+                sp.GetRequiredService<IWorkerRegistry>(),
+                workerRegion,
+                sp.GetRequiredService<ILogger<ApiWorkerHostedService>>()));
 
         return services;
     }

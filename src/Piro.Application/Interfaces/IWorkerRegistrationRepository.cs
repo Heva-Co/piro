@@ -11,4 +11,5 @@ public interface IWorkerRegistrationRepository
     Task<WorkerRegistration> CreateAsync(WorkerRegistration worker, CancellationToken ct = default);
     Task<WorkerRegistration> UpdateAsync(WorkerRegistration worker, CancellationToken ct = default);
     Task DeleteAsync(WorkerRegistration worker, CancellationToken ct = default);
+    Task ClearDefaultAsync(CancellationToken ct = default);
 }
