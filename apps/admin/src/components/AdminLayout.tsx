@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Blend,
@@ -20,9 +21,13 @@ import {
   Menu,
   X,
   ChevronDown,
+  Flame,
+  MoreVertical,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { siteApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
+import { QUERY_KEYS } from "@/constants/api";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -63,26 +68,48 @@ function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation();
   const isOnConfig = location.pathname.startsWith("/admin/configuration");
   const [configOpen, setConfigOpen] = useState(isOnConfig);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const { data: siteConfig } = useQuery({
+    queryKey: QUERY_KEYS.SITE_CONFIG,
+    queryFn: () => siteApi.get(),
+    staleTime: 60_000,
+  });
+
+  const siteName = siteConfig?.title || "Piro";
+  const logoUrl = siteConfig?.logoUrl;
+  const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
   function handleLogout() {
     logout();
     navigate(ROUTES.AUTH.SIGN_IN);
   }
 
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? "?";
+
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-gray-100 w-60">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground w-60 border-r border-sidebar-border">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700">
-        <span className="text-lg font-semibold tracking-tight">Piro</span>
+      <div className="flex items-center justify-between px-3 py-3">
+        <NavLink to={ROUTES.DASHBOARD} className="flex items-center gap-2 px-1 py-1 rounded-md hover:bg-sidebar-accent transition-colors">
+          {logoUrl ? (
+            <img src={`${apiBase}${logoUrl}`} alt="Logo" className="size-5 rounded-sm object-contain" />
+          ) : (
+            <Flame size={20} className="text-blue-500 shrink-0" />
+          )}
+          <span className="text-base font-semibold">{siteName}</span>
+        </NavLink>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-white lg:hidden">
-            <X size={20} />
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground lg:hidden p-1">
+            <X size={18} />
           </button>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
+      <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
         {mainNavItems.map((item) => (
           <NavLink
             key={item.to}
@@ -93,8 +120,8 @@ function Sidebar({ onClose }: SidebarProps) {
               cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-indigo-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )
             }
           >
@@ -104,10 +131,10 @@ function Sidebar({ onClose }: SidebarProps) {
         ))}
 
         {/* Configuration section */}
-        <div className="pt-2">
+        <div className="pt-1">
           <button
             onClick={() => setConfigOpen((o) => !o)}
-            className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+            className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
           >
             <div className="flex items-center gap-3">
               <Settings size={18} />
@@ -129,8 +156,8 @@ function Sidebar({ onClose }: SidebarProps) {
                     cn(
                       "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
                       isActive
-                        ? "bg-indigo-600 text-white font-medium"
-                        : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )
                   }
                 >
@@ -143,16 +170,34 @@ function Sidebar({ onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-gray-700 px-4 py-3">
-        <div className="text-sm text-gray-300 truncate mb-2">{user?.email}</div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
-        >
-          <LogOut size={16} />
-          Sign out
-        </button>
+      {/* Footer — user info */}
+      <div className="border-t border-sidebar-border px-3 py-3">
+        <div className="relative">
+          <button
+            onClick={() => setUserMenuOpen((o) => !o)}
+            className="flex items-center gap-3 w-full px-2 py-2 rounded-md hover:bg-sidebar-accent transition-colors text-left"
+          >
+            <div className="size-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{user?.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+            </div>
+            <MoreVertical size={16} className="text-muted-foreground shrink-0" />
+          </button>
+          {userMenuOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-md shadow-md py-1 z-50">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors text-destructive"
+              >
+                <LogOut size={16} />
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
