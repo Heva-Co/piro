@@ -397,10 +397,29 @@ export interface SetupStatus {
   isComplete: boolean;
 }
 
+export interface CompleteSetupPayload {
+  // User
+  email: string;
+  password: string;
+  name: string;
+  // Site
+  siteTitle?: string;
+  siteUrl?: string;
+  // Email SMTP
+  emailHost?: string;
+  emailPort?: number;
+  emailUsername?: string;
+  emailPassword?: string;
+  emailFrom?: string;
+  emailUseSsl?: boolean;
+  // Email Resend
+  resendApiKey?: string;
+}
+
 export const setupApi = {
   status: () => api.get<SetupStatus>(ENDPOINTS.SETUP.STATUS).then((r) => r.data),
 
-  complete: (data: { email: string; password: string; name: string }) =>
+  complete: (data: CompleteSetupPayload) =>
     api.post(ENDPOINTS.SETUP.COMPLETE, data),
 };
 

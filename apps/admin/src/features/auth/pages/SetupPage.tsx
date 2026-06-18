@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { AlertCircle, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { setupApi, emailApi, authApi, siteApi } from "@/lib/api";
+import { setupApi, authApi } from "@/lib/api";
 import { setStoredAuth } from "@/lib/axios";
 import { ROUTES } from "@/constants/routes";
 
@@ -72,26 +72,30 @@ export default function SetupPage() {
 
     setSubmitting(true);
     try {
-      // 1. Complete setup (creates owner user)
-      await setupApi.complete({ name, email, password });
+      // 1. Complete setup — sends everything in one call
+      await setupApi.complete({
+        name, email, password,
+        siteTitle: siteName || undefined,
+        siteUrl: siteUrl || undefined,
+        ...(provider === "smtp" && smtpHost ? {
+          emailHost: smtpHost,
+          emailPort: Number(smtpPort) || 587,
+          emailUsername: smtpUsername || undefined,
+          emailPassword: smtpPassword || undefined,
+          emailFrom: smtpFrom || undefined,
+          emailUseSsl: smtpUseSsl,
+        } : {}),
+        ...(provider === "resend" && resendApiKey ? {
+          resendApiKey,
+          emailFrom: resendFrom || undefined,
+        } : {}),
+      });
 
       // 2. Auto sign-in
       const { accessToken, refreshToken, expiresIn, user } = await authApi.signIn(email, password);
       const auth = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000 };
       setStoredAuth(auth);
       loginWithTokens(auth, user);
-
-      // 3. Save site config
-      await siteApi.update({ title: siteName, url: siteUrl || undefined });
-
-      // 4. Save email config (skip if empty)
-      const hasEmailConfig = provider === "resend" ? resendApiKey : smtpHost;
-      if (hasEmailConfig) {
-        const emailConfig = provider === "smtp"
-          ? { host: smtpHost, port: Number(smtpPort) || 587, username: smtpUsername || undefined, from: smtpFrom, useSsl: smtpUseSsl }
-          : { host: "api.resend.com", port: 443, username: resendApiKey, from: resendFrom, useSsl: true };
-        await emailApi.update(emailConfig);
-      }
 
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch (err: unknown) {
