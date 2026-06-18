@@ -12,10 +12,15 @@ namespace Piro.Infrastructure.Workers;
 /// </summary>
 internal class RoutingCheckJobDispatcher(
     LocalCheckJobDispatcher local,
-    RemoteCheckJobDispatcher remote) : ICheckJobDispatcher
+    RemoteCheckJobDispatcher remote,
+    IWorkerRegistry registry) : ICheckJobDispatcher
 {
-    public Task DispatchAsync(Check check, CancellationToken ct = default) =>
-        check.IsMultiRegion
-            ? remote.DispatchAsync(check, ct)
-            : local.DispatchAsync(check, ct);
+    public Task DispatchAsync(Check check, CancellationToken ct = default)
+    {
+        // Built-in API worker is active when it has a live registry entry
+        var apiIsWorker = registry.GetByConnectionId(ApiWorkerHostedService.ApiWorkerConnectionId) is not null;
+        if (apiIsWorker)
+            return check.IsMultiRegion ? remote.DispatchAsync(check, ct) : local.DispatchAsync(check, ct);
+        return check.IsMultiRegion ? remote.DispatchAsync(check, ct) : remote.DispatchToDefaultWorkerAsync(check, ct);
+    }
 }

@@ -9,7 +9,7 @@ const COLOR_UP = "#22c55e";
 const COLOR_DOWN = "#ef4444";
 const COLOR_DEGRADED = "#eab308";
 const COLOR_MAINTENANCE = "#3b82f6";
-const COLOR_NO_DATA = "#e4e4e7";
+const COLOR_NO_DATA = "#3f3f46";
 const GAP = 0;
 
 interface HoveredBar {

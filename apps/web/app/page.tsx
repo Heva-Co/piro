@@ -61,8 +61,8 @@ export default async function StatusPage() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 flex flex-col gap-6">
-      <div className="flex flex-col gap-1 px-1">
+    <main className="mx-auto w-full max-w-screen-lg px-8 py-10 flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-bold">Service Status</h1>
         <p className="text-sm text-muted-foreground">Real-time status of our services</p>
       </div>
@@ -102,14 +102,14 @@ export default async function StatusPage() {
         </section>
       )}
 
-      <section className="rounded-3xl border overflow-hidden">
+      <section className="flex flex-col gap-3">
         {services.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">
+          <div className="rounded-2xl border p-8 text-center text-muted-foreground text-sm">
             No services configured yet.
           </div>
         ) : (
-          services.map((service, i) => (
-            <div key={service.slug} className={i < services.length - 1 ? "border-b" : ""}>
+          services.map((service) => (
+            <div key={service.slug} className="rounded-2xl border overflow-hidden">
               <ServiceRow service={service} overview={overviewBySlug[service.slug] ?? null} />
             </div>
           ))

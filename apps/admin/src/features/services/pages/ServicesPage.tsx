@@ -1,8 +1,32 @@
 import { useNavigate } from "react-router-dom";
+import { Filter, Plus, Settings } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { StatusBadge } from "@/components/StatusBadge";
 import { useServices } from "@/hooks/useServices";
 import { ROUTES } from "@/constants/routes";
+
+function initials(name: string) {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  up:           "bg-foreground text-background",
+  operational:  "bg-foreground text-background",
+  down:         "bg-destructive text-destructive-foreground",
+  degraded:     "bg-yellow-500 text-white",
+  maintenance:  "bg-blue-500 text-white",
+};
+
+function StatusPill({ status }: { status: string }) {
+  const key = (status ?? "").toLowerCase();
+  const cls = STATUS_STYLES[key] ?? "bg-muted text-muted-foreground";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${cls}`}>
+      {status}
+    </span>
+  );
+}
 
 export default function ServicesPage() {
   const navigate = useNavigate();
@@ -10,58 +34,98 @@ export default function ServicesPage() {
 
   return (
     <AdminLayout title="Services">
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-sm text-gray-500">Manage your monitored services.</p>
-        <button
-          onClick={() => navigate(ROUTES.SERVICES.NEW)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          New Service
-        </button>
-      </div>
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Services</h1>
+          <button
+            onClick={() => navigate(ROUTES.SERVICES.NEW)}
+            className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus size={14} /> New Service
+          </button>
+        </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Loading...</div>
-        ) : isError ? (
-          <div className="p-6 text-sm text-red-500">Failed to load services.</div>
-        ) : !services || services.length === 0 ? (
-          <div className="p-6 text-sm text-gray-500">No services yet.</div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-5 py-3 text-left font-medium text-gray-500">Name</th>
-                <th className="px-5 py-3 text-left font-medium text-gray-500">Slug</th>
-                <th className="px-5 py-3 text-left font-medium text-gray-500">Status</th>
-                <th className="px-5 py-3 text-left font-medium text-gray-500">Hidden</th>
-                <th className="px-5 py-3 text-left font-medium text-gray-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {services.map((service) => (
-                <tr key={service.slug} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-900">{service.name}</td>
-                  <td className="px-5 py-3 text-gray-500">{service.slug}</td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={service.status} />
-                  </td>
-                  <td className="px-5 py-3 text-gray-500">
-                    {(service as { isHidden?: boolean }).isHidden ? "Yes" : "No"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <button
-                      onClick={() => navigate(ROUTES.SERVICES.DETAIL(service.slug))}
-                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div className="flex items-center mb-3">
+          <button className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
+            <Filter size={13} /> Filters
+          </button>
+        </div>
+
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {isLoading ? (
+            <div className="px-6 py-8 text-sm text-muted-foreground">Loading…</div>
+          ) : isError ? (
+            <div className="px-6 py-8 text-sm text-destructive">Failed to load services.</div>
+          ) : !services || services.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-20">
+              <img src="/piro.svg" alt="Piro" className="h-16 w-16 opacity-20" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">No services yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add your first service to start monitoring uptime.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate(ROUTES.SERVICES.NEW)}
+                className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                <Plus size={14} /> New Service
+              </button>
+            </div>
+          ) : (
+            <>
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Service</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Slug</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Hidden</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Checks</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {services.map((service) => (
+                    <tr key={service.slug} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                            {initials(service.name)}
+                          </div>
+                          <span className="font-medium">{service.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <code className="rounded border bg-muted px-2 py-0.5 text-xs font-mono">
+                          {service.slug}
+                        </code>
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusPill status={service.currentStatus} />
+                      </td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">
+                        {service.isHidden ? "YES" : "NO"}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">—</td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => navigate(ROUTES.SERVICES.DETAIL(service.slug))}
+                          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+                        >
+                          <Settings size={13} /> Configure
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-5 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
+                Showing 1–{services.length} of {services.length} service{services.length !== 1 ? "s" : ""}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </AdminLayout>
   );

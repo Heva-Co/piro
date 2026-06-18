@@ -152,39 +152,136 @@ export function NewServicePage() {
   const createService = useCreateService();
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(values: {
-    name: string;
-    slug: string;
-    description: string;
-    displayOrder: number;
-    isHidden: boolean;
-    isPublic: boolean;
-  }) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugManual, setSlugManual] = useState(false);
+  const [description, setDescription] = useState("");
+  const [displayOrder, setDisplayOrder] = useState(0);
+  const [hiddenFromPublic, setHiddenFromPublic] = useState(false);
+
+  useEffect(() => {
+    if (!slugManual) setSlug(slugify(name));
+  }, [name, slugManual]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
     try {
       const service = await createService.mutateAsync({
-        name: values.name,
-        description: values.description || undefined,
-        displayOrder: values.displayOrder,
-        isPublic: values.isPublic,
+        slug,
+        name,
+        description: description || undefined,
+        displayOrder,
+        isHidden: hiddenFromPublic,
       } as Parameters<typeof createService.mutateAsync>[0]);
       navigate(ROUTES.SERVICES.DETAIL(service.slug));
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create service.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Failed to create service.");
     }
   }
 
   return (
     <AdminLayout title="New Service">
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-        <ServiceForm
-          mode="new"
-          onSubmit={handleSubmit}
-          isLoading={createService.isPending}
-          error={error}
-        />
+      <div>
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.SERVICES.LIST)}
+            className="hover:text-foreground transition-colors"
+          >
+            Services
+          </button>
+          <span>/</span>
+          <span className="text-foreground">New</span>
+        </nav>
+
+        <div className="max-w-2xl rounded-xl border bg-card p-8">
+          <h1 className="text-lg font-bold mb-6">New Service</h1>
+
+          {error && (
+            <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* Name + Slug grid — Name first */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold">
+                  Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Service"
+                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold">
+                  Slug <span className="text-destructive">*</span>
+                </label>
+                <input
+                  required
+                  value={slug}
+                  onChange={(e) => { setSlugManual(true); setSlug(e.target.value); }}
+                  placeholder="my-service"
+                  className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold">Description</label>
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description"
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold">Display order</label>
+              <input
+                type="number"
+                value={displayOrder}
+                onChange={(e) => setDisplayOrder(Number(e.target.value))}
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hiddenFromPublic}
+                onChange={(e) => setHiddenFromPublic(e.target.checked)}
+                className="size-4 rounded"
+              />
+              Hidden from public page
+            </label>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={createService.isPending}
+                className="rounded-lg bg-foreground text-background px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {createService.isPending ? "Creating…" : "Create Service"}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.SERVICES.LIST)}
+                className="rounded-lg border px-5 py-2 text-sm font-semibold hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </AdminLayout>
   );
@@ -215,7 +312,6 @@ export function EditServiceForm({ slug }: { slug: string }) {
         name: values.name,
         description: values.description || undefined,
         displayOrder: values.displayOrder,
-        isPublic: values.isPublic,
       });
       setSuccessMsg("Saved successfully.");
     } catch (err: unknown) {
@@ -237,8 +333,8 @@ export function EditServiceForm({ slug }: { slug: string }) {
           name: service.name,
           description: service.description ?? "",
           displayOrder: service.displayOrder,
-          isHidden: false,
-          isPublic: service.isPublic,
+          isHidden: service.isHidden,
+          isPublic: false,
         }}
         onSubmit={handleSubmit}
         isLoading={updateService.isPending}

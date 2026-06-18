@@ -30,6 +30,7 @@ public class NotificationChannelAppService(
             MetaJson = request.MetaJson,
             IsGlobal = request.IsGlobal,
             IsLocked = request.IsLocked,
+            IsInactive = request.IsInactive,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -50,7 +51,7 @@ public class NotificationChannelAppService(
 
         if (request.Name is not null) channel.Name = request.Name;
         if (request.Description is not null) channel.Description = request.Description;
-        if (request.Status is not null) channel.Status = request.Status;
+        if (request.IsInactive is not null) channel.IsInactive = request.IsInactive.Value;
         if (request.MetaJson is not null) channel.MetaJson = request.MetaJson;
         if (request.IsGlobal is not null) channel.IsGlobal = request.IsGlobal.Value;
         if (request.IsLocked is not null) channel.IsLocked = request.IsLocked.Value;
@@ -92,7 +93,7 @@ public class NotificationChannelAppService(
     }
 
     private static NotificationChannelDto ToDto(NotificationChannel c) => new(
-        c.Id, c.Name, c.Type, c.Description, c.Status, c.MetaJson,
+        c.Id, c.Name, c.Type, c.Description, c.IsInactive, c.MetaJson,
         c.IsGlobal, c.IsLocked, c.CreatedAt, c.UpdatedAt,
         c.AlertConfigNotificationChannels.Count
     );

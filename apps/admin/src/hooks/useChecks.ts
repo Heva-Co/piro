@@ -1,7 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { checksApi, alertConfigsApi } from "@/lib/api";
-import type { Check, AlertConfig } from "@/lib/api";
+import type { Check, CreateCheck, AlertConfig } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+
+export function useAllChecks() {
+  return useQuery({
+    queryKey: QUERY_KEYS.CHECKS,
+    queryFn: () => checksApi.listAll(),
+  });
+}
 
 export function useChecks(serviceSlug: string) {
   return useQuery({
@@ -22,7 +29,7 @@ export function useCheck(serviceSlug: string, checkSlug: string) {
 export function useCreateCheck(serviceSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<Check, "slug" | "status" | "serviceSlug">) =>
+    mutationFn: (data: CreateCheck) =>
       checksApi.create(serviceSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICE_CHECKS(serviceSlug) });
@@ -33,7 +40,7 @@ export function useCreateCheck(serviceSlug: string) {
 export function useUpdateCheck(serviceSlug: string, checkSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Omit<Check, "slug" | "status" | "serviceSlug">>) =>
+    mutationFn: (data: Partial<Omit<Check, "id" | "slug" | "currentStatus">>) =>
       checksApi.update(serviceSlug, checkSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICE_CHECKS(serviceSlug) });

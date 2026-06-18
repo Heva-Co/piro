@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, ChevronRight } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { DateTimePicker } from "@/components/DateTimePicker";
 import { maintenancesApi, servicesApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -36,6 +37,7 @@ export default function MaintenanceFormPage() {
   const [interval, setIntervalVal] = useState(1);
   const [weekdays, setWeekdays] = useState<Set<string>>(new Set(["MO"]));
   const [isGlobal, setIsGlobal] = useState(false);
+  const [allServices, setAllServices] = useState(false);
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
@@ -45,21 +47,19 @@ export default function MaintenanceFormPage() {
   });
 
   function buildRrule() {
-    if (scheduleType === "one-time") {
-      return "FREQ=MINUTELY;COUNT=1";
-    }
+    if (scheduleType === "one-time") return "FREQ=MINUTELY;COUNT=1";
     let rule = `FREQ=${frequency};INTERVAL=${interval}`;
-    if (frequency === "WEEKLY" && weekdays.size > 0) {
+    if (frequency === "WEEKLY" && weekdays.size > 0)
       rule += `;BYDAY=${[...weekdays].join(",")}`;
-    }
     return rule;
   }
 
   function buildEndTime() {
     const start = new Date(startDateTime);
-    const end = new Date(start.getTime() + (durationHours * 60 + durationMinutes) * 60000);
-    return end.toISOString();
+    return new Date(start.getTime() + (durationHours * 60 + durationMinutes) * 60000).toISOString();
   }
+
+  const totalSeconds = (durationHours * 60 + durationMinutes) * 60;
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -68,6 +68,7 @@ export default function MaintenanceFormPage() {
         description,
         scheduledStart: new Date(startDateTime).toISOString(),
         scheduledEnd: buildEndTime(),
+        isGlobal,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.MAINTENANCES });
@@ -77,213 +78,215 @@ export default function MaintenanceFormPage() {
   });
 
   function toggleWeekday(d: string) {
-    setWeekdays((prev) => {
+    setWeekdays(prev => {
       const next = new Set(prev);
       if (next.has(d)) next.delete(d); else next.add(d);
       return next;
     });
   }
 
+  function toggleService(slug: string) {
+    setSelectedServices(prev => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug); else next.add(slug);
+      return next;
+    });
+  }
+
+  function handleAllToggle(checked: boolean) {
+    setAllServices(checked);
+    if (checked) setSelectedServices(new Set(services.map(s => s.slug)));
+    else setSelectedServices(new Set());
+  }
+
   const rrulePreview = buildRrule();
 
   return (
     <AdminLayout title="New Maintenance">
-      <div className="max-w-xl">
-        <form
-          onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
-          className="flex flex-col gap-5"
-        >
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
+        <button onClick={() => navigate(ROUTES.MAINTENANCES.LIST)} className="hover:text-gray-700">Maintenances</button>
+        <ChevronRight size={14} />
+        <span className="text-gray-900 font-medium">New Maintenance</span>
+      </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Title *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+      <div className="max-w-2xl">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-4">
+          <h1 className="text-xl font-bold text-gray-900 mb-0.5">Create New Maintenance</h1>
+          <p className="text-sm text-gray-500 mb-6">Schedule a new maintenance window using iCalendar RRULE format</p>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }} className="flex flex-col gap-5">
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <AlertCircle size={15} /> {error}
+              </div>
+            )}
 
-          {/* Schedule type */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Schedule Type</label>
-            <div className="flex gap-4">
-              {(["one-time", "recurring"] as const).map((t) => (
-                <label key={t} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value={t}
-                    checked={scheduleType === t}
-                    onChange={() => setScheduleType(t)}
-                    className="text-indigo-600"
-                  />
-                  <span className="text-sm capitalize">{t.replace("-", " ")}</span>
+            {/* Schedule Type */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-900">Schedule Type *</label>
+              <div className="flex gap-5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" value="one-time" checked={scheduleType === "one-time"}
+                    onChange={() => setScheduleType("one-time")} className="accent-gray-900" />
+                  <Calendar size={15} className="text-gray-500" />
+                  <span className="text-sm text-gray-700">One-Time</span>
                 </label>
-              ))}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" value="recurring" checked={scheduleType === "recurring"}
+                    onChange={() => setScheduleType("recurring")} className="accent-gray-900" />
+                  <RefreshCw size={15} className="text-gray-500" />
+                  <span className="text-sm text-gray-700">Recurring</span>
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Start Date/Time</label>
-            <input
-              type="datetime-local"
-              value={startDateTime}
-              onChange={(e) => setStartDateTime(e.target.value)}
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-sm font-medium">Duration Hours</label>
-              <input
-                type="number"
-                min={0}
-                value={durationHours}
-                onChange={(e) => setDurationHours(Number(e.target.value))}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+            {/* Title */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-900">Title *</label>
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)} required
+                placeholder="Scheduled maintenance window"
+                className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
             </div>
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-sm font-medium">Duration Minutes</label>
-              <input
-                type="number"
-                min={0}
-                max={59}
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+            {/* Description */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-900">Description</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+                placeholder="Details about the maintenance…"
+                className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none" />
             </div>
-          </div>
 
-          {scheduleType === "recurring" && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 flex flex-col gap-4">
-              <h3 className="text-sm font-semibold text-gray-700">Recurrence</h3>
+            {/* Global maintenance toggle */}
+            <div className="rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Global Maintenance</p>
+                <p className="text-xs text-gray-500 mt-0.5">When enabled, this maintenance will be visible on all status pages</p>
+              </div>
+              <button type="button" onClick={() => setIsGlobal(v => !v)}
+                className={`relative w-10 h-6 rounded-full transition-colors ${isGlobal ? "bg-gray-900" : "bg-gray-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${isGlobal ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+            </div>
 
-              <div className="flex gap-3">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-sm font-medium">Frequency</label>
-                  <select
-                    value={frequency}
-                    onChange={(e) => setFrequency(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="DAILY">Daily</option>
-                    <option value="WEEKLY">Weekly</option>
-                    <option value="MONTHLY">Monthly</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5 w-28">
-                  <label className="text-sm font-medium">Every (N)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={interval}
-                    onChange={(e) => setIntervalVal(Number(e.target.value))}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
+            {/* Start Date/Time */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-900">Start Date/Time *</label>
+              <DateTimePicker value={startDateTime} onChange={setStartDateTime} />
+            </div>
+
+            {/* Duration */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-900">Duration *</label>
+              <div className="flex items-center gap-3">
+                <input type="number" min={0} value={durationHours} onChange={e => setDurationHours(Number(e.target.value))}
+                  className="w-20 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
+                <span className="text-sm text-gray-500">hours</span>
+                <input type="number" min={0} max={59} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
+                  className="w-20 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
+                <span className="text-sm text-gray-500">minutes</span>
+              </div>
+              <p className="text-xs text-gray-400">Total: {totalSeconds.toLocaleString()} seconds ({durationHours * 60 + durationMinutes} minutes)</p>
+            </div>
+
+            {/* Schedule Pattern */}
+            <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-gray-400" />
+                <span className="text-sm font-semibold text-gray-900">Schedule Pattern</span>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5">iCalendar RRULE (auto-generated)</p>
+                <code className="block rounded-lg bg-gray-100 px-3 py-2 text-sm font-mono text-gray-800">{rrulePreview}</code>
+                {scheduleType === "one-time" && (
+                  <p className="text-xs text-gray-400 mt-1.5">One-time maintenance uses a fixed RRULE that triggers only once.</p>
+                )}
               </div>
 
-              {frequency === "WEEKLY" && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium">Days</label>
-                  <div className="flex gap-1.5">
-                    {WEEKDAYS.map((d) => (
-                      <button
-                        key={d.value}
-                        type="button"
-                        onClick={() => toggleWeekday(d.value)}
-                        className={`rounded-md w-9 h-9 text-xs font-medium border transition-colors ${
-                          weekdays.has(d.value)
-                            ? "bg-indigo-600 border-indigo-600 text-white"
-                            : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
-                        }`}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
+              {scheduleType === "recurring" && (
+                <div className="flex flex-col gap-3 pt-1">
+                  <div className="flex gap-3">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-xs font-medium text-gray-700">Frequency</label>
+                      <select value={frequency} onChange={e => setFrequency(e.target.value)}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400">
+                        <option value="DAILY">Daily</option>
+                        <option value="WEEKLY">Weekly</option>
+                        <option value="MONTHLY">Monthly</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5 w-28">
+                      <label className="text-xs font-medium text-gray-700">Every (N)</label>
+                      <input type="number" min={1} value={interval} onChange={e => setIntervalVal(Number(e.target.value))}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
+                    </div>
                   </div>
+                  {frequency === "WEEKLY" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-gray-700">Days</label>
+                      <div className="flex gap-1.5">
+                        {WEEKDAYS.map(d => (
+                          <button key={d.value} type="button" onClick={() => toggleWeekday(d.value)}
+                            className={`w-9 h-9 rounded-lg text-xs font-semibold border transition-colors ${weekdays.has(d.value) ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
+                            {d.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
 
-          {/* RRULE preview */}
-          <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
-            <span className="text-xs text-gray-500 font-medium">RRULE: </span>
-            <code className="text-xs font-mono text-gray-700">{rrulePreview}</code>
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <div className="relative">
-              <input type="checkbox" checked={isGlobal} onChange={(e) => setIsGlobal(e.target.checked)} className="sr-only peer" />
-              <div className="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-indigo-600 transition-colors" />
-              <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-            </div>
-            <span className="text-sm font-medium">Global maintenance</span>
-          </label>
-
-          {!isGlobal && services.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Affected Services</label>
-              <div className="rounded-lg border border-gray-200 divide-y divide-gray-100">
-                {services.map((svc) => (
-                  <div key={svc.slug} className="flex items-center gap-3 px-3 py-2">
-                    <input
-                      type="checkbox"
-                      id={`svc-${svc.slug}`}
-                      checked={selectedServices.has(svc.slug)}
-                      onChange={() => {
-                        setSelectedServices((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(svc.slug)) next.delete(svc.slug); else next.add(svc.slug);
-                          return next;
-                        });
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor={`svc-${svc.slug}`} className="text-sm cursor-pointer">{svc.name}</label>
-                  </div>
-                ))}
+            {/* Affected Services */}
+            {!isGlobal && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-900">Affected Services</label>
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <p className="text-xs text-gray-500 mb-3">Select services to add:</p>
+                  {services.length === 0 ? (
+                    <p className="text-sm text-gray-400">No services available.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                      {/* All option */}
+                      <label className="flex items-center gap-2 cursor-pointer col-span-2 pb-2 border-b border-gray-100 mb-1">
+                        <input type="checkbox" checked={allServices}
+                          onChange={e => handleAllToggle(e.target.checked)}
+                          className="rounded border-gray-300 accent-gray-900" />
+                        <span className="text-sm font-semibold text-gray-900">All</span>
+                      </label>
+                      {services.map(svc => (
+                        <label key={svc.slug} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={selectedServices.has(svc.slug)}
+                            onChange={() => {
+                              toggleService(svc.slug);
+                              if (allServices) setAllServices(false);
+                            }}
+                            className="rounded border-gray-300 accent-gray-900" />
+                          <span className="text-sm text-gray-700">{svc.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 mt-3">Select services and set their status during the maintenance window</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {createMutation.isPending ? "Creating…" : "Create Maintenance"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.MAINTENANCES.LIST)}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <button type="button" onClick={() => navigate(ROUTES.MAINTENANCES.LIST)}
+                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button type="submit" disabled={createMutation.isPending || !title.trim()}
+                className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50">
+                <Calendar size={15} />
+                {createMutation.isPending ? "Creating…" : "Create Maintenance"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </AdminLayout>
   );

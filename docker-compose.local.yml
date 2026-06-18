@@ -1,0 +1,65 @@
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - INTERNAL_API_URL=http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Database__ConnectionString=Host=db;Database=piro;Username=piro;Password=${POSTGRES_PASSWORD:-piro};SSL Mode=Disable
+      - Auth__JwtSecret=${JWT_SECRET:?JWT_SECRET is required}
+      - Auth__AccessTokenExpiryMinutes=${ACCESS_TOKEN_EXPIRY_MINUTES:-60}
+      - Auth__RefreshTokenExpiryDays=${REFRESH_TOKEN_EXPIRY_DAYS:-30}
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: piro
+      POSTGRES_USER: piro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-piro}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U piro -d piro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  api_uploads:

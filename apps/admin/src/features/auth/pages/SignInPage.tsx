@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { setupApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
 import { ENDPOINTS } from "@/constants/api";
 import axios from "axios";
+import api from "@/lib/axios";
 
 interface OidcProvider {
   id: string;
@@ -15,6 +18,13 @@ export default function SignInPage() {
   const { isAuthenticated, isLoading, login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const setupQuery = useQuery({
+    queryKey: ["setup-status"],
+    queryFn: () => setupApi.status(),
+    staleTime: 60_000,
+    retry: false,
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,12 +39,16 @@ export default function SignInPage() {
   const oidcError = searchParams.has("oidc_error");
   const from = searchParams.get("from") ?? ROUTES.DASHBOARD;
 
+  if (setupQuery.data && !setupQuery.data.isComplete) {
+    return <Navigate to={ROUTES.SETUP} replace />;
+  }
+
   useEffect(() => {
-    axios
+    api
       .get<OidcProvider[]>(ENDPOINTS.AUTH.OIDC_PROVIDERS)
       .then((r) => setOidcProviders(r.data))
       .catch(() => {});
-    axios
+    api
       .get<{ ssoOnly: boolean }>(ENDPOINTS.AUTH.OIDC_SSO_MODE)
       .then((r) => setSsoOnly(r.data.ssoOnly))
       .catch(() => {});

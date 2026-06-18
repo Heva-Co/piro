@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { servicesApi, incidentsApi, maintenancesApi } from "@/lib/api";
+import { servicesApi, incidentsApi, maintenancesApi, workersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { AdminLayout } from "@/components/AdminLayout";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AlertCircle } from "lucide-react";
 
 function StatCard({
   label,
@@ -34,15 +35,20 @@ export default function DashboardPage() {
     queryKey: QUERY_KEYS.MAINTENANCES,
     queryFn: maintenancesApi.list,
   });
+  const workersQuery = useQuery({
+    queryKey: QUERY_KEYS.WORKERS,
+    queryFn: workersApi.list,
+    refetchInterval: 30_000,
+  });
 
   const services = servicesQuery.data ?? [];
   const incidents = incidentsQuery.data ?? [];
   const maintenances = maintenancesQuery.data ?? [];
 
   const totalServices = services.length;
-  const operational = services.filter((s) => s.status === "UP").length;
+  const operational = services.filter((s) => s.currentStatus === "UP").length;
   const withIssues = services.filter(
-    (s) => s.status === "DOWN" || s.status === "DEGRADED"
+    (s) => s.currentStatus === "DOWN" || s.currentStatus === "DEGRADED"
   ).length;
   const activeIncidents = incidents.filter(
     (i) => i.status !== "RESOLVED"
@@ -51,8 +57,19 @@ export default function DashboardPage() {
     (m) => m.status === "ACTIVE" || m.status === "SCHEDULED"
   );
 
+  const workers = workersQuery.data ?? [];
+  const noLocalExecution = !workersQuery.isLoading && !workers.some(w => w.isConnected);
+
   return (
     <AdminLayout title="Overview">
+      {noLocalExecution && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3 mb-6">
+          <AlertCircle size={16} className="text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            No default worker connected — non-multi-region checks are not executing. Go to <strong>Workers</strong> to register and connect a default worker.
+          </p>
+        </div>
+      )}
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Total Services" value={totalServices} color="text-gray-900" />
@@ -88,7 +105,7 @@ export default function DashboardPage() {
                     <td className="px-5 py-3 font-medium text-gray-900">{service.name}</td>
                     <td className="px-5 py-3 text-gray-500">{service.slug}</td>
                     <td className="px-5 py-3">
-                      <StatusBadge status={service.status} />
+                      <StatusBadge status={service.currentStatus} />
                     </td>
                   </tr>
                 ))}

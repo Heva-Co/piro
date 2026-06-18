@@ -24,4 +24,10 @@ public class WorkerRegistration
     public DateTime? LastHeartbeat { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    /// <summary>When true, this worker receives non-multi-region checks when the API worker is disabled.</summary>
+    public bool IsDefault { get; set; } = false;
+
+    /// <summary>When true, this is the built-in API worker (token hash = "builtin").</summary>
+    public bool IsBuiltIn { get; set; } = false;
 }

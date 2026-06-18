@@ -20,13 +20,17 @@ public class WorkerAppService(
         var workerToken = GenerateToken();
         var tokenHash = HashToken(workerToken);
 
+        if (request.IsDefault)
+            await workerRepo.ClearDefaultAsync(ct);
+
         var registration = new WorkerRegistration
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
             Region = request.Region,
             WorkerTokenHash = tokenHash,
-            IsActive = true
+            IsActive = true,
+            IsDefault = request.IsDefault
         };
 
         await workerRepo.CreateAsync(registration, ct);
@@ -53,7 +57,6 @@ public class WorkerAppService(
             // Online only if the worker has an active in-memory connection.
             // OnDisconnectedAsync always fires (graceful or not), so the registry is authoritative.
             var isOnline = live != null;
-            var isBuiltIn = r.WorkerTokenHash == "builtin";
             return new WorkerDto(
                 r.Id,
                 r.Name,
@@ -63,8 +66,21 @@ public class WorkerAppService(
                 r.CreatedAt,
                 r.IsActive,
                 Version: live?.Version,
-                IsBuiltIn: isBuiltIn);
+                IsBuiltIn: r.IsBuiltIn,
+                IsDefault: r.IsDefault);
         });
+    }
+
+    /// <summary>Updates mutable fields of a worker registration.</summary>
+    public async Task UpdateAsync(Guid id, UpdateWorkerRequest request, CancellationToken ct = default)
+    {
+        var registration = await workerRepo.GetByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException($"Worker {id} not found.");
+
+        if (request.Region is not null)
+            registration.Region = request.Region;
+
+        await workerRepo.UpdateAsync(registration, ct);
     }
 
     /// <summary>Deactivates a worker registration and revokes its token.</summary>

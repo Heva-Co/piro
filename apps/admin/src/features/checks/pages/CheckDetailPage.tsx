@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Bell, ChevronDown, ChevronUp, ExternalLink, Play, RefreshCw, Save } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { StatusBadge } from "@/components/StatusBadge";
 import {
   useCheck,
   useUpdateCheck,
@@ -16,276 +16,456 @@ import {
 import { channelsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { ChevronDown } from "lucide-react";
-import { cn, formatLatency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+type CheckType = "Http" | "Dns" | "Tcp" | "Ping" | "Ssl" | "Heartbeat";
+const CHECK_TYPES: CheckType[] = ["Http", "Dns", "Tcp", "Ping", "Ssl", "Heartbeat"];
+
+const CRON_PRESETS = [
+  { label: "Every minute",     value: "* * * * *" },
+  { label: "Every 5 minutes",  value: "*/5 * * * *" },
+  { label: "Every 15 minutes", value: "*/15 * * * *" },
+  { label: "Every 30 minutes", value: "*/30 * * * *" },
+  { label: "Every hour",       value: "0 * * * *" },
+  { label: "Every day",        value: "0 0 * * *" },
+];
+
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+        checked ? "bg-foreground" : "bg-input"
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
 
 function Accordion({
   title,
   children,
   defaultOpen = false,
+  titleClassName,
 }: {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  titleClassName?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-4">
+    <div className="border-b border-border">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-between w-full py-4 text-left"
       >
-        <span className="font-semibold text-gray-900">{title}</span>
-        <ChevronDown
-          size={18}
-          className={cn("text-gray-400 transition-transform", open ? "rotate-180" : "")}
-        />
+        <span className={cn("text-sm font-semibold", titleClassName)}>{title}</span>
+        {open ? (
+          <ChevronUp size={16} className="text-muted-foreground" />
+        ) : (
+          <ChevronDown size={16} className="text-muted-foreground" />
+        )}
       </button>
-      {open && <div className="px-6 py-5 border-t border-gray-100">{children}</div>}
+      {open && <div className="pb-6">{children}</div>}
     </div>
   );
 }
 
-function GeneralSettingsSection({
-  serviceSlug,
-  checkSlug,
-}: {
-  serviceSlug: string;
-  checkSlug: string;
-}) {
-  const { data: check, isLoading } = useCheck(serviceSlug, checkSlug);
+// ── Field ─────────────────────────────────────────────────────────────────────
+
+const inp = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
+const sel = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
+
+// ── General Settings ──────────────────────────────────────────────────────────
+
+function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
+  const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [cron, setCron] = useState("");
+  const [type, setType] = useState<CheckType>("Http");
+  const [cron, setCron] = useState("* * * * *");
+  const [showCustomCron, setShowCustomCron] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [initialized, setInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isMultiRegion, setIsMultiRegion] = useState(false);
+  const [defaultStatus, setDefaultStatus] = useState("NO_DATA");
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  if (!initialized && check) {
+  useEffect(() => {
+    if (!check) return;
     setName(check.name);
-    setDescription((check.config?.description as string) ?? "");
-    setCron((check.config?.cron as string) ?? "");
+    setDescription(check.description ?? "");
+    // Normalize to title-case to match CheckType union values
+    const normalized = check.type.charAt(0).toUpperCase() + check.type.slice(1).toLowerCase();
+    setType(normalized as CheckType);
+    setCron(check.cron ?? "* * * * *");
     setIsActive(check.isActive);
-    setInitialized(true);
-  }
+    setIsMultiRegion(check.isMultiRegion);
+    setDefaultStatus(check.defaultStatus ?? "NO_DATA");
+    const isPreset = CRON_PRESETS.some((p) => p.value === check.cron);
+    setShowCustomCron(!isPreset);
+  }, [check]);
 
-  if (isLoading) return <div className="text-sm text-gray-500">Loading...</div>;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
+  async function handleSave() {
+    setError("");
     try {
-      await updateCheck.mutateAsync({ name, isActive, config: { cron } });
-      setSuccessMsg("Saved successfully.");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update check.");
-    }
-  }
-
-  function inputClass(extraClass = "") {
-    return `border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${extraClass}`;
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-          {error}
-        </div>
-      )}
-      {successMsg && (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md p-3">
-          {successMsg}
-        </div>
-      )}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-        <input
-          type="text"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass("w-full")}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={2}
-          className={inputClass("w-full")}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Cron Schedule</label>
-        <input
-          type="text"
-          value={cron}
-          onChange={(e) => setCron(e.target.value)}
-          className={inputClass("w-56 font-mono")}
-          placeholder="*/5 * * * *"
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
-          className="rounded border-gray-300 text-indigo-600"
-        />
-        Active
-      </label>
-      <div className="pt-1">
-        <button
-          type="submit"
-          disabled={updateCheck.isPending}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          {updateCheck.isPending ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function ConfigurationSection({
-  serviceSlug,
-  checkSlug,
-}: {
-  serviceSlug: string;
-  checkSlug: string;
-}) {
-  const { data: check, isLoading } = useCheck(serviceSlug, checkSlug);
-  const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
-  const [configJson, setConfigJson] = useState("");
-  const [initialized, setInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  if (!initialized && check) {
-    setConfigJson(
-      JSON.stringify(check.config?.typeDataJson ? JSON.parse(check.config.typeDataJson as string) : check.config, null, 2)
-    );
-    setInitialized(true);
-  }
-
-  if (isLoading) return <div className="text-sm text-gray-500">Loading...</div>;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      const parsed = JSON.parse(configJson);
-      await updateCheck.mutateAsync({
-        config: { ...(check?.config ?? {}), typeDataJson: JSON.stringify(parsed) },
-      });
-      setSuccessMsg("Configuration saved.");
-    } catch (err: unknown) {
-      if (err instanceof SyntaxError) {
-        setError("Invalid JSON: " + err.message);
-      } else {
-        setError(err instanceof Error ? err.message : "Failed to update configuration.");
-      }
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-          {error}
-        </div>
-      )}
-      {successMsg && (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md p-3">
-          {successMsg}
-        </div>
-      )}
-      <p className="text-sm text-gray-500">Edit the type-specific configuration as JSON.</p>
-      <textarea
-        value={configJson}
-        onChange={(e) => setConfigJson(e.target.value)}
-        rows={12}
-        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-      <button
-        type="submit"
-        disabled={updateCheck.isPending}
-        className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-      >
-        {updateCheck.isPending ? "Saving..." : "Save Configuration"}
-      </button>
-    </form>
-  );
-}
-
-function RecentLogsSection({
-  serviceSlug,
-  checkSlug,
-}: {
-  serviceSlug: string;
-  checkSlug: string;
-}) {
-  const { data: logs, isLoading, refetch } = useCheckLogs(serviceSlug, checkSlug);
-  const runCheck = useRunCheck(serviceSlug, checkSlug);
-  const [runMsg, setRunMsg] = useState<string | null>(null);
-
-  async function handleRun() {
-    setRunMsg(null);
-    try {
-      await runCheck.mutateAsync();
-      setRunMsg("Check triggered. Logs will update shortly.");
-      await refetch();
+      await updateCheck.mutateAsync({ name, description: description || undefined, type, cron, isActive, isMultiRegion, defaultStatus });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch {
-      setRunMsg("Failed to run check.");
+      setError("Failed to save changes.");
     }
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">Recent check results.</p>
-        <button
-          onClick={handleRun}
-          disabled={runCheck.isPending}
-          className="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        >
-          {runCheck.isPending ? "Running..." : "Run Now"}
+    <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+      {error && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {/* Name + Slug */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inp} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Slug</label>
+          <input value={checkSlug} readOnly className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none" />
+          <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Description</label>
+        <textarea value={description} rows={2} onChange={(e) => setDescription(e.target.value)}
+          placeholder="A brief description" className={`${inp} resize-none`} />
+      </div>
+
+      {/* Type + Cron */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Type</label>
+          <select value={type} onChange={(e) => setType(e.target.value as CheckType)} className={sel}>
+            {CHECK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Cron Schedule</label>
+          {showCustomCron ? (
+            <input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="*/5 * * * *" className={`${inp} font-mono`} />
+          ) : (
+            <select value={cron} onChange={(e) => setCron(e.target.value)} className={sel}>
+              {CRON_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          )}
+          <button type="button" onClick={() => setShowCustomCron((v) => !v)}
+            className="text-xs text-left hover:underline w-fit">
+            {showCustomCron ? "← Use preset" : "Enter custom cron →"}
+          </button>
+        </div>
+      </div>
+
+      {/* Default Status + Active + Multi-region */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Default Status</label>
+          <select value={defaultStatus} onChange={(e) => setDefaultStatus(e.target.value)} className={sel}>
+            <option value="NO_DATA">No data</option>
+            <option value="UP">Up</option>
+            <option value="DOWN">Down</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold">Active</label>
+          <div className="flex items-center gap-2.5">
+            <Toggle checked={isActive} onChange={setIsActive} />
+            <span className="text-sm text-muted-foreground">{isActive ? "Running" : "Paused"}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold">Multi-region</label>
+          <div className="flex items-center gap-2.5">
+            <Toggle checked={isMultiRegion} onChange={setIsMultiRegion} />
+            <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button type="button" onClick={handleSave} disabled={updateCheck.isPending}
+          className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+          <Save size={14} />
+          {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
         </button>
       </div>
-      {runMsg && <div className="mb-3 text-sm text-gray-600">{runMsg}</div>}
+    </div>
+  );
+}
+
+// ── Configuration ─────────────────────────────────────────────────────────────
+
+// expectedStatusCodes is stored as List<int> in backend JSON, but shown as "200, 201" string in the UI.
+// We keep a separate string field "_expectedStatusCodesStr" in the config object for UI editing only,
+// and convert to/from int[] on load/save.
+
+function statusCodesToStr(codes: unknown): string {
+  if (Array.isArray(codes)) return codes.join(", ");
+  if (typeof codes === "string") return codes;
+  return "200";
+}
+
+function strToStatusCodes(str: string): number[] {
+  return str.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+}
+
+function HttpConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const codesStr = statusCodesToStr(config.expectedStatusCodes);
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
+        <input value={String(config.url ?? "")} onChange={(e) => onChange({ ...config, url: e.target.value })}
+          placeholder="https://example.com" className={inp} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Method</label>
+          <select value={String(config.method ?? "GET")} onChange={(e) => onChange({ ...config, method: e.target.value })} className={sel}>
+            {["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"].map((m) => <option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Timeout (ms)</label>
+          <input type="number" value={String(config.timeout ?? 5000)} onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) })} className={inp} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Expected Status Codes</label>
+        <input value={codesStr}
+          onChange={(e) => onChange({ ...config, expectedStatusCodes: strToStatusCodes(e.target.value) })}
+          placeholder="200, 201" className={inp} />
+        <p className="text-xs text-muted-foreground">Comma-separated list</p>
+      </div>
+    </>
+  );
+}
+
+function TcpConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
+        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Port <span className="text-destructive">*</span></label>
+          <input type="number" value={String(config.port ?? 80)} onChange={(e) => onChange({ ...config, port: Number(e.target.value) })} className={inp} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Timeout (ms)</label>
+          <input type="number" value={String(config.timeout ?? 5000)} onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) })} className={inp} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function DnsConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
+        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Record Type</label>
+          <select value={String(config.recordType ?? "A")} onChange={(e) => onChange({ ...config, recordType: e.target.value })} className={sel}>
+            {["A", "AAAA", "CNAME", "MX", "TXT", "NS"].map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Nameserver</label>
+          <input value={String(config.nameserver ?? "")} onChange={(e) => onChange({ ...config, nameserver: e.target.value })} placeholder="8.8.8.8" className={inp} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PingConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
+      <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
+    </div>
+  );
+}
+
+function SslConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
+        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Port</label>
+          <input type="number" value={String(config.port ?? 443)} onChange={(e) => onChange({ ...config, port: Number(e.target.value) })} className={inp} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Warning threshold (days)</label>
+          <input type="number" value={String(config.warningDaysBeforeExpiry ?? 30)} onChange={(e) => onChange({ ...config, warningDaysBeforeExpiry: Number(e.target.value) })} className={inp} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function HeartbeatConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-semibold">Grace period (seconds)</label>
+      <input type="number" value={String(config.gracePeriodSeconds ?? 60)} onChange={(e) => onChange({ ...config, gracePeriodSeconds: Number(e.target.value) })} className={inp} />
+    </div>
+  );
+}
+
+function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
+  const { data: check } = useCheck(serviceSlug, checkSlug);
+  const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
+  const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!check?.typeDataJson) return;
+    try {
+      setConfig(JSON.parse(check.typeDataJson));
+    } catch {
+      setConfig({});
+    }
+  }, [check?.typeDataJson]);
+
+  async function handleSave() {
+    setError("");
+    try {
+      await updateCheck.mutateAsync({ typeDataJson: JSON.stringify(config) });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to save.");
+    }
+  }
+
+  const rawType = check?.type ?? "Http";
+  const typeKey = rawType.toLowerCase();
+  const typeLabel: Record<string, string> = { http: "HTTP", dns: "DNS", tcp: "TCP", ping: "Ping", ssl: "SSL", heartbeat: "Heartbeat" };
+
+  return (
+    <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+      <p className="text-sm text-muted-foreground">Type-specific settings for the {typeLabel[typeKey] ?? rawType} check</p>
+      {error && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {typeKey === "http"      && <HttpConfig      config={config} onChange={setConfig} />}
+      {typeKey === "tcp"       && <TcpConfig       config={config} onChange={setConfig} />}
+      {typeKey === "dns"       && <DnsConfig       config={config} onChange={setConfig} />}
+      {typeKey === "ping"      && <PingConfig      config={config} onChange={setConfig} />}
+      {typeKey === "ssl"       && <SslConfig       config={config} onChange={setConfig} />}
+      {typeKey === "heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
+
+      <div className="flex justify-end">
+        <button type="button" onClick={handleSave} disabled={updateCheck.isPending}
+          className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+          <Save size={14} />
+          {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Recent Logs ───────────────────────────────────────────────────────────────
+
+function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
+  const navigate = useNavigate();
+  const { data: logs, isLoading, isFetching, refetch } = useCheckLogs(serviceSlug, checkSlug);
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b">
+        <p className="text-sm text-muted-foreground">Recent check results</p>
+        <div className="flex items-center gap-2">
+          <button onClick={() => refetch()} disabled={isFetching}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors">
+            <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
+            Refresh
+          </button>
+          <button onClick={() => navigate(ROUTES.CHECKS.LOGS(serviceSlug, checkSlug))}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
+            <ExternalLink size={12} />
+            View all logs
+          </button>
+        </div>
+      </div>
       {isLoading ? (
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
       ) : !logs || logs.length === 0 ? (
-        <div className="text-sm text-gray-500">No logs yet.</div>
+        <div className="px-5 py-8 text-sm text-muted-foreground text-center">No logs yet.</div>
       ) : (
-        <table className="min-w-full divide-y divide-gray-100 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Time</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Status</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Latency</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Message</th>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Time</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Latency</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Region</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Message</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y">
             {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 text-gray-500 text-xs">
-                  {new Date(log.checkedAt).toLocaleString()}
+              <tr key={log.timestamp} className="hover:bg-muted/30 transition-colors">
+                <td className="px-5 py-2.5 text-xs text-muted-foreground">
+                  {new Date(log.timestamp).toLocaleString()}
                 </td>
-                <td className="px-4 py-2">
-                  <StatusBadge status={log.status} />
+                <td className="px-5 py-2.5">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
+                    log.status === "UP" ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"
+                  }`}>
+                    {log.status}
+                  </span>
                 </td>
-                <td className="px-4 py-2 text-gray-500">
-                  {formatLatency(log.latencyMs)}
+                <td className="px-5 py-2.5 text-sm text-muted-foreground">
+                  {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}
                 </td>
-                <td className="px-4 py-2 text-gray-500 text-xs">{log.message ?? ""}</td>
+                <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion}</td>
+                <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.errorMessage ?? ""}</td>
               </tr>
             ))}
           </tbody>
@@ -295,39 +475,28 @@ function RecentLogsSection({
   );
 }
 
-function AlertConfigsSection({
-  serviceSlug,
-  checkSlug,
-}: {
-  serviceSlug: string;
-  checkSlug: string;
-}) {
+// ── Alert Configurations ──────────────────────────────────────────────────────
+
+function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: alertConfigs, isLoading } = useAlertConfigs(serviceSlug, checkSlug);
-  const { data: channels } = useQuery({
-    queryKey: QUERY_KEYS.CHANNELS,
-    queryFn: channelsApi.list,
-  });
+  const { data: channels } = useQuery({ queryKey: QUERY_KEYS.CHANNELS, queryFn: channelsApi.list });
   const createAlertConfig = useCreateAlertConfig(serviceSlug, checkSlug);
   const deleteAlertConfig = useDeleteAlertConfig(serviceSlug, checkSlug);
 
   const [channelId, setChannelId] = useState<number | "">("");
   const [onDown, setOnDown] = useState(true);
   const [onRecovery, setOnRecovery] = useState(true);
-  const [addError, setAddError] = useState<string | null>(null);
+  const [addError, setAddError] = useState("");
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!channelId) return;
-    setAddError(null);
+    setAddError("");
     try {
-      await createAlertConfig.mutateAsync({
-        channelId: channelId as number,
-        onDown,
-        onRecovery,
-      });
+      await createAlertConfig.mutateAsync({ channelId: channelId as number, onDown, onRecovery });
       setChannelId("");
-    } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : "Failed to add alert config.");
+    } catch {
+      setAddError("Failed to add alert configuration.");
     }
   }
 
@@ -336,33 +505,31 @@ function AlertConfigsSection({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="rounded-xl border bg-card overflow-hidden">
       {isLoading ? (
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
       ) : !alertConfigs || alertConfigs.length === 0 ? (
-        <div className="text-sm text-gray-500">No alert configurations yet.</div>
+        <div className="px-5 py-8 text-sm text-muted-foreground text-center">No alert configurations yet.</div>
       ) : (
-        <table className="min-w-full divide-y divide-gray-100 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Channel</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">On Down</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">On Recovery</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-500">Actions</th>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Channel</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">On Down</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">On Recovery</th>
+              <th className="px-5 py-2.5" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y">
             {alertConfigs.map((ac) => (
-              <tr key={ac.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 text-gray-900">{channelName(ac.channelId)}</td>
-                <td className="px-4 py-2 text-gray-500">{ac.onDown ? "Yes" : "No"}</td>
-                <td className="px-4 py-2 text-gray-500">{ac.onRecovery ? "Yes" : "No"}</td>
-                <td className="px-4 py-2">
-                  <button
-                    onClick={() => deleteAlertConfig.mutate(ac.id)}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium"
-                  >
-                    Delete
+              <tr key={ac.id} className="hover:bg-muted/30 transition-colors">
+                <td className="px-5 py-3 font-medium">{channelName(ac.channelId)}</td>
+                <td className="px-5 py-3 text-muted-foreground">{ac.onDown ? "Yes" : "No"}</td>
+                <td className="px-5 py-3 text-muted-foreground">{ac.onRecovery ? "Yes" : "No"}</td>
+                <td className="px-5 py-3 text-right">
+                  <button onClick={() => deleteAlertConfig.mutate(ac.id)}
+                    className="text-sm text-destructive hover:opacity-70 font-medium">
+                    Remove
                   </button>
                 </td>
               </tr>
@@ -371,54 +538,29 @@ function AlertConfigsSection({
         </table>
       )}
 
-      <div className="border-t border-gray-100 pt-4">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Add Alert Configuration</h4>
-        {addError && (
-          <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-            {addError}
-          </div>
-        )}
+      <div className="border-t px-5 py-4">
+        <h4 className="text-sm font-semibold mb-3">Add Alert Configuration</h4>
+        {addError && <p className="text-sm text-destructive mb-2">{addError}</p>}
         <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-            <select
-              required
-              value={channelId}
-              onChange={(e) => setChannelId(Number(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Channel</label>
+            <select required value={channelId} onChange={(e) => setChannelId(Number(e.target.value))}
+              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
               <option value="">Select channel</option>
-              {channels?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {channels?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2">
-            <input
-              type="checkbox"
-              checked={onDown}
-              onChange={(e) => setOnDown(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600"
-            />
+          <label className="flex items-center gap-2 text-sm cursor-pointer pb-2">
+            <input type="checkbox" checked={onDown} onChange={(e) => setOnDown(e.target.checked)} className="size-4 rounded" />
             On Down
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer pb-2">
-            <input
-              type="checkbox"
-              checked={onRecovery}
-              onChange={(e) => setOnRecovery(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600"
-            />
+          <label className="flex items-center gap-2 text-sm cursor-pointer pb-2">
+            <input type="checkbox" checked={onRecovery} onChange={(e) => setOnRecovery(e.target.checked)} className="size-4 rounded" />
             On Recovery
           </label>
-          <button
-            type="submit"
-            disabled={createAlertConfig.isPending}
-            className="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors mb-0"
-          >
-            {createAlertConfig.isPending ? "Adding..." : "Add"}
+          <button type="submit" disabled={createAlertConfig.isPending}
+            className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity mb-0">
+            {createAlertConfig.isPending ? "Adding…" : "Add"}
           </button>
         </form>
       </div>
@@ -426,32 +568,56 @@ function AlertConfigsSection({
   );
 }
 
-export default function CheckDetailPage() {
-  const { slug: serviceSlug, checkSlug } = useParams<{
-    slug: string;
-    checkSlug: string;
-  }>();
+// ── Danger Zone ───────────────────────────────────────────────────────────────
+
+function DangerZone({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const navigate = useNavigate();
-  const { data: check, isLoading } = useCheck(serviceSlug!, checkSlug!);
-  const deleteCheck = useDeleteCheck(serviceSlug!, checkSlug!);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteCheck = useDeleteCheck(serviceSlug, checkSlug);
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
 
   async function handleDelete() {
-    if (deleteConfirm !== checkSlug) return;
-    setDeleteError(null);
+    if (confirm !== checkSlug) return;
+    setError("");
     try {
       await deleteCheck.mutateAsync();
-      navigate(ROUTES.SERVICES.DETAIL(serviceSlug!));
-    } catch (err: unknown) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete check.");
+      navigate(ROUTES.SERVICES.DETAIL(serviceSlug));
+    } catch {
+      setError("Failed to delete check.");
     }
   }
+
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex flex-col gap-4">
+      <p className="text-sm">
+        Permanently delete this check. Type{" "}
+        <code className="font-mono font-semibold">{checkSlug}</code> to confirm.
+      </p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex items-center gap-3">
+        <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={checkSlug}
+          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive w-64" />
+        <button onClick={handleDelete} disabled={confirm !== checkSlug || deleteCheck.isPending}
+          className="rounded-lg bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity">
+          {deleteCheck.isPending ? "Deleting…" : "Delete Check"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function CheckDetailPage() {
+  const { slug: serviceSlug, checkSlug } = useParams<{ slug: string; checkSlug: string }>();
+  const navigate = useNavigate();
+  const { data: check, isLoading } = useCheck(serviceSlug!, checkSlug!);
+  const runCheck = useRunCheck(serviceSlug!, checkSlug!);
 
   if (isLoading) {
     return (
       <AdminLayout title="Check">
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-muted-foreground">Loading…</div>
       </AdminLayout>
     );
   }
@@ -459,63 +625,70 @@ export default function CheckDetailPage() {
   if (!check) {
     return (
       <AdminLayout title="Check">
-        <div className="text-sm text-red-500">Check not found.</div>
+        <div className="text-sm text-destructive">Check not found.</div>
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout title={check.name}>
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-sm text-gray-500 font-mono">{check.slug}</span>
-        <StatusBadge status={check.status} />
-        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{check.type}</span>
+      {/* Breadcrumb + actions */}
+      <div className="flex items-center justify-between mb-6">
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+          <button type="button" onClick={() => navigate(ROUTES.SERVICES.LIST)} className="hover:text-foreground transition-colors">
+            Services
+          </button>
+          <span>/</span>
+          <button type="button" onClick={() => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!))} className="hover:text-foreground transition-colors">
+            {serviceSlug}
+          </button>
+          <span>/</span>
+          <span className="text-foreground font-medium">{check.name}</span>
+        </nav>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{check.type}</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
+            check.currentStatus === "UP" ? "bg-foreground text-background" : "border text-muted-foreground"
+          }`}>
+            {check.currentStatus === "NO_DATA" ? "No data" : check.currentStatus}
+          </span>
+          <button
+            onClick={() => runCheck.mutate()}
+            disabled={runCheck.isPending}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+          >
+            <Play size={12} />
+            {runCheck.isPending ? "Running…" : "Run now"}
+          </button>
+        </div>
       </div>
 
       <Accordion title="General Settings" defaultOpen>
         <GeneralSettingsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </Accordion>
 
-      <Accordion title="Configuration" defaultOpen>
+      <Accordion title="Configuration">
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </Accordion>
 
-      <Accordion title="Recent Logs" defaultOpen>
+      <Accordion title="Recent Logs">
         <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </Accordion>
 
-      <Accordion title="Alert Configurations">
+      <Accordion title="Status History">
+        <div className="rounded-xl border bg-card px-6 py-8 text-sm text-muted-foreground text-center">
+          Status history coming soon.
+        </div>
+      </Accordion>
+
+      <Accordion title={
+        <span className="flex items-center gap-1.5"><Bell size={14} />Alert Configurations</span>
+      }>
         <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </Accordion>
 
-      <Accordion title="Danger Zone">
-        <div className="space-y-3">
-          <p className="text-sm text-gray-600">
-            Permanently delete this check. Type{" "}
-            <span className="font-mono font-semibold">{checkSlug}</span> to confirm.
-          </p>
-          {deleteError && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-              {deleteError}
-            </div>
-          )}
-          <input
-            type="text"
-            placeholder={checkSlug}
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-red-500"
-          />
-          <div>
-            <button
-              onClick={handleDelete}
-              disabled={deleteConfirm !== checkSlug || deleteCheck.isPending}
-              className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-40 transition-colors"
-            >
-              {deleteCheck.isPending ? "Deleting..." : "Delete Check"}
-            </button>
-          </div>
-        </div>
+      <Accordion title="Danger Zone" titleClassName="text-destructive">
+        <DangerZone serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </Accordion>
     </AdminLayout>
   );

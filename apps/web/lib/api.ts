@@ -4,7 +4,7 @@
  * since the status page is fully public).
  */
 
-const API_BASE = process.env.INTERNAL_API_URL ?? "http://localhost:8080";
+const API_BASE = process.env.INTERNAL_API_URL ?? "http://localhost:5117";
 
 async function get<T>(path: string, revalidate = 30): Promise<T> {
   const res = await fetch(`${API_BASE}/api/v1${path}`, {
@@ -113,10 +113,13 @@ export interface Maintenance {
 }
 
 export interface SiteConfig {
-  title: string;
-  description?: string;
-  logoUrl?: string;
-  faviconUrl?: string;
+  name: string | null;
+  url: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImageUrl: string | null;
 }
 
 // ─── Public API calls ─────────────────────────────────────────────────────────

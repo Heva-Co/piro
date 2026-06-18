@@ -7,7 +7,7 @@ public record NotificationChannelDto(
     string Name,
     NotificationChannelType Type,
     string? Description,
-    string? Status,
+    bool IsInactive,
     string MetaJson,
     bool IsGlobal,
     bool IsLocked,
@@ -22,13 +22,14 @@ public record CreateNotificationChannelRequest(
     string? Description = null,
     string MetaJson = "{}",
     bool IsGlobal = false,
-    bool IsLocked = false
+    bool IsLocked = false,
+    bool IsInactive = false
 );
 
 public record UpdateNotificationChannelRequest(
     string? Name,
     string? Description,
-    string? Status,
+    bool? IsInactive,
     string? MetaJson,
     bool? IsGlobal = null,
     bool? IsLocked = null

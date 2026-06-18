@@ -21,7 +21,7 @@ export function useService(slug: string) {
 export function useCreateService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<Service, "slug" | "status">) => servicesApi.create(data),
+    mutationFn: (data: Omit<Service, "currentStatus">) => servicesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICES });
     },
@@ -31,7 +31,7 @@ export function useCreateService() {
 export function useUpdateService(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Omit<Service, "slug" | "status">>) =>
+    mutationFn: (data: Partial<Omit<Service, "slug" | "currentStatus">>) =>
       servicesApi.update(slug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICES });

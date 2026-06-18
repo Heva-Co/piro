@@ -10,9 +10,12 @@ public record WorkerDto(
     DateTime CreatedAt,
     bool IsActive,
     string? Version = null,
-    bool IsBuiltIn = false);
+    bool IsBuiltIn = false,
+    bool IsDefault = false);
 
-public record CreateWorkerRequest(string Name, string Region);
+public record CreateWorkerRequest(string Name, string Region, bool IsDefault = false);
+
+public record UpdateWorkerRequest(string? Region = null);
 
 /// <summary>
 /// Returned once at creation time. <see cref="WorkerToken"/> is the plaintext token

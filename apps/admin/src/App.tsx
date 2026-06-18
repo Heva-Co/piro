@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { AuthGuard } from "@/components/AuthGuard";
+import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
 
 // Auth pages
@@ -15,8 +16,10 @@ import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 import ServicesPage from "@/features/services/pages/ServicesPage";
 import ServiceFormPage from "@/features/services/pages/ServiceFormPage";
 import ServiceDetailPage from "@/features/services/pages/ServiceDetailPage";
+import ChecksPage from "@/features/checks/pages/ChecksPage";
 import CheckFormPage from "@/features/checks/pages/CheckFormPage";
 import CheckDetailPage from "@/features/checks/pages/CheckDetailPage";
+import CheckLogsPage from "@/features/checks/pages/CheckLogsPage";
 import IncidentsPage from "@/features/incidents/pages/IncidentsPage";
 import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
@@ -44,7 +47,13 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return <AuthGuard>{children}</AuthGuard>;
+  return (
+    <AuthGuard>
+      <ErrorBoundary fallback={<ErrorFallback />}>
+        {children}
+      </ErrorBoundary>
+    </AuthGuard>
+  );
 }
 
 export default function App() {
@@ -69,8 +78,10 @@ export default function App() {
             <Route path={ROUTES.SERVICES.LIST} element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
             <Route path={ROUTES.SERVICES.NEW} element={<ProtectedRoute><ServiceFormPage /></ProtectedRoute>} />
             <Route path="/admin/services/:slug" element={<ProtectedRoute><ServiceDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/checks" element={<ProtectedRoute><ChecksPage /></ProtectedRoute>} />
             <Route path="/admin/services/:slug/checks/new" element={<ProtectedRoute><CheckFormPage /></ProtectedRoute>} />
             <Route path="/admin/services/:slug/checks/:checkSlug" element={<ProtectedRoute><CheckDetailPage /></ProtectedRoute>} />
+            <Route path="/admin/services/:slug/checks/:checkSlug/logs" element={<ProtectedRoute><CheckLogsPage /></ProtectedRoute>} />
 
             {/* Incidents */}
             <Route path={ROUTES.INCIDENTS.LIST} element={<ProtectedRoute><IncidentsPage /></ProtectedRoute>} />

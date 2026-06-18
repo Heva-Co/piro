@@ -45,30 +45,33 @@ export function ServiceRow({ service, overview }: Props) {
   return (
     <Link
       href={`/services/${service.slug}`}
-      className="flex flex-col gap-3 px-4 py-4 sm:px-5 hover:bg-muted/40 transition-colors group"
+      className="flex flex-col gap-3 px-5 py-4 hover:bg-muted/20 transition-colors"
     >
+      {/* Top row */}
       <div className="flex items-center gap-3">
         {service.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={service.imageUrl}
             alt={service.name}
-            className="size-9 rounded-lg object-cover shrink-0 hidden sm:block"
+            className="size-8 rounded-lg object-cover shrink-0 hidden sm:block"
           />
         )}
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{service.name}</p>
+          <p className="font-medium text-sm text-foreground truncate">{service.name}</p>
           {service.description && (
             <p className="text-xs text-muted-foreground truncate mt-0.5">{service.description}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {overview && (
-            <div className="hidden sm:flex flex-col items-end gap-0.5">
-              <span className="text-sm font-semibold">{overview.uptimePercent.toFixed(2)}%</span>
-              {overview.overallAvgLatencyMs && (
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-sm font-semibold text-foreground">
+                {overview.uptimePercent.toFixed(1)}%
+              </span>
+              {overview.overallAvgLatencyMs != null && (
                 <span className="text-xs text-muted-foreground">
                   {formatLatency(overview.overallAvgLatencyMs)}
                 </span>
@@ -79,9 +82,10 @@ export function ServiceRow({ service, overview }: Props) {
         </div>
       </div>
 
+      {/* Uptime bar */}
       {overview && overview.dailyData.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <StatusBarCalendar data={overview.dailyData} barHeight={40} radius={8} />
+        <div className="flex flex-col gap-1.5">
+          <StatusBarCalendar data={overview.dailyData} barHeight={36} radius={6} />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>{fromDate}</span>
             <span>{toDate}</span>
