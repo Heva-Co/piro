@@ -27,6 +27,8 @@ frontend/src_ui_tmp/
 
 # ── Local config files (never commit — use .env.example as template) ─────────
 .env
+.env.local
+.env.*.local
 pg_hba.conf
 piro.yaml
 *.yaml.local

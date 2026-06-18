@@ -46,8 +46,30 @@ public class OidcController(IOidcService oidcService, IConfiguration configurati
     }
 
     /// <summary>
-    /// OAuth2 callback endpoint. Exchanges the authorization code, upserts the user,
-    /// issues Piro tokens, and redirects to the frontend callback page.
+    /// SPA callback: exchanges authorization code for Piro tokens and returns JSON.
+    /// Called by the Vite SPA after Google redirects to /admin/auth/oidc/callback.
+    /// </summary>
+    [HttpPost("callback")]
+    [ProducesResponseType<SignInResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CallbackPost([FromBody] OidcCallbackRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(request.Code) || string.IsNullOrEmpty(request.State))
+            return BadRequest(new { title = "code and state are required.", status = 400 });
+
+        try
+        {
+            var response = await oidcService.HandleCallbackAsync(request.Code, request.State, ct);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
+    }
+
+    /// <summary>
+    /// Legacy GET callback — redirects browser to frontend (kept for backward compatibility).
     /// </summary>
     [HttpGet("callback")]
     [ProducesResponseType(StatusCodes.Status302Found)]

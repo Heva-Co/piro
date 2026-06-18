@@ -61,9 +61,10 @@ public class YamlImportService(
 
             if (existingChannels.TryGetValue(t.Name, out var existing))
             {
+                var importedIsInactive = string.Equals(t.Status, "INACTIVE", StringComparison.OrdinalIgnoreCase);
                 bool changed = existing.Type != channelType
                     || existing.MetaJson != metaJson
-                    || (existing.Status ?? "ACTIVE") != (t.Status ?? "ACTIVE")
+                    || existing.IsInactive != importedIsInactive
                     || existing.Description != t.Description;
 
                 if (!changed) { entries.Add(Skip("NotificationChannel", t.Name)); continue; }
@@ -73,7 +74,7 @@ public class YamlImportService(
                 {
                     existing.Type = channelType;
                     existing.MetaJson = metaJson;
-                    existing.Status = t.Status ?? "ACTIVE";
+                    existing.IsInactive = importedIsInactive;
                     existing.Description = t.Description;
                     existing.UpdatedAt = DateTime.UtcNow;
                     await channelRepo.UpdateAsync(existing, ct);
@@ -87,7 +88,7 @@ public class YamlImportService(
                     {
                         Name = t.Name,
                         Type = channelType,
-                        Status = t.Status ?? "ACTIVE",
+                        IsInactive = string.Equals(t.Status, "INACTIVE", StringComparison.OrdinalIgnoreCase),
                         Description = t.Description,
                         MetaJson = metaJson,
                         CreatedAt = DateTime.UtcNow,

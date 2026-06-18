@@ -12,6 +12,9 @@ public interface IWorkerRegistry
     string? GetConnectionIdForRegion(string region);
 
     IReadOnlyList<WorkerInfo> GetAll();
+
+    /// <summary>Returns the connected worker marked as default, or <c>null</c> if none is connected.</summary>
+    WorkerInfo? GetDefaultWorker();
 }
 
 /// <summary>Snapshot of a connected worker's state.</summary>
@@ -21,4 +24,5 @@ public record WorkerInfo(
     string Region,
     DateTime ConnectedAt,
     DateTime LastHeartbeat,
-    string? Version = null);
+    string? Version = null,
+    bool IsDefault = false);

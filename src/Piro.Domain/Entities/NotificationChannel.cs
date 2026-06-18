@@ -9,7 +9,8 @@ public class NotificationChannel
     public string Name { get; set; } = string.Empty;
     public NotificationChannelType Type { get; set; }
     public string? Description { get; set; }
-    public string? Status { get; set; }
+    /// <summary>When true, this channel is disabled and will not send notifications.</summary>
+    public bool IsInactive { get; set; }
 
     /// <summary>JSON blob with type-specific configuration (SMTP host, webhook URL, Slack token, etc.).</summary>
     public string MetaJson { get; set; } = "{}";

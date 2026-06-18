@@ -62,7 +62,8 @@ public class WorkerHub(
             Context.ConnectionId,
             registration.Region,
             DateTime.UtcNow,
-            DateTime.UtcNow));
+            DateTime.UtcNow,
+            IsDefault: registration.IsDefault));
 
         registration.LastHeartbeat = DateTime.UtcNow;
         await workerRepo.UpdateAsync(registration);

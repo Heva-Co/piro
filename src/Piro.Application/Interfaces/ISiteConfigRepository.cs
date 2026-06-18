@@ -13,5 +13,6 @@ public record SiteConfig(
     string? FaviconUrl,
     string? MetaTitle,
     string? MetaDescription,
-    string? OgImageUrl
+    string? OgImageUrl,
+    bool BuiltinWorkerDisabled = false
 );

@@ -1,0 +1,81 @@
+name: Release Web
+
+on:
+  push:
+    tags:
+      - "web/v*"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/heva-co/piro-web
+
+jobs:
+  build-docker:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          RAW="${GITHUB_REF_NAME#web/}"
+          echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME#web/}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Create GitHub Release
+    needs: [build-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          RAW="${GITHUB_REF_NAME#web/}"
+          echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Piro Web v${{ steps.version.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## Piro Web v${{ steps.version.outputs.version }}
+
+            Next.js public status page.
+
+            ### Docker
+            ```bash
+            docker pull ghcr.io/heva-co/piro-web:v${{ steps.version.outputs.version }}
+            ```
+          generate_release_notes: true

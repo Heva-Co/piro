@@ -8,13 +8,10 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Workers;
 
 /// <summary>
-/// When <c>PIRO_API_WORKER=true</c>, registers the API process itself as a built-in worker
-/// so it appears in the Workers UI. Maintains a synthetic heartbeat so it shows as Online.
-///
-/// This service only affects visibility — the actual execution is handled by
-/// <see cref="RemoteCheckJobDispatcher"/> which includes the API in multi-region batches.
-/// Non-multi-region checks still run exclusively through <see cref="LocalCheckJobDispatcher"/>
-/// to prevent any duplicate execution.
+/// Always registers the API process itself as a built-in worker in the DB so it appears
+/// in the Workers UI. Reads <c>worker:builtin_disabled</c> from SiteConfig at startup:
+/// when absent/false the worker goes Online and executes checks; when true it stays Offline.
+/// To apply a change, set the config value and restart the application.
 /// </summary>
 internal sealed class ApiWorkerHostedService(
     IServiceScopeFactory scopeFactory,
@@ -25,7 +22,7 @@ internal sealed class ApiWorkerHostedService(
     /// <summary>Fixed well-known ID for the built-in API worker record.</summary>
     public static readonly Guid ApiWorkerId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
-    private const string ApiWorkerConnectionId = "__api_worker__";
+    internal const string ApiWorkerConnectionId = "__api_worker__";
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromMinutes(1);
     private static readonly string ApiVersion = FormatVersion(
         System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version);
@@ -35,39 +32,46 @@ internal sealed class ApiWorkerHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var disabled = await ReadDisabledFlagAsync(stoppingToken);
         await UpsertRegistrationAsync(stoppingToken);
-        RegisterInRegistry();
 
-        logger.LogInformation(
-            "API built-in worker registered (region={Region}, version={Version}).", workerRegion, ApiVersion);
+        if (!disabled)
+        {
+            RegisterInRegistry();
+            logger.LogInformation(
+                "API built-in worker online (region={Region}, version={Version}).", workerRegion, ApiVersion);
 
-        // Keep heartbeat alive so Workers UI shows the entry as Online
-        using var timer = new PeriodicTimer(HeartbeatInterval);
-        while (await timer.WaitForNextTickAsync(stoppingToken))
-            registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
+            using var timer = new PeriodicTimer(HeartbeatInterval);
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+                registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
+        }
+        else
+        {
+            logger.LogInformation(
+                "API built-in worker offline — worker:builtin_disabled=true (region={Region}).", workerRegion);
+        }
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         registry.Unregister(ApiWorkerConnectionId);
+        await base.StopAsync(cancellationToken);
+    }
 
+    private async Task<bool> ReadDisabledFlagAsync(CancellationToken ct)
+    {
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<PiroDbContext>();
-            var existing = await db.WorkerRegistrations.FindAsync([ApiWorkerId], cancellationToken);
-            if (existing is not null)
-            {
-                existing.IsActive = false;
-                await db.SaveChangesAsync(cancellationToken);
-            }
+            var siteConfig = scope.ServiceProvider.GetRequiredService<ISiteConfigRepository>();
+            var cfg = await siteConfig.GetAsync(ct);
+            return cfg.BuiltinWorkerDisabled;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to deactivate built-in API worker registration on shutdown.");
+            logger.LogWarning(ex, "Could not read worker:builtin_disabled — defaulting to enabled.");
+            return false;
         }
-
-        await base.StopAsync(cancellationToken);
     }
 
     private async Task UpsertRegistrationAsync(CancellationToken ct)
@@ -85,14 +89,16 @@ internal sealed class ApiWorkerHostedService(
                 Region = workerRegion,
                 WorkerTokenHash = "builtin",
                 IsActive = true,
+                IsBuiltIn = true,
+                IsDefault = true,
                 CreatedAt = DateTime.UtcNow,
             });
         }
         else
         {
-            // Update region in case PIRO_WORKER_REGION changed between restarts
             existing.Region = workerRegion;
             existing.IsActive = true;
+            existing.IsBuiltIn = true;
         }
 
         await db.SaveChangesAsync(ct);
@@ -107,6 +113,7 @@ internal sealed class ApiWorkerHostedService(
             Region: workerRegion,
             ConnectedAt: now,
             LastHeartbeat: now,
-            Version: ApiVersion));
+            Version: ApiVersion,
+            IsDefault: true));
     }
 }

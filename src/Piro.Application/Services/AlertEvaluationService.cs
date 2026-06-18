@@ -92,7 +92,7 @@ public class AlertEvaluationService(
         foreach (var alertConfigChannel in config.AlertConfigNotificationChannels)
         {
             var channel = alertConfigChannel.NotificationChannel;
-            if (channel.Status == "INACTIVE") continue;
+            if (channel.IsInactive) continue;
             if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher))
             {
                 logger.LogWarning("No dispatcher registered for notification channel type {Type}.", channel.Type);

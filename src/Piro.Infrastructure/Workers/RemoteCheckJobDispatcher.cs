@@ -102,6 +102,51 @@ internal class RemoteCheckJobDispatcher(
         await Task.WhenAll(allTasks);
     }
 
+    /// <summary>
+    /// Routes a non-multi-region check to the single worker marked as default.
+    /// Writes a MONITOR_OUTAGE data point if no default worker is connected.
+    /// </summary>
+    public async Task DispatchToDefaultWorkerAsync(Check check, CancellationToken ct = default)
+    {
+        var defaultWorker = registry.GetDefaultWorker();
+        if (defaultWorker is null)
+        {
+            logger.LogWarning(
+                "No default worker connected. Check {CheckId} skipped — writing MONITOR_OUTAGE datapoint.", check.Id);
+
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            timestamp -= timestamp % 60;
+
+            var gapPoint = new CheckDataPoint
+            {
+                CheckId = check.Id,
+                Timestamp = timestamp,
+                Status = ServiceStatus.NO_DATA,
+                DataType = "MONITOR_OUTAGE",
+                WorkerRegion = "monitor",
+                ErrorMessage = "No default worker connected"
+            };
+
+            try { await dataPointRepo.CreateAsync(gapPoint, ct); }
+            catch { /* duplicate for this minute — ignore */ }
+
+            return;
+        }
+
+        var message = new WorkerExecuteMessage(
+            JobId: Guid.NewGuid().ToString(),
+            CheckId: check.Id,
+            CheckType: check.Type,
+            TypeDataJson: check.TypeDataJson,
+            BatchId: null);
+
+        logger.LogDebug(
+            "Dispatching check {CheckId} to default worker {WorkerId} (region={Region}).",
+            check.Id, defaultWorker.WorkerId, defaultWorker.Region);
+
+        await hubContext.Clients.Client(defaultWorker.ConnectionId).Execute(message);
+    }
+
     private async Task RunLocalWorkerAsync(ICheckExecutor executor, Check check, string batchId, CancellationToken ct)
     {
         try
