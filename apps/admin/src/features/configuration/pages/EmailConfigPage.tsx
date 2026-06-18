@@ -1,188 +1,273 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle, AlertCircle } from "lucide-react";
+import { FlaskConical, AlertCircle, CheckCircle } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { emailApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
-import { useAuth } from "@/hooks/useAuth";
+
+type Provider = "smtp" | "resend";
 
 export default function EmailConfigPage() {
   const qc = useQueryClient();
-  const { user } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.EMAIL_CONFIG,
-    queryFn: emailApi.get,
+    queryFn: () => emailApi.get(),
   });
 
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState(587);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [from, setFrom] = useState("");
-  const [useSsl, setUseSsl] = useState(false);
+  const [provider, setProvider] = useState<Provider>("smtp");
 
-  const [success, setSuccess] = useState(false);
+  // SMTP fields
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState<number | "">(587);
+  const [smtpUsername, setSmtpUsername] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpFrom, setSmtpFrom] = useState("");
+  const [smtpUseTls, setSmtpUseTls] = useState(true);
+
+  // Resend fields
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [resendFrom, setResendFrom] = useState("");
+
   const [error, setError] = useState("");
-  const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [testMsg, setTestMsg] = useState("");
+  const [testError, setTestError] = useState("");
 
   useEffect(() => {
-    if (data) {
-      setHost(data.host ?? "");
-      setPort(data.port ?? 587);
-      setUsername(data.username ?? "");
-      setFrom(data.from ?? "");
-      setUseSsl(data.useSsl ?? false);
-    }
+    if (!data) return;
+    setProvider((data.provider as Provider) || "smtp");
+    setSmtpHost(data.smtpHost ?? "");
+    setSmtpPort(data.smtpPort ?? 587);
+    setSmtpUsername(data.smtpUsername ?? "");
+    setSmtpFrom(data.smtpFrom ?? "");
+    setSmtpUseTls(data.smtpUseTls ?? true);
+    setResendFrom(data.resendFrom ?? "");
   }, [data]);
 
-  const updateMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: () =>
-      emailApi.update({ host, port, username, ...(password ? { password } : {}), from, useSsl }),
+      emailApi.update(
+        provider === "smtp"
+          ? {
+              provider: "smtp",
+              smtpHost,
+              smtpPort: Number(smtpPort) || 587,
+              smtpUsername: smtpUsername || undefined,
+              smtpPassword: smtpPassword || undefined,
+              smtpFrom,
+              smtpUseTls,
+            }
+          : {
+              provider: "resend",
+              resendApiKey: resendApiKey || undefined,
+              resendFrom,
+            }
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.EMAIL_CONFIG });
-      setSuccess(true);
+      setSuccess("Configuration saved.");
       setError("");
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => setSuccess(""), 3000);
     },
-    onError: () => setError("Failed to save email configuration."),
+    onError: () => setError("Failed to save configuration."),
   });
 
-  async function handleTest() {
-    const to = prompt("Send test email to:", user?.email ?? "");
-    if (!to) return;
-    setTesting(true);
-    setTestResult(null);
-    try {
-      await emailApi.test(to);
-      setTestResult("success");
-    } catch {
-      setTestResult("error");
-    } finally {
-      setTesting(false);
-    }
-  }
+  const testMutation = useMutation({
+    mutationFn: () => emailApi.test(),
+    onSuccess: () => {
+      setTestMsg("Test email sent to your account.");
+      setTestError("");
+      setTimeout(() => setTestMsg(""), 4000);
+    },
+    onError: () => setTestError("Failed to send test email."),
+  });
 
   return (
-    <AdminLayout title="Email Configuration">
-      <div className="max-w-xl">
+    <AdminLayout title="Email">
+      <div className="max-w-2xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Email</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Configure the email provider used for notifications and invitations
+          </p>
+        </div>
+
         {isLoading ? (
-          <p className="text-gray-400">Loading…</p>
+          <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">Loading…</div>
         ) : (
-          <form
-            onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(); }}
-            className="flex flex-col gap-5"
-          >
-            {success && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                <CheckCircle size={16} /> Saved successfully.
-              </div>
-            )}
-            {error && (
-              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <AlertCircle size={16} /> {error}
-              </div>
-            )}
-            {testResult === "success" && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                <CheckCircle size={16} /> Test email sent successfully.
-              </div>
-            )}
-            {testResult === "error" && (
-              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <AlertCircle size={16} /> Test email failed. Check your configuration.
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-1.5 flex-1">
-                <label className="text-sm font-medium">SMTP Host</label>
-                <input
-                  type="text"
-                  value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  required
-                  placeholder="smtp.example.com"
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 w-28">
-                <label className="text-sm font-medium">Port</label>
-                <input
-                  type="number"
-                  value={port}
-                  onChange={(e) => setPort(Number(e.target.value))}
-                  required
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave blank to keep existing"
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">From Address</label>
-              <input
-                type="email"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                required
-                placeholder="noreply@example.com"
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={useSsl}
-                  onChange={(e) => setUseSsl(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-indigo-600 transition-colors" />
-                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-              </div>
-              <span className="text-sm font-medium">Use SSL/TLS</span>
-            </label>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={updateMutation.isPending}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          <div className="rounded-xl border bg-card p-8 flex flex-col gap-6">
+            {/* Provider */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold">Provider</label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as Provider)}
+                className="w-60 rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
-                {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                <option value="smtp">SMTP</option>
+                <option value="resend">Resend</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                If no configuration is saved here, the app falls back to{" "}
+                <code className="bg-muted px-1 rounded text-xs">Email:*</code> environment variables.
+              </p>
+            </div>
+
+            {/* ── SMTP fields ── */}
+            {provider === "smtp" && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold">
+                      Host <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="smtp.example.com"
+                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold">
+                      Port <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(e.target.value === "" ? "" : Number(e.target.value))}
+                      type="number"
+                      placeholder="587"
+                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold">Username</label>
+                  <input
+                    value={smtpUsername}
+                    onChange={(e) => setSmtpUsername(e.target.value)}
+                    placeholder="user@example.com"
+                    autoComplete="off"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold">Password</label>
+                  <input
+                    value={smtpPassword}
+                    onChange={(e) => setSmtpPassword(e.target.value)}
+                    type="password"
+                    placeholder={data?.hasSmtpPassword ? "········ (saved — leave blank to keep)" : "SMTP password"}
+                    autoComplete="new-password"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  {data?.hasSmtpPassword && (
+                    <p className="text-xs text-muted-foreground">Leave blank to keep the existing password.</p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold">
+                    From address <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    value={smtpFrom}
+                    onChange={(e) => setSmtpFrom(e.target.value)}
+                    placeholder={`Piro <no-reply@example.com>`}
+                    className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={smtpUseTls}
+                    onChange={(e) => setSmtpUseTls(e.target.checked)}
+                    className="size-4 rounded"
+                  />
+                  Use SSL/TLS
+                </label>
+              </>
+            )}
+
+            {/* ── Resend fields ── */}
+            {provider === "resend" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold">
+                    API Key <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    value={resendApiKey}
+                    onChange={(e) => setResendApiKey(e.target.value)}
+                    type="password"
+                    placeholder={data?.hasResendApiKey ? "········ (saved — leave blank to keep)" : "re_..."}
+                    autoComplete="new-password"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">Found in your Resend dashboard under API Keys.</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold">
+                    From address <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    value={resendFrom}
+                    onChange={(e) => setResendFrom(e.target.value)}
+                    placeholder={`Piro <no-reply@yourdomain.com>`}
+                    className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">Must be a verified domain in Resend.</p>
+                </div>
+              </>
+            )}
+
+            {/* Feedback */}
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle size={15} /> {error}
+              </div>
+            )}
+            {success && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle size={15} /> {success}
+              </div>
+            )}
+            {testError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle size={15} /> {testError}
+              </div>
+            )}
+            {testMsg && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle size={15} /> {testMsg}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => testMutation.mutate()}
+                disabled={testMutation.isPending || saveMutation.isPending}
+                className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                <FlaskConical size={16} />
+                {testMutation.isPending ? "Sending…" : "Send Test Email"}
               </button>
               <button
                 type="button"
-                onClick={handleTest}
-                disabled={testing}
-                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending || testMutation.isPending}
+                className="rounded-lg bg-foreground text-background px-5 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {testing ? "Sending…" : "Send Test Email"}
+                {saveMutation.isPending ? "Saving…" : "Save"}
               </button>
             </div>
-          </form>
+          </div>
         )}
       </div>
     </AdminLayout>

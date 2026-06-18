@@ -358,20 +358,36 @@ export const oidcApi = {
 // ─── Email config ─────────────────────────────────────────────────────────────
 
 export interface EmailConfig {
-  host: string;
-  port: number;
-  username?: string;
-  from: string;
-  useSsl: boolean;
+  provider: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUsername?: string;
+  hasSmtpPassword: boolean;
+  smtpFrom?: string;
+  smtpUseTls?: boolean;
+  hasResendApiKey: boolean;
+  resendFrom?: string;
+}
+
+export interface UpdateEmailConfig {
+  provider?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUsername?: string;
+  smtpPassword?: string;
+  smtpFrom?: string;
+  smtpUseTls?: boolean;
+  resendApiKey?: string;
+  resendFrom?: string;
 }
 
 export const emailApi = {
   get: () => api.get<EmailConfig>(ENDPOINTS.EMAIL_CONFIG).then((r) => r.data),
 
-  update: (data: Partial<EmailConfig>) =>
-    api.put<EmailConfig>(ENDPOINTS.EMAIL_CONFIG, data).then((r) => r.data),
+  update: (data: UpdateEmailConfig) =>
+    api.put(ENDPOINTS.EMAIL_CONFIG, data),
 
-  test: (to: string) => api.post(ENDPOINTS.EMAIL_CONFIG_TEST, { to }),
+  test: () => api.post(ENDPOINTS.EMAIL_CONFIG_TEST),
 };
 
 // ─── Workers ──────────────────────────────────────────────────────────────────
