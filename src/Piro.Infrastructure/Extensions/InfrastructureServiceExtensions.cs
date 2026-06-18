@@ -10,6 +10,7 @@ using Piro.Application.Models;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
 using Piro.Infrastructure.Alerts;
+using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
@@ -53,6 +54,7 @@ public static class InfrastructureServiceExtensions
         // Auth infrastructure services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ApiKeyService>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEmailConfigRepository, EmailConfigRepository>();
         services.AddScoped<SmtpEmailService>();
         services.AddScoped<ResendEmailService>();
