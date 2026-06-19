@@ -1,31 +1,29 @@
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS } from "@/constants/api";
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  UP: "bg-green-100 text-green-800",
-  DOWN: "bg-red-100 text-red-800",
-  DEGRADED: "bg-amber-100 text-amber-800",
-  MAINTENANCE: "bg-blue-100 text-blue-800",
-  NO_DATA: "bg-gray-100 text-gray-500",
+const STATUS_STYLES: Record<string, { classes: string; label: string }> = {
+  UP:             { classes: "bg-green-500 text-white",                                label: "Up" },
+  DOWN:           { classes: "bg-destructive text-destructive-foreground",             label: "Down" },
+  DEGRADED:       { classes: "bg-amber-500 text-white",                                label: "Degraded" },
+  MAINTENANCE:    { classes: "bg-blue-500 text-white",                                 label: "Maintenance" },
+  NO_DATA:        { classes: "bg-muted text-muted-foreground",                         label: "No Data" },
+  MONITOR_OUTAGE: { classes: "bg-yellow-100 text-yellow-800 border border-yellow-300", label: "Monitor Outage" },
 };
 
-interface StatusBadgeProps {
+interface StatusPillProps {
   status: string;
+  dataType?: string | null;
   className?: string;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const label = STATUS_LABELS[status] ?? status;
-  const classes = STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-500";
+export function StatusPill({ status, dataType, className }: StatusPillProps) {
+  const key = dataType === "MONITOR_OUTAGE" ? "MONITOR_OUTAGE" : (status ?? "").toUpperCase();
+  const { classes, label } = STATUS_STYLES[key] ?? STATUS_STYLES["NO_DATA"];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-        classes,
-        className
-      )}
-    >
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold", classes, className)}>
       {label}
     </span>
   );
 }
+
+/** @deprecated Use StatusPill instead */
+export const StatusBadge = StatusPill;

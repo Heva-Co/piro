@@ -17,6 +17,7 @@ import { channelsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/StatusBadge";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -455,11 +456,7 @@ function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; ch
                   {new Date(log.timestamp).toLocaleString()}
                 </td>
                 <td className="px-5 py-2.5">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
-                    log.status === "UP" ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"
-                  }`}>
-                    {log.status}
-                  </span>
+                  <StatusPill status={log.status} dataType={log.dataType} />
                 </td>
                 <td className="px-5 py-2.5 text-sm text-muted-foreground">
                   {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}

@@ -2,26 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, FileText, Settings } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { StatusPill } from "@/components/StatusBadge";
 import { useAllChecks } from "@/hooks/useChecks";
 import { ROUTES } from "@/constants/routes";
-
-// ── Status pill ───────────────────────────────────────────────────────────────
-
-function StatusPill({ status }: { status: string }) {
-  const s = (status ?? "").toLowerCase();
-  const color =
-    s === "up"       ? "text-green-600 bg-green-50 border-green-200" :
-    s === "down"     ? "text-red-600 bg-red-50 border-red-200" :
-    s === "degraded" ? "text-yellow-600 bg-yellow-50 border-yellow-200" :
-                       "text-muted-foreground bg-muted border-border";
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${color}`}>
-      <span className={`size-1.5 rounded-full ${s === "up" ? "bg-green-500" : s === "down" ? "bg-red-500" : s === "degraded" ? "bg-yellow-500" : "bg-muted-foreground"}`} />
-      {s.charAt(0).toUpperCase() + s.slice(1)}
-    </span>
-  );
-}
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 

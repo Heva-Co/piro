@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Application.Services;
 
@@ -37,7 +38,7 @@ public class CheckResultIngesterService(
             Timestamp = timestamp,
             Status = result.Status,
             LatencyMs = result.LatencyMs,
-            DataType = "REALTIME",
+            DataType = DataPointType.REALTIME,
             ErrorMessage = result.ErrorMessage,
             WorkerRegion = workerRegion
         };

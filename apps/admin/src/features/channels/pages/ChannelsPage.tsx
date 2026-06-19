@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { channelsApi } from "@/lib/api";
-import { QUERY_KEYS } from "@/constants/api";
+import { CHANNEL_TYPE_LABELS, QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
 function Skeleton({ className }: { className?: string }) {
@@ -108,7 +108,7 @@ export default function ChannelsPage() {
                     <td className="px-5 py-3 font-medium">{ch.name}</td>
                     <td className="px-5 py-3">
                       <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                        {ch.type}
+                        {CHANNEL_TYPE_LABELS[ch.type] ?? ch.type}
                       </span>
                     </td>
                     <td className="px-5 py-3">
