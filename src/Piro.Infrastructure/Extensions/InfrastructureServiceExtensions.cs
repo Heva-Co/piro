@@ -212,13 +212,13 @@ public static class InfrastructureServiceExtensions
                 sp.GetRequiredService<IWorkerRegistry>()));
 
         // Built-in API worker: always registered so the DB record + UI entry always exist.
-        // Reads worker:builtin_disabled from SiteConfig at startup; restoring app applies the change.
-        services.AddSingleton<IHostedService>(sp =>
-            new ApiWorkerHostedService(
-                sp.GetRequiredService<IServiceScopeFactory>(),
-                sp.GetRequiredService<IWorkerRegistry>(),
-                workerRegion,
-                sp.GetRequiredService<ILogger<ApiWorkerHostedService>>()));
+        // Supports runtime enable/disable via ApiWorkerHostedService.Enable()/Disable() without restart.
+        services.AddSingleton(sp => new ApiWorkerHostedService(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            sp.GetRequiredService<IWorkerRegistry>(),
+            workerRegion,
+            sp.GetRequiredService<ILogger<ApiWorkerHostedService>>()));
+        services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<ApiWorkerHostedService>());
 
         return services;
     }

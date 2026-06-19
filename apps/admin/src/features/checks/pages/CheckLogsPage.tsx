@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, Settings, ChevronLeft } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
 import { checksApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
@@ -11,20 +12,6 @@ import { ROUTES } from "@/constants/routes";
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
-}
-
-// ── Status pill ───────────────────────────────────────────────────────────────
-
-function StatusPill({ status }: { status: string }) {
-  const s = (status ?? "").toLowerCase();
-  const isUp = s === "up";
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-      isUp ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"
-    }`}>
-      {s.toUpperCase()}
-    </span>
-  );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -49,6 +36,7 @@ export default function CheckLogsPage() {
       region: region || undefined,
     }),
     enabled: !!serviceSlug && !!checkSlug,
+    refetchInterval: 60_000,
   });
 
   // Client-side status filter + pagination
@@ -225,10 +213,10 @@ export default function CheckLogsPage() {
                 {paginated.map((log, i) => (
                   <tr key={`${log.timestamp}-${i}`} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.timestamp * 1000).toLocaleString()}
                     </td>
                     <td className="px-5 py-2.5">
-                      <StatusPill status={log.status} />
+                      <StatusPill status={log.status} dataType={log.dataType} />
                     </td>
                     <td className="px-5 py-2.5 text-sm text-muted-foreground">
                       {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}

@@ -6,6 +6,8 @@ namespace Piro.Application.Interfaces;
 public interface IServiceRepository
 {
     Task<IEnumerable<Service>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Returns a dictionary of service ID → check count for all services.</summary>
+    Task<Dictionary<int, int>> GetCheckCountsAsync(CancellationToken ct = default);
     Task<Service?> GetBySlugAsync(string slug, CancellationToken ct = default);
     Task<Service?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default);

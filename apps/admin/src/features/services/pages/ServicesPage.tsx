@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Filter, Plus, Settings } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { StatusPill } from "@/components/StatusBadge";
 import { useServices } from "@/hooks/useServices";
 import { ROUTES } from "@/constants/routes";
 
@@ -8,24 +9,6 @@ function initials(name: string) {
   const words = name.trim().split(/\s+/);
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-const STATUS_STYLES: Record<string, string> = {
-  up:           "bg-foreground text-background",
-  operational:  "bg-foreground text-background",
-  down:         "bg-destructive text-destructive-foreground",
-  degraded:     "bg-yellow-500 text-white",
-  maintenance:  "bg-blue-500 text-white",
-};
-
-function StatusPill({ status }: { status: string }) {
-  const key = (status ?? "").toLowerCase();
-  const cls = STATUS_STYLES[key] ?? "bg-muted text-muted-foreground";
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${cls}`}>
-      {status}
-    </span>
-  );
 }
 
 export default function ServicesPage() {
@@ -107,7 +90,7 @@ export default function ServicesPage() {
                       <td className="px-5 py-3 text-sm text-muted-foreground">
                         {service.isHidden ? "YES" : "NO"}
                       </td>
-                      <td className="px-5 py-3 text-sm text-muted-foreground">—</td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">{service.checkCount ?? '—'}</td>
                       <td className="px-5 py-3 text-right">
                         <button
                           onClick={() => navigate(ROUTES.SERVICES.DETAIL(service.slug))}

@@ -15,7 +15,8 @@ public class ServiceAppService(IServiceRepository repository)
     public async Task<IEnumerable<ServiceDto>> GetAllAsync(CancellationToken ct = default)
     {
         var services = await repository.GetAllAsync(ct);
-        return services.Select(ToDto);
+        var counts = await repository.GetCheckCountsAsync(ct);
+        return services.Select(s => ToDto(s, counts.GetValueOrDefault(s.Id, 0)));
     }
 
     public async Task<ServiceDto> GetBySlugAsync(string slug, CancellationToken ct = default)
@@ -71,10 +72,10 @@ public class ServiceAppService(IServiceRepository repository)
         await repository.DeleteAsync(service, ct);
     }
 
-    private static ServiceDto ToDto(Service s) => new(
+    private static ServiceDto ToDto(Service s, int checkCount = 0) => new(
         s.Id, s.Slug, s.Name, s.Description, s.ImageUrl,
         s.CurrentStatus, s.DefaultStatus, s.IsHidden, s.DisplayOrder,
         s.HistoryDaysDesktop, s.HistoryDaysMobile,
-        s.CreatedAt, s.UpdatedAt
+        s.CreatedAt, s.UpdatedAt, checkCount
     );
 }
