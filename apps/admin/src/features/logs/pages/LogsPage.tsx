@@ -51,7 +51,7 @@ export default function LogsPage() {
   }, [autoRefresh, refetch]);
 
   const items = data?.items ?? [];
-  const total = data?.total ?? 0;
+  const total = data?.totalCount ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
   function toggleExpand(id: number) {
@@ -173,7 +173,7 @@ export default function LogsPage() {
                     onClick={() => log.metadata && toggleExpand(log.id)}
                   >
                     <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">
-                      {new Date(log.createdAt).toLocaleString()}
+                      {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5">
                       <span
