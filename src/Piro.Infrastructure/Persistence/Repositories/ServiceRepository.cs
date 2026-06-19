@@ -10,6 +10,12 @@ internal class ServiceRepository(PiroDbContext db) : IServiceRepository
     public async Task<IEnumerable<Service>> GetAllAsync(CancellationToken ct = default) =>
         await db.Services.OrderBy(s => s.DisplayOrder).ThenBy(s => s.Name).ToListAsync(ct);
 
+    public async Task<Dictionary<int, int>> GetCheckCountsAsync(CancellationToken ct = default) =>
+        await db.Checks
+            .GroupBy(c => c.ServiceId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
     public async Task<Service?> GetBySlugAsync(string slug, CancellationToken ct = default) =>
         await db.Services.FirstOrDefaultAsync(s => s.Slug == slug, ct);
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
+using Piro.Infrastructure.Workers;
 
 namespace Piro.Api.Controllers;
 
@@ -14,7 +15,7 @@ namespace Piro.Api.Controllers;
 public class WorkerController(
     WorkerAppService workerApp,
     ISiteConfigRepository siteConfig,
-    IHostApplicationLifetime appLifetime) : ControllerBase
+    ApiWorkerHostedService builtinWorker) : ControllerBase
 {
     /// <summary>Returns all registered workers with their live connection state.</summary>
     [HttpGet]
@@ -36,11 +37,11 @@ public class WorkerController(
     }
 
     /// <summary>
-    /// Enables or disables the built-in API worker. Persists the setting and triggers a graceful
-    /// application restart so the change takes effect (requires a restart policy in the host).
+    /// Enables or disables the built-in API worker at runtime without restarting the application.
+    /// The setting is also persisted to the database so it survives restarts.
     /// </summary>
     [HttpPost("builtin/toggle")]
-    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ToggleBuiltin([FromBody] ToggleBuiltinRequest request, CancellationToken ct)
     {
         await siteConfig.SetAsync(
@@ -48,14 +49,12 @@ public class WorkerController(
             request.Disabled ? "true" : null,
             ct);
 
-        // Trigger graceful shutdown — host (Docker/systemd) will restart the process
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(500); // give the response time to flush
-            appLifetime.StopApplication();
-        });
+        if (request.Disabled)
+            builtinWorker.Disable();
+        else
+            builtinWorker.Enable();
 
-        return Accepted(new { message = "Setting saved. Application is restarting…" });
+        return Ok(new { enabled = !request.Disabled });
     }
 
     /// <summary>Updates mutable fields (region) of a worker registration.</summary>

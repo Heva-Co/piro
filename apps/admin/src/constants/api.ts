@@ -145,3 +145,19 @@ export const STATUS_COLORS: Record<string, string> = {
   MAINTENANCE: "text-indigo-500",
   NO_DATA: "text-muted-foreground",
 };
+
+
+export const CHANNEL_TYPE_LABELS: Record<string, string> = {
+  Webhook:    "Webhook",
+  Email:      "Email",
+  Slack:      "Slack",
+  PagerDuty:  "PagerDuty",
+  MSTeams:    "Microsoft Teams",
+  Telegram:   "Telegram",
+  TwilioSms:  "Twilio SMS",
+  GoogleChat: "Google Chat",
+  Discord:    "Discord",
+  Opsgenie:   "Opsgenie",
+  Pushover:   "Pushover",
+  Ntfy:       "Ntfy",
+};

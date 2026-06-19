@@ -18,7 +18,7 @@ internal class CheckDataPointConfiguration : IEntityTypeConfiguration<CheckDataP
         builder.Property(d => d.WorkerRegion).HasMaxLength(100).HasDefaultValue("default");
 
         builder.Property(d => d.Status).HasConversion<string>();
-        builder.Property(d => d.DataType).HasMaxLength(30);
+        builder.Property(d => d.DataType).HasConversion<string>().HasMaxLength(30);
 
         builder.HasOne(d => d.Check)
             .WithMany(c => c.DataPoints)
