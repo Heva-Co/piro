@@ -16,7 +16,8 @@ public record ServiceDto(
     int HistoryDaysDesktop,
     int HistoryDaysMobile,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    int CheckCount = 0
 );
 
 /// <summary>Payload for creating a new service.</summary>

@@ -13,7 +13,7 @@ namespace Piro.Infrastructure.Workers;
 /// when absent/false the worker goes Online and executes checks; when true it stays Offline.
 /// To apply a change, set the config value and restart the application.
 /// </summary>
-internal sealed class ApiWorkerHostedService(
+public sealed class ApiWorkerHostedService(
     IServiceScopeFactory scopeFactory,
     IWorkerRegistry registry,
     string workerRegion,
@@ -30,30 +30,62 @@ internal sealed class ApiWorkerHostedService(
     private static string FormatVersion(System.Version? v) =>
         v is not null ? $"v{v.Major}.{v.Minor}.{v.Build}" : "unknown";
 
+    private bool _enabled;
+    private CancellationTokenSource? _heartbeatCts;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var disabled = await ReadDisabledFlagAsync(stoppingToken);
         await UpsertRegistrationAsync(stoppingToken);
 
         if (!disabled)
-        {
-            RegisterInRegistry();
-            logger.LogInformation(
-                "API built-in worker online (region={Region}, version={Version}).", workerRegion, ApiVersion);
-
-            using var timer = new PeriodicTimer(HeartbeatInterval);
-            while (await timer.WaitForNextTickAsync(stoppingToken))
-                registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
-        }
+            StartHeartbeat(stoppingToken);
         else
-        {
             logger.LogInformation(
                 "API built-in worker offline — worker:builtin_disabled=true (region={Region}).", workerRegion);
-        }
+
+        await Task.Delay(Timeout.Infinite, stoppingToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+    }
+
+    /// <summary>Registers the built-in worker in the registry at runtime (no restart needed).</summary>
+    public void Enable()
+    {
+        if (_enabled) return;
+        StartHeartbeat(default);
+        logger.LogInformation("API built-in worker enabled at runtime (region={Region}).", workerRegion);
+    }
+
+    /// <summary>Unregisters the built-in worker from the registry at runtime (no restart needed).</summary>
+    public void Disable()
+    {
+        if (!_enabled) return;
+        _heartbeatCts?.Cancel();
+        _heartbeatCts = null;
+        registry.Unregister(ApiWorkerConnectionId);
+        _enabled = false;
+        logger.LogInformation("API built-in worker disabled at runtime (region={Region}).", workerRegion);
+    }
+
+    private void StartHeartbeat(CancellationToken stoppingToken)
+    {
+        _enabled = true;
+        RegisterInRegistry();
+        logger.LogInformation(
+            "API built-in worker online (region={Region}, version={Version}).", workerRegion, ApiVersion);
+
+        _heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var cts = _heartbeatCts;
+        _ = Task.Run(async () =>
+        {
+            using var timer = new PeriodicTimer(HeartbeatInterval);
+            while (await timer.WaitForNextTickAsync(cts.Token).ConfigureAwait(false))
+                registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
+        }, cts.Token);
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _heartbeatCts?.Cancel();
         registry.Unregister(ApiWorkerConnectionId);
         await base.StopAsync(cancellationToken);
     }

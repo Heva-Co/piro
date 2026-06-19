@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, FlaskConical } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { channelsApi } from "@/lib/api";
-import { QUERY_KEYS } from "@/constants/api";
+import { CHANNEL_TYPE_LABELS, QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -653,14 +654,16 @@ export default function ChannelFormPage() {
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <p className="text-sm font-semibold mb-1">Trigger Type</p>
             <p className="text-xs text-muted-foreground mb-3">Select the type of notification to send</p>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              disabled={isEdit}
-              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-48"
-            >
-              {CHANNEL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <Select value={type} onValueChange={setType} disabled={isEdit}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHANNEL_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{CHANNEL_TYPE_LABELS[t] ?? t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {isEdit && <p className="text-xs text-muted-foreground mt-1.5">Type cannot be changed after creation.</p>}
           </div>
 

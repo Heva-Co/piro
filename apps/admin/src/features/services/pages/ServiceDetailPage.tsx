@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronUp, Save } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { StatusPill } from "@/components/StatusBadge";
 import { useService, useUpdateService, useDeleteService } from "@/hooks/useServices";
 import { useChecks } from "@/hooks/useChecks";
 import { ROUTES } from "@/constants/routes";
@@ -214,9 +215,7 @@ function ChecksSection({ slug }: { slug: string }) {
                 <td className="px-5 py-3 font-medium">{check.name}</td>
                 <td className="px-5 py-3 text-muted-foreground">{check.type}</td>
                 <td className="px-5 py-3">
-                  <span className="rounded-full bg-foreground text-background px-2.5 py-0.5 text-xs font-semibold uppercase">
-                    {check.currentStatus}
-                  </span>
+                  <StatusPill status={check.currentStatus} />
                 </td>
                 <td className="px-5 py-3 text-muted-foreground">{check.isActive ? "Yes" : "No"}</td>
                 <td className="px-5 py-3 text-right">

@@ -67,6 +67,7 @@ export interface Service {
   currentStatus: string;
   isHidden: boolean;
   displayOrder: number;
+  checkCount?: number;
 }
 
 export const servicesApi = {

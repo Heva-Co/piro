@@ -71,10 +71,9 @@ export default function WorkersPage() {
     onError: () => setEditError("Failed to update region."),
   });
 
-  const [restarting, setRestarting] = useState(false);
   const toggleBuiltinMutation = useMutation({
     mutationFn: (disabled: boolean) => workersApi.toggleBuiltin(disabled),
-    onSuccess: () => setRestarting(true),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.WORKERS }),
   });
 
   function closeModal() {
@@ -121,16 +120,6 @@ export default function WorkersPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        {/* Restarting banner */}
-        {restarting && (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-center gap-3">
-            <AlertCircle size={16} className="text-blue-600 shrink-0" />
-            <p className="text-sm text-blue-800">
-              Application is restarting to apply the change… <span className="text-blue-600">Please wait a few seconds and refresh.</span>
-            </p>
-          </div>
-        )}
-
         {/* No-execution warning banner */}
         {noLocalExecution && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
@@ -198,11 +187,7 @@ export default function WorkersPage() {
                       <Pencil size={15} />
                     </button>
                     <button
-                      onClick={() => {
-                        const action = w.isConnected ? "disable" : "enable";
-                        if (confirm(`${action === "disable" ? "Disable" : "Enable"} the built-in API worker? The application will restart.`))
-                          toggleBuiltinMutation.mutate(!w.isConnected ? false : true);
-                      }}
+                      onClick={() => toggleBuiltinMutation.mutate(w.isConnected)}
                       disabled={toggleBuiltinMutation.isPending}
                       className={`transition-colors ${w.isConnected ? "text-green-500 hover:text-red-500" : "text-gray-400 hover:text-green-500"}`}
                       title={w.isConnected ? "Disable built-in worker" : "Enable built-in worker"}
