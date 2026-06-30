@@ -12,7 +12,8 @@ export async function Nav() {
   return (
     <header className="border-b border-border/40 bg-background/80 backdrop-blur sticky top-0 z-40">
       <div className="mx-auto w-full max-w-screen-lg px-8 h-14 flex items-center justify-between">
-        <Link href="/" className="font-semibold text-base tracking-tight text-foreground">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-base tracking-tight text-foreground">
+          <img src="/piro.svg" alt="Piro logo" width={22} height={22} />
           {siteName}
         </Link>
         <nav className="flex items-center gap-3 text-sm">
