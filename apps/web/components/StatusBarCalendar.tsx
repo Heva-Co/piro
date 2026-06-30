@@ -9,8 +9,13 @@ const COLOR_UP = "#22c55e";
 const COLOR_DOWN = "#ef4444";
 const COLOR_DEGRADED = "#eab308";
 const COLOR_MAINTENANCE = "#3b82f6";
-const COLOR_NO_DATA = "#3f3f46";
 const GAP = 0;
+
+function getNoDataColor(): string {
+  if (typeof window === "undefined") return "#e4e4e7";
+  const isDark = document.documentElement.classList.contains("dark");
+  return isDark ? "#3f3f46" : "#e4e4e7";
+}
 
 interface HoveredBar {
   index: number;
@@ -139,7 +144,7 @@ export function StatusBarCalendar({
         }
 
         if (total === 0) {
-          ctx.fillStyle = COLOR_NO_DATA;
+          ctx.fillStyle = getNoDataColor();
           ctx.fillRect(x, yOffset, bw, scaledH);
           if (isFirst || isLast) ctx.restore();
           continue;
@@ -195,6 +200,15 @@ export function StatusBarCalendar({
     setCanvasWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
+
+  // Redraw when theme changes (dark class toggled on <html>)
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (canvasWidth > 0) drawBars(canvasWidth, hoveredIndexRef.current);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, [canvasWidth, drawBars]);
 
   // Redraw on width/data change
   useEffect(() => {
