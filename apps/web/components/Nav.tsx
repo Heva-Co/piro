@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { publicApi } from "@/lib/api";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export async function Nav() {
   let siteName = "Piro";
@@ -14,13 +15,14 @@ export async function Nav() {
         <Link href="/" className="font-semibold text-base tracking-tight text-foreground">
           {siteName}
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-3 text-sm">
           <Link
             href="/admin"
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
             Admin
           </Link>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
