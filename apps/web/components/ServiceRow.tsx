@@ -10,6 +10,7 @@ const statusIcon = {
   DOWN: CircleX,
   MAINTENANCE: Wrench,
   NO_DATA: CircleMinus,
+  FAILURE: CircleMinus,
 } as const;
 
 const statusColor: Record<string, string> = {
@@ -18,6 +19,7 @@ const statusColor: Record<string, string> = {
   DOWN: "text-red-500",
   MAINTENANCE: "text-indigo-500",
   NO_DATA: "text-muted-foreground",
+  FAILURE: "text-muted-foreground",
 };
 
 interface Props {

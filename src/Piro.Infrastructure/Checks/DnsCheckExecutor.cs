@@ -21,6 +21,18 @@ internal class DnsCheckExecutor : ICheckExecutor
 
     public async Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default)
     {
+        try
+        {
+        return await ExecuteInternalAsync(check, ct);
+        }
+        catch (Exception ex)
+        {
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
+        }
+    }
+
+    private async Task<CheckExecutionResult> ExecuteInternalAsync(Check check, CancellationToken ct)
+    {
         var data = JsonSerializer.Deserialize<DnsCheckData>(check.TypeDataJson, _json)
                    ?? new DnsCheckData();
 
@@ -50,7 +62,10 @@ internal class DnsCheckExecutor : ICheckExecutor
 
         // Single query (system resolver)
         if (nameServers.Count == 0)
-            return await QuerySingleAsync(new LookupClient(), data.Host, queryType, data.ExpectedValue, data.RecordType, ct);
+        {
+            var single = await QuerySingleAsync(new LookupClient(), data.Host, queryType, data.ExpectedValue, data.RecordType, ct);
+            return ApplyLatencyThresholds(single, data.DegradedLatencyMs, data.DownLatencyMs);
+        }
 
         // Parallel queries across all name servers
         var tasks = nameServers.Select(ns => QueryNameServerAsync(ns, data.Host, queryType, data.ExpectedValue, data.RecordType, ct)).ToList();
@@ -62,7 +77,10 @@ internal class DnsCheckExecutor : ICheckExecutor
         var downAfter = data.DownAfter ?? nameServers.Count;
 
         if (failures == 0)
-            return new CheckExecutionResult(ServiceStatus.UP, maxLatency, null);
+        {
+            var up = new CheckExecutionResult(ServiceStatus.UP, maxLatency, null);
+            return ApplyLatencyThresholds(up, data.DegradedLatencyMs, data.DownLatencyMs);
+        }
 
         var failureMessages = results
             .Select((r, i) => r.Status != ServiceStatus.UP ? $"{nameServers[i]}: {r.ErrorMessage}" : null)
@@ -76,6 +94,23 @@ internal class DnsCheckExecutor : ICheckExecutor
             return new CheckExecutionResult(ServiceStatus.DEGRADED, maxLatency, errorMessage);
 
         return new CheckExecutionResult(ServiceStatus.UP, maxLatency, null);
+    }
+
+    private static CheckExecutionResult ApplyLatencyThresholds(
+        CheckExecutionResult result, int? degradedLatencyMs, int? downLatencyMs)
+    {
+        if (result.Status != ServiceStatus.UP || result.LatencyMs is null)
+            return result;
+
+        if (downLatencyMs.HasValue && result.LatencyMs >= downLatencyMs.Value)
+            return new CheckExecutionResult(ServiceStatus.DOWN, result.LatencyMs,
+                $"Latency {result.LatencyMs:F0} ms exceeded DOWN threshold of {downLatencyMs} ms.");
+
+        if (degradedLatencyMs.HasValue && result.LatencyMs >= degradedLatencyMs.Value)
+            return new CheckExecutionResult(ServiceStatus.DEGRADED, result.LatencyMs,
+                $"Latency {result.LatencyMs:F0} ms exceeded DEGRADED threshold of {degradedLatencyMs} ms.");
+
+        return result;
     }
 
     private static async Task<CheckExecutionResult> QueryNameServerAsync(

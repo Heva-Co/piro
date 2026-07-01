@@ -4,6 +4,7 @@ export const SERVICE_STATUS = {
   DEGRADED:    "DEGRADED",
   DOWN:        "DOWN",
   MAINTENANCE: "MAINTENANCE",
+  FAILURE:     "FAILURE",
 } as const;
 
 export type ServiceStatus = (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
@@ -14,4 +15,5 @@ export const SERVICE_STATUS_LABEL: Record<ServiceStatus, string> = {
   DEGRADED:    "Degraded",
   DOWN:        "Down",
   MAINTENANCE: "Maintenance",
+  FAILURE:     "Check Error",
 };

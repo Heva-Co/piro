@@ -27,6 +27,7 @@ const statusLabel: Record<string, string> = {
   DOWN: "Major Outage",
   MAINTENANCE: "Under Maintenance",
   NO_DATA: "No Status Data",
+  FAILURE: "No Status Data",
 };
 
 const statusClass: Record<string, string> = {
@@ -35,6 +36,7 @@ const statusClass: Record<string, string> = {
   DOWN: "text-red-600 dark:text-red-400",
   MAINTENANCE: "text-blue-600 dark:text-blue-400",
   NO_DATA: "text-muted-foreground",
+  FAILURE: "text-muted-foreground",
 };
 
 function fmtTs(ts: number): string {
