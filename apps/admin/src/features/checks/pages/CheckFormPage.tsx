@@ -10,48 +10,15 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { SERVICE_STATUS, SERVICE_STATUS_LABEL, type ServiceStatus } from "@/constants/serviceStatus";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
+import { CRON_PRESETS, CHECK_TYPE_LABELS, CHECK_TYPE_DEFAULTS } from "@/constants/checks";
+import { slugify } from "@/utils/slugify";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type CheckType = string;
-
-const CRON_PRESETS = [
-  { label: "Every minute",     value: "* * * * *" },
-  { label: "Every 5 minutes",  value: "*/5 * * * *" },
-  { label: "Every 15 minutes", value: "*/15 * * * *" },
-  { label: "Every 30 minutes", value: "*/30 * * * *" },
-  { label: "Every hour",       value: "0 * * * *" },
-  { label: "Every day",        value: "0 0 * * *" },
-  { label: "Custom",           value: "custom" },
-];
-
-function slugify(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
-// ── Toggle ───────────────────────────────────────────────────────────────────
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? "bg-foreground" : "bg-input"
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-}
 
 // ── Field helpers ─────────────────────────────────────────────────────────────
 
@@ -98,25 +65,6 @@ function buildConfig(type: CheckType, config: Record<string, unknown>): Record<s
   return config;
 }
 
-const TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
-  HTTP:           { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
-  DNS:            { host: "", recordType: "A", expectedValue: "", nameServers: [] },
-  TCP:            { host: "", port: 80 },
-  Ping:           { host: "" },
-  SSL:            { host: "", port: 443, warningDaysBeforeExpiry: 30 },
-  Heartbeat:      { gracePeriodSeconds: 60 },
-  GCP_CloudRunJob: { integrationId: "", projectId: "", region: "", jobName: "", maxAgeHours: 25 },
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  HTTP:           "HTTP",
-  DNS:            "DNS",
-  TCP:            "TCP",
-  Ping:           "Ping",
-  SSL:            "SSL",
-  Heartbeat:      "Heartbeat",
-  GCP_CloudRunJob: "GCP Cloud Run Job",
-};
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -145,7 +93,7 @@ export default function CheckFormPage() {
   const [showCustomCron, setShowCustomCron] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [defaultStatus, setDefaultStatus] = useState("NO_DATA");
-  const [config, setConfig] = useState<Record<string, unknown>>(TYPE_DEFAULTS.HTTP);
+  const [config, setConfig] = useState<Record<string, unknown>>(CHECK_TYPE_DEFAULTS.HTTP);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -154,7 +102,7 @@ export default function CheckFormPage() {
 
   function handleTypeChange(t: CheckType) {
     setType(t);
-    setConfig(TYPE_DEFAULTS[t] ?? {});
+    setConfig(CHECK_TYPE_DEFAULTS[t] ?? {});
   }
 
   const effectiveCron = showCustomCron ? customCron : cronPreset;
@@ -239,11 +187,11 @@ export default function CheckFormPage() {
               <Field label="Type" required>
                 <Select value={type} onValueChange={(v) => v && handleTypeChange(v)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(v: string) => TYPE_LABELS[v] ?? v}</SelectValue>
+                    <SelectValue>{(v: string) => CHECK_TYPE_LABELS[v] ?? v}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {checkTypes.map((t) => (
-                      <SelectItem key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</SelectItem>
+                      <SelectItem key={t.type} value={t.type}>{CHECK_TYPE_LABELS[t.type] ?? t.type}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -290,7 +238,7 @@ export default function CheckFormPage() {
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold">Active</label>
                 <div className="flex items-center gap-2.5">
-                  <Toggle checked={isActive} onChange={setIsActive} />
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
                   <span className="text-sm text-muted-foreground">{isActive ? "Check is running" : "Check is paused"}</span>
                 </div>
               </div>
