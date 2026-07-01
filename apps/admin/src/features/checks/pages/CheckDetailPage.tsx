@@ -18,17 +18,20 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/StatusBadge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 type CheckType = string;
 
 const TYPE_LABELS: Record<string, string> = {
-  Http:            "HTTP",
-  Dns:             "DNS",
-  Tcp:             "TCP",
+  HTTP:            "HTTP",
+  DNS:             "DNS",
+  TCP:             "TCP",
   Ping:            "Ping",
-  Ssl:             "SSL",
+  SSL:             "SSL",
   Heartbeat:       "Heartbeat",
   GCP_CloudRunJob: "GCP Cloud Run Job",
 };
@@ -96,11 +99,6 @@ function Accordion({
   );
 }
 
-// ── Field ─────────────────────────────────────────────────────────────────────
-
-const inp = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
-const sel = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
-
 // ── General Settings ──────────────────────────────────────────────────────────
 
 function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
@@ -158,7 +156,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={inp} />
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Slug</label>
@@ -171,26 +169,31 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-semibold">Description</label>
         <textarea value={description} rows={2} onChange={(e) => setDescription(e.target.value)}
-          placeholder="A brief description" className={`${inp} resize-none`} />
+          placeholder="A brief description" className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full resize-none" />
       </div>
 
       {/* Type + Cron */}
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Type</label>
-          <select value={type} onChange={(e) => setType(e.target.value)} className={sel} disabled>
-            {checkTypes.map((t) => (
-              <option key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</option>
-            ))}
-          </select>
+          <Select value={type} disabled>
+            <SelectTrigger className="w-full">
+              <SelectValue>{(v: string) => TYPE_LABELS[v] ?? v}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {checkTypes.map((t) => (
+                <SelectItem key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="text-xs text-muted-foreground">Type cannot be changed after creation.</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Cron Schedule</label>
           {showCustomCron ? (
-            <input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="*/5 * * * *" className={`${inp} font-mono`} />
+            <Input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="*/5 * * * *" className="font-mono" />
           ) : (
-            <select value={cron} onChange={(e) => setCron(e.target.value)} className={sel}>
+            <select value={cron} onChange={(e) => setCron(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full">
               {CRON_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           )}
@@ -205,7 +208,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="grid grid-cols-3 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Default Status</label>
-          <select value={defaultStatus} onChange={(e) => setDefaultStatus(e.target.value)} className={sel}>
+          <select value={defaultStatus} onChange={(e) => setDefaultStatus(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full">
             <option value="NO_DATA">No data</option>
             <option value="UP">Up</option>
             <option value="DOWN">Down</option>
@@ -240,183 +243,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
-// expectedStatusCodes is stored as List<int> in backend JSON, but shown as "200, 201" string in the UI.
-// We keep a separate string field "_expectedStatusCodesStr" in the config object for UI editing only,
-// and convert to/from int[] on load/save.
-
-function statusCodesToStr(codes: unknown): string {
-  if (Array.isArray(codes)) return codes.join(", ");
-  if (typeof codes === "string") return codes;
-  return "200";
-}
-
-function strToStatusCodes(str: string): number[] {
-  return str.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
-}
-
-function HttpConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  const codesStr = statusCodesToStr(config.expectedStatusCodes);
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
-        <input value={String(config.url ?? "")} onChange={(e) => onChange({ ...config, url: e.target.value })}
-          placeholder="https://example.com" className={inp} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Method</label>
-          <select value={String(config.method ?? "GET")} onChange={(e) => onChange({ ...config, method: e.target.value })} className={sel}>
-            {["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"].map((m) => <option key={m}>{m}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Timeout (ms)</label>
-          <input type="number" value={String(config.timeout ?? 5000)} onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) })} className={inp} />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Expected Status Codes</label>
-        <input value={codesStr}
-          onChange={(e) => onChange({ ...config, expectedStatusCodes: strToStatusCodes(e.target.value) })}
-          placeholder="200, 201" className={inp} />
-        <p className="text-xs text-muted-foreground">Comma-separated list</p>
-      </div>
-    </>
-  );
-}
-
-function TcpConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
-        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Port <span className="text-destructive">*</span></label>
-          <input type="number" value={String(config.port ?? 80)} onChange={(e) => onChange({ ...config, port: Number(e.target.value) })} className={inp} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Timeout (ms)</label>
-          <input type="number" value={String(config.timeout ?? 5000)} onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) })} className={inp} />
-        </div>
-      </div>
-    </>
-  );
-}
-
-function DnsConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
-        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Record Type</label>
-          <select value={String(config.recordType ?? "A")} onChange={(e) => onChange({ ...config, recordType: e.target.value })} className={sel}>
-            {["A", "AAAA", "CNAME", "MX", "TXT", "NS"].map((t) => <option key={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Nameserver</label>
-          <input value={String(config.nameserver ?? "")} onChange={(e) => onChange({ ...config, nameserver: e.target.value })} placeholder="8.8.8.8" className={inp} />
-        </div>
-      </div>
-    </>
-  );
-}
-
-function PingConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
-      <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
-    </div>
-  );
-}
-
-function SslConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Host <span className="text-destructive">*</span></label>
-        <input value={String(config.host ?? "")} onChange={(e) => onChange({ ...config, host: e.target.value })} placeholder="example.com" className={inp} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Port</label>
-          <input type="number" value={String(config.port ?? 443)} onChange={(e) => onChange({ ...config, port: Number(e.target.value) })} className={inp} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Warning threshold (days)</label>
-          <input type="number" value={String(config.warningDaysBeforeExpiry ?? 30)} onChange={(e) => onChange({ ...config, warningDaysBeforeExpiry: Number(e.target.value) })} className={inp} />
-        </div>
-      </div>
-    </>
-  );
-}
-
-function HeartbeatConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold">Grace period (seconds)</label>
-      <input type="number" value={String(config.gracePeriodSeconds ?? 60)} onChange={(e) => onChange({ ...config, gracePeriodSeconds: Number(e.target.value) })} className={inp} />
-    </div>
-  );
-}
-
-function GcpCloudRunJobConfig({
-  config, onChange, integrations, integrationId, onIntegrationChange,
-}: {
-  config: Record<string, unknown>;
-  onChange: (c: Record<string, unknown>) => void;
-  integrations: { id: number; name: string; type: string }[];
-  integrationId: number | null;
-  onIntegrationChange: (id: number | null) => void;
-}) {
-  const gcpIntegrations = integrations.filter((i) => i.type === "GoogleCloud");
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Google Cloud Integration <span className="text-destructive">*</span></label>
-        <select
-          value={integrationId ?? ""}
-          onChange={(e) => onIntegrationChange(e.target.value ? Number(e.target.value) : null)}
-          className={sel}
-        >
-          <option value="">Select an integration…</option>
-          {gcpIntegrations.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </select>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Project ID <span className="text-destructive">*</span></label>
-          <input value={String(config.projectId ?? "")} onChange={(e) => onChange({ ...config, projectId: e.target.value })} placeholder="my-gcp-project" className={inp} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Region <span className="text-destructive">*</span></label>
-          <input value={String(config.region ?? "")} onChange={(e) => onChange({ ...config, region: e.target.value })} placeholder="us-central1" className={inp} />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Job Name <span className="text-destructive">*</span></label>
-        <input value={String(config.jobName ?? "")} onChange={(e) => onChange({ ...config, jobName: e.target.value })} placeholder="my-batch-job" className={inp} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Max Age (hours)</label>
-        <input type="number" min={1} value={String(config.maxAgeHours ?? 25)} onChange={(e) => onChange({ ...config, maxAgeHours: Number(e.target.value) })} className={inp} />
-        <p className="text-xs text-muted-foreground">Mark as DOWN if no execution completed within this window.</p>
-      </div>
-    </>
-  );
-}
-
 function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
@@ -425,26 +251,28 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
     queryFn: integrationsApi.list,
   });
   const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [integrationId, setIntegrationId] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!check) return;
     try {
-      setConfig(check.typeDataJson ? JSON.parse(check.typeDataJson) : {});
+      const parsed = check.typeDataJson ? JSON.parse(check.typeDataJson) : {};
+      setConfig({ ...parsed, ...(check.integrationId != null ? { integrationId: check.integrationId } : {}) });
     } catch {
       setConfig({});
     }
-    setIntegrationId(check.integrationId ?? null);
   }, [check?.typeDataJson, check?.integrationId]);
 
   async function handleSave() {
     setError("");
     try {
+      const integrationId = config.integrationId ? Number(config.integrationId) : undefined;
+      const { integrationId: _removed, ...typeConfig } = config;
+      void _removed;
       await updateCheck.mutateAsync({
-        typeDataJson: JSON.stringify(config),
-        ...(integrationId !== null ? { integrationId } : {}),
+        typeDataJson: JSON.stringify(typeConfig),
+        ...(integrationId != null ? { integrationId } : {}),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -453,7 +281,7 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
     }
   }
 
-  const rawType = check?.type ?? "Http";
+  const rawType = check?.type ?? "HTTP";
 
   return (
     <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
@@ -462,19 +290,17 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
       )}
 
-      {rawType === "Http"      && <HttpConfig      config={config} onChange={setConfig} />}
-      {rawType === "Tcp"       && <TcpConfig       config={config} onChange={setConfig} />}
-      {rawType === "Dns"       && <DnsConfig       config={config} onChange={setConfig} />}
+      {rawType === "HTTP"      && <HttpConfig      config={config} onChange={setConfig} />}
+      {rawType === "TCP"       && <TcpConfig       config={config} onChange={setConfig} />}
+      {rawType === "DNS"       && <DnsConfig       config={config} onChange={setConfig} />}
       {rawType === "Ping"      && <PingConfig      config={config} onChange={setConfig} />}
-      {rawType === "Ssl"       && <SslConfig       config={config} onChange={setConfig} />}
+      {rawType === "SSL"       && <SslConfig       config={config} onChange={setConfig} />}
       {rawType === "Heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
       {rawType === "GCP_CloudRunJob" && (
         <GcpCloudRunJobConfig
           config={config}
           onChange={setConfig}
           integrations={integrations}
-          integrationId={integrationId}
-          onIntegrationChange={setIntegrationId}
         />
       )}
 
