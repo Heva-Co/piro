@@ -46,7 +46,7 @@ internal class DnsCheckExecutor : ICheckExecutor
         {
             var validationError = ValidateExpectedValue(data.ExpectedValue, data.RecordType);
             if (validationError is not null)
-                return new CheckExecutionResult(ServiceStatus.NO_DATA, null,
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null,
                     $"Invalid expected value for record type {data.RecordType}: {validationError}");
         }
 
@@ -57,7 +57,7 @@ internal class DnsCheckExecutor : ICheckExecutor
         // Validate name server entries
         var invalidNs = nameServers.Where(ns => !IsValidNameServer(ns)).ToList();
         if (invalidNs.Count > 0)
-            return new CheckExecutionResult(ServiceStatus.NO_DATA, null,
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null,
                 $"Invalid name server(s): {string.Join(", ", invalidNs)}. Must be a valid IP address or hostname.");
 
         // Single query (system resolver)
