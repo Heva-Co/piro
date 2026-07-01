@@ -20,7 +20,7 @@ export const CHECK_TYPE_LABELS: Record<string, string> = {
 
 export const CHECK_TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
   HTTP:            { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
-  DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [] },
+  DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [], degradedLatencyMs: "", downLatencyMs: "" },
   TCP:             { host: "", port: 80 },
   Ping:            { host: "" },
   SSL:             { host: "", port: 443, warningDaysBeforeExpiry: 30 },
