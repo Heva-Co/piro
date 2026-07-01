@@ -66,7 +66,8 @@ public class CheckAppService(
             IsActive = request.IsActive,
             IsMultiRegion = request.IsMultiRegion,
             FailureThreshold = request.FailureThreshold,
-            RecoveryThreshold = request.RecoveryThreshold
+            RecoveryThreshold = request.RecoveryThreshold,
+            IntegrationId = request.IntegrationId
         };
 
         var created = await checkRepository.CreateAsync(check, ct);
@@ -92,6 +93,7 @@ public class CheckAppService(
         if (request.RecoveryThreshold is not null) check.RecoveryThreshold = request.RecoveryThreshold;
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
+        if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
@@ -129,6 +131,6 @@ public class CheckAppService(
         c.CurrentStatus, c.DefaultStatus, c.IsActive, c.IsMultiRegion,
         c.FailureThreshold, c.RecoveryThreshold,
         c.HistoryDaysDesktop, c.HistoryDaysMobile,
-        c.CreatedAt, c.UpdatedAt
+        c.CreatedAt, c.UpdatedAt, c.IntegrationId
     );
 }

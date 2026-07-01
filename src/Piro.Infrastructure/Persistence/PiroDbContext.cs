@@ -38,6 +38,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<WorkerRegistration> WorkerRegistrations => Set<WorkerRegistration>();
     public DbSet<PiroLog> PiroLogs => Set<PiroLog>();
     public DbSet<OidcProviderConfig> OidcProviderConfigs => Set<OidcProviderConfig>();
+    public DbSet<Integration> Integrations => Set<Integration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

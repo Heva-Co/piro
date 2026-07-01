@@ -11,7 +11,10 @@ internal class CheckRepository(PiroDbContext db) : ICheckRepository
         await db.Checks.Where(c => c.ServiceId == serviceId).OrderBy(c => c.Name).ToListAsync(ct);
 
     public async Task<IEnumerable<Check>> GetAllActiveAsync(CancellationToken ct = default) =>
-        await db.Checks.Where(c => c.IsActive).ToListAsync(ct);
+        await db.Checks
+            .Where(c => c.IsActive)
+            .Include(c => c.Integration)
+            .ToListAsync(ct);
 
     public async Task<IEnumerable<Check>> GetAllWithServiceAsync(CancellationToken ct = default) =>
         await db.Checks.Include(c => c.Service).OrderBy(c => c.Service.Name).ThenBy(c => c.Name).ToListAsync(ct);
@@ -39,7 +42,9 @@ internal class CheckRepository(PiroDbContext db) : ICheckRepository
         await db.Checks.FirstOrDefaultAsync(c => c.ServiceId == serviceId && c.Slug == slug, ct);
 
     public async Task<Check?> GetByIdAsync(int id, CancellationToken ct = default) =>
-        await db.Checks.FindAsync([id], ct);
+        await db.Checks
+            .Include(c => c.Integration)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task<bool> SlugExistsInServiceAsync(int serviceId, string slug, CancellationToken ct = default) =>
         await db.Checks.AnyAsync(c => c.ServiceId == serviceId && c.Slug == slug, ct);

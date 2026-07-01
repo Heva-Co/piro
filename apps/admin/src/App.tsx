@@ -25,6 +25,8 @@ import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
 import ChannelsPage from "@/features/channels/pages/ChannelsPage";
 import ChannelFormPage from "@/features/channels/pages/ChannelFormPage";
+import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
+import IntegrationFormPage from "@/features/integrations/pages/IntegrationFormPage";
 import MaintenancesPage from "@/features/maintenances/pages/MaintenancesPage";
 import MaintenanceFormPage from "@/features/maintenances/pages/MaintenanceFormPage";
 import MaintenanceDetailPage from "@/features/maintenances/pages/MaintenanceDetailPage";
@@ -92,6 +94,11 @@ export default function App() {
             <Route path={ROUTES.CHANNELS.LIST} element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
             <Route path={ROUTES.CHANNELS.NEW} element={<ProtectedRoute><ChannelFormPage /></ProtectedRoute>} />
             <Route path="/admin/channels/:id" element={<ProtectedRoute><ChannelFormPage /></ProtectedRoute>} />
+
+            {/* Integrations */}
+            <Route path={ROUTES.INTEGRATIONS.LIST} element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
+            <Route path={ROUTES.INTEGRATIONS.NEW} element={<ProtectedRoute><IntegrationFormPage /></ProtectedRoute>} />
+            <Route path="/admin/settings/integrations/:id" element={<ProtectedRoute><IntegrationFormPage /></ProtectedRoute>} />
 
             {/* Maintenances */}
             <Route path={ROUTES.MAINTENANCES.LIST} element={<ProtectedRoute><MaintenancesPage /></ProtectedRoute>} />

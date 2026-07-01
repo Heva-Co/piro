@@ -654,7 +654,7 @@ export default function ChannelFormPage() {
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <p className="text-sm font-semibold mb-1">Trigger Type</p>
             <p className="text-xs text-muted-foreground mb-3">Select the type of notification to send</p>
-            <Select value={type} onValueChange={setType} disabled={isEdit}>
+            <Select value={type} onValueChange={(v) => v && setType(v)} disabled={isEdit}>
               <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>

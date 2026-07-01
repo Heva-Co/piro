@@ -98,6 +98,7 @@ export interface Check {
   defaultStatus: string;
   isActive: boolean;
   isMultiRegion: boolean;
+  integrationId?: number | null;
 }
 
 export interface CreateCheck {
@@ -112,6 +113,7 @@ export interface CreateCheck {
   isMultiRegion?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
+  integrationId?: number;
 }
 
 export interface CheckLog {
@@ -554,4 +556,38 @@ export const logsApi = {
 export const configApi = {
   import: (yaml: string) =>
     api.post(ENDPOINTS.CONFIG_IMPORT, { yaml }),
+};
+
+// ─── Integrations ─────────────────────────────────────────────────────────────
+
+export interface Integration {
+  id: number;
+  name: string;
+  type: "GoogleCloud";
+  description?: string;
+  configJson: string;
+  checkCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const integrationsApi = {
+  list: () => api.get<Integration[]>(ENDPOINTS.INTEGRATIONS).then((r) => r.data),
+  get: (id: number) => api.get<Integration>(ENDPOINTS.INTEGRATION(id)).then((r) => r.data),
+  create: (data: { name: string; type: string; description?: string; configJson: string }) =>
+    api.post<Integration>(ENDPOINTS.INTEGRATIONS, data).then((r) => r.data),
+  update: (id: number, data: { name?: string; description?: string; configJson?: string }) =>
+    api.put<Integration>(ENDPOINTS.INTEGRATION(id), data).then((r) => r.data),
+  delete: (id: number) => api.delete(ENDPOINTS.INTEGRATION(id)),
+};
+
+// ─── Check Types ──────────────────────────────────────────────────────────────
+
+export interface CheckTypeMeta {
+  type: string;
+  requiredIntegrationType: string | null;
+}
+
+export const checkTypesApi = {
+  list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
 };
