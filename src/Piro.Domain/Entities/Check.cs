@@ -51,7 +51,11 @@ public class Check
     /// </summary>
     public bool IsMultiRegion { get; set; }
 
+    /// <summary>Optional reference to a shared Integration (e.g. Google Cloud service account).</summary>
+    public int? IntegrationId { get; set; }
+
     public Service Service { get; set; } = null!;
+    public Integration? Integration { get; set; }
     public ICollection<CheckDataPoint> DataPoints { get; set; } = [];
     public ICollection<AlertConfig> AlertConfigs { get; set; } = [];
 }

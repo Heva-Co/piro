@@ -53,6 +53,24 @@ internal class SiteDataConfiguration : IEntityTypeConfiguration<SiteData>
     }
 }
 
+internal class IntegrationConfiguration : IEntityTypeConfiguration<Integration>
+{
+    public void Configure(EntityTypeBuilder<Integration> builder)
+    {
+        builder.ToTable("Integrations");
+        builder.HasKey(i => i.Id);
+        builder.Property(i => i.Name).HasMaxLength(255).IsRequired();
+        builder.Property(i => i.Type).HasConversion<string>();
+        builder.Property(i => i.ConfigJson).HasColumnType("jsonb").HasDefaultValue("{}");
+
+        builder.HasMany(i => i.Checks)
+            .WithOne(c => c.Integration)
+            .HasForeignKey(c => c.IntegrationId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+    }
+}
+
 internal class IncidentCommentConfiguration : IEntityTypeConfiguration<IncidentComment>
 {
     public void Configure(EntityTypeBuilder<IncidentComment> builder)

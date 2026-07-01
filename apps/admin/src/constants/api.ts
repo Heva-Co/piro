@@ -98,6 +98,13 @@ export const ENDPOINTS = {
 
   // Logs
   LOGS: `${API_BASE}/logs`,
+
+  // Integrations
+  INTEGRATIONS: `${API_BASE}/integrations`,
+  INTEGRATION: (id: number | string) => `${API_BASE}/integrations/${id}`,
+
+  // Check types metadata
+  CHECK_TYPES: `${API_BASE}/checks/types`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */
@@ -127,6 +134,9 @@ export const QUERY_KEYS = {
   LOGS: (params: object) => ["logs", params] as const,
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
     ["alert-configs", serviceSlug, checkSlug] as const,
+  INTEGRATIONS: ["integrations"] as const,
+  INTEGRATION: (id: number | string) => ["integrations", id] as const,
+  CHECK_TYPES: ["check-types"] as const,
 } as const;
 
 /** Status display constants */
