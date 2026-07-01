@@ -26,4 +26,10 @@ public record DnsCheckData
 
     /// <summary>Number of name server failures to trigger DOWN. Default: all name servers.</summary>
     public int? DownAfter { get; init; }
+
+    /// <summary>Latency threshold in milliseconds to trigger DEGRADED. Optional.</summary>
+    public int? DegradedLatencyMs { get; init; }
+
+    /// <summary>Latency threshold in milliseconds to trigger DOWN. Optional.</summary>
+    public int? DownLatencyMs { get; init; }
 }

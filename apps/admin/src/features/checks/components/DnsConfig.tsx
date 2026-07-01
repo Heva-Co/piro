@@ -27,6 +27,8 @@ export function DnsConfig({ config, onChange }: CheckConfigProps) {
   const expectedValue = (config.expectedValue as string) ?? "";
   const degradedAfter = (config.degradedAfter as number | "") ?? "";
   const downAfter = (config.downAfter as number | "") ?? "";
+  const degradedLatencyMs = (config.degradedLatencyMs as number | "") ?? "";
+  const downLatencyMs = (config.downLatencyMs as number | "") ?? "";
 
   const [nsErrors, setNsErrors] = useState<Record<number, string>>({});
   const [evError, setEvError] = useState("");
@@ -145,6 +147,23 @@ export function DnsConfig({ config, onChange }: CheckConfigProps) {
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">DEGRADED latency (ms)</label>
+          <Input type="number" min={1} value={degradedLatencyMs}
+            onChange={(e) => onChange({ ...config, degradedLatencyMs: e.target.value ? Number(e.target.value) : "" })}
+            placeholder="e.g. 500" />
+          <p className="text-xs text-muted-foreground">Optional. Mark DEGRADED if latency exceeds this.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">DOWN latency (ms)</label>
+          <Input type="number" min={1} value={downLatencyMs}
+            onChange={(e) => onChange({ ...config, downLatencyMs: e.target.value ? Number(e.target.value) : "" })}
+            placeholder="e.g. 2000" />
+          <p className="text-xs text-muted-foreground">Optional. Mark DOWN if latency exceeds this.</p>
+        </div>
+      </div>
     </div>
   );
 }
