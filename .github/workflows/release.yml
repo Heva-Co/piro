@@ -1,0 +1,267 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ── Binaries ────────────────────────────────────────────────────────────────
+
+  build-api-binaries:
+    name: API binary (${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid:
+          - linux-x64
+          - linux-arm64
+          - win-x64
+          - osx-x64
+          - osx-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x"
+
+      - name: Publish
+        run: |
+          dotnet publish src/Piro.Api/Piro.Api.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --output dist/${{ matrix.rid }}
+
+      - name: Zip artifact
+        run: |
+          cd dist/${{ matrix.rid }}
+          zip -r ../../piro-api-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piro-api-${{ matrix.rid }}
+          path: piro-api-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip
+
+  build-worker-binaries:
+    name: Worker binary (${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid:
+          - linux-x64
+          - linux-arm64
+          - win-x64
+          - osx-x64
+          - osx-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x"
+
+      - name: Publish
+        run: |
+          dotnet publish src/Piro.Worker/Piro.Worker.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:Version=${{ steps.version.outputs.version }} \
+            --output dist/${{ matrix.rid }}
+
+      - name: Zip artifact
+        run: |
+          cd dist/${{ matrix.rid }}
+          zip -r ../../piro-worker-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piro-worker-${{ matrix.rid }}
+          path: piro-worker-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip
+
+  # ── Docker images ────────────────────────────────────────────────────────────
+
+  build-docker-api:
+    name: Docker — API
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          dockerfile: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/heva-co/piro-api:v${{ steps.version.outputs.version }}
+            ghcr.io/heva-co/piro-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+
+  build-docker-worker:
+    name: Docker — Worker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          dockerfile: src/Piro.Worker/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/heva-co/piro-worker:v${{ steps.version.outputs.version }}
+            ghcr.io/heva-co/piro-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+
+  build-docker-web:
+    name: Docker — Web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/heva-co/piro-web:v${{ steps.version.outputs.version }}
+            ghcr.io/heva-co/piro-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-docker-proxy:
+    name: Docker — Proxy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./nginx/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/heva-co/piro-proxy:v${{ steps.version.outputs.version }}
+            ghcr.io/heva-co/piro-proxy:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── GitHub Release ───────────────────────────────────────────────────────────
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-api-binaries
+      - build-worker-binaries
+      - build-docker-api
+      - build-docker-worker
+      - build-docker-web
+      - build-docker-proxy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: piro-*
+          merge-multiple: true
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "Piro v${{ steps.version.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: artifacts/*.zip
+          fail_on_unmatched_files: true
