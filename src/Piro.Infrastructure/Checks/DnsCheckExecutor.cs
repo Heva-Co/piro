@@ -37,7 +37,7 @@ internal class DnsCheckExecutor : ICheckExecutor
                    ?? new DnsCheckData();
 
         if (string.IsNullOrWhiteSpace(data.Host))
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "Host is not configured.");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host is not configured.");
 
         var queryType = Enum.TryParse<QueryType>(data.RecordType, ignoreCase: true, out var qt) ? qt : QueryType.A;
 

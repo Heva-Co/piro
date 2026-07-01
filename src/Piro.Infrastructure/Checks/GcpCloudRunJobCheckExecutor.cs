@@ -38,10 +38,10 @@ internal class GcpCloudRunJobCheckExecutor(
                    ?? new GcpCloudRunJobCheckData();
 
         if (string.IsNullOrWhiteSpace(data.ProjectId) || string.IsNullOrWhiteSpace(data.Region) || string.IsNullOrWhiteSpace(data.JobName))
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "ProjectId, Region and JobName are required.");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, "ProjectId, Region and JobName are required.");
 
         if (check.IntegrationId is null || check.Integration is null)
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "A Google Cloud integration is required for this check.");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, "A Google Cloud integration is required for this check.");
 
         string accessToken;
         try

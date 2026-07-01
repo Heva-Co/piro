@@ -26,7 +26,7 @@ internal class SslCheckExecutor : ICheckExecutor
                        ?? new SslCheckData();
 
             if (string.IsNullOrWhiteSpace(data.Host))
-                return new CheckExecutionResult(ServiceStatus.DOWN, null, "Host is not configured.");
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host is not configured.");
 
             var sw = Stopwatch.StartNew();
             try
