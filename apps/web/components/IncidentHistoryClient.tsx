@@ -6,6 +6,15 @@ import { IncidentCard } from "./IncidentCard";
 
 type Tab = "incidents" | "maintenances";
 
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+      <img src="/no-data.svg" alt="" className="w-48 h-48 opacity-90" />
+      <p className="text-sm text-muted-foreground max-w-xs">{message}</p>
+    </div>
+  );
+}
+
 const stateColor: Record<string, string> = {
   Investigating: "text-amber-500",
   Identified: "text-orange-500",
@@ -93,7 +102,7 @@ export function IncidentHistoryClient({ incidents, maintenances }: Props) {
       {tab === "incidents" && (
         <div className="flex flex-col gap-8">
           {incidentGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No incidents recorded.</p>
+            <EmptyState message="No incidents have been recorded yet." />
           ) : (
             incidentGroups.map((group) => (
               <section key={group.label} className="flex flex-col gap-3">
@@ -112,7 +121,7 @@ export function IncidentHistoryClient({ incidents, maintenances }: Props) {
       {tab === "maintenances" && (
         <div className="flex flex-col gap-8">
           {maintenanceGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No maintenances recorded.</p>
+            <EmptyState message="No maintenances have been scheduled yet." />
           ) : (
             maintenanceGroups.map((group) => (
               <section key={group.label} className="flex flex-col gap-3">
