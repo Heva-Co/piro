@@ -115,6 +115,7 @@ export default async function StatusPage() {
           ))
         )}
       </section>
+
     </main>
   );
 }
