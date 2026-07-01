@@ -23,7 +23,7 @@ internal class HttpCheckExecutor(IHttpClientFactory httpClientFactory) : ICheckE
                        ?? new HttpCheckData();
 
             if (string.IsNullOrWhiteSpace(data.Url))
-                return new CheckExecutionResult(ServiceStatus.DOWN, null, "URL is not configured.");
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null, "URL is not configured.");
 
             var client = httpClientFactory.CreateClient(data.FollowRedirects ? "piro-http" : "piro-http-noredirect");
             client.Timeout = TimeSpan.FromMilliseconds(data.TimeoutMs);

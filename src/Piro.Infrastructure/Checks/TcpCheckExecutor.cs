@@ -24,7 +24,7 @@ internal class TcpCheckExecutor : ICheckExecutor
                        ?? new TcpCheckData();
 
             if (string.IsNullOrWhiteSpace(data.Host) || data.Port <= 0)
-                return new CheckExecutionResult(ServiceStatus.DOWN, null, "Host or port is not configured.");
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host or port is not configured.");
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(data.TimeoutMs);
