@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
+import { formatTimestamp } from "@/utils/date";
 import { SERVICE_STATUS, SERVICE_STATUS_LABEL, type ServiceStatus } from "@/constants/serviceStatus";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -334,7 +335,7 @@ function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; ch
             {logs.map((log) => (
               <tr key={log.timestamp} className="hover:bg-muted/30 transition-colors">
                 <td className="px-5 py-2.5 text-xs text-muted-foreground">
-                  {new Date(log.timestamp).toLocaleString()}
+                  {formatTimestamp(log.timestamp)}
                 </td>
                 <td className="px-5 py-2.5">
                   <StatusPill status={log.status} dataType={log.dataType} />
