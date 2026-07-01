@@ -7,6 +7,7 @@ const pingColor: Record<ServiceStatus, string> = {
   DOWN: "bg-red-500",
   MAINTENANCE: "bg-indigo-500",
   NO_DATA: "bg-gray-400",
+  FAILURE: "bg-gray-400",
 };
 
 interface Props {

@@ -22,6 +22,18 @@ internal class GcpCloudRunJobCheckExecutor(
 
     public async Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default)
     {
+        try
+        {
+        return await ExecuteInternalAsync(check, ct);
+        }
+        catch (Exception ex)
+        {
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
+        }
+    }
+
+    private async Task<CheckExecutionResult> ExecuteInternalAsync(Check check, CancellationToken ct)
+    {
         var data = JsonSerializer.Deserialize<GcpCloudRunJobCheckData>(check.TypeDataJson, _json)
                    ?? new GcpCloudRunJobCheckData();
 
@@ -38,7 +50,7 @@ internal class GcpCloudRunJobCheckExecutor(
         }
         catch (Exception ex)
         {
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, $"Failed to obtain GCP access token: {ex.Message}");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Failed to obtain GCP access token: {ex.Message}");
         }
 
         var url = $"https://run.googleapis.com/v2/projects/{data.ProjectId}/locations/{data.Region}/jobs/{data.JobName}/executions";
