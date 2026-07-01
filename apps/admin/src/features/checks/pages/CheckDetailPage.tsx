@@ -13,7 +13,7 @@ import {
   useCreateAlertConfig,
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
-import { channelsApi } from "@/lib/api";
+import { channelsApi, checkTypesApi, integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
@@ -21,8 +21,17 @@ import { StatusPill } from "@/components/StatusBadge";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type CheckType = "Http" | "Dns" | "Tcp" | "Ping" | "Ssl" | "Heartbeat";
-const CHECK_TYPES: CheckType[] = ["Http", "Dns", "Tcp", "Ping", "Ssl", "Heartbeat"];
+type CheckType = string;
+
+const TYPE_LABELS: Record<string, string> = {
+  Http:            "HTTP",
+  Dns:             "DNS",
+  Tcp:             "TCP",
+  Ping:            "Ping",
+  Ssl:             "SSL",
+  Heartbeat:       "Heartbeat",
+  GCP_CloudRunJob: "GCP Cloud Run Job",
+};
 
 const CRON_PRESETS = [
   { label: "Every minute",     value: "* * * * *" },
@@ -97,6 +106,10 @@ const sel = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focu
 function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
+  const { data: checkTypes = [] } = useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
+  });
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -113,9 +126,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     if (!check) return;
     setName(check.name);
     setDescription(check.description ?? "");
-    // Normalize to title-case to match CheckType union values
-    const normalized = check.type.charAt(0).toUpperCase() + check.type.slice(1).toLowerCase();
-    setType(normalized as CheckType);
+    setType(check.type);
     setCron(check.cron ?? "* * * * *");
     setIsActive(check.isActive);
     setIsMultiRegion(check.isMultiRegion);
@@ -167,9 +178,12 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Type</label>
-          <select value={type} onChange={(e) => setType(e.target.value as CheckType)} className={sel}>
-            {CHECK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          <select value={type} onChange={(e) => setType(e.target.value)} className={sel} disabled>
+            {checkTypes.map((t) => (
+              <option key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</option>
+            ))}
           </select>
+          <p className="text-xs text-muted-foreground">Type cannot be changed after creation.</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Cron Schedule</label>
@@ -355,26 +369,83 @@ function HeartbeatConfig({ config, onChange }: { config: Record<string, unknown>
   );
 }
 
+function GcpCloudRunJobConfig({
+  config, onChange, integrations, integrationId, onIntegrationChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (c: Record<string, unknown>) => void;
+  integrations: { id: number; name: string; type: string }[];
+  integrationId: number | null;
+  onIntegrationChange: (id: number | null) => void;
+}) {
+  const gcpIntegrations = integrations.filter((i) => i.type === "GoogleCloud");
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Google Cloud Integration <span className="text-destructive">*</span></label>
+        <select
+          value={integrationId ?? ""}
+          onChange={(e) => onIntegrationChange(e.target.value ? Number(e.target.value) : null)}
+          className={sel}
+        >
+          <option value="">Select an integration…</option>
+          {gcpIntegrations.map((i) => (
+            <option key={i.id} value={i.id}>{i.name}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Project ID <span className="text-destructive">*</span></label>
+          <input value={String(config.projectId ?? "")} onChange={(e) => onChange({ ...config, projectId: e.target.value })} placeholder="my-gcp-project" className={inp} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold">Region <span className="text-destructive">*</span></label>
+          <input value={String(config.region ?? "")} onChange={(e) => onChange({ ...config, region: e.target.value })} placeholder="us-central1" className={inp} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Job Name <span className="text-destructive">*</span></label>
+        <input value={String(config.jobName ?? "")} onChange={(e) => onChange({ ...config, jobName: e.target.value })} placeholder="my-batch-job" className={inp} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Max Age (hours)</label>
+        <input type="number" min={1} value={String(config.maxAgeHours ?? 25)} onChange={(e) => onChange({ ...config, maxAgeHours: Number(e.target.value) })} className={inp} />
+        <p className="text-xs text-muted-foreground">Mark as DOWN if no execution completed within this window.</p>
+      </div>
+    </>
+  );
+}
+
 function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
+  const { data: integrations = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATIONS,
+    queryFn: integrationsApi.list,
+  });
   const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [integrationId, setIntegrationId] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!check?.typeDataJson) return;
+    if (!check) return;
     try {
-      setConfig(JSON.parse(check.typeDataJson));
+      setConfig(check.typeDataJson ? JSON.parse(check.typeDataJson) : {});
     } catch {
       setConfig({});
     }
-  }, [check?.typeDataJson]);
+    setIntegrationId(check.integrationId ?? null);
+  }, [check?.typeDataJson, check?.integrationId]);
 
   async function handleSave() {
     setError("");
     try {
-      await updateCheck.mutateAsync({ typeDataJson: JSON.stringify(config) });
+      await updateCheck.mutateAsync({
+        typeDataJson: JSON.stringify(config),
+        ...(integrationId !== null ? { integrationId } : {}),
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -383,22 +454,29 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   }
 
   const rawType = check?.type ?? "Http";
-  const typeKey = rawType.toLowerCase();
-  const typeLabel: Record<string, string> = { http: "HTTP", dns: "DNS", tcp: "TCP", ping: "Ping", ssl: "SSL", heartbeat: "Heartbeat" };
 
   return (
     <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">Type-specific settings for the {typeLabel[typeKey] ?? rawType} check</p>
+      <p className="text-sm text-muted-foreground">Type-specific settings for the {TYPE_LABELS[rawType] ?? rawType} check</p>
       {error && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
       )}
 
-      {typeKey === "http"      && <HttpConfig      config={config} onChange={setConfig} />}
-      {typeKey === "tcp"       && <TcpConfig       config={config} onChange={setConfig} />}
-      {typeKey === "dns"       && <DnsConfig       config={config} onChange={setConfig} />}
-      {typeKey === "ping"      && <PingConfig      config={config} onChange={setConfig} />}
-      {typeKey === "ssl"       && <SslConfig       config={config} onChange={setConfig} />}
-      {typeKey === "heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
+      {rawType === "Http"      && <HttpConfig      config={config} onChange={setConfig} />}
+      {rawType === "Tcp"       && <TcpConfig       config={config} onChange={setConfig} />}
+      {rawType === "Dns"       && <DnsConfig       config={config} onChange={setConfig} />}
+      {rawType === "Ping"      && <PingConfig      config={config} onChange={setConfig} />}
+      {rawType === "Ssl"       && <SslConfig       config={config} onChange={setConfig} />}
+      {rawType === "Heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
+      {rawType === "GCP_CloudRunJob" && (
+        <GcpCloudRunJobConfig
+          config={config}
+          onChange={setConfig}
+          integrations={integrations}
+          integrationId={integrationId}
+          onIntegrationChange={setIntegrationId}
+        />
+      )}
 
       <div className="flex justify-end">
         <button type="button" onClick={handleSave} disabled={updateCheck.isPending}

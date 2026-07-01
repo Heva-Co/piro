@@ -22,6 +22,7 @@ import {
   ChevronDown,
   MoreVertical,
   PanelLeft,
+  Plug,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { siteApi } from "@/lib/api";
@@ -48,7 +49,8 @@ const mainNavItems: NavItem[] = [
 ];
 
 const configNavItems: NavItem[] = [
-{ label: "API Keys", to: ROUTES.CONFIG.API_KEYS, icon: <Key size={18} /> },
+  { label: "Integrations", to: ROUTES.INTEGRATIONS.LIST, icon: <Plug size={18} /> },
+  { label: "API Keys", to: ROUTES.CONFIG.API_KEYS, icon: <Key size={18} /> },
   { label: "Workers", to: ROUTES.CONFIG.WORKERS, icon: <Server size={18} /> },
   { label: "Users", to: ROUTES.CONFIG.USERS, icon: <Users size={18} /> },
   { label: "SSO", to: ROUTES.CONFIG.SSO, icon: <KeyRound size={18} /> },
@@ -64,7 +66,7 @@ function Sidebar({ onClose }: SidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const isOnConfig = location.pathname.startsWith("/admin/configuration");
+  const isOnConfig = location.pathname.startsWith("/admin/configuration") || location.pathname.startsWith("/admin/settings");
   const [configOpen, setConfigOpen] = useState(isOnConfig);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 

@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Settings } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/AdminLayout";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
+import { checkTypesApi, integrationsApi } from "@/lib/api";
+import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type CheckType = "Http" | "Dns" | "Tcp" | "Ping" | "Ssl" | "Heartbeat";
-const CHECK_TYPES: CheckType[] = ["Http", "Dns", "Tcp", "Ping", "Ssl", "Heartbeat"];
+type CheckType = string;
 
 const CRON_PRESETS = [
   { label: "Every minute",     value: "* * * * *" },
@@ -220,6 +222,63 @@ function HeartbeatConfig({ config, onChange }: { config: Record<string, unknown>
   );
 }
 
+function GcpCloudRunJobConfig({
+  config, onChange, integrations,
+}: {
+  config: Record<string, unknown>;
+  onChange: (c: Record<string, unknown>) => void;
+  integrations: { id: number; name: string; type: string }[];
+}) {
+  const gcpIntegrations = integrations.filter((i) => i.type === "GoogleCloud");
+  return (
+    <div className="flex flex-col gap-4">
+      <Field label="Google Cloud Integration" required>
+        <select
+          value={(config.integrationId as number | "") ?? ""}
+          onChange={(e) => onChange({ ...config, integrationId: e.target.value ? Number(e.target.value) : "" })}
+          className={sel}
+        >
+          <option value="">Select an integration…</option>
+          {gcpIntegrations.map((i) => (
+            <option key={i.id} value={i.id}>{i.name}</option>
+          ))}
+        </select>
+        {gcpIntegrations.length === 0 && (
+          <p className="text-xs text-amber-600 mt-1">
+            No Google Cloud integrations found.{" "}
+            <a href={ROUTES.INTEGRATIONS.NEW} className="underline">Create one first.</a>
+          </p>
+        )}
+      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Project ID" required>
+          <input value={(config.projectId as string) ?? ""}
+            onChange={(e) => onChange({ ...config, projectId: e.target.value })}
+            placeholder="my-gcp-project" className={inp} />
+        </Field>
+        <Field label="Region" required>
+          <input value={(config.region as string) ?? ""}
+            onChange={(e) => onChange({ ...config, region: e.target.value })}
+            placeholder="us-central1" className={inp} />
+        </Field>
+      </div>
+      <Field label="Job Name" required>
+        <input value={(config.jobName as string) ?? ""}
+          onChange={(e) => onChange({ ...config, jobName: e.target.value })}
+          placeholder="my-batch-job" className={inp} />
+      </Field>
+      <Field
+        label="Max Age (hours)"
+        hint="Mark as DOWN if no execution has completed within this window. Use 25 for a daily job."
+      >
+        <input type="number" value={(config.maxAgeHours as number) ?? 25}
+          onChange={(e) => onChange({ ...config, maxAgeHours: Number(e.target.value) })}
+          min={1} className={inp} />
+      </Field>
+    </div>
+  );
+}
+
 function buildConfig(type: CheckType, config: Record<string, unknown>): Record<string, unknown> {
   if (type === "Http") {
     const headers = (config.headers as { key: string; value: string }[]) ?? [];
@@ -246,13 +305,24 @@ function buildConfig(type: CheckType, config: Record<string, unknown>): Record<s
   return config;
 }
 
-const TYPE_DEFAULTS: Record<CheckType, Record<string, unknown>> = {
-  Http:      { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
-  Dns:       { host: "", recordType: "A", expectedValues: "", nameserver: "" },
-  Tcp:       { host: "", port: 80 },
-  Ping:      { host: "" },
-  Ssl:       { host: "", port: 443, warningDaysBeforeExpiry: 30 },
-  Heartbeat: { gracePeriodSeconds: 60 },
+const TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
+  Http:           { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
+  Dns:            { host: "", recordType: "A", expectedValues: "", nameserver: "" },
+  Tcp:            { host: "", port: 80 },
+  Ping:           { host: "" },
+  Ssl:            { host: "", port: 443, warningDaysBeforeExpiry: 30 },
+  Heartbeat:      { gracePeriodSeconds: 60 },
+  GCP_CloudRunJob: { integrationId: "", projectId: "", region: "", jobName: "", maxAgeHours: 25 },
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  Http:           "HTTP",
+  Dns:            "DNS",
+  Tcp:            "TCP",
+  Ping:           "Ping",
+  Ssl:            "SSL",
+  Heartbeat:      "Heartbeat",
+  GCP_CloudRunJob: "GCP Cloud Run Job",
 };
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -262,6 +332,15 @@ export default function CheckFormPage() {
   const navigate = useNavigate();
   const { data: service } = useService(serviceSlug!);
   const createCheck = useCreateCheck(serviceSlug!);
+
+  const { data: checkTypes = [] } = useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
+  });
+  const { data: integrations = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATIONS,
+    queryFn: integrationsApi.list,
+  });
 
   const [name, setName] = useState("");
   const [checkSlug, setCheckSlug] = useState("");
@@ -281,7 +360,7 @@ export default function CheckFormPage() {
 
   function handleTypeChange(t: CheckType) {
     setType(t);
-    setConfig(TYPE_DEFAULTS[t]);
+    setConfig(TYPE_DEFAULTS[t] ?? {});
   }
 
   const effectiveCron = showCustomCron ? customCron : cronPreset;
@@ -290,14 +369,18 @@ export default function CheckFormPage() {
     e.preventDefault();
     setError("");
     try {
+      const integrationId = config.integrationId ? Number(config.integrationId) : undefined;
+      const { integrationId: _removed, ...typeConfig } = config;
+      void _removed;
       const check = await createCheck.mutateAsync({
         slug: checkSlug,
         name,
         type,
         cron: effectiveCron,
-        typeDataJson: JSON.stringify(buildConfig(type, config)),
+        typeDataJson: JSON.stringify(buildConfig(type, typeConfig)),
         defaultStatus: "NO_DATA",
         isActive,
+        integrationId,
       });
       navigate(ROUTES.CHECKS.DETAIL(serviceSlug!, check.slug));
     } catch (err: unknown) {
@@ -360,8 +443,10 @@ export default function CheckFormPage() {
             {/* Type + Cron */}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Type" required>
-                <select value={type} onChange={(e) => handleTypeChange(e.target.value as CheckType)} className={sel}>
-                  {CHECK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                <select value={type} onChange={(e) => handleTypeChange(e.target.value)} className={sel}>
+                  {checkTypes.map((t) => (
+                    <option key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</option>
+                  ))}
                 </select>
               </Field>
               <div className="flex flex-col gap-1.5">
@@ -415,6 +500,9 @@ export default function CheckFormPage() {
           {type === "Ping" && <PingConfig config={config} onChange={setConfig} />}
           {type === "Ssl" && <SslConfig config={config} onChange={setConfig} />}
           {type === "Heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
+          {type === "GCP_CloudRunJob" && (
+            <GcpCloudRunJobConfig config={config} onChange={setConfig} integrations={integrations} />
+          )}
         </div>
 
         {/* ── Footer actions ── */}
