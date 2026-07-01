@@ -12,8 +12,6 @@ changelog:
       - partial
       # Area labels — used for filtering issues, not for classifying changes
       - auth
-      - backend
-      - frontend
       - notifications
       - config-as-code
   categories:
