@@ -9,5 +9,6 @@ public enum CheckType
     Ping,
     SSL,
     Heartbeat,
-    GRPC
+    GRPC,
+    GCP_CloudRunJob
 }

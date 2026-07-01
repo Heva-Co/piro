@@ -13,6 +13,7 @@ using Piro.Infrastructure.Alerts;
 using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
+using Piro.Infrastructure.Integrations.GoogleCloud;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -121,6 +122,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
         services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
         services.AddScoped<ICheckExecutor, SslCheckExecutor>();
+        services.AddScoped<ICheckExecutor, GcpCloudRunJobCheckExecutor>();
+        services.AddSingleton<GcpTokenCache>();
+        services.AddScoped<IGcpTokenProvider, GcpTokenProvider>();
 
         // In-process event pipeline: check executions → service status recomputation
         services.AddSingleton(Channel.CreateUnbounded<CheckStatusChangedEvent>());
@@ -150,6 +154,9 @@ public static class InfrastructureServiceExtensions
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
+
+        // Integration repository
+        services.AddScoped<IIntegrationRepository, IntegrationRepository>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();

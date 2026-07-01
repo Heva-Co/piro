@@ -69,4 +69,11 @@ export const ROUTES = {
 
   // Logs
   LOGS: "/admin/logs",
+
+  // Integrations (under Settings)
+  INTEGRATIONS: {
+    LIST: "/admin/settings/integrations",
+    NEW: "/admin/settings/integrations/new",
+    DETAIL: (id: number | string) => `/admin/settings/integrations/${id}`,
+  },
 } as const;
