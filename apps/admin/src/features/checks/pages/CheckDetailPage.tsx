@@ -20,51 +20,16 @@ import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
+import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
+import { SERVICE_STATUS, SERVICE_STATUS_LABEL, type ServiceStatus } from "@/constants/serviceStatus";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 type CheckType = string;
 
-const TYPE_LABELS: Record<string, string> = {
-  HTTP:            "HTTP",
-  DNS:             "DNS",
-  TCP:             "TCP",
-  Ping:            "Ping",
-  SSL:             "SSL",
-  Heartbeat:       "Heartbeat",
-  GCP_CloudRunJob: "GCP Cloud Run Job",
-};
 
-const CRON_PRESETS = [
-  { label: "Every minute",     value: "* * * * *" },
-  { label: "Every 5 minutes",  value: "*/5 * * * *" },
-  { label: "Every 15 minutes", value: "*/15 * * * *" },
-  { label: "Every 30 minutes", value: "*/30 * * * *" },
-  { label: "Every hour",       value: "0 * * * *" },
-  { label: "Every day",        value: "0 0 * * *" },
-];
-
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? "bg-foreground" : "bg-input"
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-}
 
 // ── Accordion ─────────────────────────────────────────────────────────────────
 
@@ -178,11 +143,11 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
           <label className="text-sm font-semibold">Type</label>
           <Select value={type} disabled>
             <SelectTrigger className="w-full">
-              <SelectValue>{(v: string) => TYPE_LABELS[v] ?? v}</SelectValue>
+              <SelectValue>{(v: string) => CHECK_TYPE_LABELS[v] ?? v}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {checkTypes.map((t) => (
-                <SelectItem key={t.type} value={t.type}>{TYPE_LABELS[t.type] ?? t.type}</SelectItem>
+                <SelectItem key={t.type} value={t.type}>{CHECK_TYPE_LABELS[t.type] ?? t.type}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -193,9 +158,16 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
           {showCustomCron ? (
             <Input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="*/5 * * * *" className="font-mono" />
           ) : (
-            <select value={cron} onChange={(e) => setCron(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full">
-              {CRON_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
+            <Select value={cron} onValueChange={(v) => v && setCron(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>{(v: string) => CRON_PRESETS.find((p) => p.value === v)?.label ?? v}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {CRON_PRESETS.filter((p) => p.value !== "custom").map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           <button type="button" onClick={() => setShowCustomCron((v) => !v)}
             className="text-xs text-left hover:underline w-fit">
@@ -208,23 +180,28 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="grid grid-cols-3 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Default Status</label>
-          <select value={defaultStatus} onChange={(e) => setDefaultStatus(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full">
-            <option value="NO_DATA">No data</option>
-            <option value="UP">Up</option>
-            <option value="DOWN">Down</option>
-          </select>
+          <Select value={defaultStatus} onValueChange={(v) => v && setDefaultStatus(v as ServiceStatus)}>
+            <SelectTrigger className="w-full">
+              <SelectValue>{(v: ServiceStatus) => SERVICE_STATUS_LABEL[v] ?? v}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(SERVICE_STATUS).map((s) => (
+                <SelectItem key={s} value={s}>{SERVICE_STATUS_LABEL[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold">Active</label>
           <div className="flex items-center gap-2.5">
-            <Toggle checked={isActive} onChange={setIsActive} />
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
             <span className="text-sm text-muted-foreground">{isActive ? "Running" : "Paused"}</span>
           </div>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold">Multi-region</label>
           <div className="flex items-center gap-2.5">
-            <Toggle checked={isMultiRegion} onChange={setIsMultiRegion} />
+            <Switch checked={isMultiRegion} onCheckedChange={setIsMultiRegion} />
             <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
           </div>
         </div>
@@ -285,7 +262,7 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
 
   return (
     <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">Type-specific settings for the {TYPE_LABELS[rawType] ?? rawType} check</p>
+      <p className="text-sm text-muted-foreground">Type-specific settings for the {CHECK_TYPE_LABELS[rawType] ?? rawType} check</p>
       {error && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
       )}
