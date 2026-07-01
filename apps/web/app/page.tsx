@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { publicApi, type ServiceStatus } from "@/lib/api";
 import { StatusHeader } from "@/components/StatusHeader";
 import { ServiceRow } from "@/components/ServiceRow";
@@ -117,15 +116,6 @@ export default async function StatusPage() {
         )}
       </section>
 
-      <div className="flex justify-center pt-2">
-        <Link
-          href="/incidents"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-        >
-          View incident history
-          <span aria-hidden>→</span>
-        </Link>
-      </div>
     </main>
   );
 }
