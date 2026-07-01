@@ -44,13 +44,13 @@ export function LatencyTrendChart({ data, metric = "avg", height = 128 }: Props)
       <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="latencyGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(var(--chart-1, 220 70% 50%))" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="hsl(var(--chart-1, 220 70% 50%))" stopOpacity={0} />
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
           dataKey="date"
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: 11, fill: "currentColor", opacity: 0.5 }}
           tickLine={false}
           axisLine={false}
           interval="preserveStartEnd"
@@ -63,7 +63,7 @@ export function LatencyTrendChart({ data, metric = "avg", height = 128 }: Props)
         <Area
           type="monotone"
           dataKey="value"
-          stroke="hsl(var(--chart-1, 220 70% 50%))"
+          stroke="#3b82f6"
           fill="url(#latencyGradient)"
           strokeWidth={2}
           dot={false}
