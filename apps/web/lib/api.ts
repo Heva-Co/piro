@@ -16,7 +16,7 @@ async function get<T>(path: string, revalidate = 30): Promise<T> {
 
 // ─── Shared types (mirrors frontend/src/lib/api.ts) ───────────────────────────
 
-export type ServiceStatus = "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "NO_DATA";
+export type ServiceStatus = "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "NO_DATA" | "FAILURE";
 export type IncidentStatus = "Active" | "Resolved";
 export type IncidentState = "Investigating" | "Identified" | "Monitoring" | "Resolved";
 export type MaintenanceStatus = "Active" | "Cancelled";

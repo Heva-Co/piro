@@ -58,6 +58,7 @@ export default async function StatusPage() {
     DOWN: "Major system outage",
     MAINTENANCE: "Under maintenance",
     NO_DATA: "No status data",
+    FAILURE: "No status data",
   };
 
   return (

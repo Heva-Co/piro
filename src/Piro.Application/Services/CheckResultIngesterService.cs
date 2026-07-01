@@ -67,6 +67,8 @@ public class CheckResultIngesterService(
         var evt = new CheckStatusChangedEvent(check.Id, check.ServiceId, previousStatus, aggregatedResult.Status);
         statusChannel.Writer.TryWrite(evt);
 
-        await alertEvaluationService.EvaluateAsync(check.Id, ct);
+        // FAILURE means the executor itself crashed — not a service outage, so skip alert evaluation.
+        if (aggregatedResult.Status != ServiceStatus.FAILURE)
+            await alertEvaluationService.EvaluateAsync(check.Id, ct);
     }
 }
