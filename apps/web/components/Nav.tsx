@@ -18,6 +18,12 @@ export async function Nav() {
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link
+            href="/incidents"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            History
+          </Link>
+          <Link
             href="/admin"
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
