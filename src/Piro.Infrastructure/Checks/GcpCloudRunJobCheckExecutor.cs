@@ -22,14 +22,26 @@ internal class GcpCloudRunJobCheckExecutor(
 
     public async Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default)
     {
+        try
+        {
+        return await ExecuteInternalAsync(check, ct);
+        }
+        catch (Exception ex)
+        {
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
+        }
+    }
+
+    private async Task<CheckExecutionResult> ExecuteInternalAsync(Check check, CancellationToken ct)
+    {
         var data = JsonSerializer.Deserialize<GcpCloudRunJobCheckData>(check.TypeDataJson, _json)
                    ?? new GcpCloudRunJobCheckData();
 
         if (string.IsNullOrWhiteSpace(data.ProjectId) || string.IsNullOrWhiteSpace(data.Region) || string.IsNullOrWhiteSpace(data.JobName))
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "ProjectId, Region and JobName are required.");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, "ProjectId, Region and JobName are required.");
 
         if (check.IntegrationId is null || check.Integration is null)
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "A Google Cloud integration is required for this check.");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, "A Google Cloud integration is required for this check.");
 
         string accessToken;
         try
@@ -38,7 +50,7 @@ internal class GcpCloudRunJobCheckExecutor(
         }
         catch (Exception ex)
         {
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, $"Failed to obtain GCP access token: {ex.Message}");
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Failed to obtain GCP access token: {ex.Message}");
         }
 
         var url = $"https://run.googleapis.com/v2/projects/{data.ProjectId}/locations/{data.Region}/jobs/{data.JobName}/executions";

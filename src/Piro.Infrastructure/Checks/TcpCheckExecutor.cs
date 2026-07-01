@@ -18,32 +18,39 @@ internal class TcpCheckExecutor : ICheckExecutor
 
     public async Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default)
     {
-        var data = JsonSerializer.Deserialize<TcpCheckData>(check.TypeDataJson, _json)
-                   ?? new TcpCheckData();
-
-        if (string.IsNullOrWhiteSpace(data.Host) || data.Port <= 0)
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "Host or port is not configured.");
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(data.TimeoutMs);
-
-        var sw = Stopwatch.StartNew();
         try
         {
-            using var tcp = new TcpClient();
-            await tcp.ConnectAsync(data.Host, data.Port, cts.Token);
-            sw.Stop();
-            return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
-        }
-        catch (OperationCanceledException)
-        {
-            sw.Stop();
-            return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, "Connection timed out.");
+            var data = JsonSerializer.Deserialize<TcpCheckData>(check.TypeDataJson, _json)
+                       ?? new TcpCheckData();
+
+            if (string.IsNullOrWhiteSpace(data.Host) || data.Port <= 0)
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host or port is not configured.");
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(data.TimeoutMs);
+
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                using var tcp = new TcpClient();
+                await tcp.ConnectAsync(data.Host, data.Port, cts.Token);
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
+            }
+            catch (OperationCanceledException)
+            {
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, "Connection timed out.");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, ex.Message);
+            }
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, ex.Message);
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
         }
     }
 }

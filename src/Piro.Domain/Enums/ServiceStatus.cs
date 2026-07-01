@@ -8,5 +8,7 @@ public enum ServiceStatus
     UP,
     DEGRADED,
     DOWN,
-    MAINTENANCE
+    MAINTENANCE,
+    /// <summary>The check executor itself threw an unexpected exception. Not a service outage — internal error only.</summary>
+    FAILURE
 }

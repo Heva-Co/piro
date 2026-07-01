@@ -17,56 +17,63 @@ internal class HttpCheckExecutor(IHttpClientFactory httpClientFactory) : ICheckE
 
     public async Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default)
     {
-        var data = JsonSerializer.Deserialize<HttpCheckData>(check.TypeDataJson, _json)
-                   ?? new HttpCheckData();
-
-        if (string.IsNullOrWhiteSpace(data.Url))
-            return new CheckExecutionResult(ServiceStatus.DOWN, null, "URL is not configured.");
-
-        var client = httpClientFactory.CreateClient(data.FollowRedirects ? "piro-http" : "piro-http-noredirect");
-        client.Timeout = TimeSpan.FromMilliseconds(data.TimeoutMs);
-
-        using var request = new HttpRequestMessage(new HttpMethod(data.Method), data.Url);
-        if (data.Headers is not null)
-            foreach (var (key, value) in data.Headers)
-                request.Headers.TryAddWithoutValidation(key, value);
-
-        if (data.Body is not null)
-            request.Content = new StringContent(data.Body);
-
-        var sw = Stopwatch.StartNew();
         try
         {
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            sw.Stop();
+            var data = JsonSerializer.Deserialize<HttpCheckData>(check.TypeDataJson, _json)
+                       ?? new HttpCheckData();
 
-            var isCodeOk = data.ExpectedStatusCodes is { Count: > 0 }
-                ? data.ExpectedStatusCodes.Contains((int)response.StatusCode)
-                : response.IsSuccessStatusCode;
+            if (string.IsNullOrWhiteSpace(data.Url))
+                return new CheckExecutionResult(ServiceStatus.FAILURE, null, "URL is not configured.");
 
-            if (!isCodeOk)
-                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
-                    $"Unexpected status code: {(int)response.StatusCode}");
+            var client = httpClientFactory.CreateClient(data.FollowRedirects ? "piro-http" : "piro-http-noredirect");
+            client.Timeout = TimeSpan.FromMilliseconds(data.TimeoutMs);
 
-            if (data.ExpectedBodyContains is not null)
+            using var request = new HttpRequestMessage(new HttpMethod(data.Method), data.Url);
+            if (data.Headers is not null)
+                foreach (var (key, value) in data.Headers)
+                    request.Headers.TryAddWithoutValidation(key, value);
+
+            if (data.Body is not null)
+                request.Content = new StringContent(data.Body);
+
+            var sw = Stopwatch.StartNew();
+            try
             {
-                var body = await response.Content.ReadAsStringAsync(ct);
-                if (!body.Contains(data.ExpectedBodyContains, StringComparison.Ordinal))
-                    return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
-                        $"Response body does not contain expected string.");
-            }
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                sw.Stop();
 
-            return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
-        }
-        catch (TaskCanceledException)
-        {
-            sw.Stop();
-            return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, "Request timed out.");
+                var isCodeOk = data.ExpectedStatusCodes is { Count: > 0 }
+                    ? data.ExpectedStatusCodes.Contains((int)response.StatusCode)
+                    : response.IsSuccessStatusCode;
+
+                if (!isCodeOk)
+                    return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
+                        $"Unexpected status code: {(int)response.StatusCode}");
+
+                if (data.ExpectedBodyContains is not null)
+                {
+                    var body = await response.Content.ReadAsStringAsync(ct);
+                    if (!body.Contains(data.ExpectedBodyContains, StringComparison.Ordinal))
+                        return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
+                            $"Response body does not contain expected string.");
+                }
+
+                return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
+            }
+            catch (TaskCanceledException)
+            {
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, "Request timed out.");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, ex.Message);
+            }
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, ex.Message);
+            return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
         }
     }
 }
