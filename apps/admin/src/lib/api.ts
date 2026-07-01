@@ -98,6 +98,7 @@ export interface Check {
   defaultStatus: string;
   isActive: boolean;
   isMultiRegion: boolean;
+  integrationId?: number | null;
 }
 
 export interface CreateCheck {
@@ -112,6 +113,7 @@ export interface CreateCheck {
   isMultiRegion?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
+  integrationId?: number;
 }
 
 export interface CheckLog {

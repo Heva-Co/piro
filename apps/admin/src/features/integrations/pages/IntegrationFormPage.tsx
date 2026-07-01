@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Upload } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { integrationsApi } from "@/lib/api";
@@ -20,15 +21,44 @@ function GoogleCloudConfig({
   serviceAccountJson: string;
   setServiceAccountJson: (v: string) => void;
 }) {
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        // Pretty-print if valid JSON, otherwise use raw text
+        setServiceAccountJson(JSON.stringify(JSON.parse(text), null, 2));
+      } catch {
+        setServiceAccountJson(text);
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so re-uploading the same file triggers onChange again
+    e.target.value = "";
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold">
-        Service Account JSON <span className="text-destructive">*</span>
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold">
+          Service Account JSON <span className="text-destructive">*</span>
+        </label>
+        <label className="cursor-pointer flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-muted transition-colors">
+          <Upload size={12} /> Upload .json
+          <input
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+        </label>
+      </div>
       <p className="text-xs text-muted-foreground">
-        Paste the contents of your Google Cloud service account key file (.json). The key must have
-        the necessary IAM permissions for the checks that use this integration (e.g.{" "}
-        <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
+        Paste the contents of your Google Cloud service account key file (.json) or upload it
+        directly. The key must have the necessary IAM permissions for the checks that use this
+        integration (e.g. <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
       </p>
       <textarea
         value={serviceAccountJson}

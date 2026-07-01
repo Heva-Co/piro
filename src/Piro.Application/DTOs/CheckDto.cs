@@ -21,7 +21,8 @@ public record CheckDto(
     int? HistoryDaysDesktop,
     int? HistoryDaysMobile,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    int? IntegrationId
 );
 
 /// <summary>Payload for creating a new check within a service.</summary>
@@ -36,7 +37,8 @@ public record CreateCheckRequest(
     bool IsActive = true,
     bool IsMultiRegion = false,
     int? FailureThreshold = null,
-    int? RecoveryThreshold = null
+    int? RecoveryThreshold = null,
+    int? IntegrationId = null
 );
 
 /// <summary>Payload for updating an existing check. All fields are optional.</summary>
@@ -51,7 +53,8 @@ public record UpdateCheckRequest(
     int? FailureThreshold,
     int? RecoveryThreshold,
     int? HistoryDaysDesktop,
-    int? HistoryDaysMobile
+    int? HistoryDaysMobile,
+    int? IntegrationId = null
 );
 
 /// <summary>Check with its parent service info — used in the global checks list.</summary>
