@@ -30,7 +30,7 @@ export default function CheckLogsPage() {
   const [statusFilter, setStatusFilter] = useState<"" | "UP" | "DOWN">("");
   const [page, setPage] = useState(1);
 
-  const { data: logs, isLoading, isFetching, refetch } = useQuery({
+  const { data: logs, isLoading, refetch } = useQuery({
     queryKey: ["check-logs-full", serviceSlug, checkSlug, limit, region],
     queryFn: () => checksApi.logs(serviceSlug!, checkSlug!, {
       limit,

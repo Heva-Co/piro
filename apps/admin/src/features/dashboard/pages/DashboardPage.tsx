@@ -29,7 +29,7 @@ export default function DashboardPage() {
   });
   const incidentsQuery = useQuery({
     queryKey: QUERY_KEYS.INCIDENTS,
-    queryFn: incidentsApi.list,
+    queryFn: () => incidentsApi.list(),
   });
   const maintenancesQuery = useQuery({
     queryKey: QUERY_KEYS.MAINTENANCES,
