@@ -73,6 +73,9 @@ jobs:
         with:
           node-version: "22"
           cache: "pnpm"
+          cache-dependency-path: |
+            apps/web/pnpm-lock.yaml
+            apps/admin/pnpm-lock.yaml
 
       - name: Install (web)
         working-directory: apps/web
