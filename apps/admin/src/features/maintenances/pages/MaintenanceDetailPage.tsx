@@ -138,7 +138,7 @@ export default function MaintenanceDetailPage() {
 
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span>Status:</span>
-            <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${isCancelled ? "bg-gray-100 text-gray-500" : "bg-green-100 text-green-700"}`}>
+            <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${isCancelled ? "bg-muted text-muted-foreground" : "bg-green-500/15 text-green-600 dark:text-green-400"}`}>
               {maintenance.status}
             </span>
           </div>

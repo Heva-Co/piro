@@ -95,14 +95,14 @@ export default function ApiKeysPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
           <Plus size={15} /> New API Key
         </button>
       </div>
 
       {/* Keys list */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading && (
           <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
         )}
@@ -121,7 +121,7 @@ export default function ApiKeysPage() {
               <span className="text-xs font-mono text-gray-400">{k.maskedKey}</span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="rounded-full bg-gray-900 px-3 py-0.5 text-xs font-semibold text-white">ACTIVE</span>
+              <span className="rounded-full bg-foreground px-3 py-0.5 text-xs font-semibold text-white">ACTIVE</span>
               <span className="text-sm text-gray-500">
                 {new Date(k.createdAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}
               </span>
@@ -156,13 +156,13 @@ export default function ApiKeysPage() {
               required
               autoFocus
               placeholder="e.g. CI/CD Pipeline"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full rounded-lg border border-border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted"
               >
                 Cancel
               </button>
@@ -193,7 +193,7 @@ export default function ApiKeysPage() {
             <button
               onClick={handleCopy}
               title="Copy"
-              className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2 hover:bg-gray-100 transition-colors"
+              className="flex-shrink-0 rounded-lg border border-border bg-card p-2 hover:bg-muted transition-colors"
             >
               {copied
                 ? <span className="text-xs text-green-600 font-medium px-1">Copied!</span>
@@ -209,7 +209,7 @@ export default function ApiKeysPage() {
           <div className="flex justify-end">
             <button
               onClick={closeModal}
-              className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800"
+              className="rounded-lg bg-foreground px-5 py-2 text-sm font-medium text-background hover:opacity-90"
             >
               Done
             </button>
