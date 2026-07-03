@@ -88,7 +88,9 @@ export default function IncidentsPage() {
                 <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">Loading…</td></tr>
               )}
               {!isLoading && paged.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">No incidents found.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  No {stateFilter !== "all" ? stateFilter : ""} incidents found.
+                </td></tr>
               )}
               {paged.map((inc) => (
                 <tr key={inc.id} className="hover:bg-muted/50">
