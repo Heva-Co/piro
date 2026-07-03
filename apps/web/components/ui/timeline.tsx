@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const stateColor: Record<string, string> = {
@@ -11,7 +12,7 @@ export interface TimelineItemData {
   id: number | string;
   state: string;
   timestamp: number;
-  body: string;
+  body: ReactNode;
   isFirst?: boolean;
 }
 
