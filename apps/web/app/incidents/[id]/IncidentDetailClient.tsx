@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Globe } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Timeline } from "@/components/ui/timeline";
 import type { publicApi } from "@/lib/api";
 
@@ -116,7 +117,7 @@ export function IncidentDetailClient({ id, initial }: Props) {
               id: c.id,
               state: c.state,
               timestamp: c.commentedAt,
-              body: c.comment,
+              body: <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0"><ReactMarkdown>{c.comment}</ReactMarkdown></div>,
             }))}
           />
         </div>
