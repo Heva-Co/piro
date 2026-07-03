@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
@@ -27,12 +28,12 @@ public record CheckDto(
 
 /// <summary>Payload for creating a new check within a service.</summary>
 public record CreateCheckRequest(
-    string Slug,
-    string Name,
+    [Required, StringLength(200, MinimumLength = 1)] string Slug,
+    [Required, StringLength(200, MinimumLength = 1)] string Name,
     string? Description,
     CheckType Type,
-    string Cron,
-    string TypeDataJson,
+    [Required] string Cron,
+    [Required] string TypeDataJson,
     ServiceStatus DefaultStatus,
     bool IsActive = true,
     bool IsMultiRegion = false,
