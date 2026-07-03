@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
@@ -61,6 +62,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -122,6 +124,7 @@ export default function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
