@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, AlertCircle, ChevronLeft } from "lucide-react";
+import { Trash2, Plus, AlertCircle, ChevronLeft, CheckCheck } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { incidentsApi, servicesApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { formatTimestamp } from "@/utils/date";
 
 const STATE_BADGE: Record<string, string> = {
   INVESTIGATING: "bg-amber-100 text-amber-700",
@@ -20,17 +21,10 @@ export default function IncidentDetailPage() {
   const qc = useQueryClient();
 
   const incidentKey = QUERY_KEYS.INCIDENT(id!);
-  const commentsKey = ["incident-comments", id];
 
   const { data: incident, isLoading } = useQuery({
     queryKey: incidentKey,
     queryFn: () => incidentsApi.get(id!),
-  });
-
-  const { data: comments = [] } = useQuery({
-    queryKey: commentsKey,
-    queryFn: () => incidentsApi.comments(id!),
-    enabled: Boolean(id),
   });
 
   const { data: services = [] } = useQuery({
@@ -59,7 +53,6 @@ export default function IncidentDetailPage() {
   const addCommentMutation = useMutation({
     mutationFn: () => incidentsApi.addComment(id!, commentBody, commentState),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: commentsKey });
       qc.invalidateQueries({ queryKey: incidentKey });
       setCommentBody("");
       setCommentError("");
@@ -69,11 +62,16 @@ export default function IncidentDetailPage() {
 
   const deleteCommentMutation = useMutation({
     mutationFn: (commentId: number) => incidentsApi.deleteComment(id!, commentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: commentsKey }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: incidentKey }),
   });
 
   const updateTitleMutation = useMutation({
     mutationFn: () => incidentsApi.update(id!, { title }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: incidentKey }),
+  });
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: () => incidentsApi.acknowledge(id!),
     onSuccess: () => qc.invalidateQueries({ queryKey: incidentKey }),
   });
 
@@ -109,9 +107,11 @@ export default function IncidentDetailPage() {
     );
   }
 
+  const comments = incident.comments ?? [];
   const availableServices = services.filter(
-    (s) => !incident.services?.some((is) => is.slug === s.slug)
+    (s) => !incident.services?.some((is) => is.serviceSlug === s.slug)
   );
+  const isResolved = incident.status === "Resolved";
 
   return (
     <AdminLayout title={`Incident #${incident.id}`}>
@@ -140,14 +140,14 @@ export default function IncidentDetailPage() {
                   <div key={c.id} className="px-4 py-3 flex gap-3">
                     <div className="flex-1 flex flex-col gap-1.5">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${STATE_BADGE[c.status.toUpperCase()] ?? "bg-gray-100 text-gray-600"}`}>
-                          {c.status}
+                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${STATE_BADGE[c.state?.toUpperCase()] ?? "bg-gray-100 text-gray-600"}`}>
+                          {c.state}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {new Date(c.createdAt).toLocaleString()}
+                          {formatTimestamp(c.commentedAt)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.body}</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.comment}</p>
                     </div>
                     <button
                       onClick={() => {
@@ -164,38 +164,40 @@ export default function IncidentDetailPage() {
               </div>
 
               {/* Add update form */}
-              <div className="px-4 py-4 border-t border-gray-100 flex flex-col gap-3">
-                <h3 className="text-sm font-semibold text-gray-600">Post Update</h3>
-                {commentError && (
-                  <div className="flex items-center gap-2 text-sm text-red-600">
-                    <AlertCircle size={14} /> {commentError}
-                  </div>
-                )}
-                <select
-                  value={commentState}
-                  onChange={(e) => setCommentState(e.target.value)}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 self-start"
-                >
-                  <option value="INVESTIGATING">Investigating</option>
-                  <option value="IDENTIFIED">Identified</option>
-                  <option value="MONITORING">Monitoring</option>
-                  <option value="RESOLVED">Resolved</option>
-                </select>
-                <textarea
-                  value={commentBody}
-                  onChange={(e) => setCommentBody(e.target.value)}
-                  rows={3}
-                  placeholder="Describe the current situation…"
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={() => addCommentMutation.mutate()}
-                  disabled={!commentBody.trim() || addCommentMutation.isPending}
-                  className="self-start rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {addCommentMutation.isPending ? "Posting…" : "Post Update"}
-                </button>
-              </div>
+              {!isResolved && (
+                <div className="px-4 py-4 border-t border-gray-100 flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold text-gray-600">Post Update</h3>
+                  {commentError && (
+                    <div className="flex items-center gap-2 text-sm text-red-600">
+                      <AlertCircle size={14} /> {commentError}
+                    </div>
+                  )}
+                  <select
+                    value={commentState}
+                    onChange={(e) => setCommentState(e.target.value)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 self-start"
+                  >
+                    <option value="Investigating">Investigating</option>
+                    <option value="Identified">Identified</option>
+                    <option value="Monitoring">Monitoring</option>
+                    <option value="Resolved">Resolved</option>
+                  </select>
+                  <textarea
+                    value={commentBody}
+                    onChange={(e) => setCommentBody(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the current situation…"
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    onClick={() => addCommentMutation.mutate()}
+                    disabled={!commentBody.trim() || addCommentMutation.isPending}
+                    className="self-start rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {addCommentMutation.isPending ? "Posting…" : "Post Update"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -206,6 +208,27 @@ export default function IncidentDetailPage() {
                 <h2 className="text-sm font-semibold">Details</h2>
               </div>
               <div className="px-4 py-4 flex flex-col gap-4">
+                {/* Acknowledge */}
+                {!isResolved && (
+                  <div>
+                    {incident.acknowledgedAt ? (
+                      <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700">
+                        <CheckCheck size={14} />
+                        <span>Acknowledged by <strong>{incident.acknowledgedBy}</strong> at {formatTimestamp(incident.acknowledgedAt)}</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => acknowledgeMutation.mutate()}
+                        disabled={acknowledgeMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                      >
+                        <CheckCheck size={14} />
+                        {acknowledgeMutation.isPending ? "Acknowledging…" : "Acknowledge Incident"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Title</label>
                   <div className="flex gap-2">
@@ -227,14 +250,14 @@ export default function IncidentDetailPage() {
 
                 <div>
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Start</span>
-                  <p className="text-sm mt-1">{new Date(incident.startedAt).toLocaleString()}</p>
+                  <p className="text-sm mt-1">{formatTimestamp(incident.startDateTime)}</p>
                 </div>
 
                 <div>
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">State</span>
                   <div className="mt-1">
-                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${STATE_BADGE[incident.status?.toUpperCase()] ?? "bg-gray-100 text-gray-600"}`}>
-                      {incident.status}
+                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${STATE_BADGE[incident.state?.toUpperCase()] ?? "bg-gray-100 text-gray-600"}`}>
+                      {incident.state}
                     </span>
                   </div>
                 </div>
@@ -242,12 +265,14 @@ export default function IncidentDetailPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Affected Services</span>
-                    <button
-                      onClick={() => setShowAddService((v) => !v)}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
-                    >
-                      <Plus size={12} /> Add
-                    </button>
+                    {!isResolved && (
+                      <button
+                        onClick={() => setShowAddService((v) => !v)}
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                    )}
                   </div>
 
                   {showAddService && (
@@ -282,14 +307,16 @@ export default function IncidentDetailPage() {
                   )}
                   <div className="flex flex-col gap-1">
                     {incident.services?.map((svc) => (
-                      <div key={svc.slug} className="flex items-center justify-between rounded-md border border-gray-100 px-3 py-1.5 text-sm">
-                        <span>{svc.name}</span>
-                        <button
-                          onClick={() => removeServiceMutation.mutate(svc.slug)}
-                          className="text-gray-300 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                      <div key={svc.serviceSlug} className="flex items-center justify-between rounded-md border border-gray-100 px-3 py-1.5 text-sm">
+                        <span>{svc.serviceSlug}</span>
+                        {!isResolved && (
+                          <button
+                            onClick={() => removeServiceMutation.mutate(svc.serviceSlug)}
+                            className="text-gray-300 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
