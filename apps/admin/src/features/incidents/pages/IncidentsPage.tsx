@@ -26,6 +26,8 @@ const FILTER_OPTIONS = [
   { label: "Resolved",      value: "resolved" },
 ];
 
+
+
 export default function IncidentsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,7 +97,21 @@ export default function IncidentsPage() {
               {paged.map((inc) => (
                 <tr key={inc.id} className="hover:bg-muted/50">
                   <td className="px-5 py-3.5 text-muted-foreground font-mono text-xs">#{inc.id}</td>
-                  <td className="px-5 py-3.5 font-medium text-foreground">{inc.title}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{inc.title}</span>
+                      {!inc.isPublic && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+                          Draft
+                        </span>
+                      )}
+                      {inc.mergedIntoIncidentId && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                          Merged →#{inc.mergedIntoIncidentId}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5 text-muted-foreground text-xs">
                     {formatDuration(inc.startDateTime, inc.endDateTime)}
                   </td>

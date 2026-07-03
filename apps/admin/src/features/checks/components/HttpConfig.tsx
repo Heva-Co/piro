@@ -12,7 +12,10 @@ export function HttpConfig({ config, onChange }: CheckConfigProps) {
     : ((codesRaw as string) ?? "200");
   const followRedirects = (config.followRedirects as boolean) ?? true;
   const body = (config.body as string) ?? "";
-  const headers = (config.headers as { key: string; value: string }[]) ?? [{ key: "", value: "" }];
+  const rawHeaders = config.headers;
+  const headers: { key: string; value: string }[] = Array.isArray(rawHeaders) && rawHeaders.length > 0
+    ? rawHeaders as { key: string; value: string }[]
+    : [{ key: "", value: "" }];
 
   return (
     <div className="flex flex-col gap-4">

@@ -88,6 +88,8 @@ export interface Incident {
   status: IncidentStatus;
   state: IncidentState;
   isGlobal: boolean;
+  isPublic: boolean;
+  mergedIntoIncidentId: number | null;
   source: string | null;
   comments: IncidentComment[];
   services: IncidentService[];

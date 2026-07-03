@@ -23,7 +23,10 @@ public record CheckDto(
     int? HistoryDaysMobile,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    int? IntegrationId
+    int? IntegrationId,
+    CheckCriticality Criticality,
+    bool AutomaticallyCreateIncident,
+    bool AutomaticallyCloseIncident
 );
 
 /// <summary>Payload for creating a new check within a service.</summary>
@@ -55,7 +58,10 @@ public record UpdateCheckRequest(
     int? RecoveryThreshold,
     int? HistoryDaysDesktop,
     int? HistoryDaysMobile,
-    int? IntegrationId = null
+    int? IntegrationId = null,
+    CheckCriticality? Criticality = null,
+    bool? AutomaticallyCreateIncident = null,
+    bool? AutomaticallyCloseIncident = null
 );
 
 /// <summary>Check with its parent service info — used in the global checks list.</summary>

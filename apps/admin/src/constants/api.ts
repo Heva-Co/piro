@@ -29,6 +29,7 @@ export const ENDPOINTS = {
   // Site config
   SITE: {
     CONFIG: `${API_BASE}/site/config`,
+    INCIDENTS_CONFIG: `${API_BASE}/site/incidents-config`,
     UPLOAD: (type: string) => `${API_BASE}/site/upload/${type}`,
   },
 
@@ -131,6 +132,7 @@ export const QUERY_KEYS = {
   OIDC_CONFIGS: ["oidc-configs"] as const,
   OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,
+  INCIDENTS_CONFIG: ["incidents-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>

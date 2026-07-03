@@ -21,6 +21,7 @@ internal class CheckConfiguration : IEntityTypeConfiguration<Check>
         builder.Property(c => c.TypeDataJson).HasColumnType("jsonb").HasDefaultValue("{}");
         builder.Property(c => c.CurrentStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
         builder.Property(c => c.DefaultStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
+        builder.Property(c => c.Criticality).HasConversion<string>().HasDefaultValue(CheckCriticality.High);
 
         builder.HasOne(c => c.Service)
             .WithMany(s => s.Checks)

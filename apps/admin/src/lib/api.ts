@@ -99,7 +99,12 @@ export interface Check {
   isActive: boolean;
   isMultiRegion: boolean;
   integrationId?: number | null;
+  criticality: CheckCriticality;
+  automaticallyCreateIncident: boolean;
+  automaticallyCloseIncident: boolean;
 }
+
+export type CheckCriticality = "Critical" | "High" | "Medium" | "Low";
 
 export interface CreateCheck {
   slug: string;
@@ -175,6 +180,12 @@ export const checksApi = {
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
 
+export interface IncidentService {
+  serviceSlug: string;
+  impact: string;
+  triggeringCheckSlug?: string | null;
+}
+
 export interface Incident {
   id: number;
   title: string;
@@ -183,15 +194,21 @@ export interface Incident {
   state: string;
   isResolved: boolean;
   startDateTime: number;
-  endDateTime?: number;
+  endDateTime?: number | null;
   isGlobal: boolean;
-  source?: string;
-  services: { serviceSlug: string; serviceName: string; impact: string }[];
+  source?: string | null;
+  isPublic: boolean;
+  mergedIntoIncidentId?: number | null;
+  services: IncidentService[];
   comments: IncidentComment[];
   createdAt: string;
   updatedAt: string;
   acknowledgedAt?: number;
   acknowledgedBy?: string;
+}
+
+export interface PublishSchedule {
+  scheduledAt: string | null;
 }
 
 export interface IncidentComment {
@@ -241,6 +258,24 @@ export const incidentsApi = {
 
   removeService: (id: number | string, slug: string) =>
     api.delete(ENDPOINTS.INCIDENT_SERVICE(id, slug)),
+
+  publish: (id: number | string) =>
+    api.post(`/api/v1/incidents/${id}/publish`),
+
+  getPublishSchedule: (id: number | string) =>
+    api.get<PublishSchedule>(`/api/v1/incidents/${id}/publish/schedule`).then((r) => r.data),
+
+  delayPublish: (id: number | string, additionalMinutes: number) =>
+    api.post<PublishSchedule>(`/api/v1/incidents/${id}/publish/delay`, { additionalMinutes }).then((r) => r.data),
+
+  cancelPublish: (id: number | string) =>
+    api.delete(`/api/v1/incidents/${id}/publish/schedule`),
+
+  updateCheck: (serviceSlug: string, checkSlug: string, data: Partial<{
+    criticality: string;
+    automaticallyCreateIncident: boolean;
+    automaticallyCloseIncident: boolean;
+  }>) => api.put(`/api/v1/services/${serviceSlug}/checks/${checkSlug}`, data).then((r) => r.data),
 };
 
 // ─── Notification channels ───────────────────────────────────────────────────
@@ -386,6 +421,13 @@ export interface SiteConfig {
   ogImageUrl?: string;
 }
 
+export interface IncidentsConfig {
+  publishDelayMinutes: number;
+  correlationMode: import("@/constants/incidents").IncidentCorrelationModeKey;
+  globalThreshold: number;
+  globalCorrelationWindowMinutes: number;
+}
+
 export const siteApi = {
   get: () => api.get<SiteConfig>(ENDPOINTS.SITE.CONFIG).then((r) => r.data),
 
@@ -401,6 +443,12 @@ export const siteApi = {
       })
       .then((r) => r.data);
   },
+
+  getIncidentsConfig: () =>
+    api.get<IncidentsConfig>(ENDPOINTS.SITE.INCIDENTS_CONFIG).then((r) => r.data),
+
+  updateIncidentsConfig: (data: Partial<IncidentsConfig>) =>
+    api.put(ENDPOINTS.SITE.INCIDENTS_CONFIG, data).then((r) => r.data),
 };
 
 // ─── OIDC config ─────────────────────────────────────────────────────────────

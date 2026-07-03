@@ -59,6 +59,7 @@ const configNavItems: NavItem[] = [
   { label: "SSO", to: ROUTES.CONFIG.SSO, icon: <KeyRound size={18} /> },
   { label: "Site", to: ROUTES.CONFIG.SITE, icon: <Globe size={18} /> },
   { label: "Email", to: ROUTES.CONFIG.EMAIL, icon: <Mail size={18} /> },
+  { label: "Incidents", to: ROUTES.CONFIG.INCIDENTS, icon: <CloudAlert size={18} /> },
 ];
 
 interface SidebarProps {

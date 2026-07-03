@@ -30,4 +30,28 @@ public interface IIncidentRepository
     /// Returns <c>null</c> when no active incident affects the service.
     /// </summary>
     Task<ServiceStatus?> GetActiveImpactForServiceAsync(int serviceId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the open ALERT-sourced incident for a service, if one exists.
+    /// Used by auto-create logic to attach new checks to an existing per-service incident.
+    /// </summary>
+    Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns all open ALERT-sourced per-service incidents created within the given window.
+    /// Used by Hybrid/Global correlation to count and merge simultaneous failures.
+    /// </summary>
+    Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default);
+
+    /// <summary>Returns the open global incident if one exists.</summary>
+    Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default);
+
+    /// <summary>Publishes an incident by setting <see cref="Incident.IsPublic"/> to true.</summary>
+    Task PublishAsync(Incident incident, CancellationToken ct = default);
+
+    /// <summary>Records a merge between a per-service incident and a global incident.</summary>
+    Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default);
+
+    /// <summary>Returns all checks that are currently alerting on the given service.</summary>
+    Task<int> CountAlertingChecksOnServiceAsync(int serviceId, CancellationToken ct = default);
 }

@@ -25,6 +25,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
     public DbSet<IncidentService> IncidentServices => Set<IncidentService>();
+    public DbSet<IncidentMerge> IncidentMerges => Set<IncidentMerge>();
     public DbSet<Maintenance> Maintenances => Set<Maintenance>();
     public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
     public DbSet<MaintenanceService> MaintenanceServices => Set<MaintenanceService>();

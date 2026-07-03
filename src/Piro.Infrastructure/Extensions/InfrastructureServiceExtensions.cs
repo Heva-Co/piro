@@ -153,6 +153,7 @@ public static class InfrastructureServiceExtensions
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
+        services.AddScoped<IIncidentPublishScheduler, IncidentPublishScheduler>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
         // Integration repository

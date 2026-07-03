@@ -4,6 +4,7 @@ import { Upload, Save } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { siteApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { INCIDENT_CORRELATION_MODE_MAP, type IncidentCorrelationModeKey } from "@/constants/incidents";
 
 const DEFAULT_ASSET = "/piro.svg";
 
