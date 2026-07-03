@@ -2,18 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, FlaskConical } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { channelsApi } from "@/lib/api";
-import { CHANNEL_TYPE_LABELS, QUERY_KEYS } from "@/constants/api";
+import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-const CHANNEL_TYPES = [
-  "Webhook", "Email", "Slack", "PagerDuty", "MSTeams", "Telegram",
-  "TwilioSms", "GoogleChat", "Discord", "Opsgenie", "Pushover", "Ntfy",
-];
+import { CHANNEL_TYPE_MAP, CHANNEL_TYPES } from "@/constants/channels";
 
 interface Header { key: string; value: string }
 
@@ -655,12 +650,27 @@ export default function ChannelFormPage() {
             <p className="text-sm font-semibold mb-1">Trigger Type</p>
             <p className="text-xs text-muted-foreground mb-3">Select the type of notification to send</p>
             <Select value={type} onValueChange={(v) => v && setType(v)} disabled={isEdit}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
+              <SelectTrigger className="w-56">
+                <SelectValue>
+                  {(() => {
+                    const meta = CHANNEL_TYPE_MAP[type as keyof typeof CHANNEL_TYPE_MAP];
+                    return meta ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Icon icon={meta.icon} className={`size-4 ${meta.iconClass ?? ""}`} />
+                        {meta.label}
+                      </span>
+                    ) : type;
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {CHANNEL_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>{CHANNEL_TYPE_LABELS[t] ?? t}</SelectItem>
+                  <SelectItem key={t.value} value={t.value}>
+                    <span className="inline-flex items-center gap-2">
+                      <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""}`} />
+                      {t.label}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
