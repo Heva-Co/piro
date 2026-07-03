@@ -113,7 +113,7 @@ export default function IncidentsPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-muted-foreground text-xs">
-                    {formatDuration(inc.startDateTime, inc.endDateTime)}
+                    {formatDuration(inc.startDateTime, inc.endDateTime ?? undefined)}
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATE_BADGE[inc.state?.toUpperCase()] ?? "bg-muted text-foreground"}`}>

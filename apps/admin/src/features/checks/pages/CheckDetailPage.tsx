@@ -13,11 +13,10 @@ import {
   useCreateAlertConfig,
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
-import { channelsApi, checkTypesApi, integrationsApi } from "@/lib/api";
+import { channelsApi, integrationsApi } from "@/lib/api";
 import { CHECK_CRITICALITY_MAP, type CheckCriticalityKey } from "@/constants/checks";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -38,11 +37,6 @@ type CheckType = string;
 function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
-  const { data: checkTypes = [] } = useQuery({
-    queryKey: QUERY_KEYS.CHECK_TYPES,
-    queryFn: checkTypesApi.list,
-  });
-
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<CheckType>("Http");

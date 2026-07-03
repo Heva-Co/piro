@@ -42,13 +42,6 @@ export default function IncidentFormPage() {
         state,
         startDateTime: Math.floor(new Date(startDateTime).getTime() / 1000),
         isGlobal,
-        isPublic: true,
-        status: "Active",
-        source: "MANUAL",
-        services: [],
-        comments: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       });
       for (const [slug] of Object.entries(selectedServices)) {
         try { await incidentsApi.addService(incident.id, slug); } catch { /* best effort */ }
