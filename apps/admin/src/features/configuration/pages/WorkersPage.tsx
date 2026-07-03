@@ -122,7 +122,7 @@ export default function WorkersPage() {
       <div className="flex flex-col gap-4">
         {/* No-execution warning banner */}
         {noLocalExecution && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3">
             <AlertCircle size={16} className="text-amber-600 shrink-0" />
             <p className="text-sm text-amber-800">
               No default worker connected — non-multi-region checks are not executing. Register and connect a worker marked as <strong>default</strong>.
@@ -131,7 +131,7 @@ export default function WorkersPage() {
         )}
 
         {/* Workers list */}
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           {isLoading && (
             <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
           )}
@@ -169,7 +169,7 @@ export default function WorkersPage() {
                 {w.isDefault && (
                   <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-0.5 text-xs font-semibold">Default</span>
                 )}
-                <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${w.isConnected ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${w.isConnected ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
                   {w.isConnected ? "Online" : "Offline"}
                 </span>
                 {w.lastHeartbeat && (
@@ -263,7 +263,7 @@ export default function WorkersPage() {
               <code className="text-sm font-mono text-gray-900 break-all">{newToken}</code>
             </div>
             <button onClick={handleCopy} title="Copy"
-              className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2 hover:bg-gray-100">
+              className="flex-shrink-0 rounded-lg border border-border bg-card p-2 hover:bg-gray-100">
               {copied
                 ? <span className="text-xs text-green-600 font-medium px-1">Copied!</span>
                 : <Copy size={16} className="text-gray-500" />}

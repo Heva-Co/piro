@@ -31,18 +31,18 @@ function MonthCaption({ calendarMonth }: { calendarMonth: { date: Date } }) {
         type="button"
         disabled={!previousMonth}
         onClick={() => previousMonth && goToMonth(previousMonth)}
-        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-gray-100 text-gray-600 disabled:opacity-30"
+        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30"
       >
         <ChevronLeft size={14} />
       </button>
-      <span className="text-sm font-semibold text-gray-900">
+      <span className="text-sm font-semibold text-foreground">
         {format(calendarMonth.date, "MMMM yyyy")}
       </span>
       <button
         type="button"
         disabled={!nextMonth}
         onClick={() => nextMonth && goToMonth(nextMonth)}
-        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-gray-100 text-gray-600 disabled:opacity-30"
+        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-muted text-muted-foreground disabled:opacity-30"
       >
         <ChevronRight size={14} />
       </button>
@@ -86,16 +86,16 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", c
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between gap-2 min-w-52 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-left hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex items-center justify-between gap-2 min-w-52 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
-        <span className={displayLabel ? "text-gray-900" : "text-gray-400"}>
+        <span className={displayLabel ? "text-foreground" : "text-muted-foreground"}>
           {displayLabel || placeholder}
         </span>
-        <ChevronDown size={14} className="text-gray-500 shrink-0" />
+        <ChevronDown size={14} className="text-muted-foreground shrink-0" />
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 rounded-xl border border-gray-200 bg-white shadow-lg p-3 min-w-[280px]">
+        <div className="absolute z-50 mt-1 rounded-xl border border-border bg-card shadow-lg p-3 min-w-[280px]">
           <DayPicker
             mode="single"
             selected={selectedDate}
@@ -107,11 +107,11 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", c
               month_caption: "hidden", // rendered by custom MonthCaption
               nav: "hidden",
               weekdays: "flex",
-              weekday: "w-9 text-center text-xs text-gray-400 font-medium py-1",
+              weekday: "w-9 text-center text-xs text-muted-foreground font-medium py-1",
               weeks: "flex flex-col gap-0.5",
               week: "flex",
               day: "w-9 h-9 text-center text-sm",
-              day_button: "w-9 h-9 rounded-full flex items-center justify-center text-sm hover:bg-gray-100 transition-colors",
+              day_button: "w-9 h-9 rounded-full flex items-center justify-center text-sm hover:bg-muted transition-colors",
               selected: "[&>button]:bg-indigo-600 [&>button]:text-white [&>button]:hover:bg-indigo-700",
               today: "[&>button]:font-bold [&>button]:text-indigo-600",
               outside: "opacity-40",
@@ -120,13 +120,13 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", c
           />
 
           {/* Time picker */}
-          <div className="border-t border-gray-100 mt-2 pt-3 flex items-center gap-2 px-1">
-            <span className="text-xs text-gray-500 font-medium w-10">Time</span>
+          <div className="border-t border-border mt-2 pt-3 flex items-center gap-2 px-1">
+            <span className="text-xs text-muted-foreground font-medium w-10">Time</span>
             <input
               type="time"
               value={time}
               onChange={handleTimeChange}
-              className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
               type="button"
