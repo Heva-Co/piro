@@ -22,7 +22,7 @@ const DAY_OPTIONS = [
 ];
 
 const statusLabel: Record<string, string> = {
-  UP: "All Systems Operational",
+  UP: "Service Operational",
   DEGRADED: "Partial Outage",
   DOWN: "Major Outage",
   MAINTENANCE: "Under Maintenance",
