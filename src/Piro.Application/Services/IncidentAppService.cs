@@ -12,9 +12,9 @@ public class IncidentAppService(
     IServiceRepository serviceRepo,
     ServiceStatusService statusService)
 {
-    public async Task<IEnumerable<IncidentDto>> GetAllAsync(bool includeResolved = false, CancellationToken ct = default)
+    public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
-        var incidents = await incidentRepo.GetAllAsync(includeResolved, ct);
+        var incidents = await incidentRepo.GetAllAsync(filter, ct);
         return incidents.Select(Map);
     }
 
@@ -64,6 +64,7 @@ public class IncidentAppService(
         if (request.Title is not null) incident.Title = request.Title;
         if (request.StartDateTime.HasValue) incident.StartDateTime = request.StartDateTime.Value;
         if (request.EndDateTime.HasValue) incident.EndDateTime = request.EndDateTime.Value;
+        if (request.IsGlobal.HasValue) incident.IsGlobal = request.IsGlobal.Value;
         if (request.State.HasValue)
         {
             incident.State = request.State.Value;
@@ -128,6 +129,44 @@ public class IncidentAppService(
         await incidentRepo.DeleteCommentAsync(comment, ct);
     }
 
+    public async Task<IncidentDto> SetServicesAsync(int incidentId, SetIncidentServicesRequest request, CancellationToken ct = default)
+    {
+        var incident = await incidentRepo.GetByIdAsync(incidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString());
+
+        var desired = request.Services.ToList();
+
+        // Remove services no longer in the desired list
+        var toRemove = incident.IncidentServices
+            .Where(s => !desired.Any(d => d.ServiceSlug == (s.Service?.Slug ?? "")))
+            .ToList();
+        foreach (var link in toRemove)
+            await incidentRepo.RemoveServiceAsync(link, ct);
+
+        // Add or update each desired service
+        foreach (var d in desired)
+        {
+            var service = await serviceRepo.GetBySlugAsync(d.ServiceSlug, ct)
+                ?? throw new NotFoundException(nameof(Service), d.ServiceSlug);
+
+            var existing = incident.IncidentServices.FirstOrDefault(s => s.ServiceId == service.Id);
+            if (existing is null)
+            {
+                var link = new IncidentService { IncidentId = incidentId, ServiceId = service.Id, Impact = d.Impact };
+                await incidentRepo.AddServiceAsync(incident, link, ct);
+            }
+            else if (existing.Impact != d.Impact)
+            {
+                existing.Impact = d.Impact;
+                await incidentRepo.UpdateServiceImpactAsync(existing, ct);
+            }
+        }
+
+        await RecomputeAffectedAsync(incident, ct);
+        return Map(await incidentRepo.GetByIdAsync(incidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString()));
+    }
+
     public async Task<IncidentDto> AddServiceAsync(int incidentId, AddIncidentServiceRequest request, CancellationToken ct = default)
     {
         var incident = await incidentRepo.GetByIdAsync(incidentId, ct)
@@ -158,6 +197,22 @@ public class IncidentAppService(
         await statusService.ComputeAsync(service.Id, ct);
         return Map(await incidentRepo.GetByIdAsync(incidentId, ct)
             ?? throw new NotFoundException(nameof(Incident), incidentId.ToString()));
+    }
+
+    public async Task<IncidentDto> AcknowledgeAsync(int id, string acknowledgedBy, CancellationToken ct = default)
+    {
+        var incident = await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+
+        if (incident.AcknowledgedAt.HasValue)
+            return Map(incident);
+
+        incident.AcknowledgedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        incident.AcknowledgedBy = acknowledgedBy;
+
+        await incidentRepo.UpdateAsync(incident, ct);
+        return Map(await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString()));
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -202,10 +257,13 @@ public class IncidentAppService(
 
     private static IncidentDto Map(Incident i) => new(
         i.Id, i.Title, i.StartDateTime, i.EndDateTime,
-        i.Status, i.State, i.IsGlobal, i.Source,
+        i.Status, i.State, i.IsResolved, i.IsGlobal, i.Source,
         i.Comments.Select(c => new IncidentCommentDto(
             c.Id, c.Comment, c.CommentedAt, c.State, c.Status, c.CreatedAt)),
         i.IncidentServices.Select(s => new IncidentServiceDto(
-            s.Service?.Slug ?? s.ServiceId.ToString(), s.Impact)),
-        i.CreatedAt, i.UpdatedAt);
+            s.Service?.Slug ?? s.ServiceId.ToString(),
+            s.Service?.Name ?? s.Service?.Slug ?? s.ServiceId.ToString(),
+            s.Impact)),
+        i.CreatedAt, i.UpdatedAt,
+        i.AcknowledgedAt, i.AcknowledgedBy);
 }

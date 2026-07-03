@@ -36,9 +36,8 @@ export default function IncidentFormPage() {
     mutationFn: async () => {
       const incident = await incidentsApi.create({
         title,
-        status: state,
-        severity: "medium",
-        startedAt: new Date(startDateTime).toISOString(),
+        state,
+        startDateTime: Math.floor(new Date(startDateTime).getTime() / 1000),
         isGlobal,
       });
       for (const [slug] of Object.entries(selectedServices)) {

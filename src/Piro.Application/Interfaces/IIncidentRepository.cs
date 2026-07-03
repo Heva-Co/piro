@@ -6,7 +6,12 @@ namespace Piro.Application.Interfaces;
 /// <summary>Persistence contract for <see cref="Incident"/> aggregate (comments and service links included).</summary>
 public interface IIncidentRepository
 {
-    Task<IEnumerable<Incident>> GetAllAsync(bool includeResolved = false, CancellationToken ct = default);
+    /// <summary>
+    /// Returns incidents filtered by <paramref name="filter"/>:
+    /// "active" (default) = non-resolved, "all" = everything, "resolved" = only resolved,
+    /// or an <see cref="IncidentState"/> name (e.g. "investigating").
+    /// </summary>
+    Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default);
     Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default);
     Task<Incident> UpdateAsync(Incident incident, CancellationToken ct = default);
@@ -15,6 +20,7 @@ public interface IIncidentRepository
     Task UpdateCommentAsync(IncidentComment comment, CancellationToken ct = default);
     Task DeleteCommentAsync(IncidentComment comment, CancellationToken ct = default);
     Task AddServiceAsync(Incident incident, IncidentService service, CancellationToken ct = default);
+    Task UpdateServiceImpactAsync(IncidentService service, CancellationToken ct = default);
     Task RemoveServiceAsync(IncidentService service, CancellationToken ct = default);
     Task DeleteAsync(Incident incident, CancellationToken ct = default);
 

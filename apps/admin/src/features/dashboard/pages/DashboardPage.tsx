@@ -133,7 +133,7 @@ export default function DashboardPage() {
                     <li key={incident.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{incident.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={incident.severity} />
+                        <StatusBadge status={incident.state} />
                         <span className="text-xs text-gray-500">{incident.status}</span>
                       </div>
                     </li>

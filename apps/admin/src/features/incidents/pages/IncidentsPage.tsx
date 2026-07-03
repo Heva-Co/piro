@@ -6,6 +6,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { incidentsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { formatDuration } from "@/utils/date";
 
 const STATE_BADGE: Record<string, string> = {
   INVESTIGATING: "bg-amber-100 text-amber-700",
@@ -23,14 +24,6 @@ const FILTER_OPTIONS = [
   { label: "Monitoring",   value: "monitoring" },
   { label: "Resolved",     value: "resolved" },
 ];
-
-function formatDuration(start: string, end?: string) {
-  const diff = Math.round(((end ? new Date(end).getTime() : Date.now()) - new Date(start).getTime()) / 60000);
-  if (diff < 60) return `${diff}m`;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return `${h}h ${m}m`;
-}
 
 export default function IncidentsPage() {
   const navigate = useNavigate();
@@ -100,7 +93,7 @@ export default function IncidentsPage() {
                   <td className="px-5 py-3.5 text-gray-400 font-mono text-xs">#{inc.id}</td>
                   <td className="px-5 py-3.5 font-medium text-gray-900">{inc.title}</td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs">
-                    {formatDuration(inc.startedAt, inc.resolvedAt)}
+                    {formatDuration(inc.startDateTime, inc.endDateTime)}
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATE_BADGE[inc.status?.toUpperCase()] ?? "bg-gray-100 text-gray-600"}`}>

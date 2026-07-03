@@ -179,19 +179,26 @@ export interface Incident {
   id: number;
   title: string;
   status: string;
-  severity: string;
-  startedAt: string;
-  resolvedAt?: string;
+  state: string;
+  startDateTime: number;
+  endDateTime?: number;
   isGlobal: boolean;
-  services: { slug: string; name: string }[];
+  source?: string;
+  services: { serviceSlug: string; impact: string }[];
+  comments: IncidentComment[];
+  createdAt: string;
+  updatedAt: string;
+  acknowledgedAt?: number;
+  acknowledgedBy?: string;
 }
 
 export interface IncidentComment {
   id: number;
-  body: string;
+  comment: string;
+  commentedAt: number;
+  state: string;
   status: string;
   createdAt: string;
-  author: string;
 }
 
 export const incidentsApi = {
@@ -200,7 +207,7 @@ export const incidentsApi = {
   get: (id: number | string) =>
     api.get<Incident>(ENDPOINTS.INCIDENT(id)).then((r) => r.data),
 
-  create: (data: Omit<Incident, "id" | "services">) =>
+  create: (data: { title: string; startDateTime: number; state: string; isGlobal: boolean }) =>
     api.post<Incident>(ENDPOINTS.INCIDENTS, data).then((r) => r.data),
 
   update: (id: number | string, data: Partial<Omit<Incident, "id">>) =>
@@ -221,6 +228,9 @@ export const incidentsApi = {
 
   addService: (id: number | string, slug: string) =>
     api.post(ENDPOINTS.INCIDENT_SERVICES(id), { slug }),
+
+  acknowledge: (id: number | string) =>
+    api.post<Incident>(ENDPOINTS.INCIDENT_ACKNOWLEDGE(id)).then((r) => r.data),
 
   removeService: (id: number | string, slug: string) =>
     api.delete(ENDPOINTS.INCIDENT_SERVICE(id, slug)),
