@@ -18,12 +18,22 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     /// Returns incidents filtered by <paramref name="filter"/>:
     /// "active" (default) = non-resolved, "all" = everything, "resolved" = only resolved,
     /// or a specific state name: "investigating", "identified", "monitoring".
+    /// Requires authentication — returns all incidents regardless of publish state.
     /// </summary>
     [HttpGet]
-    [AllowAnonymous]
     [ProducesResponseType<IEnumerable<IncidentDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] string filter = "active", CancellationToken ct = default) =>
         Ok(await incidentService.GetAllAsync(filter, ct));
+
+    /// <summary>
+    /// Returns published, non-merged incidents for the public status page.
+    /// Pass <c>includeResolved=true</c> to include incident history.
+    /// </summary>
+    [HttpGet("public")]
+    [AllowAnonymous]
+    [ProducesResponseType<IEnumerable<IncidentDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPublic([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
+        Ok(await incidentService.GetAllPublicAsync(includeResolved, ct));
 
     /// <summary>Returns a single incident by ID.</summary>
     [HttpGet("{id:int}")]

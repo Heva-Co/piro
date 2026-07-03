@@ -26,7 +26,6 @@ import { SectionAccordion } from "@/components/ui/section-accordion";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
 import { formatTimestamp } from "@/utils/date";
-import { SERVICE_STATUS, SERVICE_STATUS_LABEL, type ServiceStatus } from "@/constants/serviceStatus";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,10 +50,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
   const [showCustomCron, setShowCustomCron] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [isMultiRegion, setIsMultiRegion] = useState(false);
-  const [defaultStatus, setDefaultStatus] = useState("NO_DATA");
   const [criticality, setCriticality] = useState<CheckCriticalityKey>("High");
   const [autoCreate, setAutoCreate] = useState(false);
-  const [autoClose, setAutoClose] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,10 +63,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     setCron(check.cron ?? "* * * * *");
     setIsActive(check.isActive);
     setIsMultiRegion(check.isMultiRegion);
-    setDefaultStatus(check.defaultStatus ?? "NO_DATA");
     setCriticality(check.criticality ?? "High");
     setAutoCreate(check.automaticallyCreateIncident ?? false);
-    setAutoClose(check.automaticallyCloseIncident ?? false);
     const isPreset = CRON_PRESETS.some((p) => p.value === check.cron);
     setShowCustomCron(!isPreset);
   }, [check]);
@@ -78,8 +73,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     setError("");
     try {
       await updateCheck.mutateAsync({
-        name, description: description || undefined, type, cron, isActive, isMultiRegion, defaultStatus,
-        criticality, automaticallyCreateIncident: autoCreate, automaticallyCloseIncident: autoClose,
+        name, description: description || undefined, type, cron, isActive, isMultiRegion,
+        criticality, automaticallyCreateIncident: autoCreate,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -147,21 +142,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         </div>
       </div>
 
-      {/* Default Status + Active + Multi-region */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Default Status</label>
-          <Select value={defaultStatus} onValueChange={(v) => v && setDefaultStatus(v as ServiceStatus)}>
-            <SelectTrigger className="w-full">
-              <SelectValue>{(v: ServiceStatus) => SERVICE_STATUS_LABEL[v] ?? v}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.values(SERVICE_STATUS).map((s) => (
-                <SelectItem key={s} value={s}>{SERVICE_STATUS_LABEL[s]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Active + Multi-region */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold">Active</label>
           <div className="flex items-center gap-2.5">
@@ -211,18 +193,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
               <Switch checked={autoCreate} onCheckedChange={setAutoCreate} />
               <span className="text-sm text-muted-foreground">{autoCreate ? "Enabled" : "Disabled"}</span>
             </div>
-            <p className="text-xs text-muted-foreground">Creates a draft incident when this check starts alerting</p>
+            <p className="text-xs text-muted-foreground">Creates an internal incident when this check starts alerting</p>
           </div>
 
-          {/* Auto-close */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold">Auto-close incident</label>
-            <div className="flex items-center gap-2.5">
-              <Switch checked={autoClose} onCheckedChange={setAutoClose} />
-              <span className="text-sm text-muted-foreground">{autoClose ? "Enabled" : "Disabled"}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Resolves the incident when all checks on this service recover</p>
-          </div>
         </div>
       </div>
 

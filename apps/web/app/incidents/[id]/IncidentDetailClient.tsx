@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Globe } from "lucide-react";
+import { ArrowLeft, RefreshCw, Globe, Server } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Timeline } from "@/components/ui/timeline";
 import type { publicApi } from "@/lib/api";
@@ -132,7 +132,10 @@ export function IncidentDetailClient({ id, initial }: Props) {
             </div>
 
             {incident.isGlobal ? (
-              <p className="text-sm text-muted-foreground italic">All services affected</p>
+              <p className="text-sm text-muted-foreground italic flex items-center gap-1.5">
+                <Server size={14} className="opacity-50 shrink-0" />
+                All services affected
+              </p>
             ) : incident.services.length === 0 ? (
               <p className="text-sm text-muted-foreground">No services listed.</p>
             ) : (

@@ -101,7 +101,6 @@ export interface Check {
   integrationId?: number | null;
   criticality: CheckCriticality;
   automaticallyCreateIncident: boolean;
-  automaticallyCloseIncident: boolean;
 }
 
 export type CheckCriticality = "Critical" | "High" | "Medium" | "Low";
@@ -205,6 +204,8 @@ export interface Incident {
   updatedAt: string;
   acknowledgedAt?: number;
   acknowledgedBy?: string;
+  currentImpact: string;
+  impactChanges: { timestamp: number; impact: string }[];
 }
 
 export interface PublishSchedule {
@@ -274,7 +275,6 @@ export const incidentsApi = {
   updateCheck: (serviceSlug: string, checkSlug: string, data: Partial<{
     criticality: string;
     automaticallyCreateIncident: boolean;
-    automaticallyCloseIncident: boolean;
   }>) => api.put(`/api/v1/services/${serviceSlug}/checks/${checkSlug}`, data).then((r) => r.data),
 };
 

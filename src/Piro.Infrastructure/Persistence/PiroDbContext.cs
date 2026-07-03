@@ -19,13 +19,13 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<ServiceDependency> ServiceDependencies => Set<ServiceDependency>();
     public DbSet<Check> Checks => Set<Check>();
     public DbSet<CheckDataPoint> CheckDataPoints => Set<CheckDataPoint>();
-    public DbSet<ServiceStatusSnapshot> ServiceStatusSnapshots => Set<ServiceStatusSnapshot>();
-    public DbSet<Page> Pages => Set<Page>();
+public DbSet<Page> Pages => Set<Page>();
     public DbSet<PageService> PageServices => Set<PageService>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
     public DbSet<IncidentService> IncidentServices => Set<IncidentService>();
     public DbSet<IncidentMerge> IncidentMerges => Set<IncidentMerge>();
+    public DbSet<IncidentImpactChange> IncidentImpactChanges => Set<IncidentImpactChange>();
     public DbSet<Maintenance> Maintenances => Set<Maintenance>();
     public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
     public DbSet<MaintenanceService> MaintenanceServices => Set<MaintenanceService>();

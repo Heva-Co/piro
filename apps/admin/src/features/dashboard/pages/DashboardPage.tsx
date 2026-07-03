@@ -135,7 +135,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <StatusBadge status={incident.state} />
                         {!incident.isPublic && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1.5 py-0.5">Draft</span>
+                          <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1.5 py-0.5">Internal</span>
                         )}
                       </div>
                     </li>

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Piro.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Migrations
 {
     [DbContext(typeof(PiroDbContext))]
-    partial class PiroDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703172728_DropServiceStatusSnapshots")]
+    partial class DropServiceStatusSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -394,6 +397,9 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutomaticallyCloseIncident")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("AutomaticallyCreateIncident")
                         .HasColumnType("boolean");
 
@@ -414,6 +420,12 @@ namespace Piro.Infrastructure.Migrations
                         .HasDefaultValue("* * * * *");
 
                     b.Property<string>("CurrentStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("NO_DATA");
+
+                    b.Property<string>("DefaultStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")

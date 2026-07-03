@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CircleCheck, CircleX, TriangleAlert, Wrench, CircleMinus } from "lucide-react";
-import type { PublicService, ServiceOverviewDto } from "@/lib/api";
+import type { PublicService, ServiceOverviewDto, ServiceStatus } from "@/lib/api";
 import { formatLatency } from "@/lib/utils";
 import { StatusBarCalendar } from "./StatusBarCalendar";
 
@@ -25,10 +25,11 @@ const statusColor: Record<string, string> = {
 interface Props {
   service: PublicService;
   overview: ServiceOverviewDto | null;
+  incidentStatus: ServiceStatus;
 }
 
-export function ServiceRow({ service, overview }: Props) {
-  const Icon = statusIcon[service.status] ?? statusIcon.NO_DATA;
+export function ServiceRow({ service, overview, incidentStatus }: Props) {
+  const Icon = statusIcon[incidentStatus] ?? statusIcon.NO_DATA;
 
   const fromDate = overview
     ? new Date(overview.fromTimestamp * 1000).toLocaleDateString(undefined, {
@@ -80,7 +81,7 @@ export function ServiceRow({ service, overview }: Props) {
               )}
             </div>
           )}
-          <Icon className={`size-5 ${statusColor[service.status]}`} />
+          <Icon className={`size-5 ${statusColor[incidentStatus]}`} />
         </div>
       </div>
 

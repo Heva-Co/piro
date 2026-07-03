@@ -96,7 +96,7 @@ export default function IncidentsConfigPage() {
           <div className="mb-4">
             <h2 className="text-base font-semibold">Auto-Publication</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Automatically-created incidents start as drafts. Set a delay before they go public.
+              Automatically-created incidents start as internal. Set a delay before they go public.
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export default function IncidentsConfigPage() {
                 onValueChange={(v) => v && setCorrelationMode(v as IncidentCorrelationModeKey)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(v: IncidentCorrelationModeKey) => INCIDENT_CORRELATION_MODE_MAP[v]?.label ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(INCIDENT_CORRELATION_MODE_MAP) as IncidentCorrelationModeKey[]).map((key) => (

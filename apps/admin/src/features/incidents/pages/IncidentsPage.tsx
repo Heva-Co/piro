@@ -102,7 +102,7 @@ export default function IncidentsPage() {
                       <span className="font-medium text-foreground">{inc.title}</span>
                       {!inc.isPublic && (
                         <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
-                          Draft
+                          Internal
                         </span>
                       )}
                       {inc.mergedIntoIncidentId && (

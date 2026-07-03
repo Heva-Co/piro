@@ -14,7 +14,6 @@ public class ServiceStatusService(
     IServiceRepository serviceRepo,
     ICheckRepository checkRepo,
     IServiceDependencyRepository dependencyRepo,
-    IServiceStatusSnapshotRepository snapshotRepo,
     IIncidentRepository incidentRepo)
 {
     /// <summary>
@@ -73,19 +72,6 @@ public class ServiceStatusService(
         IReadOnlyList<string> propagationSources,
         CancellationToken ct)
     {
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        timestamp -= timestamp % 60; // align to minute
-
-        await snapshotRepo.UpsertAsync(new ServiceStatusSnapshot
-        {
-            ServiceId = service.Id,
-            Timestamp = timestamp,
-            ComputedStatus = newStatus,
-            PropagationSources = propagationSources.Count > 0
-                ? string.Join(",", propagationSources)
-                : null
-        }, ct);
-
         var changed = service.CurrentStatus != newStatus;
         service.CurrentStatus = newStatus;
         await serviceRepo.UpdateAsync(service, ct);

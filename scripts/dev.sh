@@ -5,10 +5,13 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-start_api() {
+build_api() {
   echo "▶  Building API..."
   cd "$REPO_ROOT"
-  dotnet build src/Piro.Api/Piro.Api.csproj -c Debug -q
+  BUILD_OUT=$(dotnet build src/Piro.Api/Piro.Api.csproj -c Debug -q 2>&1) || { echo "$BUILD_OUT"; exit 1; }
+}
+
+start_api() {
   echo "▶  Starting API (http://localhost:5117)..."
   cd "$REPO_ROOT/src/Piro.Api"
   ASPNETCORE_ENVIRONMENT=Development dotnet run --no-build &
@@ -46,18 +49,19 @@ WEB_PID=""
 ADMIN_PID=""
 
 case "${1:-}" in
-  --api-only)   start_api ;;
-  --web-only)   start_web ;;
-  --admin-only) start_admin ;;
-  *)            start_api; start_web; start_admin ;;
+  --api-only)      build_api; start_api ;;
+  --web-only)      start_web ;;
+  --admin-only)    start_admin ;;
+  --frontend-only) start_web; start_admin ;;
+  *)               build_api; start_api; start_web; start_admin ;;
 esac
 
 echo ""
 echo "✓  Services started. Press Ctrl+C to stop."
 echo ""
-[[ -z "${1:-}" || "${1:-}" == "--api-only"   ]] && echo "   API   → http://localhost:5117"
-[[ -z "${1:-}" || "${1:-}" == "--web-only"   ]] && echo "   Web   → http://localhost:3000"
-[[ -z "${1:-}" || "${1:-}" == "--admin-only" ]] && echo "   Admin → http://localhost:5173/admin"
+[[ -z "${1:-}" || "${1:-}" == "--api-only"                        ]] && echo "   API   → http://localhost:5117"
+[[ -z "${1:-}" || "${1:-}" == "--web-only"   || "${1:-}" == "--frontend-only" ]] && echo "   Web   → http://localhost:3000"
+[[ -z "${1:-}" || "${1:-}" == "--admin-only" || "${1:-}" == "--frontend-only" ]] && echo "   Admin → http://localhost:5173/admin"
 echo ""
 
 wait

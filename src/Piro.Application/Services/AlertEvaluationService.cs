@@ -52,6 +52,29 @@ public class AlertEvaluationService(
         }
     }
 
+    /// <summary>
+    /// Evaluates auto-incident creation/closure based solely on the check's new status.
+    /// Called from the ingester on every status change — independent of alert configs.
+    /// Creates an incident when the check transitions to DOWN/DEGRADED and
+    /// <see cref="Check.AutomaticallyCreateIncident"/> is true; closes it on recovery
+    /// when <see cref="Check.AutomaticallyCloseIncident"/> is true.
+    /// </summary>
+    public async Task EvaluateIncidentPolicyAsync(int checkId, ServiceStatus previousStatus, ServiceStatus newStatus, CancellationToken ct = default)
+    {
+        if (previousStatus == newStatus) return;
+
+        var check = await checkRepository.GetByIdAsync(checkId, ct);
+        if (check is null) return;
+
+        var service = await serviceRepository.GetByIdAsync(check.ServiceId, ct);
+        if (service is null) return;
+
+        bool isFailure = newStatus is ServiceStatus.DOWN or ServiceStatus.DEGRADED;
+
+        if (check.AutomaticallyCreateIncident && isFailure)
+            await HandleAutoCreateIncidentAsync(check, service, ct);
+    }
+
     private async Task EvaluateConfigAsync(
         AlertConfig config,
         Check check,
@@ -117,11 +140,6 @@ public class AlertEvaluationService(
 
         config.IsAlerting = shouldFire;
         await alertConfigRepository.UpdateAsync(config, ct);
-
-        if (check.AutomaticallyCreateIncident && shouldFire)
-            await HandleAutoCreateIncidentAsync(check, service, ct);
-        else if (check.AutomaticallyCloseIncident && shouldRecover)
-            await HandleAutoCloseIncidentAsync(check, service, ct);
     }
 
     /// <summary>
@@ -170,16 +188,18 @@ public class AlertEvaluationService(
                     ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
                 });
                 await incidentRepository.UpdateAsync(existing, ct);
+                await RecordImpactIfChangedAsync(existing, ct);
             }
             return;
         }
 
-        var incident = BuildAlertIncident($"[Alert] {service.Name}", isPublic, isGlobal: false);
+        var incident = BuildAlertIncident(IncidentTitleFactory.Build(check.Type), isPublic, isGlobal: false);
         incident.IncidentServices.Add(new IncidentService
         {
             ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
         });
         var created = await incidentRepository.CreateAsync(incident, ct);
+        await RecordImpactIfChangedAsync(created, ct);
 
         if (!isPublic && publishDelayMinutes > 0)
             await publishScheduler.ScheduleAsync(created.Id, publishDelayMinutes, ct);
@@ -209,7 +229,7 @@ public class AlertEvaluationService(
         var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
         if (globalIncident is null)
         {
-            globalIncident = BuildAlertIncident("[Alert] Multiple services affected", isPublic, isGlobal: true);
+            globalIncident = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
             foreach (var i in recentAlerts)
                 foreach (var s in i.IncidentServices)
                     globalIncident.IncidentServices.Add(new IncidentService
@@ -217,6 +237,7 @@ public class AlertEvaluationService(
                         ServiceId = s.ServiceId, Impact = s.Impact, TriggeringCheckId = s.TriggeringCheckId
                     });
             globalIncident = await incidentRepository.CreateAsync(globalIncident, ct);
+            await RecordImpactIfChangedAsync(globalIncident, ct);
             if (!isPublic && settings.IncidentPublishDelayMinutes > 0)
                 await publishScheduler.ScheduleAsync(globalIncident.Id, settings.IncidentPublishDelayMinutes, ct);
         }
@@ -228,6 +249,7 @@ public class AlertEvaluationService(
                 ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
             });
             await incidentRepository.UpdateAsync(globalIncident, ct);
+            await RecordImpactIfChangedAsync(globalIncident, ct);
         }
     }
 
@@ -251,6 +273,7 @@ public class AlertEvaluationService(
                     ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
                 });
                 await incidentRepository.UpdateAsync(globalIncident, ct);
+                await RecordImpactIfChangedAsync(globalIncident, ct);
             }
             return;
         }
@@ -264,7 +287,7 @@ public class AlertEvaluationService(
         if (affectedServiceCount >= settings.GlobalIncidentThreshold)
         {
             // Elevate: create global incident and merge existing per-service incidents into it
-            var newGlobal = BuildAlertIncident("[Alert] Multiple services affected", isPublic, isGlobal: true);
+            var newGlobal = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
             newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
 
             foreach (var perService in recentPerServiceIncidents)
@@ -302,6 +325,7 @@ public class AlertEvaluationService(
             }
 
             await incidentRepository.UpdateAsync(newGlobal, ct);
+            await RecordImpactIfChangedAsync(newGlobal, ct);
             logger.LogWarning("Hybrid correlation: elevated {Count} per-service incidents into global incident #{GlobalId}.",
                 recentPerServiceIncidents.Count, newGlobal.Id);
         }
@@ -310,63 +334,6 @@ public class AlertEvaluationService(
             // Below threshold — create or attach to per-service incident
             await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
         }
-    }
-
-    /// <summary>
-    /// Called on check recovery when <see cref="Check.AutomaticallyCloseIncident"/> is true.
-    /// Resolves the open ALERT incident (per-service or global) only when no other checks
-    /// on the affected services are still alerting.
-    /// </summary>
-    private async Task HandleAutoCloseIncidentAsync(Check check, Service service, CancellationToken ct)
-    {
-        // Check if any other alert configs on this service are still alerting
-        var remainingAlerts = await incidentRepository.CountAlertingChecksOnServiceAsync(service.Id, ct);
-        if (remainingAlerts > 0)
-        {
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Check {CheckId} recovered but {Count} other checks on service {ServiceId} are still alerting — incident stays open.",
-                    check.Id, remainingAlerts, service.Id);
-            return;
-        }
-
-        // Try global incident first, then per-service
-        var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
-        if (globalIncident is not null && globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
-        {
-            var allServicesRecovered = await AllGlobalServicesRecoveredAsync(globalIncident, ct);
-            if (allServicesRecovered)
-            {
-                globalIncident.State = IncidentState.Resolved;
-                globalIncident.Status = IncidentStatus.Resolved;
-                globalIncident.EndDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                await incidentRepository.UpdateAsync(globalIncident, ct);
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation("Global ALERT incident #{Id} auto-resolved — all services recovered.", globalIncident.Id);
-            }
-            return;
-        }
-
-        var perServiceIncident = await incidentRepository.GetOpenAlertIncidentForServiceAsync(service.Id, ct);
-        if (perServiceIncident is not null)
-        {
-            perServiceIncident.State = IncidentState.Resolved;
-            perServiceIncident.Status = IncidentStatus.Resolved;
-            perServiceIncident.EndDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            await incidentRepository.UpdateAsync(perServiceIncident, ct);
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Per-service ALERT incident #{Id} auto-resolved — service {ServiceId} recovered.", perServiceIncident.Id, service.Id);
-        }
-    }
-
-    /// <summary>Returns true when every service linked to the global incident has zero alerting checks.</summary>
-    private async Task<bool> AllGlobalServicesRecoveredAsync(Incident globalIncident, CancellationToken ct)
-    {
-        foreach (var link in globalIncident.IncidentServices)
-        {
-            var count = await incidentRepository.CountAlertingChecksOnServiceAsync(link.ServiceId, ct);
-            if (count > 0) return false;
-        }
-        return true;
     }
 
     /// <summary>Constructs a new ALERT-sourced incident in Investigating state.</summary>
@@ -380,6 +347,27 @@ public class AlertEvaluationService(
         IsGlobal = isGlobal,
         IsPublic = isPublic,
     };
+
+    /// <summary>
+    /// Recalculates the worst impact across all <see cref="IncidentService"/> entries and records
+    /// an <see cref="IncidentImpactChange"/> if the impact has changed. No-op if unchanged.
+    /// </summary>
+    private async Task RecordImpactIfChangedAsync(Incident incident, CancellationToken ct)
+    {
+        var worst = incident.IncidentServices
+            .Select(s => s.Impact)
+            .DefaultIfEmpty(ServiceStatus.DOWN)
+            .Aggregate(ServiceStatus.DOWN, (a, b) => (int)b > (int)a ? b : a);
+
+        if (worst == incident.CurrentImpact) return;
+
+        await incidentRepository.AddImpactChangeAsync(incident, new IncidentImpactChange
+        {
+            IncidentId = incident.Id,
+            Impact = worst,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+        }, ct);
+    }
 
     /// <summary>Returns true when a data point's metric meets the alert threshold condition.</summary>
     private static bool IsThresholdConditionMet(AlertConfig config, CheckDataPoint dp)

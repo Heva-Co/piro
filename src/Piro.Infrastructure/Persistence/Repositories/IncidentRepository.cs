@@ -10,14 +10,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 {
     public async Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
-        var query = db.Incidents
-            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
-            .Include(i => i.IncidentServices)
-                .ThenInclude(s => s.Service)
-            .Include(i => i.IncidentServices)
-                .ThenInclude(s => s.TriggeringCheck)
-            .Include(i => i.MergesAsSource)
-            .AsQueryable();
+        var query = IncidentBaseQuery();
 
         query = filter.ToLowerInvariant() switch
         {
@@ -29,12 +22,31 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
                             : query.Where(i => i.State != IncidentState.Resolved),
         };
 
-        query = query
+        return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<Incident>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
+    {
+        var query = IncidentBaseQuery()
             .Where(i => i.IsPublic)
             .Where(i => !db.IncidentMerges.Any(m => m.SourceIncidentId == i.Id));
 
+        if (!includeResolved)
+            query = query.Where(i => i.State != IncidentState.Resolved);
+
         return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
     }
+
+    private IQueryable<Incident> IncidentBaseQuery() =>
+        db.Incidents
+            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.Service)
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.TriggeringCheck)
+            .Include(i => i.MergesAsSource)
+            .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
+            .AsQueryable();
 
     public async Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
@@ -44,6 +56,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.TriggeringCheck)
             .Include(i => i.MergesAsSource)
+            .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
     public async Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default)
@@ -173,9 +186,13 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<int> CountAlertingChecksOnServiceAsync(int serviceId, CancellationToken ct = default) =>
-        await db.AlertConfigs
-            .CountAsync(a => a.Check.ServiceId == serviceId && a.IsAlerting && a.IsActive, ct);
+    public async Task AddImpactChangeAsync(Incident incident, IncidentImpactChange change, CancellationToken ct = default)
+    {
+        incident.CurrentImpact = change.Impact;
+        db.Incidents.Update(incident);
+        db.IncidentImpactChanges.Add(change);
+        await db.SaveChangesAsync(ct);
+    }
 
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>
         (int)a > (int)b ? a : b;

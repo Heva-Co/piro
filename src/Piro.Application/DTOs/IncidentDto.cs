@@ -21,8 +21,13 @@ public record IncidentDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     long? AcknowledgedAt,
-    string? AcknowledgedBy
+    string? AcknowledgedBy,
+    ServiceStatus CurrentImpact,
+    IEnumerable<IncidentImpactChangeDto> ImpactChanges
 );
+
+/// <summary>Point-in-time severity change recorded on an incident.</summary>
+public record IncidentImpactChangeDto(long Timestamp, string Impact);
 
 /// <summary>Outbound representation of a single incident status update.</summary>
 public record IncidentCommentDto(

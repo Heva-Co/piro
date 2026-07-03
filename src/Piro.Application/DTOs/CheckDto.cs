@@ -14,7 +14,6 @@ public record CheckDto(
     string Cron,
     string TypeDataJson,
     ServiceStatus CurrentStatus,
-    ServiceStatus DefaultStatus,
     bool IsActive,
     bool IsMultiRegion,
     int? FailureThreshold,
@@ -25,8 +24,7 @@ public record CheckDto(
     DateTime UpdatedAt,
     int? IntegrationId,
     CheckCriticality Criticality,
-    bool AutomaticallyCreateIncident,
-    bool AutomaticallyCloseIncident
+    bool AutomaticallyCreateIncident
 );
 
 /// <summary>Payload for creating a new check within a service.</summary>
@@ -37,7 +35,6 @@ public record CreateCheckRequest(
     CheckType Type,
     [Required] string Cron,
     [Required] string TypeDataJson,
-    ServiceStatus DefaultStatus,
     bool IsActive = true,
     bool IsMultiRegion = false,
     int? FailureThreshold = null,
@@ -51,7 +48,6 @@ public record UpdateCheckRequest(
     string? Description,
     string? Cron,
     string? TypeDataJson,
-    ServiceStatus? DefaultStatus,
     bool? IsActive,
     bool? IsMultiRegion,
     int? FailureThreshold,
@@ -60,8 +56,7 @@ public record UpdateCheckRequest(
     int? HistoryDaysMobile,
     int? IntegrationId = null,
     CheckCriticality? Criticality = null,
-    bool? AutomaticallyCreateIncident = null,
-    bool? AutomaticallyCloseIncident = null
+    bool? AutomaticallyCreateIncident = null
 );
 
 /// <summary>Check with its parent service info — used in the global checks list.</summary>

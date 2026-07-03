@@ -3,6 +3,7 @@ import { StatusHeader } from "@/components/StatusHeader";
 import { ServiceRow } from "@/components/ServiceRow";
 import { IncidentCard } from "@/components/IncidentCard";
 import { MaintenanceCard } from "@/components/MaintenanceCard";
+import { AutoRefresh } from "@/components/AutoRefresh";
 
 export const revalidate = 30;
 
@@ -36,39 +37,79 @@ export default async function StatusPage() {
   const activeIncidents = incidents.filter((i) => i.state !== "Resolved");
   const hasActiveIncident = activeIncidents.length > 0;
   const hasGlobalIncident = activeIncidents.some((i) => i.isGlobal);
-  const allStatuses = services.map((s) => s.status);
-  const servicesDown = allStatuses.includes("DOWN");
-  const servicesDegraded = allStatuses.includes("DEGRADED");
 
-  const overallStatus: ServiceStatus = servicesDown
+  // Derive per-service status from incident impacts (incident-driven model).
+  // A service is UP unless an active incident explicitly lists it as affected.
+  const impactRank: Record<string, number> = { UP: 0, MAINTENANCE: 1, DEGRADED: 2, DOWN: 3 };
+  const serviceIncidentStatus = new Map<string, ServiceStatus>();
+  for (const incident of activeIncidents) {
+    if (incident.isGlobal) {
+      // Global incident affects every service
+      for (const svc of services) {
+        const cur = serviceIncidentStatus.get(svc.slug) ?? "UP";
+        const impact = (incident.services?.[0]?.impact ?? "DOWN") as ServiceStatus;
+        if ((impactRank[impact] ?? 0) > (impactRank[cur] ?? 0))
+          serviceIncidentStatus.set(svc.slug, impact);
+      }
+    } else {
+      for (const s of incident.services ?? []) {
+        const cur = serviceIncidentStatus.get(s.serviceSlug) ?? "UP";
+        const impact = s.impact as ServiceStatus;
+        if ((impactRank[impact] ?? 0) > (impactRank[cur] ?? 0))
+          serviceIncidentStatus.set(s.serviceSlug, impact);
+      }
+    }
+  }
+
+  // Overall status = worst impact across all incident-affected services
+  const incidentStatuses = [...serviceIncidentStatus.values()];
+  const incidentDown = incidentStatuses.includes("DOWN");
+  const incidentDegraded = incidentStatuses.includes("DEGRADED");
+  const downCount = incidentStatuses.filter((s) => s === "DOWN").length;
+  const degradedCount = incidentStatuses.filter((s) => s === "DEGRADED").length;
+  const totalCount = services.length;
+  const majorThreshold = totalCount > 1 ? totalCount / 2 : 1;
+
+  const overallStatus: ServiceStatus = incidentDown
     ? "DOWN"
-    : servicesDegraded || hasActiveIncident
+    : incidentDegraded || hasActiveIncident
       ? "DEGRADED"
-      : allStatuses.includes("MAINTENANCE") || ongoingMaintenances.length > 0
+      : ongoingMaintenances.length > 0
         ? "MAINTENANCE"
-        : allStatuses.length > 0
+        : totalCount > 0
           ? "UP"
           : "NO_DATA";
 
-  const statusText: Record<ServiceStatus, string> = {
-    UP: hasActiveIncident ? "Active incident in progress" : "All systems operational",
-    DEGRADED: hasGlobalIncident || (hasActiveIncident && !servicesDegraded)
-      ? "Active incident in progress"
-      : "Partial system outage",
-    DOWN: "Major system outage",
-    MAINTENANCE: "Under maintenance",
-    NO_DATA: "No status data",
-    FAILURE: "No status data",
-  };
+  let statusText: string;
+  if (hasGlobalIncident) {
+    statusText = "Major incident in progress";
+  } else if (downCount >= majorThreshold) {
+    statusText = "Major system outage";
+  } else if (downCount > 1) {
+    statusText = "Multiple services disrupted";
+  } else if (downCount === 1) {
+    statusText = "Service disruption";
+  } else if (degradedCount > 1) {
+    statusText = "Multiple services degraded";
+  } else if (degradedCount === 1) {
+    statusText = "Partial service degradation";
+  } else if (hasActiveIncident) {
+    statusText = "Active incident in progress";
+  } else if (ongoingMaintenances.length > 0) {
+    statusText = "Under maintenance";
+  } else {
+    statusText = "All systems operational";
+  }
 
   return (
     <main className="mx-auto w-full max-w-screen-lg px-8 py-10 flex flex-col gap-6">
+      <AutoRefresh />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-bold">Service Status</h1>
         <p className="text-sm text-muted-foreground">Real-time status of our services</p>
       </div>
 
-      <StatusHeader status={overallStatus} text={statusText[overallStatus]} />
+      <StatusHeader status={overallStatus} text={statusText} />
 
       {activeIncidents.length > 0 && (
         <section className="flex flex-col gap-3">
@@ -111,7 +152,11 @@ export default async function StatusPage() {
         ) : (
           services.map((service) => (
             <div key={service.slug} className="rounded-2xl border overflow-hidden">
-              <ServiceRow service={service} overview={overviewBySlug[service.slug] ?? null} />
+              <ServiceRow
+                service={service}
+                overview={overviewBySlug[service.slug] ?? null}
+                incidentStatus={serviceIncidentStatus.get(service.slug) ?? "UP"}
+              />
             </div>
           ))
         )}
