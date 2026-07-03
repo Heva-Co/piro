@@ -580,7 +580,7 @@ export const configApi = {
 export interface Integration {
   id: number;
   name: string;
-  type: "GoogleCloud";
+  type: "GoogleCloud" | "Jira";
   description?: string;
   configJson: string;
   checkCount: number;

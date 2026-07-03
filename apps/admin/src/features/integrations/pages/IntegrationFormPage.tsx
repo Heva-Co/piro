@@ -1,78 +1,30 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { Icon } from "@iconify/react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { INTEGRATION_TYPE_MAP, INTEGRATION_TYPES } from "@/constants/integrations";
+import { GoogleCloudConfig } from "../components/GoogleCloudConfig";
+import { JiraConfig } from "../components/JiraConfig";
 
-const inp = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
-
-const INTEGRATION_TYPES = [{ value: "GoogleCloud", label: "Google Cloud" }];
-
-// ── Type-specific config panels ────────────────────────────────────────────────
-
-function GoogleCloudConfig({
-  serviceAccountJson,
-  setServiceAccountJson,
-}: {
+interface FormValues {
+  name: string;
+  description: string;
+  type: string;
+  // GoogleCloud
   serviceAccountJson: string;
-  setServiceAccountJson: (v: string) => void;
-}) {
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      try {
-        // Pretty-print if valid JSON, otherwise use raw text
-        setServiceAccountJson(JSON.stringify(JSON.parse(text), null, 2));
-      } catch {
-        setServiceAccountJson(text);
-      }
-    };
-    reader.readAsText(file);
-    // Reset input so re-uploading the same file triggers onChange again
-    e.target.value = "";
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold">
-          Service Account JSON <span className="text-destructive">*</span>
-        </label>
-        <label className="cursor-pointer flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-muted transition-colors">
-          <Upload size={12} /> Upload .json
-          <input
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-        </label>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Paste the contents of your Google Cloud service account key file (.json) or upload it
-        directly. The key must have the necessary IAM permissions for the checks that use this
-        integration (e.g. <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
-      </p>
-      <textarea
-        value={serviceAccountJson}
-        onChange={(e) => setServiceAccountJson(e.target.value)}
-        rows={14}
-        placeholder={'{\n  "type": "service_account",\n  "project_id": "my-project",\n  ...\n}'}
-        className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full"
-        required
-      />
-    </div>
-  );
+  // Jira
+  jiraBaseUrl: string;
+  jiraEmail: string;
+  jiraApiToken: string;
+  jiraProjectKey: string;
+  jiraIssueType: string;
 }
-
-// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function IntegrationFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,11 +32,28 @@ export default function IntegrationFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState("GoogleCloud");
-  const [serviceAccountJson, setServiceAccountJson] = useState("");
-  const [error, setError] = useState("");
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    defaultValues: {
+      name: "",
+      description: "",
+      type: "GoogleCloud",
+      serviceAccountJson: "",
+      jiraBaseUrl: "",
+      jiraEmail: "",
+      jiraApiToken: "",
+      jiraProjectKey: "",
+      jiraIssueType: "",
+    },
+  });
+
+  const type = watch("type");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
   const { data: existing } = useQuery({
@@ -95,37 +64,52 @@ export default function IntegrationFormPage() {
 
   useEffect(() => {
     if (!existing) return;
-    setName(existing.name);
-    setDescription(existing.description ?? "");
-    setType(existing.type);
+    const base: Partial<FormValues> = {
+      name: existing.name,
+      description: existing.description ?? "",
+      type: existing.type,
+    };
     try {
       const config = JSON.parse(existing.configJson);
-      setServiceAccountJson(
-        config.serviceAccountJson
+      if (existing.type === "GoogleCloud") {
+        base.serviceAccountJson = config.serviceAccountJson
           ? JSON.stringify(JSON.parse(config.serviceAccountJson), null, 2)
-          : ""
-      );
-    } catch {
-      setServiceAccountJson("");
-    }
-  }, [existing]);
+          : "";
+      } else if (existing.type === "Jira") {
+        base.jiraBaseUrl    = config.baseUrl    ?? "";
+        base.jiraEmail      = config.email      ?? "";
+        base.jiraApiToken   = config.apiToken   ?? "";
+        base.jiraProjectKey = config.projectKey ?? "";
+        base.jiraIssueType  = config.issueType  ?? "";
+      }
+    } catch { /* ignore */ }
+    reset(base as FormValues);
+  }, [existing, reset]);
 
-  function buildConfigJson(): string {
-    switch (type) {
+  function buildConfigJson(values: FormValues): string {
+    switch (values.type) {
       case "GoogleCloud":
-        return JSON.stringify({ serviceAccountJson: serviceAccountJson.trim() });
+        return JSON.stringify({ serviceAccountJson: values.serviceAccountJson.trim() });
+      case "Jira":
+        return JSON.stringify({
+          baseUrl:    values.jiraBaseUrl.trim(),
+          email:      values.jiraEmail.trim(),
+          apiToken:   values.jiraApiToken.trim(),
+          projectKey: values.jiraProjectKey.trim(),
+          issueType:  values.jiraIssueType.trim(),
+        });
       default:
         return "{}";
     }
   }
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (values: FormValues) => {
       const payload = {
-        name,
-        type,
-        description: description || undefined,
-        configJson: buildConfigJson(),
+        name: values.name,
+        type: values.type,
+        description: values.description || undefined,
+        configJson: buildConfigJson(values),
       };
       if (isEdit) return integrationsApi.update(Number(id), payload);
       return integrationsApi.create(payload);
@@ -136,7 +120,6 @@ export default function IntegrationFormPage() {
         navigate(ROUTES.INTEGRATIONS.DETAIL((data as { id: number }).id));
       }
     },
-    onError: () => setError("Failed to save integration."),
   });
 
   const deleteMutation = useMutation({
@@ -145,18 +128,10 @@ export default function IntegrationFormPage() {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATIONS });
       navigate(ROUTES.INTEGRATIONS.LIST);
     },
-    onError: (err: unknown) => {
-      const msg =
-        err instanceof Error ? err.message : "Failed to delete integration.";
-      if (msg.includes("409") || msg.toLowerCase().includes("conflict")) {
-        setError(
-          "This integration is still referenced by one or more checks. Remove those checks first."
-        );
-      } else {
-        setError(msg);
-      }
-    },
   });
+
+  const inp = (hasError: boolean) =>
+    `rounded-lg border ${hasError ? "border-destructive" : "border-border"} bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full`;
 
   const pageTitle = isEdit ? (existing?.name ?? "Edit Integration") : "New Integration";
 
@@ -183,93 +158,143 @@ export default function IntegrationFormPage() {
           </p>
         </div>
 
-        {error && (
+        {saveMutation.isError && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {error}
+            Failed to save integration.
           </div>
         )}
 
-        {/* Main card */}
-        <div className="rounded-xl border bg-card">
-          {/* Integration type */}
-          <div className="px-6 pt-6 pb-4 border-b border-border">
-            <p className="text-sm font-semibold mb-1">Provider</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              The cloud provider this integration connects to
-            </p>
-            <Select value={type} onValueChange={(v) => v && setType(v)} disabled={isEdit}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INTEGRATION_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isEdit && (
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Provider cannot be changed after creation.
+        <form onSubmit={handleSubmit((values) => saveMutation.mutateAsync(values))}>
+          <div className="rounded-xl border bg-card">
+            {/* Provider */}
+            <div className="px-6 pt-6 pb-4 border-b border-border">
+              <p className="text-sm font-semibold mb-1">Provider</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                The cloud provider this integration connects to
               </p>
-            )}
-          </div>
-
-          {/* Common fields + type-specific */}
-          <div className="px-6 py-6 flex flex-col gap-5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold">
-                Name <span className="text-destructive">*</span>
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Production GCP"
-                className={inp}
-                required
+              <Controller
+                control={control}
+                name="type"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)} disabled={isEdit}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue>
+                        <span className="inline-flex items-center gap-2">
+                          {(() => {
+                            const meta = INTEGRATION_TYPE_MAP[field.value as keyof typeof INTEGRATION_TYPE_MAP];
+                            return meta?.icon ? (
+                              <Icon icon={meta.icon} className={`size-4 ${meta.iconClass ?? ""}`} />
+                            ) : null;
+                          })()}
+                          {INTEGRATION_TYPE_MAP[field.value as keyof typeof INTEGRATION_TYPE_MAP]?.label ?? field.value}
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INTEGRATION_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value} disabled={t.upcoming}>
+                          <span className="inline-flex items-center gap-2">
+                            <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""} ${t.upcoming ? "opacity-40" : ""}`} />
+                            <span className={t.upcoming ? "opacity-40" : ""}>{t.label}</span>
+                            {t.upcoming && (
+                              <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                Soon
+                              </span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
+              {isEdit && (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Provider cannot be changed after creation.
+                </p>
+              )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold">Description</label>
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
-                className={inp}
-              />
+
+            {/* Common fields + type-specific */}
+            <div className="px-6 py-6 flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold">
+                  Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  {...register("name", { required: "Name is required" })}
+                  placeholder="e.g. Production"
+                  className={inp(!!errors.name)}
+                />
+                {errors.name && (
+                  <p className="text-xs text-destructive">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold">Description</label>
+                <input
+                  {...register("description")}
+                  placeholder="Optional description"
+                  className={inp(false)}
+                />
+              </div>
+
+              {type === "GoogleCloud" && (
+                <Controller
+                  control={control}
+                  name="serviceAccountJson"
+                  rules={{ required: "Service account JSON is required" }}
+                  render={({ field }) => (
+                    <div className="flex flex-col gap-1">
+                      <GoogleCloudConfig
+                        serviceAccountJson={field.value}
+                        setServiceAccountJson={field.onChange}
+                      />
+                      {errors.serviceAccountJson && (
+                        <p className="text-xs text-destructive">{errors.serviceAccountJson.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
+              )}
+
+              {type === "Jira" && (
+                <JiraConfig
+                  baseUrl={watch("jiraBaseUrl")}
+                  email={watch("jiraEmail")}
+                  apiToken={watch("jiraApiToken")}
+                  projectKey={watch("jiraProjectKey")}
+                  issueType={watch("jiraIssueType")}
+                  errors={{
+                    baseUrl:  errors.jiraBaseUrl?.message,
+                    email:    errors.jiraEmail?.message,
+                    apiToken: errors.jiraApiToken?.message,
+                  }}
+                  register={register}
+                />
+              )}
             </div>
 
-            {type === "GoogleCloud" && (
-              <GoogleCloudConfig
-                serviceAccountJson={serviceAccountJson}
-                setServiceAccountJson={setServiceAccountJson}
-              />
-            )}
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
+              <button
+                type="button"
+                onClick={() => navigate(ROUTES.INTEGRATIONS.LIST)}
+                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Create Integration"}
+              </button>
+            </div>
           </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.INTEGRATIONS.LIST)}
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                saveMutation.mutate();
-              }}
-              disabled={saveMutation.isPending || !name || (type === "GoogleCloud" && !serviceAccountJson.trim())}
-              className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {saveMutation.isPending ? "Saving…" : isEdit ? "Save changes" : "Create Integration"}
-            </button>
-          </div>
-        </div>
+        </form>
 
         {/* Danger Zone */}
         {isEdit && (
