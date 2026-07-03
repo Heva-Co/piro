@@ -14,6 +14,9 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.TriggeringCheck)
+            .Include(i => i.MergesAsSource)
             .AsQueryable();
 
         query = filter.ToLowerInvariant() switch
@@ -26,6 +29,10 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
                             : query.Where(i => i.State != IncidentState.Resolved),
         };
 
+        query = query
+            .Where(i => i.IsPublic)
+            .Where(i => !db.IncidentMerges.Any(m => m.SourceIncidentId == i.Id));
+
         return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
     }
 
@@ -34,6 +41,9 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.TriggeringCheck)
+            .Include(i => i.MergesAsSource)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
     public async Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default)
@@ -119,6 +129,53 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
         return worst;
     }
+
+    public async Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default) =>
+        await db.Incidents
+            .Include(i => i.IncidentServices)
+            .FirstOrDefaultAsync(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                !i.IsGlobal &&
+                i.IncidentServices.Any(s => s.ServiceId == serviceId), ct);
+
+    public async Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default)
+    {
+        var sinceUnix = since.ToUnixTimeSeconds();
+        return await db.Incidents
+            .Include(i => i.IncidentServices)
+            .Where(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                !i.IsGlobal &&
+                i.StartDateTime >= sinceUnix)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default) =>
+        await db.Incidents
+            .Include(i => i.IncidentServices)
+            .FirstOrDefaultAsync(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                i.IsGlobal, ct);
+
+    public async Task PublishAsync(Incident incident, CancellationToken ct = default)
+    {
+        incident.IsPublic = true;
+        db.Incidents.Update(incident);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default)
+    {
+        db.IncidentMerges.Add(merge);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> CountAlertingChecksOnServiceAsync(int serviceId, CancellationToken ct = default) =>
+        await db.AlertConfigs
+            .CountAsync(a => a.Check.ServiceId == serviceId && a.IsAlerting && a.IsActive, ct);
 
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>
         (int)a > (int)b ? a : b;

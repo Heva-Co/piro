@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ChevronDown, ChevronUp, ExternalLink, Play, RefreshCw, Save } from "lucide-react";
+import { Bell, ExternalLink, Play, RefreshCw, Save } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import {
   useCheck,
@@ -14,6 +14,7 @@ import {
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
 import { channelsApi, checkTypesApi, integrationsApi } from "@/lib/api";
+import { CHECK_CRITICALITY_MAP, type CheckCriticalityKey } from "@/constants/checks";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import { StatusPill } from "@/components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { SectionAccordion } from "@/components/ui/section-accordion";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
 import { formatTimestamp } from "@/utils/date";
@@ -31,39 +33,6 @@ import { SERVICE_STATUS, SERVICE_STATUS_LABEL, type ServiceStatus } from "@/cons
 type CheckType = string;
 
 
-
-// ── Accordion ─────────────────────────────────────────────────────────────────
-
-function Accordion({
-  title,
-  children,
-  defaultOpen = false,
-  titleClassName,
-}: {
-  title: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  titleClassName?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="border-b border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between w-full py-4 text-left"
-      >
-        <span className={cn("text-sm font-semibold", titleClassName)}>{title}</span>
-        {open ? (
-          <ChevronUp size={16} className="text-muted-foreground" />
-        ) : (
-          <ChevronDown size={16} className="text-muted-foreground" />
-        )}
-      </button>
-      {open && <div className="pb-6">{children}</div>}
-    </div>
-  );
-}
 
 // ── General Settings ──────────────────────────────────────────────────────────
 
@@ -83,6 +52,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
   const [isActive, setIsActive] = useState(true);
   const [isMultiRegion, setIsMultiRegion] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState("NO_DATA");
+  const [criticality, setCriticality] = useState<CheckCriticalityKey>("High");
+  const [autoCreate, setAutoCreate] = useState(false);
+  const [autoClose, setAutoClose] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -95,6 +67,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     setIsActive(check.isActive);
     setIsMultiRegion(check.isMultiRegion);
     setDefaultStatus(check.defaultStatus ?? "NO_DATA");
+    setCriticality(check.criticality ?? "High");
+    setAutoCreate(check.automaticallyCreateIncident ?? false);
+    setAutoClose(check.automaticallyCloseIncident ?? false);
     const isPreset = CRON_PRESETS.some((p) => p.value === check.cron);
     setShowCustomCron(!isPreset);
   }, [check]);
@@ -102,7 +77,10 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
   async function handleSave() {
     setError("");
     try {
-      await updateCheck.mutateAsync({ name, description: description || undefined, type, cron, isActive, isMultiRegion, defaultStatus });
+      await updateCheck.mutateAsync({
+        name, description: description || undefined, type, cron, isActive, isMultiRegion, defaultStatus,
+        criticality, automaticallyCreateIncident: autoCreate, automaticallyCloseIncident: autoClose,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -142,17 +120,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Type</label>
-          <Select value={type} disabled>
-            <SelectTrigger className="w-full">
-              <SelectValue>{(v: string) => CHECK_TYPE_LABELS[v] ?? v}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {checkTypes.map((t) => (
-                <SelectItem key={t.type} value={t.type}>{CHECK_TYPE_LABELS[t.type] ?? t.type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">Type cannot be changed after creation.</p>
+          <input value={CHECK_TYPE_LABELS[type] ?? type} readOnly
+            className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none" />
+          <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Cron Schedule</label>
@@ -204,6 +174,54 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
           <div className="flex items-center gap-2.5">
             <Switch checked={isMultiRegion} onCheckedChange={setIsMultiRegion} />
             <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Incident automation */}
+      <div className="border-t pt-5 flex flex-col gap-4">
+        <div>
+          <p className="text-sm font-semibold">Incident Automation</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Configure how this check interacts with incident management</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {/* Criticality */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold">Criticality</label>
+            <Select value={criticality} onValueChange={(v) => v && setCriticality(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.entries(CHECK_CRITICALITY_MAP) as [CheckCriticalityKey, { label: string; description: string }][]).map(([key, meta]) => (
+                  <SelectItem key={key} value={key}>
+                    {meta.label} — {meta.description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Determines incident impact when auto-created</p>
+          </div>
+
+          {/* Auto-create */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold">Auto-create incident</label>
+            <div className="flex items-center gap-2.5">
+              <Switch checked={autoCreate} onCheckedChange={setAutoCreate} />
+              <span className="text-sm text-muted-foreground">{autoCreate ? "Enabled" : "Disabled"}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Creates a draft incident when this check starts alerting</p>
+          </div>
+
+          {/* Auto-close */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold">Auto-close incident</label>
+            <div className="flex items-center gap-2.5">
+              <Switch checked={autoClose} onCheckedChange={setAutoClose} />
+              <span className="text-sm text-muted-foreground">{autoClose ? "Enabled" : "Disabled"}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Resolves the incident when all checks on this service recover</p>
           </div>
         </div>
       </div>
@@ -542,33 +560,29 @@ export default function CheckDetailPage() {
         </div>
       </div>
 
-      <Accordion title="General Settings" defaultOpen>
+      <SectionAccordion title="General Settings" defaultOpen>
         <GeneralSettingsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </Accordion>
+      </SectionAccordion>
 
-      <Accordion title="Configuration">
+      <SectionAccordion title="Configuration">
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </Accordion>
+      </SectionAccordion>
 
-      <Accordion title="Recent Logs">
+      <SectionAccordion title="Recent Logs">
         <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </Accordion>
+      </SectionAccordion>
 
-      <Accordion title="Status History">
-        <div className="rounded-xl border bg-card px-6 py-8 text-sm text-muted-foreground text-center">
-          Status history coming soon.
-        </div>
-      </Accordion>
+      <SectionAccordion title="Status History" upcomming />
 
-      <Accordion title={
+      <SectionAccordion title={
         <span className="flex items-center gap-1.5"><Bell size={14} />Alert Configurations</span>
       }>
         <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </Accordion>
+      </SectionAccordion>
 
-      <Accordion title="Danger Zone" titleClassName="text-destructive">
+      <SectionAccordion title="Danger Zone" titleClassName="text-destructive">
         <DangerZone serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </Accordion>
+      </SectionAccordion>
     </AdminLayout>
   );
 }

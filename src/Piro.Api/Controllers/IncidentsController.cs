@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Interfaces;
 using Piro.Application.Services;
 
 namespace Piro.Api.Controllers;
@@ -11,7 +12,7 @@ namespace Piro.Api.Controllers;
 [Route("api/v1/incidents")]
 [Produces("application/json")]
 [Authorize]
-public class IncidentsController(IncidentAppService incidentService) : ControllerBase
+public class IncidentsController(IncidentAppService incidentService, IIncidentPublishScheduler publishScheduler) : ControllerBase
 {
     /// <summary>
     /// Returns incidents filtered by <paramref name="filter"/>:
@@ -116,6 +117,54 @@ public class IncidentsController(IncidentAppService incidentService) : Controlle
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await incidentService.DeleteAsync(id, ct);
+        await publishScheduler.CancelAsync(id, ct);
         return NoContent();
     }
+
+    /// <summary>Immediately publishes a draft incident to the status page, cancelling any pending auto-publish timer.</summary>
+    [HttpPost("{id:int}/publish")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Publish(int id, CancellationToken ct)
+    {
+        await incidentService.PublishAsync(id, ct);
+        await publishScheduler.CancelAsync(id, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Extends the auto-publish timer by the specified number of minutes.
+    /// If no timer is pending, schedules a new one from now.
+    /// </summary>
+    [HttpPost("{id:int}/publish/delay")]
+    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DelayPublish(int id, [FromBody] DelayPublishRequest request, CancellationToken ct)
+    {
+        await incidentService.GetByIdAsync(id, ct); // throws 404 if not found
+        await publishScheduler.ExtendAsync(id, request.AdditionalMinutes, ct);
+        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
+        return Ok(new PublishScheduleDto(scheduledAt));
+    }
+
+    /// <summary>Cancels the auto-publish timer, keeping the incident as a draft indefinitely.</summary>
+    [HttpDelete("{id:int}/publish/schedule")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> CancelPublish(int id, CancellationToken ct)
+    {
+        await publishScheduler.CancelAsync(id, ct);
+        return NoContent();
+    }
+
+    /// <summary>Returns when the incident is scheduled to be auto-published, or null if no timer is set.</summary>
+    [HttpGet("{id:int}/publish/schedule")]
+    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPublishSchedule(int id, CancellationToken ct)
+    {
+        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
+        return Ok(new PublishScheduleDto(scheduledAt));
+    }
 }
+
+public record DelayPublishRequest(int AdditionalMinutes);
+public record PublishScheduleDto(DateTimeOffset? ScheduledAt);

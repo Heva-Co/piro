@@ -215,6 +215,14 @@ public class IncidentAppService(
             ?? throw new NotFoundException(nameof(Incident), id.ToString()));
     }
 
+    public async Task PublishAsync(int id, CancellationToken ct = default)
+    {
+        var incident = await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        if (!incident.IsPublic)
+            await incidentRepo.PublishAsync(incident, ct);
+    }
+
     public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
         var incident = await incidentRepo.GetByIdAsync(id, ct)
@@ -258,12 +266,15 @@ public class IncidentAppService(
     private static IncidentDto Map(Incident i) => new(
         i.Id, i.Title, i.StartDateTime, i.EndDateTime,
         i.Status, i.State, i.IsResolved, i.IsGlobal, i.Source,
+        i.IsPublic,
         i.Comments.Select(c => new IncidentCommentDto(
             c.Id, c.Comment, c.CommentedAt, c.State, c.Status, c.CreatedAt)),
         i.IncidentServices.Select(s => new IncidentServiceDto(
             s.Service?.Slug ?? s.ServiceId.ToString(),
             s.Service?.Name ?? s.Service?.Slug ?? s.ServiceId.ToString(),
-            s.Impact)),
+            s.Impact,
+            s.TriggeringCheck?.Slug)),
+        MergedIntoIncidentId: i.MergesAsSource.FirstOrDefault()?.TargetIncidentId,
         i.CreatedAt, i.UpdatedAt,
         i.AcknowledgedAt, i.AcknowledgedBy);
 }

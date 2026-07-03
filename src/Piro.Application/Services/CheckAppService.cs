@@ -94,6 +94,9 @@ public class CheckAppService(
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
+        if (request.Criticality is not null) check.Criticality = request.Criticality.Value;
+        if (request.AutomaticallyCreateIncident is not null) check.AutomaticallyCreateIncident = request.AutomaticallyCreateIncident.Value;
+        if (request.AutomaticallyCloseIncident is not null) check.AutomaticallyCloseIncident = request.AutomaticallyCloseIncident.Value;
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
@@ -131,6 +134,7 @@ public class CheckAppService(
         c.CurrentStatus, c.DefaultStatus, c.IsActive, c.IsMultiRegion,
         c.FailureThreshold, c.RecoveryThreshold,
         c.HistoryDaysDesktop, c.HistoryDaysMobile,
-        c.CreatedAt, c.UpdatedAt, c.IntegrationId
+        c.CreatedAt, c.UpdatedAt, c.IntegrationId,
+        c.Criticality, c.AutomaticallyCreateIncident, c.AutomaticallyCloseIncident
     );
 }

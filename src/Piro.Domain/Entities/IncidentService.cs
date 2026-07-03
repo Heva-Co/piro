@@ -11,9 +11,13 @@ public class IncidentService
     /// <summary>Status impact on this service due to the incident.</summary>
     public ServiceStatus Impact { get; set; } = ServiceStatus.DOWN;
 
+    /// <summary>The check that triggered this service being attached to the incident. Null for manually added services.</summary>
+    public int? TriggeringCheckId { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     public Incident Incident { get; set; } = null!;
     public Service Service { get; set; } = null!;
+    public Check? TriggeringCheck { get; set; }
 }

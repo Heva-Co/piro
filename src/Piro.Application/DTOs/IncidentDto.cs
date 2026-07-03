@@ -14,8 +14,10 @@ public record IncidentDto(
     bool IsResolved,
     bool IsGlobal,
     string? Source,
+    bool IsPublic,
     IEnumerable<IncidentCommentDto> Comments,
     IEnumerable<IncidentServiceDto> Services,
+    int? MergedIntoIncidentId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     long? AcknowledgedAt,
@@ -34,7 +36,7 @@ public record IncidentCommentDto(
 );
 
 /// <summary>Service affected by an incident with its declared impact level.</summary>
-public record IncidentServiceDto(string ServiceSlug, string ServiceName, ServiceStatus Impact);
+public record IncidentServiceDto(string ServiceSlug, string? ServiceName, ServiceStatus Impact, string? TriggeringCheckSlug);
 
 /// <summary>Payload for creating a new incident.</summary>
 public record CreateIncidentRequest(

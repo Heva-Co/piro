@@ -18,6 +18,15 @@ export const CHECK_TYPE_LABELS: Record<string, string> = {
   GCP_CloudRunJob: "GCP Cloud Run Job",
 };
 
+export const CHECK_CRITICALITY_MAP = {
+  Critical: { label: "Critical",  description: "DOWN impact on service" },
+  High:     { label: "High",      description: "Degraded impact on service" },
+  Medium:   { label: "Medium",    description: "Degraded impact on service" },
+  Low:      { label: "Low",       description: "Degraded impact on service" },
+} as const satisfies Record<string, { label: string; description: string }>;
+
+export type CheckCriticalityKey = keyof typeof CHECK_CRITICALITY_MAP;
+
 export const CHECK_TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
   HTTP:            { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
   DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [], degradedLatencyMs: "", downLatencyMs: "" },
