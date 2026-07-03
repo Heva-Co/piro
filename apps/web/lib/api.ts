@@ -76,6 +76,7 @@ export interface IncidentComment {
 
 export interface IncidentService {
   serviceSlug: string;
+  serviceName: string;
   impact: ServiceStatus;
 }
 
@@ -140,7 +141,7 @@ export const publicApi = {
   incidents: (includeResolved = false) =>
     get<Incident[]>(`/incidents?includeResolved=${includeResolved}`),
 
-  incident: (id: number | string) => get<Incident>(`/incidents/${id}`),
+  incident: (id: number | string) => get<Incident>(`/incidents/${id}`, 0),
 
   maintenances: () => get<Maintenance[]>("/maintenances"),
 };
