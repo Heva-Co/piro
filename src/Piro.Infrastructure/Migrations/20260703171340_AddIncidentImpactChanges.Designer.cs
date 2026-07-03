@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Piro.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Migrations
 {
     [DbContext(typeof(PiroDbContext))]
-    partial class PiroDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703171340_AddIncidentImpactChanges")]
+    partial class AddIncidentImpactChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -394,6 +397,9 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutomaticallyCloseIncident")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("AutomaticallyCreateIncident")
                         .HasColumnType("boolean");
 
@@ -414,6 +420,12 @@ namespace Piro.Infrastructure.Migrations
                         .HasDefaultValue("* * * * *");
 
                     b.Property<string>("CurrentStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("NO_DATA");
+
+                    b.Property<string>("DefaultStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
@@ -1212,6 +1224,28 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("ServiceDependencies");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.ServiceStatusSnapshot", b =>
+                {
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Timestamp")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ComputedStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PropagationSources")
+                        .HasColumnType("text");
+
+                    b.HasKey("ServiceId", "Timestamp");
+
+                    b.HasIndex("ServiceId", "Timestamp");
+
+                    b.ToTable("ServiceStatusSnapshots");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.SiteData", b =>
                 {
                     b.Property<int>("Id")
@@ -1566,6 +1600,17 @@ namespace Piro.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("DependsOnService");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.ServiceStatusSnapshot", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Service");
                 });

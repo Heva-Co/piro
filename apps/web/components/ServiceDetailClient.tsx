@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { PublicService, ServiceOverviewDto, DailyStatsDto, StatusPoint } from "@/lib/api";
-import { formatLatency } from "@/lib/utils";
+import type { PublicService, ServiceOverviewDto, DailyStatsDto } from "@/lib/api";
+import { formatLatency, formatUtcDateLong, formatLocalDateTime } from "@/lib/utils";
 import { StatusBarCalendar } from "./StatusBarCalendar";
 import { LatencyTrendChart } from "./LatencyTrendChart";
 import { IncidentCard } from "./IncidentCard";
@@ -39,15 +39,6 @@ const statusClass: Record<string, string> = {
   FAILURE: "text-muted-foreground",
 };
 
-function fmtTs(ts: number): string {
-  return new Date(ts * 1000).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 interface Props {
   service: PublicService;
@@ -71,8 +62,6 @@ export function ServiceDetailClient({
   // Day detail dialog
   const [dayDetailOpen, setDayDetailOpen] = useState(false);
   const [dayDetailDay, setDayDetailDay] = useState<DailyStatsDto | null>(null);
-  const [dayDetailHistory, setDayDetailHistory] = useState<StatusPoint[]>([]);
-  const [dayDetailLoading, setDayDetailLoading] = useState(false);
 
   const availableDayOptions = DAY_OPTIONS.filter((o) => o.value <= service.historyDaysDesktop);
 
@@ -89,39 +78,42 @@ export function ServiceDetailClient({
     }
   }
 
-  async function openDayDetail(day: DailyStatsDto) {
+  function openDayDetail(day: DailyStatsDto) {
     setDayDetailDay(day);
     setDayDetailOpen(true);
-    setDayDetailHistory([]);
-    setDayDetailLoading(true);
-    try {
-      const from = day.timestamp;
-      const to = day.timestamp + 86399;
-      const res = await fetch(`/api/v1/public/services/${service.slug}/history?from=${from}&to=${to}`);
-      if (res.ok) setDayDetailHistory(await res.json());
-    } catch (e) {
-      console.error("day detail fetch failed", e);
-    } finally {
-      setDayDetailLoading(false);
-    }
   }
 
-  const fromDate = new Date(overview.fromTimestamp * 1000).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const fromDate = formatUtcDateLong(overview.fromTimestamp);
+  const toDate = formatUtcDateLong(overview.toTimestamp);
 
-  const toDate = new Date(overview.toTimestamp * 1000).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  // Derive current status from active incidents (same logic as home page)
+  const impactRank: Record<string, number> = { UP: 0, MAINTENANCE: 1, DEGRADED: 2, DOWN: 3 };
+  const now = Date.now() / 1000;
+  const activeIncidents = incidents.filter((i) => i.state !== "Resolved");
+  let incidentStatus: string = "UP";
+  for (const inc of activeIncidents) {
+    if (inc.isGlobal) {
+      const impact = inc.currentImpact as string;
+      if ((impactRank[impact] ?? 0) > (impactRank[incidentStatus] ?? 0)) incidentStatus = impact;
+    } else {
+      for (const s of inc.services ?? []) {
+        if (s.serviceSlug === service.slug) {
+          const impact = s.impact as string;
+          if ((impactRank[impact] ?? 0) > (impactRank[incidentStatus] ?? 0)) incidentStatus = impact;
+        }
+      }
+    }
+  }
+  // Fall back to maintenance window if active
+  const activeMaintenance = maintenances.find(
+    (m) => m.status === "Active" && m.serviceSlugs.includes(service.slug)
+  );
+  if (incidentStatus === "UP" && activeMaintenance) incidentStatus = "MAINTENANCE";
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "status", label: "Status" },
     { id: "latency", label: "Latency" },
-    { id: "incidents", label: "Incidents", badge: incidents.length > 0 ? incidents.length : undefined },
+    { id: "incidents", label: "Incidents", badge: activeIncidents.length > 0 ? activeIncidents.length : undefined },
     { id: "maintenances", label: "Maintenances" },
   ];
 
@@ -131,14 +123,14 @@ export function ServiceDetailClient({
       <div className="bg-background rounded-3xl border p-5 flex flex-col gap-3">
         <div className="flex flex-col gap-0.5">
           <p className="text-sm font-medium">Last Updated</p>
-          <p className="text-xs text-muted-foreground">{fmtTs(overview.lastUpdatedAt)}</p>
+          <p className="text-xs text-muted-foreground">{formatLocalDateTime(overview.lastUpdatedAt)}</p>
         </div>
         <div className="flex items-end justify-between">
           <div className="flex flex-col gap-1">
-            <p className={`text-2xl font-semibold ${statusClass[overview.currentStatus]}`}>
-              {statusLabel[overview.currentStatus]}
+            <p className={`text-2xl font-semibold ${statusClass[incidentStatus] ?? statusClass.NO_DATA}`}>
+              {statusLabel[incidentStatus] ?? incidentStatus}
             </p>
-            <p className="text-xs text-muted-foreground">Latest Status</p>
+            <p className="text-xs text-muted-foreground">Current Status</p>
           </div>
           {overview.lastLatencyMs && (
             <div className="flex flex-col items-end gap-1">
@@ -300,11 +292,7 @@ export function ServiceDetailClient({
               <div>
                 <h2 className="text-lg font-semibold">
                   {dayDetailDay
-                    ? new Date(dayDetailDay.timestamp * 1000).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
+                    ? formatUtcDateLong(dayDetailDay.timestamp)
                     : ""}
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -319,11 +307,10 @@ export function ServiceDetailClient({
               </button>
             </div>
 
-            {dayDetailLoading ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
-            ) : (
-              <PerMinuteStatusGrid history={dayDetailHistory} />
-            )}
+            <PerMinuteStatusGrid
+              slug={service.slug}
+              dayStart={dayDetailDay?.timestamp ?? 0}
+            />
           </div>
         </div>
       )}

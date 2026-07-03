@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { DailyStatsDto } from "@/lib/api";
-import { formatLatency } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatLatency, formatUtcDate, cn } from "@/lib/utils";
+import { TooltipProvider, TooltipRoot, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const COLOR_UP = "#22c55e";
 const COLOR_DOWN = "#ef4444";
@@ -49,9 +49,6 @@ function getStatusClass(item: DailyStatsDto): string {
   return "text-green-500";
 }
 
-function formatDay(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
 export function StatusBarCalendar({
   data,
@@ -62,7 +59,6 @@ export function StatusBarCalendar({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [hoveredBar, setHoveredBar] = useState<HoveredBar | null>(null);
   const hoveredIndexRef = useRef<number | null>(null);
@@ -268,49 +264,51 @@ export function StatusBarCalendar({
     if (found >= 0) onDayClick(data[found]);
   }
 
-  // Tooltip positioning
-  const tooltipStyle = (() => {
-    if (!hoveredBar) return { left: 0, bottom: barHeight + 16, opacity: 0 } as React.CSSProperties;
-    const tooltip = tooltipRef.current;
-    const tooltipWidth = tooltip?.offsetWidth ?? 0;
-    const half = tooltipWidth / 2;
-    let left = hoveredBar.x;
-    if (left < half + 4) left = half + 4;
-    if (left > canvasWidth - half - 4) left = canvasWidth - half - 4;
-    return { left, bottom: barHeight + 16 } as React.CSSProperties;
-  })();
+
+  const triggerLeft = hoveredBar
+    ? Math.max(0, Math.min(hoveredBar.x, canvasWidth))
+    : 0;
 
   return (
-    <div className={cn("relative w-full", className)} ref={containerRef}>
-      <div className="overflow-hidden" style={{ borderRadius: radius }}>
-        <canvas
-          ref={canvasRef}
-          style={{ width: "100%", height: barHeight + 8, imageRendering: "pixelated" }}
-          className={onDayClick ? "cursor-pointer" : "cursor-default"}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          aria-label="Status history bar chart"
-        />
-      </div>
+    <TooltipProvider delayDuration={0}>
+      <TooltipRoot open={!!hoveredBar}>
+        <div className={cn("relative w-full", className)} ref={containerRef}>
+          <div className="overflow-hidden" style={{ borderRadius: radius }}>
+            <canvas
+              ref={canvasRef}
+              style={{ width: "100%", height: barHeight + 8, imageRendering: "pixelated" }}
+              className={onDayClick ? "cursor-pointer" : "cursor-default"}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onClick={handleClick}
+              aria-label="Status history bar chart"
+            />
+          </div>
 
-      {hoveredBar && (
-        <div
-          ref={tooltipRef}
-          className="bg-popover text-popover-foreground pointer-events-none absolute z-20 w-max -translate-x-1/2 rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap"
-          style={tooltipStyle}
-        >
-          <span className={getStatusClass(hoveredBar.data)}>{getStatusLabel(hoveredBar.data)}</span>
-          <span className="text-muted-foreground"> · </span>
-          <span>{formatDay(hoveredBar.data.timestamp)}</span>
-          {hoveredBar.data.avgLatencyMs !== null && (
-            <>
+          {/* Invisible anchor positioned over the hovered bar — Radix uses this for placement */}
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute bottom-0"
+              style={{ left: triggerLeft, width: 1, height: barHeight }}
+            />
+          </TooltipTrigger>
+
+          {hoveredBar && (
+            <TooltipContent side="top" className="whitespace-nowrap">
+              <span className={getStatusClass(hoveredBar.data)}>{getStatusLabel(hoveredBar.data)}</span>
               <span className="text-muted-foreground"> · </span>
-              <span>{formatLatency(hoveredBar.data.avgLatencyMs)}</span>
-            </>
+              <span>{formatUtcDate(hoveredBar.data.timestamp)}</span>
+              {hoveredBar.data.avgLatencyMs !== null && (
+                <>
+                  <span className="text-muted-foreground"> · </span>
+                  <span>{formatLatency(hoveredBar.data.avgLatencyMs)}</span>
+                </>
+              )}
+            </TooltipContent>
           )}
         </div>
-      )}
-    </div>
+      </TooltipRoot>
+    </TooltipProvider>
   );
 }

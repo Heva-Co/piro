@@ -41,8 +41,15 @@ public class Incident
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>
+    /// Denormalized worst-case impact — mirrors the most recent <see cref="IncidentImpactChange.Impact"/>.
+    /// Updated automatically whenever a new ImpactChange is recorded.
+    /// </summary>
+    public ServiceStatus CurrentImpact { get; set; } = ServiceStatus.DOWN;
+
     public ICollection<IncidentComment> Comments { get; set; } = [];
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
     public ICollection<IncidentMerge> MergesAsSource { get; set; } = [];
     public ICollection<IncidentMerge> MergesAsTarget { get; set; } = [];
+    public ICollection<IncidentImpactChange> ImpactChanges { get; set; } = [];
 }

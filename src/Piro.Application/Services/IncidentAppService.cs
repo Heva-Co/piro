@@ -10,11 +10,18 @@ namespace Piro.Application.Services;
 public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
-    ServiceStatusService statusService)
+    ServiceStatusService statusService,
+    IIncidentPublishScheduler publishScheduler)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
         var incidents = await incidentRepo.GetAllAsync(filter, ct);
+        return incidents.Select(Map);
+    }
+
+    public async Task<IEnumerable<IncidentDto>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
+    {
+        var incidents = await incidentRepo.GetAllPublicAsync(includeResolved, ct);
         return incidents.Select(Map);
     }
 
@@ -73,6 +80,7 @@ public class IncidentAppService(
             {
                 incident.Status = IncidentStatus.Resolved;
                 incident.EndDateTime ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                await publishScheduler.CancelAsync(incident.Id, ct);
             }
         }
 
@@ -103,6 +111,7 @@ public class IncidentAppService(
             incident.Status = IncidentStatus.Resolved;
             incident.State = IncidentState.Resolved;
             incident.EndDateTime ??= comment.CommentedAt;
+            await publishScheduler.CancelAsync(incident.Id, ct);
         }
         else
         {
@@ -276,5 +285,7 @@ public class IncidentAppService(
             s.TriggeringCheck?.Slug)),
         MergedIntoIncidentId: i.MergesAsSource.FirstOrDefault()?.TargetIncidentId,
         i.CreatedAt, i.UpdatedAt,
-        i.AcknowledgedAt, i.AcknowledgedBy);
+        i.AcknowledgedAt, i.AcknowledgedBy,
+        i.CurrentImpact,
+        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString())));
 }

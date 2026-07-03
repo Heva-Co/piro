@@ -46,7 +46,6 @@ public class CheckYamlEntry
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsMultiRegion { get; set; } = false;
-    public string? DefaultStatus { get; set; }
     public int? FailureThreshold { get; set; }
     public int? RecoveryThreshold { get; set; }
     public int? HistoryDaysDesktop { get; set; }
