@@ -106,14 +106,14 @@ export default function UsersPage() {
         </div>
         <button
           onClick={openInvite}
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
           <Plus size={15} /> Invite User
         </button>
       </div>
 
       {/* Users list */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading && (
           <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
         )}
@@ -139,7 +139,7 @@ export default function UsersPage() {
                 <p className="text-xs text-gray-400">{u.email}</p>
               </div>
               <div className="flex items-center gap-4">
-                <span className="rounded-full bg-gray-900 px-3 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded-full bg-foreground px-3 py-0.5 text-xs font-semibold text-white">
                   {capitalize(role)}
                 </span>
                 {createdAt && (
@@ -175,14 +175,14 @@ export default function UsersPage() {
               <label className="block text-sm font-semibold text-gray-900 mb-2">Email address</label>
               <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
                 required autoFocus placeholder="colleague@example.com"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
+                className="w-full rounded-lg border border-border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">Role</label>
               <select
                 value={inviteRoleId}
                 onChange={(e) => setInviteRoleId(Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
               >
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>{capitalize(r.name)}</option>
@@ -191,7 +191,7 @@ export default function UsersPage() {
             </div>
             <div className="flex justify-end gap-3 mt-2">
               <button type="button" onClick={() => setShowInvite(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted">
                 Cancel
               </button>
               <button type="submit" disabled={inviteMutation.isPending || !inviteEmail.trim() || !inviteRoleId}
@@ -216,7 +216,7 @@ export default function UsersPage() {
             <select
               value={selectedRoleId}
               onChange={(e) => setSelectedRoleId(Number(e.target.value))}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
             >
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>{capitalize(r.name)}</option>
@@ -225,7 +225,7 @@ export default function UsersPage() {
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button type="button" onClick={() => setChangeRoleUser(null)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted">
               Cancel
             </button>
             <button

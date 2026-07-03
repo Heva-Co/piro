@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Interfaces;
 using Piro.Application.Services;
 
 namespace Piro.Api.Controllers;
@@ -8,7 +9,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/services")]
 [Produces("application/json")]
-public class ServicesController(ServiceAppService serviceApp) : ControllerBase
+public class ServicesController(ServiceAppService serviceApp, ServiceStatusService statusService, IServiceRepository serviceRepo) : ControllerBase
 {
     /// <summary>Returns all services ordered by display_order.</summary>
     [HttpGet]
@@ -39,6 +40,17 @@ public class ServicesController(ServiceAppService serviceApp) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(string slug, [FromBody] UpdateServiceRequest request, CancellationToken ct) =>
         Ok(await serviceApp.UpdateAsync(slug, request, ct));
+
+    /// <summary>Recomputes the derived status for all services.</summary>
+    [HttpPost("recompute-status")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RecomputeAll(CancellationToken ct)
+    {
+        var services = await serviceRepo.GetAllAsync(ct);
+        foreach (var svc in services)
+            await statusService.ComputeAsync(svc.Id, ct);
+        return NoContent();
+    }
 
     /// <summary>Deletes a service and all its checks.</summary>
     [HttpDelete("{slug}")]

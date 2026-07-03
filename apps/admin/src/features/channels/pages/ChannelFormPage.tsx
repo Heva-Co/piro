@@ -643,7 +643,7 @@ export default function ChannelFormPage() {
         {testResult && (
           <div className={`rounded-lg border px-4 py-3 text-sm ${
             testResult === "success"
-              ? "border-green-200 bg-green-50 text-green-700"
+              ? "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"
               : "border-destructive/20 bg-destructive/5 text-destructive"
           }`}>{testMsg}</div>
         )}

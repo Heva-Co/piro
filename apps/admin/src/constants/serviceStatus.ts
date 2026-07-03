@@ -9,6 +9,11 @@ export const SERVICE_STATUS = {
 
 export type ServiceStatus = (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 
+export const IMPACT_OPTIONS: { value: ServiceStatus; label: string }[] = [
+  { value: "DEGRADED", label: "Degraded" },
+  { value: "DOWN",     label: "Down" },
+];
+
 export const SERVICE_STATUS_LABEL: Record<ServiceStatus, string> = {
   NO_DATA:     "No data",
   UP:          "Up",

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
@@ -12,12 +13,16 @@ namespace Piro.Api.Controllers;
 [Authorize]
 public class IncidentsController(IncidentAppService incidentService) : ControllerBase
 {
-    /// <summary>Returns all active incidents. Pass <c>?includeResolved=true</c> to include resolved ones.</summary>
+    /// <summary>
+    /// Returns incidents filtered by <paramref name="filter"/>:
+    /// "active" (default) = non-resolved, "all" = everything, "resolved" = only resolved,
+    /// or a specific state name: "investigating", "identified", "monitoring".
+    /// </summary>
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType<IEnumerable<IncidentDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
-        Ok(await incidentService.GetAllAsync(includeResolved, ct));
+    public async Task<IActionResult> GetAll([FromQuery] string filter = "active", CancellationToken ct = default) =>
+        Ok(await incidentService.GetAllAsync(filter, ct));
 
     /// <summary>Returns a single incident by ID.</summary>
     [HttpGet("{id:int}")]
@@ -72,6 +77,23 @@ public class IncidentsController(IncidentAppService incidentService) : Controlle
         await incidentService.DeleteCommentAsync(id, commentId, ct);
         return NoContent();
     }
+
+    /// <summary>Acknowledges an incident, marking the current user as the responder.</summary>
+    [HttpPost("{id:int}/acknowledge")]
+    [ProducesResponseType<IncidentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Acknowledge(int id, CancellationToken ct)
+    {
+        var name = User.FindFirstValue("name") ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
+        return Ok(await incidentService.AcknowledgeAsync(id, name, ct));
+    }
+
+    /// <summary>Replaces the full set of affected services for an incident in one call.</summary>
+    [HttpPut("{id:int}/services")]
+    [ProducesResponseType<IncidentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetServices(int id, [FromBody] SetIncidentServicesRequest request, CancellationToken ct) =>
+        Ok(await incidentService.SetServicesAsync(id, request, ct));
 
     /// <summary>Links an affected service to an incident.</summary>
     [HttpPost("{id:int}/services")]

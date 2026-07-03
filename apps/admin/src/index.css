@@ -117,9 +117,66 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* MDXEditor dark mode overrides */
+.dark .mdxeditor {
+  --accentBase: oklch(0.269 0 0);
+  --accentBgSubtle: oklch(0.269 0 0);
+  --accentBg: oklch(0.3 0 0);
+  --accentBgHover: oklch(0.32 0 0);
+  --accentBgActive: oklch(0.35 0 0);
+  --accentLine: oklch(0.4 0 0);
+  --accentBorder: oklch(0.4 0 0);
+  --accentBorderHover: oklch(0.5 0 0);
+  --accentSolid: oklch(0.6 0 0);
+  --accentSolidHover: oklch(0.7 0 0);
+  --accentText: oklch(0.985 0 0);
+  --accentTextContrast: oklch(0.145 0 0);
+  --baseBase: oklch(0.145 0 0);
+  --baseBgSubtle: oklch(0.145 0 0);
+  --baseBg: oklch(0.205 0 0);
+  --baseBgHover: oklch(0.25 0 0);
+  --baseBgActive: oklch(0.27 0 0);
+  --baseLine: oklch(0.32 0 0);
+  --baseBorder: oklch(1 0 0 / 10%);
+  --baseBorderHover: oklch(1 0 0 / 20%);
+  --baseSolid: oklch(0.556 0 0);
+  --baseSolidHover: oklch(0.65 0 0);
+  --baseText: oklch(0.708 0 0);
+  --baseTextContrast: oklch(0.985 0 0);
+}
+
+.dark .mdxeditor [contenteditable] {
+  color: oklch(0.985 0 0);
+  caret-color: oklch(0.985 0 0);
+}
+
+.dark [class*="selectTrigger"] {
+  background-color: oklch(0.269 0 0);
+  color: oklch(0.985 0 0);
+  border-color: oklch(1 0 0 / 10%);
+}
+
+.dark [class*="selectContent"],
+.dark [class*="selectItem"] {
+  background-color: oklch(0.205 0 0);
+  color: oklch(0.985 0 0);
+}
+
+.dark [class*="selectItem"]:hover,
+.dark [class*="selectItem"][data-highlighted],
+.dark [class*="selectItem"][aria-selected="true"]:hover {
+  background-color: oklch(0.32 0 0);
+  color: oklch(0.985 0 0);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.708 0 0 / 40%) transparent;
+    }
+  .dark * {
+    scrollbar-color: oklch(0.4 0 0 / 60%) transparent;
     }
   body {
     @apply bg-background text-foreground;

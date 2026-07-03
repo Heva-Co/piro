@@ -111,7 +111,7 @@ export default function MaintenanceFormPage() {
       </div>
 
       <div className="max-w-2xl">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-4">
+        <div className="rounded-2xl border border-border bg-card p-6 mb-4">
           <h1 className="text-xl font-bold text-gray-900 mb-0.5">Create New Maintenance</h1>
           <p className="text-sm text-gray-500 mb-6">Schedule a new maintenance window using iCalendar RRULE format</p>
 
