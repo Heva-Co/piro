@@ -4,8 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { channelsApi } from "@/lib/api";
-import { CHANNEL_TYPE_LABELS, QUERY_KEYS } from "@/constants/api";
+import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { CHANNEL_TYPE_MAP } from "@/constants/channels";
+import { Icon } from "@iconify/react";
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
@@ -107,8 +109,14 @@ export default function ChannelsPage() {
                   <tr key={ch.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-3 font-medium">{ch.name}</td>
                     <td className="px-5 py-3">
-                      <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                        {CHANNEL_TYPE_LABELS[ch.type] ?? ch.type}
+                      <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+                        {CHANNEL_TYPE_MAP[ch.type as keyof typeof CHANNEL_TYPE_MAP]?.icon && (
+                          <Icon
+                            icon={CHANNEL_TYPE_MAP[ch.type as keyof typeof CHANNEL_TYPE_MAP].icon}
+                            className={`size-3.5 ${CHANNEL_TYPE_MAP[ch.type as keyof typeof CHANNEL_TYPE_MAP].iconClass ?? ""}`}
+                          />
+                        )}
+                        {CHANNEL_TYPE_MAP[ch.type as keyof typeof CHANNEL_TYPE_MAP]?.label ?? ch.type}
                       </span>
                     </td>
                     <td className="px-5 py-3">

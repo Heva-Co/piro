@@ -1,18 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Plug } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { INTEGRATION_TYPE_MAP } from "@/constants/integrations";
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
 }
-
-const INTEGRATION_TYPE_LABELS: Record<string, string> = {
-  GoogleCloud: "Google Cloud",
-};
 
 export default function IntegrationsPage() {
   const navigate = useNavigate();
@@ -95,8 +93,11 @@ export default function IntegrationsPage() {
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                        {INTEGRATION_TYPE_LABELS[integration.type] ?? integration.type}
+                      <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+                        {INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP]?.icon && (
+                          <Icon icon={INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP].icon} className="size-3.5" />
+                        )}
+                        {INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP]?.label ?? integration.type}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">
