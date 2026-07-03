@@ -178,13 +178,15 @@ export const checksApi = {
 export interface Incident {
   id: number;
   title: string;
+  /** @deprecated Use `isResolved` (derived from `state`) instead. */
   status: string;
   state: string;
+  isResolved: boolean;
   startDateTime: number;
   endDateTime?: number;
   isGlobal: boolean;
   source?: string;
-  services: { serviceSlug: string; impact: string }[];
+  services: { serviceSlug: string; serviceName: string; impact: string }[];
   comments: IncidentComment[];
   createdAt: string;
   updatedAt: string;
@@ -197,12 +199,14 @@ export interface IncidentComment {
   comment: string;
   commentedAt: number;
   state: string;
+  /** @deprecated Use `IncidentDto.isResolved` instead. */
   status: string;
   createdAt: string;
 }
 
 export const incidentsApi = {
-  list: () => api.get<Incident[]>(ENDPOINTS.INCIDENTS).then((r) => r.data),
+  list: (filter = "active") =>
+    api.get<Incident[]>(`${ENDPOINTS.INCIDENTS}?filter=${filter}`).then((r) => r.data),
 
   get: (id: number | string) =>
     api.get<Incident>(ENDPOINTS.INCIDENT(id)).then((r) => r.data),
@@ -218,16 +222,19 @@ export const incidentsApi = {
   comments: (id: number | string) =>
     api.get<IncidentComment[]>(ENDPOINTS.INCIDENT_COMMENTS(id)).then((r) => r.data),
 
-  addComment: (id: number | string, body: string, status: string) =>
+  addComment: (id: number | string, comment: string, state: string) =>
     api
-      .post<IncidentComment>(ENDPOINTS.INCIDENT_COMMENTS(id), { body, status })
+      .post<IncidentComment>(ENDPOINTS.INCIDENT_COMMENTS(id), { comment, state })
       .then((r) => r.data),
 
   deleteComment: (id: number | string, commentId: number | string) =>
     api.delete(ENDPOINTS.INCIDENT_COMMENT(id, commentId)),
 
-  addService: (id: number | string, slug: string) =>
-    api.post(ENDPOINTS.INCIDENT_SERVICES(id), { slug }),
+  addService: (id: number | string, slug: string, impact: string) =>
+    api.post(ENDPOINTS.INCIDENT_SERVICES(id), { serviceSlug: slug, impact }),
+
+  setServices: (id: number | string, services: { serviceSlug: string; impact: string }[]) =>
+    api.put<Incident>(ENDPOINTS.INCIDENT_SERVICES(id), { services }).then((r) => r.data),
 
   acknowledge: (id: number | string) =>
     api.post<Incident>(ENDPOINTS.INCIDENT_ACKNOWLEDGE(id)).then((r) => r.data),
