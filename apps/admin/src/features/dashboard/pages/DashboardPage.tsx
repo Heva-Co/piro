@@ -63,7 +63,7 @@ export default function DashboardPage() {
   return (
     <AdminLayout title="Overview">
       {noLocalExecution && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3 mb-6">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3 mb-6">
           <AlertCircle size={16} className="text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800">
             No default worker connected — non-multi-region checks are not executing. Go to <strong>Workers</strong> to register and connect a default worker.
@@ -101,7 +101,7 @@ export default function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {services.map((service) => (
-                  <tr key={service.slug} className="hover:bg-gray-50">
+                  <tr key={service.slug} className="hover:bg-muted">
                     <td className="px-5 py-3 font-medium text-gray-900">{service.name}</td>
                     <td className="px-5 py-3 text-gray-500">{service.slug}</td>
                     <td className="px-5 py-3">
@@ -133,7 +133,7 @@ export default function DashboardPage() {
                     <li key={incident.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{incident.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={incident.severity} />
+                        <StatusBadge status={incident.state} />
                         <span className="text-xs text-gray-500">{incident.status}</span>
                       </div>
                     </li>

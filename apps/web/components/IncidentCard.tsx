@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Incident } from "@/lib/api";
 import Link from "next/link";
@@ -38,7 +35,6 @@ interface Props {
 }
 
 export function IncidentCard({ incident }: Props) {
-  const [showComments, setShowComments] = useState(true);
   const endForDuration = incident.endDateTime ?? Math.floor(Date.now() / 1000);
   const lastUpdated =
     incident.comments.length > 0
@@ -86,42 +82,18 @@ export function IncidentCard({ incident }: Props) {
           <span>Status</span>
           <span className={stateColor[incident.state] ?? ""}>{incident.state}</span>
         </div>
-        <div className="bg-secondary flex items-center justify-between rounded-full border px-4 py-2 text-muted-foreground">
+        <Link
+          href={`/incidents/${incident.id}`}
+          className="bg-secondary flex items-center justify-between rounded-full border px-4 py-2 text-muted-foreground hover:bg-muted transition-colors"
+        >
           <span>
             {incident.comments.length > 0
               ? `${incident.comments.length} Update${incident.comments.length !== 1 ? "s" : ""}`
               : "No Updates"}
           </span>
-          {incident.comments.length > 0 && (
-            <button
-              onClick={() => setShowComments((v) => !v)}
-              className="rounded-full border bg-background p-1 hover:bg-muted transition-colors -mr-1"
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform duration-200 ${showComments ? "rotate-180" : ""}`}
-              />
-            </button>
-          )}
-        </div>
+          <ChevronDown className="size-3.5 -rotate-90" />
+        </Link>
       </div>
-
-      {showComments && incident.comments.length > 0 && (
-        <div className="flex flex-col gap-3 pt-2">
-          {incident.comments.map((comment) => (
-            <div key={comment.id} className="flex flex-col gap-1 border-b pb-3 last:border-b-0 last:pb-0">
-              <div className="flex items-center gap-2 text-xs">
-                <span
-                  className={`font-semibold uppercase tracking-wide ${stateColor[comment.state] ?? "text-muted-foreground"}`}
-                >
-                  {comment.state}
-                </span>
-                <span className="text-muted-foreground">{fmtTs(comment.commentedAt)}</span>
-              </div>
-              <p className="text-sm">{comment.comment}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

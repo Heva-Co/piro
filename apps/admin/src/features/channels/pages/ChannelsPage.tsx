@@ -114,7 +114,7 @@ export default function ChannelsPage() {
                     <td className="px-5 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         !ch.isInactive
-                          ? "bg-green-50 text-green-700 border border-green-200"
+                          ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/30"
                           : "bg-muted text-muted-foreground border border-border"
                       }`}>
                         {!ch.isInactive ? "Active" : "Inactive"}

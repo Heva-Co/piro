@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save, ChevronRight } from "lucide-react";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { Switch } from "@/components/ui/switch";
 import { AdminLayout } from "@/components/AdminLayout";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { incidentsApi, servicesApi } from "@/lib/api";
@@ -24,6 +26,7 @@ export default function IncidentFormPage() {
   const [isGlobal, setIsGlobal] = useState(false);
   const [state] = useState("INVESTIGATING");
   const [initialComment, setInitialComment] = useState("");
+  const [acknowledge, setAcknowledge] = useState(false);
   const [selectedServices, setSelectedServices] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
@@ -36,9 +39,8 @@ export default function IncidentFormPage() {
     mutationFn: async () => {
       const incident = await incidentsApi.create({
         title,
-        status: state,
-        severity: "medium",
-        startedAt: new Date(startDateTime).toISOString(),
+        state,
+        startDateTime: Math.floor(new Date(startDateTime).getTime() / 1000),
         isGlobal,
       });
       for (const [slug] of Object.entries(selectedServices)) {
@@ -46,6 +48,9 @@ export default function IncidentFormPage() {
       }
       if (initialComment.trim()) {
         await incidentsApi.addComment(incident.id, initialComment, state);
+      }
+      if (acknowledge) {
+        await incidentsApi.acknowledge(incident.id);
       }
       return incident;
     },
@@ -64,6 +69,7 @@ export default function IncidentFormPage() {
     });
   }
 
+
   return (
     <AdminLayout title="New Incident">
       {/* Breadcrumb */}
@@ -74,7 +80,7 @@ export default function IncidentFormPage() {
       </div>
 
       <div className="max-w-2xl">
-        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
           {/* Header */}
           <div className="px-6 pt-6 pb-5 border-b border-gray-100">
             <h1 className="text-xl font-bold text-gray-900">Create New Incident</h1>
@@ -114,21 +120,16 @@ export default function IncidentFormPage() {
                   <p className="text-sm font-semibold text-gray-900">Global Incident</p>
                   <p className="text-xs text-gray-500 mt-0.5">When enabled, this incident will be visible on all status pages</p>
                 </div>
-                <button type="button" onClick={() => setIsGlobal(v => !v)}
-                  className={`relative w-10 h-6 rounded-full transition-colors ${isGlobal ? "bg-gray-900" : "bg-gray-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${isGlobal ? "translate-x-5" : "translate-x-1"}`} />
-                </button>
+                <Switch checked={isGlobal} onCheckedChange={setIsGlobal} />
               </div>
 
-              {/* Initial Update */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-gray-900">
-                  Initial Update <span className="text-xs font-normal text-gray-400">(Optional)</span>
-                </label>
-                <textarea value={initialComment} onChange={e => setInitialComment(e.target.value)} rows={5}
-                  placeholder="Describe what's happening..."
-                  className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none font-mono" />
-                <p className="text-xs text-gray-400">Supports Markdown. This will be added as the first update for this incident.</p>
+              {/* Acknowledge */}
+              <div className="rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Mark as Acknowledged</p>
+                  <p className="text-xs text-gray-500 mt-0.5">The incident is already known and being handled</p>
+                </div>
+                <Switch checked={acknowledge} onCheckedChange={setAcknowledge} />
               </div>
 
               {/* Affected Services */}
@@ -159,6 +160,15 @@ export default function IncidentFormPage() {
                   </div>
                 </div>
               )}
+
+              {/* Initial Update */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-900">
+                  Initial Update <span className="text-xs font-normal text-gray-400">(Optional)</span>
+                </label>
+                <MarkdownEditor value={initialComment} onChange={setInitialComment} placeholder="Describe what's happening..." />
+                <p className="text-xs text-gray-400">This will be added as the first update for this incident.</p>
+              </div>
             </div>
 
             {/* Footer */}

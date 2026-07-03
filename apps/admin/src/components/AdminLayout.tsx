@@ -23,7 +23,10 @@ import {
   MoreVertical,
   PanelLeft,
   Plug,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { siteApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
@@ -211,6 +214,7 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
 
   const { data: siteConfig } = useQuery({
     queryKey: QUERY_KEYS.SITE_CONFIG,
@@ -266,6 +270,14 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
           {title && <h1 className="text-sm font-semibold">{title}</h1>}
 
           <div className="flex-1" />
+
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Toggle theme"
+          >
+            {resolvedTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
 
           {siteUrl && (
             <a

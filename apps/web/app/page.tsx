@@ -35,6 +35,7 @@ export default async function StatusPage() {
 
   const activeIncidents = incidents.filter((i) => i.state !== "Resolved");
   const hasActiveIncident = activeIncidents.length > 0;
+  const hasGlobalIncident = activeIncidents.some((i) => i.isGlobal);
   const allStatuses = services.map((s) => s.status);
   const servicesDown = allStatuses.includes("DOWN");
   const servicesDegraded = allStatuses.includes("DEGRADED");
@@ -50,11 +51,10 @@ export default async function StatusPage() {
           : "NO_DATA";
 
   const statusText: Record<ServiceStatus, string> = {
-    UP: "All systems operational",
-    DEGRADED:
-      hasActiveIncident && !servicesDegraded
-        ? "Active incident in progress"
-        : "Partial system outage",
+    UP: hasActiveIncident ? "Active incident in progress" : "All systems operational",
+    DEGRADED: hasGlobalIncident || (hasActiveIncident && !servicesDegraded)
+      ? "Active incident in progress"
+      : "Partial system outage",
     DOWN: "Major system outage",
     MAINTENANCE: "Under maintenance",
     NO_DATA: "No status data",

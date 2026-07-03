@@ -6,9 +6,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 start_api() {
+  echo "▶  Building API..."
+  cd "$REPO_ROOT"
+  dotnet build src/Piro.Api/Piro.Api.csproj -c Debug -q
   echo "▶  Starting API (http://localhost:5117)..."
   cd "$REPO_ROOT/src/Piro.Api"
-  ASPNETCORE_ENVIRONMENT=Development dotnet run &
+  ASPNETCORE_ENVIRONMENT=Development dotnet run --no-build &
   API_PID=$!
   echo "   API PID: $API_PID"
 }

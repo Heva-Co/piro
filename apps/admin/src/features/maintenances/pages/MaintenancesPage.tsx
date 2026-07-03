@@ -8,9 +8,9 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
 const STATUS_BADGE: Record<string, string> = {
-  ACTIVE:    "bg-green-100 text-green-700",
-  CANCELLED: "bg-gray-100 text-gray-500",
-  SCHEDULED: "bg-blue-100 text-blue-700",
+  ACTIVE:    "bg-green-500/15 text-green-600 dark:text-green-400",
+  CANCELLED: "bg-muted text-muted-foreground",
+  SCHEDULED: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   COMPLETED: "bg-indigo-100 text-indigo-700",
 };
 
@@ -59,7 +59,7 @@ export default function MaintenancesPage() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="appearance-none rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 cursor-pointer"
+              className="appearance-none rounded-lg border border-border bg-background pl-3 pr-8 py-2 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-gray-400 cursor-pointer"
             >
               {FILTER_OPTIONS.map(f => (
                 <option key={f.value} value={f.value}>{f.label}</option>
@@ -70,15 +70,15 @@ export default function MaintenancesPage() {
 
           <button
             onClick={() => navigate(ROUTES.MAINTENANCES.NEW)}
-            className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
           >
             <Plus size={15} /> New Maintenance
           </button>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <table className="min-w-full text-sm">
-            <thead className="border-b border-gray-100 bg-gray-50">
+            <thead className="border-b border-border bg-muted/30">
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">ID</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</th>
@@ -102,11 +102,11 @@ export default function MaintenancesPage() {
                 </tr>
               )}
               {paged.map((m) => (
-                <tr key={m.id} className="hover:bg-gray-50">
+                <tr key={m.id} className="hover:bg-muted">
                   <td className="px-5 py-3.5 text-gray-400 font-mono text-xs">#{m.id}</td>
                   <td className="px-5 py-3.5 font-medium text-gray-900">{m.name}</td>
                   <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-xs font-medium">
+                    <span className="inline-flex items-center rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 px-2.5 py-0.5 text-xs font-medium">
                       One-Time
                     </span>
                   </td>
@@ -123,14 +123,14 @@ export default function MaintenancesPage() {
                     })}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE[m.status?.toUpperCase()] ?? "bg-gray-100 text-gray-500"}`}>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE[m.status?.toUpperCase()] ?? "bg-muted text-muted-foreground"}`}>
                       {m.status?.toLowerCase()}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <button
                       onClick={() => navigate(ROUTES.MAINTENANCES.DETAIL(m.id))}
-                      className="rounded-md p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       <Pencil size={14} />
                     </button>
@@ -148,11 +148,11 @@ export default function MaintenancesPage() {
             </span>
             <div className="flex gap-2">
               <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40">
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-40">
                 Previous
               </button>
               <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40">
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-40">
                 Next
               </button>
             </div>

@@ -8,7 +8,7 @@ namespace Piro.Infrastructure.Persistence.Repositories;
 /// <summary>EF Core implementation of <see cref="IIncidentRepository"/>.</summary>
 public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 {
-    public async Task<IEnumerable<Incident>> GetAllAsync(bool includeResolved = false, CancellationToken ct = default)
+    public async Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
         var query = db.Incidents
             .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
@@ -16,8 +16,15 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
                 .ThenInclude(s => s.Service)
             .AsQueryable();
 
-        if (!includeResolved)
-            query = query.Where(i => i.Status == IncidentStatus.Active);
+        query = filter.ToLowerInvariant() switch
+        {
+            "all"      => query,
+            "resolved" => query.Where(i => i.State == IncidentState.Resolved),
+            "active"   => query.Where(i => i.State != IncidentState.Resolved),
+            var state  => Enum.TryParse<IncidentState>(state, ignoreCase: true, out var parsed)
+                            ? query.Where(i => i.State == parsed)
+                            : query.Where(i => i.State != IncidentState.Resolved),
+        };
 
         return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
     }
@@ -71,6 +78,12 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task UpdateServiceImpactAsync(IncidentService service, CancellationToken ct = default)
+    {
+        db.IncidentServices.Update(service);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task RemoveServiceAsync(IncidentService service, CancellationToken ct = default)
     {
         db.IncidentServices.Remove(service);
@@ -87,13 +100,13 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     {
         // Direct link impact
         var directImpacts = await db.IncidentServices
-            .Where(s => s.ServiceId == serviceId && s.Incident.Status == IncidentStatus.Active)
+            .Where(s => s.ServiceId == serviceId && s.Incident.State != IncidentState.Resolved)
             .Select(s => s.Impact)
             .ToListAsync(ct);
 
         // Global incidents (affect every service) — use DEGRADED as minimum impact
         var hasGlobal = await db.Incidents
-            .AnyAsync(i => i.Status == IncidentStatus.Active && i.IsGlobal, ct);
+            .AnyAsync(i => i.State != IncidentState.Resolved && i.IsGlobal, ct);
 
         if (!directImpacts.Any() && !hasGlobal) return null;
 

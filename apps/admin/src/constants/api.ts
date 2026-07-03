@@ -55,6 +55,7 @@ export const ENDPOINTS = {
   INCIDENT_SERVICES: (id: number | string) => `${API_BASE}/incidents/${id}/services`,
   INCIDENT_SERVICE: (id: number | string, slug: string) =>
     `${API_BASE}/incidents/${id}/services/${slug}`,
+  INCIDENT_ACKNOWLEDGE: (id: number | string) => `${API_BASE}/incidents/${id}/acknowledge`,
 
   // Notification channels
   CHANNELS: `${API_BASE}/notification-channels`,
