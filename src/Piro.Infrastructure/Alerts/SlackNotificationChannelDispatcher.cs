@@ -13,7 +13,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class SlackNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<SlackNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Slack;
+    public IntegrationType Type => IntegrationType.Slack;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

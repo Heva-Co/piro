@@ -13,7 +13,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class GoogleChatNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.GoogleChat;
+    public IntegrationType Type => IntegrationType.GoogleChat;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

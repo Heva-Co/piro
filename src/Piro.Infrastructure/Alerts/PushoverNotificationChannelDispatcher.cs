@@ -14,7 +14,7 @@ public class PushoverNotificationChannelDispatcher(IHttpClientFactory httpClient
 {
     private const string PushoverApiUrl = "https://api.pushover.net/1/messages.json";
 
-    public NotificationChannelType Type => NotificationChannelType.Pushover;
+    public IntegrationType Type => IntegrationType.Pushover;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

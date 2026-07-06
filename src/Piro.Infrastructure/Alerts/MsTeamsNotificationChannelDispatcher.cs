@@ -13,7 +13,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class MsTeamsNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<MsTeamsNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.MSTeams;
+    public IntegrationType Type => IntegrationType.MSTeams;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

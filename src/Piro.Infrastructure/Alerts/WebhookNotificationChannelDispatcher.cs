@@ -15,7 +15,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class WebhookNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<WebhookNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Webhook;
+    public IntegrationType Type => IntegrationType.Webhook;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
