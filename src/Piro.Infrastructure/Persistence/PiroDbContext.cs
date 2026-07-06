@@ -41,6 +41,13 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<OidcProviderConfig> OidcProviderConfigs => Set<OidcProviderConfig>();
     public DbSet<Integration> Integrations => Set<Integration>();
 
+    // On-call scheduling
+    public DbSet<OnCallSchedule> OnCallSchedules => Set<OnCallSchedule>();
+    public DbSet<OnCallLayer> OnCallLayers => Set<OnCallLayer>();
+    public DbSet<OnCallLayerUser> OnCallLayerUsers => Set<OnCallLayerUser>();
+    public DbSet<OnCallOverride> OnCallOverrides => Set<OnCallOverride>();
+    public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Identity must configure its tables before our custom configurations run
