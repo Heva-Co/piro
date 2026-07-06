@@ -158,6 +158,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Integration repository
         services.AddScoped<IIntegrationRepository, IntegrationRepository>();
 
+        // On-call scheduling
+        services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
+        services.AddScoped<OnCallService>();
+        services.AddScoped<OnCallScheduleAppService>();
+
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
         services.AddScoped<INotificationChannelRepository, NotificationChannelRepository>();

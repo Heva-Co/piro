@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Piro.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Migrations
 {
     [DbContext(typeof(PiroDbContext))]
-    partial class PiroDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706194947_AddOnCallEntities")]
+    partial class AddOnCallEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -876,9 +879,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<int?>("IntegrationId")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("IsGlobal")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -915,8 +915,6 @@ namespace Piro.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Id");
-
-                    b.HasIndex("IntegrationId");
 
                     b.ToTable("NotificationChannels", (string)null);
                 });
@@ -1700,16 +1698,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Maintenance");
 
                     b.Navigation("Service");
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.NotificationChannel", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
-                        .WithMany()
-                        .HasForeignKey("IntegrationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Integration");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.OnCallLayer", b =>
