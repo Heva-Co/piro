@@ -15,7 +15,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class TelegramNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Telegram;
+    public IntegrationType Type => IntegrationType.Telegram;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

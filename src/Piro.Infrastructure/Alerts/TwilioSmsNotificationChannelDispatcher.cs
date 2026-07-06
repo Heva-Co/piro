@@ -12,7 +12,7 @@ namespace Piro.Infrastructure.Alerts;
 /// <summary>Sends alert notifications as SMS via the Twilio API.</summary>
 public class TwilioSmsNotificationChannelDispatcher(ILogger<TwilioSmsNotificationChannelDispatcher> logger) : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.TwilioSms;
+    public IntegrationType Type => IntegrationType.TwilioSms;
 
     public Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

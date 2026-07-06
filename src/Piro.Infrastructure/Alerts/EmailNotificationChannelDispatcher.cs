@@ -17,7 +17,7 @@ public partial class EmailNotificationChannelDispatcher(
     ILogger<EmailNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Email;
+    public IntegrationType Type => IntegrationType.Email;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
