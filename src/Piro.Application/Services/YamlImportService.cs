@@ -54,7 +54,7 @@ public class YamlImportService(
             { errors.Add("Notification channel entry missing required field 'name'."); continue; }
             if (string.IsNullOrWhiteSpace(t.Type))
             { errors.Add($"Notification channel '{t.Name}' missing required field 'type'."); continue; }
-            if (!Enum.TryParse<NotificationChannelType>(t.Type, ignoreCase: true, out var channelType))
+            if (!Enum.TryParse<IntegrationType>(t.Type, ignoreCase: true, out var channelType))
             { errors.Add($"Notification channel '{t.Name}': unknown type '{t.Type}'."); continue; }
 
             var metaJson = ToJson(t.Meta);
