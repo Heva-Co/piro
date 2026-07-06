@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { ConfirmDialogProvider } from "@/providers/ConfirmDialogProvider";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
@@ -40,6 +41,8 @@ import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
 import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
+import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
+import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +67,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+      <ConfirmDialogProvider>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -121,6 +125,10 @@ export default function App() {
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
               <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
               <Route path={ROUTES.CONFIG.INCIDENTS} element={<IncidentsConfigPage />} />
+
+              {/* On-Call */}
+              <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />
+              <Route path="/admin/oncall/:id" element={<OnCallScheduleDetailPage />} />
             </Route>
 
             {/* Catch-all */}
@@ -128,6 +136,7 @@ export default function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </ConfirmDialogProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

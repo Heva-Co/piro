@@ -292,6 +292,8 @@ export interface NotificationChannel {
   createdAt: string;
   updatedAt: string;
   alertConfigCount: number;
+  integrationId?: number;
+  integrationName?: string;
 }
 
 export const channelsApi = {
@@ -300,15 +302,15 @@ export const channelsApi = {
   get: (id: number | string) =>
     api.get<NotificationChannel>(ENDPOINTS.CHANNEL(id)).then((r) => r.data),
 
-  create: (data: Omit<NotificationChannel, "id">) =>
+  create: (data: Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">) =>
     api.post<NotificationChannel>(ENDPOINTS.CHANNELS, data).then((r) => r.data),
 
-  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id">>) =>
+  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">>) =>
     api.put<NotificationChannel>(ENDPOINTS.CHANNEL(id), data).then((r) => r.data),
 
   delete: (id: number | string) => api.delete(ENDPOINTS.CHANNEL(id)),
 
-  test: (data: { type: string; metaJson: string; name?: string }) =>
+  test: (data: { type: string; metaJson: string; name?: string; integrationId?: number }) =>
     api.post(ENDPOINTS.CHANNEL_TEST, data),
 };
 
@@ -625,10 +627,29 @@ export const configApi = {
 
 // ─── Integrations ─────────────────────────────────────────────────────────────
 
+export const INTEGRATION_TYPES = {
+  GoogleCloud: "GoogleCloud",
+  Jira: "Jira",
+  Email: "Email",
+  Webhook: "Webhook",
+  Slack: "Slack",
+  PagerDuty: "PagerDuty",
+  MSTeams: "MSTeams",
+  Telegram: "Telegram",
+  TwilioSms: "TwilioSms",
+  GoogleChat: "GoogleChat",
+  Discord: "Discord",
+  Opsgenie: "Opsgenie",
+  Pushover: "Pushover",
+  Ntfy: "Ntfy",
+} as const;
+
+export type IntegrationType = keyof typeof INTEGRATION_TYPES;
+
 export interface Integration {
   id: number;
   name: string;
-  type: "GoogleCloud" | "Jira";
+  type: IntegrationType;
   description?: string;
   configJson: string;
   checkCount: number;
@@ -655,4 +676,119 @@ export interface CheckTypeMeta {
 
 export const checkTypesApi = {
   list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
+};
+
+// ─── On-Call Schedules ────────────────────────────────────────────────────────
+
+export interface OnCallLayerUser {
+  id: number;
+  userId: number;
+  userName: string;
+  userInitials: string;
+  userColor: string;
+  position: number;
+}
+
+export interface OnCallLayer {
+  id: number;
+  scheduleId: number;
+  name: string;
+  order: number;
+  recurrenceRule: string;
+  firstOccurrenceStartsAt: string;
+  firstOccurrenceEndsAt: string;
+  isAllDay: boolean;
+  users: OnCallLayerUser[];
+}
+
+export interface OnCallOverride {
+  id: number;
+  scheduleId: number;
+  userId: number;
+  userName: string;
+  userColor: string;
+  replacesUserId: number | null;
+  replacesUserName: string | null;
+  startsAtUtc: string;
+  endsAtUtc: string;
+  reason: string | null;
+}
+
+export interface OnCallSchedule {
+  id: number;
+  name: string;
+  description: string | null;
+  timeZone: string;
+  notifyOnShiftStart: boolean;
+  startsAtUtc: string | null;
+  endsAtUtc: string | null;
+  createdAt: string;
+  updatedAt: string;
+  layers: OnCallLayer[];
+}
+
+export interface OnCallSlot {
+  layerId: number;
+  layerName: string;
+  userId: number;
+  userName: string;
+  userInitials: string;
+  userColor: string;
+  startsAt: string;
+  endsAt: string;
+  isOverride: boolean;
+  replacesUserName: string | null;
+}
+
+export interface OnCallUser {
+  id: number;
+  name: string;
+  initials: string;
+  color: string;
+}
+
+export interface UserNotificationPreference {
+  id: number;
+  integrationId: number;
+  integrationName: string;
+  integrationType: string;
+  handle: string;
+  priority: number;
+}
+
+export const onCallApi = {
+  list: () => api.get<OnCallSchedule[]>(ENDPOINTS.ONCALL_SCHEDULES).then((r) => r.data),
+  get: (id: number | string) => api.get<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id)).then((r) => r.data),
+  create: (data: { name: string; description?: string; timeZone?: string; notifyOnShiftStart?: boolean; startsAtUtc?: string; endsAtUtc?: string }) =>
+    api.post<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULES, data).then((r) => r.data),
+  update: (id: number | string, data: Partial<{ name: string; description: string; timeZone: string; notifyOnShiftStart: boolean; startsAtUtc: string; endsAtUtc: string }>) =>
+    api.put<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id), data).then((r) => r.data),
+  delete: (id: number | string) => api.delete(ENDPOINTS.ONCALL_SCHEDULE(id)),
+  getCurrent: (id: number | string) => api.get<OnCallUser[]>(ENDPOINTS.ONCALL_SCHEDULE_CURRENT(id)).then((r) => r.data),
+  expand: (id: number | string, from: string, to: string) =>
+    api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_SCHEDULE_EXPAND(id)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.data),
+
+  // Layers
+  createLayer: (scheduleId: number | string, data: { name: string; order: number; recurrenceRule: string; firstOccurrenceStartsAt: string; firstOccurrenceEndsAt: string; userIds: number[] }) =>
+    api.post<OnCallLayer>(ENDPOINTS.ONCALL_SCHEDULE_LAYERS(scheduleId), data).then((r) => r.data),
+  updateLayer: (scheduleId: number | string, layerId: number | string, data: { name: string; recurrenceRule: string; firstOccurrenceStartsAt: string; firstOccurrenceEndsAt: string; userIds: number[] }) =>
+    api.put<OnCallLayer>(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId), data).then((r) => r.data),
+  deleteLayer: (scheduleId: number | string, layerId: number | string) =>
+    api.delete(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId)),
+  addLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
+    api.post(ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId), { userId }),
+  removeLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
+    api.delete(`${ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId)}/${userId}`),
+
+  // Overrides
+  createOverride: (scheduleId: number | string, data: { userId: number; replacesUserId?: number; startsAtUtc: string; endsAtUtc: string; reason?: string }) =>
+    api.post<OnCallOverride>(ENDPOINTS.ONCALL_SCHEDULE_OVERRIDES(scheduleId), data).then((r) => r.data),
+  deleteOverride: (scheduleId: number | string, overrideId: number | string) =>
+    api.delete(ENDPOINTS.ONCALL_SCHEDULE_OVERRIDE(scheduleId, overrideId)),
+
+  // User notification preferences
+  getNotificationPreferences: (userId: number | string) =>
+    api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
+  setNotificationPreferences: (userId: number | string, preferences: { integrationId: number; handle: string; priority: number }[]) =>
+    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
 };
