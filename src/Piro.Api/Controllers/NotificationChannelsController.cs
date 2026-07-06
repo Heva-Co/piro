@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
@@ -14,9 +15,12 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/notification-channels")]
 [Produces("application/json")]
-public class NotificationChannelsController(NotificationChannelAppService channelApp, IEnumerable<INotificationChannelDispatcher> dispatchers) : ControllerBase
+public class NotificationChannelsController(
+    NotificationChannelAppService channelApp,
+    IIntegrationRepository integrationRepository,
+    IEnumerable<INotificationChannelDispatcher> dispatchers) : ControllerBase
 {
-    private readonly Dictionary<NotificationChannelType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>Returns all configured notification channels.</summary>
@@ -68,18 +72,41 @@ public class NotificationChannelsController(NotificationChannelAppService channe
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Test([FromBody] TestNotificationChannelRequest request, CancellationToken ct)
     {
-        if (!Enum.TryParse<NotificationChannelType>(request.Type, out var channelType))
+        if (!Enum.TryParse<IntegrationType>(request.Type, out var channelType))
             return BadRequest(new { error = $"Unknown notification channel type: {request.Type}" });
 
         if (!_dispatchers.TryGetValue(channelType, out var dispatcher))
             return BadRequest(new { error = $"No dispatcher available for type: {request.Type}" });
+
+        // Merge integration ConfigJson (credentials) with channel MetaJson (target/overrides)
+        var mergedMeta = request.MetaJson ?? "{}";
+        if (request.IntegrationId is not null)
+        {
+            var integration = await integrationRepository.GetByIdAsync(request.IntegrationId.Value, ct);
+            if (integration is null)
+                return BadRequest(new { error = $"Integration {request.IntegrationId} not found." });
+
+            try
+            {
+                var credDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(integration.ConfigJson ?? "{}") ?? [];
+                var targetDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(mergedMeta) ?? [];
+                // Target overrides credentials for same keys
+                foreach (var kv in targetDict) credDict[kv.Key] = kv.Value;
+                mergedMeta = JsonSerializer.Serialize(credDict);
+            }
+            catch
+            {
+                // If merge fails fall back to raw configJson
+                mergedMeta = integration.ConfigJson ?? "{}";
+            }
+        }
 
         var channel = new NotificationChannel
         {
             Id = 0,
             Name = request.Name ?? "Test Channel",
             Type = channelType,
-            MetaJson = request.MetaJson ?? "{}"
+            MetaJson = mergedMeta
         };
 
         var context = new AlertNotificationContext(
@@ -110,4 +137,4 @@ public class NotificationChannelsController(NotificationChannelAppService channe
     }
 }
 
-public record TestNotificationChannelRequest(string Type, string? MetaJson = null, string? Name = null);
+public record TestNotificationChannelRequest(string Type, string? MetaJson = null, string? Name = null, int? IntegrationId = null);
