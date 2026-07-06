@@ -23,6 +23,11 @@ public class AppUser : IdentityUser<int>
     /// <summary>Disabled users cannot sign in.</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Hex color for UI display (e.g. on-call Gantt blocks). Assigned at creation.</summary>
+    public string Color { get; set; } = "#6366f1";
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public ICollection<UserNotificationPreference> NotificationPreferences { get; set; } = [];
 }
