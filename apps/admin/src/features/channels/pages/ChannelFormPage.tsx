@@ -1,21 +1,18 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, FlaskConical } from "lucide-react";
+import { FlaskConical, ExternalLink } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { channelsApi } from "@/lib/api";
+import { channelsApi, integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { CHANNEL_TYPE_MAP, CHANNEL_TYPES } from "@/constants/channels";
 
-interface Header { key: string; value: string }
-
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const inp = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
-const sel = "rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
 
 // ── Toggle row ────────────────────────────────────────────────────────────────
 
@@ -45,366 +42,6 @@ function ToggleRow({
   );
 }
 
-// ── Default bodies ────────────────────────────────────────────────────────────
-
-const DEFAULT_WEBHOOK_BODY = `{
-  "alert_name": "{{alert_name}}",
-  "alert_for": "{{alert_for}}",
-  "alert_status": "{{alert_status}}",
-  "alert_severity": "{{alert_severity}}",
-  "alert_timestamp": "{{alert_timestamp}}",
-  "is_resolved": {{is_resolved}},
-  "is_triggered": {{is_triggered}}
-}`;
-
-const DEFAULT_SLACK_BODY = `{
-  "text": "{{alert_name}} is {{alert_status}}"
-}`;
-
-// ── Type-specific config panels ───────────────────────────────────────────────
-
-function WebhookConfig({
-  url, setUrl, secret, setSecret, body, setBody, headers, setHeaders,
-}: {
-  url: string; setUrl: (v: string) => void;
-  secret: string; setSecret: (v: string) => void;
-  body: string; setBody: (v: string) => void;
-  headers: Header[]; setHeaders: (h: Header[]) => void;
-}) {
-  function addHeader() { setHeaders([...headers, { key: "", value: "" }]); }
-  function updateHeader(i: number, f: "key" | "value", v: string) {
-    setHeaders(headers.map((h, idx) => idx === i ? { ...h, [f]: v } : h));
-  }
-  function removeHeader(i: number) { setHeaders(headers.filter((_, idx) => idx !== i)); }
-
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/webhook" className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Secret</label>
-        <input value={secret} onChange={(e) => setSecret(e.target.value)}
-          placeholder="Used to sign the payload via HMAC-SHA256 (optional)" className={inp} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Headers</label>
-        {headers.map((h, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <input placeholder="Header name" value={h.key}
-              onChange={(e) => updateHeader(i, "key", e.target.value)} className={inp} />
-            <input placeholder="Value" value={h.value}
-              onChange={(e) => updateHeader(i, "value", e.target.value)} className={inp} />
-            <button type="button" onClick={() => removeHeader(i)} className="text-muted-foreground hover:text-destructive shrink-0">
-              <Trash2 size={15} />
-            </button>
-          </div>
-        ))}
-        <button type="button" onClick={addHeader}
-          className="flex items-center gap-1.5 text-sm hover:underline self-start">
-          <Plus size={13} /> Add Header
-        </button>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Custom Webhook Body</label>
-        <p className="text-xs text-muted-foreground">Override the default JSON payload</p>
-        <p className="text-xs text-muted-foreground">
-          Use Mustache variables like <code className="font-mono">{`{{variable}}`}</code>. Available:{" "}
-          <code className="font-mono text-xs">alert_name, alert_for, alert_status, alert_severity, alert_timestamp, is_resolved, is_triggered</code>
-        </p>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function EmailConfig({ to, setTo, from, setFrom, template, setTemplate }: {
-  to: string; setTo: (v: string) => void;
-  from: string; setFrom: (v: string) => void;
-  template: string; setTemplate: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">To <span className="text-destructive">*</span></label>
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="a@example.com, b@example.com" className={inp} required />
-        <p className="text-xs text-muted-foreground">Comma-separated list of recipients</p>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">From</label>
-        <input type="email" value={from} onChange={(e) => setFrom(e.target.value)}
-          placeholder="Uses the from address configured in Email settings" className={inp} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">HTML Template</label>
-        <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={6}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function SlackConfig({ url, setUrl, body, setBody }: {
-  url: string; setUrl: (v: string) => void;
-  body: string; setBody: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://hooks.slack.com/..." className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Body (JSON template)</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function PagerDutyConfig({ apiKey, setApiKey, severity, setSeverity }: {
-  apiKey: string; setApiKey: (v: string) => void;
-  severity: string; setSeverity: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Integration Key <span className="text-destructive">*</span></label>
-        <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Severity</label>
-        <select value={severity} onChange={(e) => setSeverity(e.target.value)} className={sel}>
-          {["critical", "error", "warning", "info"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-    </>
-  );
-}
-
-function MSTeamsConfig({ url, setUrl, body, setBody }: {
-  url: string; setUrl: (v: string) => void;
-  body: string; setBody: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Body</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function TelegramConfig({ token, setToken, chatId, setChatId, template, setTemplate }: {
-  token: string; setToken: (v: string) => void;
-  chatId: string; setChatId: (v: string) => void;
-  template: string; setTemplate: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Bot Token <span className="text-destructive">*</span></label>
-        <input value={token} onChange={(e) => setToken(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Chat ID <span className="text-destructive">*</span></label>
-        <input value={chatId} onChange={(e) => setChatId(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Template</label>
-        <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={3}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function TwilioConfig({ sid, setSid, token, setToken, from, setFrom, to, setTo, msg, setMsg }: {
-  sid: string; setSid: (v: string) => void;
-  token: string; setToken: (v: string) => void;
-  from: string; setFrom: (v: string) => void;
-  to: string; setTo: (v: string) => void;
-  msg: string; setMsg: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Account SID <span className="text-destructive">*</span></label>
-        <input value={sid} onChange={(e) => setSid(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Auth Token <span className="text-destructive">*</span></label>
-        <input type="password" value={token} onChange={(e) => setToken(e.target.value)} className={inp} required />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">From <span className="text-destructive">*</span></label>
-          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="+15005550006" className={inp} required />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">To <span className="text-destructive">*</span></label>
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="+15005550006" className={inp} required />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Message</label>
-        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={3}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function GoogleChatConfig({ url, setUrl, body, setBody }: {
-  url: string; setUrl: (v: string) => void;
-  body: string; setBody: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Body</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function DiscordConfig({ url, setUrl, username, setUsername, body, setBody }: {
-  url: string; setUrl: (v: string) => void;
-  username: string; setUsername: (v: string) => void;
-  body: string; setBody: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Webhook URL <span className="text-destructive">*</span></label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Username</label>
-        <input value={username} onChange={(e) => setUsername(e.target.value)} className={inp} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Body</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-          className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full" />
-      </div>
-    </>
-  );
-}
-
-function OpsgenieConfig({ apiKey, setApiKey, region, setRegion, priority, setPriority }: {
-  apiKey: string; setApiKey: (v: string) => void;
-  region: string; setRegion: (v: string) => void;
-  priority: string; setPriority: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">API Key <span className="text-destructive">*</span></label>
-        <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} className={inp} required />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Region</label>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} className={sel}>
-            {["US", "EU"].map((r) => <option key={r}>{r}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
-            {["P1", "P2", "P3", "P4", "P5"].map((p) => <option key={p}>{p}</option>)}
-          </select>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function PushoverConfig({ userKey, setUserKey, appToken, setAppToken, priority, setPriority, device, setDevice }: {
-  userKey: string; setUserKey: (v: string) => void;
-  appToken: string; setAppToken: (v: string) => void;
-  priority: string; setPriority: (v: string) => void;
-  device: string; setDevice: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">User Key <span className="text-destructive">*</span></label>
-        <input value={userKey} onChange={(e) => setUserKey(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">App Token <span className="text-destructive">*</span></label>
-        <input value={appToken} onChange={(e) => setAppToken(e.target.value)} className={inp} required />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
-            {["-2", "-1", "0", "1", "2"].map((p) => <option key={p}>{p}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Device</label>
-          <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="Leave blank for all devices" className={inp} />
-        </div>
-      </div>
-    </>
-  );
-}
-
-function NtfyConfig({ url, setUrl, topic, setTopic, token, setToken, priority, setPriority, tags, setTags }: {
-  url: string; setUrl: (v: string) => void;
-  topic: string; setTopic: (v: string) => void;
-  token: string; setToken: (v: string) => void;
-  priority: string; setPriority: (v: string) => void;
-  tags: string; setTags: (v: string) => void;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">URL <span className="text-destructive">*</span></label>
-        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://ntfy.sh" className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Topic <span className="text-destructive">*</span></label>
-        <input value={topic} onChange={(e) => setTopic(e.target.value)} className={inp} required />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Token</label>
-        <input value={token} onChange={(e) => setToken(e.target.value)} className={inp} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={sel}>
-            {["1", "2", "3", "4", "5"].map((p) => <option key={p}>{p}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Tags</label>
-          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="warning, rotating_light" className={inp} />
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChannelFormPage() {
@@ -413,77 +50,16 @@ export default function ChannelFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  // Common
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState("Webhook");
+  const [type, setType] = useState("Slack");
   const [isActive, setIsActive] = useState(true);
   const [isGlobal, setIsGlobal] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [integrationId, setIntegrationId] = useState<number | null>(null);
+  // Target — the destination within the integration (chat ID, channel, number, etc.)
+  const [target, setTarget] = useState("");
 
-  // Webhook
-  const [whUrl, setWhUrl] = useState("");
-  const [whSecret, setWhSecret] = useState("");
-  const [whBody, setWhBody] = useState(DEFAULT_WEBHOOK_BODY);
-  const [whHeaders, setWhHeaders] = useState<Header[]>([]);
-
-  // Email
-  const [emailTo, setEmailTo] = useState("");
-  const [emailFrom, setEmailFrom] = useState("");
-  const [emailTemplate, setEmailTemplate] = useState("");
-
-  // Slack
-  const [slackUrl, setSlackUrl] = useState("");
-  const [slackBody, setSlackBody] = useState(DEFAULT_SLACK_BODY);
-
-  // PagerDuty
-  const [pdKey, setPdKey] = useState("");
-  const [pdSeverity, setPdSeverity] = useState("critical");
-
-  // MSTeams
-  const [teamsUrl, setTeamsUrl] = useState("");
-  const [teamsBody, setTeamsBody] = useState("");
-
-  // Telegram
-  const [tgToken, setTgToken] = useState("");
-  const [tgChatId, setTgChatId] = useState("");
-  const [tgTemplate, setTgTemplate] = useState("");
-
-  // Twilio
-  const [twSid, setTwSid] = useState("");
-  const [twToken, setTwToken] = useState("");
-  const [twFrom, setTwFrom] = useState("");
-  const [twTo, setTwTo] = useState("");
-  const [twMsg, setTwMsg] = useState("");
-
-  // GoogleChat
-  const [gcUrl, setGcUrl] = useState("");
-  const [gcBody, setGcBody] = useState("");
-
-  // Discord
-  const [discordUrl, setDiscordUrl] = useState("");
-  const [discordUsername, setDiscordUsername] = useState("");
-  const [discordBody, setDiscordBody] = useState("");
-
-  // Opsgenie
-  const [ogKey, setOgKey] = useState("");
-  const [ogRegion, setOgRegion] = useState("US");
-  const [ogPriority, setOgPriority] = useState("P2");
-
-  // Pushover
-  const [poUserKey, setPoUserKey] = useState("");
-  const [poAppToken, setPoAppToken] = useState("");
-  const [poPriority, setPoPriority] = useState("0");
-  const [poDevice, setPoDevice] = useState("");
-
-  // Ntfy
-  const [ntfyUrl, setNtfyUrl] = useState("");
-  const [ntfyTopic, setNtfyTopic] = useState("");
-  const [ntfyToken, setNtfyToken] = useState("");
-  const [ntfyPriority, setNtfyPriority] = useState("3");
-  const [ntfyTags, setNtfyTags] = useState("");
-
-  // UI
   const [error, setError] = useState("");
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
   const [testMsg, setTestMsg] = useState("");
@@ -496,6 +72,14 @@ export default function ChannelFormPage() {
     enabled: isEdit,
   });
 
+  // All integrations, filtered to the selected type
+  const { data: allIntegrations = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATIONS,
+    queryFn: integrationsApi.list,
+  });
+
+  const integrations = allIntegrations.filter((i) => i.type === type);
+
   useEffect(() => {
     if (!existing) return;
     setName(existing.name);
@@ -504,59 +88,35 @@ export default function ChannelFormPage() {
     setIsGlobal(existing.isGlobal);
     setIsLocked(existing.isLocked);
     setDescription(existing.description ?? "");
-    const meta = existing.metaJson ? JSON.parse(existing.metaJson) : {};
-    switch (existing.type) {
-      case "Webhook":
-        setWhUrl(meta.url ?? ""); setWhSecret(meta.secret ?? ""); setWhBody(meta.body ?? DEFAULT_WEBHOOK_BODY);
-        setWhHeaders(meta.headers ? Object.entries(meta.headers).map(([k, v]) => ({ key: k, value: v as string })) : []);
-        break;
-      case "Email":
-        setEmailTo(meta.to ?? ""); setEmailFrom(meta.from ?? ""); setEmailTemplate(meta.template ?? ""); break;
-      case "Slack":
-        setSlackUrl(meta.url ?? ""); setSlackBody(meta.body ?? DEFAULT_SLACK_BODY); break;
-      case "PagerDuty":
-        setPdKey(meta.integrationKey ?? ""); setPdSeverity(meta.severity ?? "critical"); break;
-      case "MSTeams":
-        setTeamsUrl(meta.url ?? ""); setTeamsBody(meta.body ?? ""); break;
-      case "Telegram":
-        setTgToken(meta.botToken ?? ""); setTgChatId(meta.chatId ?? ""); setTgTemplate(meta.template ?? ""); break;
-      case "TwilioSms":
-        setTwSid(meta.accountSid ?? ""); setTwToken(meta.authToken ?? ""); setTwFrom(meta.fromNumber ?? "");
-        setTwTo(meta.toNumber ?? ""); setTwMsg(meta.message ?? ""); break;
-      case "GoogleChat":
-        setGcUrl(meta.url ?? ""); setGcBody(meta.body ?? ""); break;
-      case "Discord":
-        setDiscordUrl(meta.url ?? ""); setDiscordUsername(meta.username ?? ""); setDiscordBody(meta.body ?? ""); break;
-      case "Opsgenie":
-        setOgKey(meta.apiKey ?? ""); setOgRegion(meta.region ?? "US"); setOgPriority(meta.priority ?? "P2"); break;
-      case "Pushover":
-        setPoUserKey(meta.userKey ?? ""); setPoAppToken(meta.appToken ?? "");
-        setPoPriority(meta.priority ?? "0"); setPoDevice(meta.device ?? ""); break;
-      case "Ntfy":
-        setNtfyUrl(meta.url ?? ""); setNtfyTopic(meta.topic ?? ""); setNtfyToken(meta.token ?? "");
-        setNtfyPriority(meta.priority ?? "3"); setNtfyTags(meta.tags ?? ""); break;
-    }
+    setIntegrationId(existing.integrationId ?? null);
+    try {
+      const meta = existing.metaJson ? JSON.parse(existing.metaJson) : {};
+      setTarget(meta.target ?? meta.chatId ?? meta.channel ?? meta.toNumber ?? meta.to ?? meta.userKey ?? meta.topic ?? "");
+    } catch { /* ignore */ }
   }, [existing]);
 
+  // Derive the effective integration id: auto-select when only one option exists
+  const effectiveIntegrationId =
+    !isEdit && integrationId === null && integrations.length === 1
+      ? integrations[0].id
+      : integrationId;
+
   function buildMetaJson(): string {
+    const t = target.trim();
+    if (!t) return "{}";
     switch (type) {
-      case "Webhook": {
-        const headers: Record<string, string> = {};
-        whHeaders.forEach(({ key, value }) => { if (key) headers[key] = value; });
-        return JSON.stringify({ url: whUrl, secret: whSecret, body: whBody, headers });
-      }
-      case "Email": return JSON.stringify({ to: emailTo, from: emailFrom, template: emailTemplate });
-      case "Slack": return JSON.stringify({ url: slackUrl, body: slackBody });
-      case "PagerDuty": return JSON.stringify({ integrationKey: pdKey, severity: pdSeverity });
-      case "MSTeams": return JSON.stringify({ url: teamsUrl, body: teamsBody });
-      case "Telegram": return JSON.stringify({ botToken: tgToken, chatId: tgChatId, template: tgTemplate });
-      case "TwilioSms": return JSON.stringify({ accountSid: twSid, authToken: twToken, fromNumber: twFrom, toNumber: twTo, message: twMsg });
-      case "GoogleChat": return JSON.stringify({ url: gcUrl, body: gcBody });
-      case "Discord": return JSON.stringify({ url: discordUrl, username: discordUsername, body: discordBody });
-      case "Opsgenie": return JSON.stringify({ apiKey: ogKey, region: ogRegion, priority: ogPriority });
-      case "Pushover": return JSON.stringify({ userKey: poUserKey, appToken: poAppToken, priority: poPriority, device: poDevice });
-      case "Ntfy": return JSON.stringify({ url: ntfyUrl, topic: ntfyTopic, token: ntfyToken, priority: ntfyPriority, tags: ntfyTags });
-      default: return "{}";
+      case "Telegram":   return JSON.stringify({ chatId: t });
+      case "Slack":      return JSON.stringify({ channel: t });
+      case "Discord":    return JSON.stringify({ channelId: t });
+      case "Email":      return JSON.stringify({ to: t });
+      case "TwilioSms":  return JSON.stringify({ toNumber: t });
+      case "Pushover":   return JSON.stringify({ userKey: t });
+      case "Ntfy":       return JSON.stringify({ topic: t });
+      case "GoogleChat": return JSON.stringify({ spaceId: t });
+      case "MSTeams":    return JSON.stringify({ channel: t });
+      case "PagerDuty":  return JSON.stringify({ routingKey: t });
+      case "Opsgenie":   return JSON.stringify({ responders: t });
+      default:           return JSON.stringify({ target: t });
     }
   }
 
@@ -569,20 +129,19 @@ export default function ChannelFormPage() {
       metaJson: buildMetaJson(),
       isGlobal,
       isLocked: isGlobal ? isLocked : false,
+      integrationId: effectiveIntegrationId ?? undefined,
     };
   }
 
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload = buildPayload();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (isEdit) return channelsApi.update(id!, payload as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return channelsApi.create(payload as any);
+      if (isEdit) return channelsApi.update(id!, payload);
+      return channelsApi.create(payload);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS });
-      if (!isEdit && data && 'id' in (data as object)) {
+      if (!isEdit && data && "id" in (data as object)) {
         navigate(ROUTES.CHANNELS.DETAIL((data as { id: number }).id));
       }
     },
@@ -591,7 +150,10 @@ export default function ChannelFormPage() {
 
   const deleteMutation = useMutation({
     mutationFn: () => channelsApi.delete(id!),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS }); navigate(ROUTES.CHANNELS.LIST); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.CHANNELS });
+      navigate(ROUTES.CHANNELS.LIST);
+    },
     onError: () => setError("Failed to delete channel."),
   });
 
@@ -600,18 +162,45 @@ export default function ChannelFormPage() {
     setTestResult(null);
     setTestMsg("");
     try {
-      await channelsApi.test({ type, metaJson: buildMetaJson(), name: name || "Test Channel" });
+      await channelsApi.test({
+        type,
+        metaJson: buildMetaJson(),
+        name: name || "Test Channel",
+        integrationId: effectiveIntegrationId ?? undefined,
+      });
       setTestResult("success");
       setTestMsg("Test notification sent successfully.");
-    } catch {
+    } catch (err: unknown) {
       setTestResult("error");
-      setTestMsg("Test notification failed. Check your configuration.");
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setTestMsg(msg ?? "Test notification failed. Check your configuration.");
     } finally {
       setTesting(false);
     }
   }
 
   const pageTitle = isEdit ? (existing?.name ?? "Edit Channel") : "New Channel";
+  const selectedIntegration = integrations.find((i) => i.id === effectiveIntegrationId);
+  const typeMeta = CHANNEL_TYPE_MAP[type as keyof typeof CHANNEL_TYPE_MAP];
+
+  const TARGET_CONFIG: Record<string, { label: string; placeholder: string; hint?: string; required?: boolean }> = {
+    Telegram:   { label: "Chat ID",       placeholder: "-1001234567890",       hint: "Group, channel or user chat ID. Forward a message to @userinfobot to find it.", required: true },
+    Slack:      { label: "Channel",        placeholder: "#alerts",              hint: "Channel name (with #) or user ID for DMs.", required: true },
+    Discord:    { label: "Channel ID",     placeholder: "123456789012345678",   hint: "Right-click the channel → Copy Channel ID.", required: true },
+    Email:      { label: "To",             placeholder: "ops@example.com",      hint: "Comma-separated recipients. Uses the system email provider.", required: true },
+    TwilioSms:  { label: "To number",      placeholder: "+15005550006",         hint: "E.164 format destination number.", required: true },
+    Pushover:   { label: "User Key",       placeholder: "uQiRzpo4DXghDmr9QzzfQu", hint: "Found in your Pushover dashboard.", required: true },
+    Ntfy:       { label: "Topic",          placeholder: "my-alerts",            hint: "The topic name to publish to.", required: true },
+    GoogleChat: { label: "Space ID",       placeholder: "AAAA…",               hint: "From the space URL: chat.google.com/room/{spaceId}", required: true },
+    MSTeams:    { label: "Channel",        placeholder: "General",              hint: "Optional: the channel name within the team." },
+    PagerDuty:  { label: "Routing Key override", placeholder: "Leave blank to use integration key", hint: "Optional: override the routing key from the integration." },
+    Opsgenie:   { label: "Responders",     placeholder: "team:ops, user:john",  hint: "Optional: comma-separated team/user responders." },
+    Webhook:    { label: "URL override",   placeholder: "https://…",            hint: "Optional: override the URL set in the integration." },
+  };
+
+  const canTest = type === "Email"
+    ? !!target.trim()
+    : !!effectiveIntegrationId && (!TARGET_CONFIG[type]?.required || !!target.trim());
 
   return (
     <AdminLayout title={pageTitle}>
@@ -625,13 +214,11 @@ export default function ChannelFormPage() {
           <span className="text-foreground font-medium">{pageTitle}</span>
         </nav>
 
-        {/* Title */}
         <div>
           <h1 className="text-xl font-bold">{pageTitle}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Configure notification triggers for your monitors</p>
         </div>
 
-        {/* Feedback banners */}
         {error && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
         )}
@@ -643,24 +230,20 @@ export default function ChannelFormPage() {
           }`}>{testMsg}</div>
         )}
 
-        {/* Main card */}
         <div className="rounded-xl border bg-card">
           {/* Trigger type */}
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <p className="text-sm font-semibold mb-1">Trigger Type</p>
             <p className="text-xs text-muted-foreground mb-3">Select the type of notification to send</p>
-            <Select value={type} onValueChange={(v) => v && setType(v)} disabled={isEdit}>
+            <Select value={type} onValueChange={(v) => { if (v) { setType(v); if (!isEdit) setIntegrationId(null); } }} disabled={isEdit}>
               <SelectTrigger className="w-56">
                 <SelectValue>
-                  {(() => {
-                    const meta = CHANNEL_TYPE_MAP[type as keyof typeof CHANNEL_TYPE_MAP];
-                    return meta ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Icon icon={meta.icon} className={`size-4 ${meta.iconClass ?? ""}`} />
-                        {meta.label}
-                      </span>
-                    ) : type;
-                  })()}
+                  {typeMeta ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Icon icon={typeMeta.icon} className={`size-4 ${typeMeta.iconClass ?? ""}`} />
+                      {typeMeta.label}
+                    </span>
+                  ) : type}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -669,6 +252,11 @@ export default function ChannelFormPage() {
                     <span className="inline-flex items-center gap-2">
                       <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""}`} />
                       {t.label}
+                      {t.alpha && (
+                        <span className="ml-auto rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium">
+                          Alpha
+                        </span>
+                      )}
                     </span>
                   </SelectItem>
                 ))}
@@ -679,29 +267,14 @@ export default function ChannelFormPage() {
 
           {/* Status + Global toggles */}
           <div className="px-6">
-            <ToggleRow
-              label="Status"
-              description="Enable or disable this trigger"
-              checked={isActive}
-              onChange={setIsActive}
-            />
-            <ToggleRow
-              label="Global"
-              description="Automatically apply this trigger to all existing and future alert configs"
-              checked={isGlobal}
-              onChange={setIsGlobal}
-            />
+            <ToggleRow label="Status" description="Enable or disable this trigger" checked={isActive} onChange={setIsActive} />
+            <ToggleRow label="Global" description="Automatically apply this trigger to all existing and future alert configs" checked={isGlobal} onChange={setIsGlobal} />
             {isGlobal && (
-              <ToggleRow
-                label="Locked"
-                description="Prevent this trigger from being removed from alert configs"
-                checked={isLocked}
-                onChange={setIsLocked}
-              />
+              <ToggleRow label="Locked" description="Prevent this trigger from being removed from alert configs" checked={isLocked} onChange={setIsLocked} />
             )}
           </div>
 
-          {/* Common fields + type-specific */}
+          {/* Common fields */}
           <div className="px-6 py-6 flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
@@ -712,19 +285,106 @@ export default function ChannelFormPage() {
               <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" className={inp} />
             </div>
 
-            {/* Type-specific */}
-            {type === "Webhook"    && <WebhookConfig url={whUrl} setUrl={setWhUrl} secret={whSecret} setSecret={setWhSecret} body={whBody} setBody={setWhBody} headers={whHeaders} setHeaders={setWhHeaders} />}
-            {type === "Email"      && <EmailConfig to={emailTo} setTo={setEmailTo} from={emailFrom} setFrom={setEmailFrom} template={emailTemplate} setTemplate={setEmailTemplate} />}
-            {type === "Slack"      && <SlackConfig url={slackUrl} setUrl={setSlackUrl} body={slackBody} setBody={setSlackBody} />}
-            {type === "PagerDuty"  && <PagerDutyConfig apiKey={pdKey} setApiKey={setPdKey} severity={pdSeverity} setSeverity={setPdSeverity} />}
-            {type === "MSTeams"    && <MSTeamsConfig url={teamsUrl} setUrl={setTeamsUrl} body={teamsBody} setBody={setTeamsBody} />}
-            {type === "Telegram"   && <TelegramConfig token={tgToken} setToken={setTgToken} chatId={tgChatId} setChatId={setTgChatId} template={tgTemplate} setTemplate={setTgTemplate} />}
-            {type === "TwilioSms"  && <TwilioConfig sid={twSid} setSid={setTwSid} token={twToken} setToken={setTwToken} from={twFrom} setFrom={setTwFrom} to={twTo} setTo={setTwTo} msg={twMsg} setMsg={setTwMsg} />}
-            {type === "GoogleChat" && <GoogleChatConfig url={gcUrl} setUrl={setGcUrl} body={gcBody} setBody={setGcBody} />}
-            {type === "Discord"    && <DiscordConfig url={discordUrl} setUrl={setDiscordUrl} username={discordUsername} setUsername={setDiscordUsername} body={discordBody} setBody={setDiscordBody} />}
-            {type === "Opsgenie"   && <OpsgenieConfig apiKey={ogKey} setApiKey={setOgKey} region={ogRegion} setRegion={setOgRegion} priority={ogPriority} setPriority={setOgPriority} />}
-            {type === "Pushover"   && <PushoverConfig userKey={poUserKey} setUserKey={setPoUserKey} appToken={poAppToken} setAppToken={setPoAppToken} priority={poPriority} setPriority={setPoPriority} device={poDevice} setDevice={setPoDevice} />}
-            {type === "Ntfy"       && <NtfyConfig url={ntfyUrl} setUrl={setNtfyUrl} topic={ntfyTopic} setTopic={setNtfyTopic} token={ntfyToken} setToken={setNtfyToken} priority={ntfyPriority} setPriority={setNtfyPriority} tags={ntfyTags} setTags={setNtfyTags} />}
+            {/* Target — destination within the integration */}
+            {TARGET_CONFIG[type] && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold">
+                  {TARGET_CONFIG[type].label}
+                  {TARGET_CONFIG[type].required && <span className="text-destructive ml-0.5">*</span>}
+                </label>
+                <input
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  placeholder={TARGET_CONFIG[type].placeholder}
+                  className={inp}
+                />
+                {TARGET_CONFIG[type].hint && (
+                  <p className="text-xs text-muted-foreground">{TARGET_CONFIG[type].hint}</p>
+                )}
+              </div>
+            )}
+
+            {/* Integration selector — Email uses the system email service, no integration needed */}
+            {type === "Email" ? (
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-start gap-3">
+                <Icon icon="lucide:mail" className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Uses system email</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Email channels use the provider configured in{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate(ROUTES.CONFIG.EMAIL)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Settings → Email
+                    </button>
+                    . No integration required.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">
+                    Integration <span className="text-destructive">*</span>
+                  </label>
+                  <Link
+                    to={`${ROUTES.INTEGRATIONS.NEW}?provider=${type}`}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    <ExternalLink size={11} /> Add integration
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select a {typeMeta?.label ?? type} integration that provides the credentials for this channel.
+                </p>
+
+                {integrations.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No {typeMeta?.label ?? type} integrations configured yet.
+                    </p>
+                    <Link
+                      to={`${ROUTES.INTEGRATIONS.NEW}?provider=${type}`}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Create one now →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {integrations.map((integration) => (
+                      <button
+                        key={integration.id}
+                        type="button"
+                        onClick={() => setIntegrationId(integration.id)}
+                        className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
+                          effectiveIntegrationId === integration.id
+                            ? "border-foreground bg-muted/50"
+                            : "border-border hover:border-foreground/40 hover:bg-muted/30"
+                        }`}
+                      >
+                        {typeMeta && (
+                          <Icon icon={typeMeta.icon} className={`size-5 shrink-0 ${typeMeta.iconClass ?? ""}`} />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{integration.name}</p>
+                          {integration.description && (
+                            <p className="text-xs text-muted-foreground truncate">{integration.description}</p>
+                          )}
+                        </div>
+                        {effectiveIntegrationId === integration.id && (
+                          <span className="text-xs font-medium text-foreground border border-foreground/30 rounded px-1.5 py-0.5 shrink-0">
+                            Selected
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -732,7 +392,7 @@ export default function ChannelFormPage() {
             <button
               type="button"
               onClick={handleTest}
-              disabled={testing}
+              disabled={testing || !canTest}
               className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
             >
               <FlaskConical size={14} />
@@ -749,7 +409,12 @@ export default function ChannelFormPage() {
               <button
                 type="button"
                 onClick={() => { setError(""); saveMutation.mutate(); }}
-                disabled={saveMutation.isPending || !name}
+                disabled={
+                  saveMutation.isPending ||
+                  !name ||
+                  (type !== "Email" && !effectiveIntegrationId) ||
+                  (TARGET_CONFIG[type]?.required && !target.trim())
+                }
                 className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {saveMutation.isPending ? "Saving…" : isEdit ? "Save changes" : "Create Trigger"}

@@ -107,6 +107,20 @@ export const ENDPOINTS = {
 
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
+
+  // On-call schedules
+  ONCALL_SCHEDULES: `${API_BASE}/oncall/schedules`,
+  ONCALL_SCHEDULE: (id: number | string) => `${API_BASE}/oncall/schedules/${id}`,
+  ONCALL_SCHEDULE_CURRENT: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/current`,
+  ONCALL_SCHEDULE_EXPAND: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/expand`,
+  ONCALL_SCHEDULE_LAYERS: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/layers`,
+  ONCALL_SCHEDULE_LAYER: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}`,
+  ONCALL_SCHEDULE_LAYER_USERS: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}/users`,
+  ONCALL_SCHEDULE_OVERRIDES: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides`,
+  ONCALL_SCHEDULE_OVERRIDE: (id: number | string, overrideId: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides/${overrideId}`,
+
+  // User notification preferences
+  USER_NOTIFICATION_PREFERENCES: (userId: number | string) => `${API_BASE}/users/${userId}/notification-preferences`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */
@@ -140,6 +154,9 @@ export const QUERY_KEYS = {
   INTEGRATIONS: ["integrations"] as const,
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
   CHECK_TYPES: ["check-types"] as const,
+  ONCALL_SCHEDULES: ["oncall-schedules"] as const,
+  ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
+  ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
 } as const;
 
 /** Status display constants */

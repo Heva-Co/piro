@@ -68,6 +68,13 @@ export const ROUTES = {
     INCIDENTS: "/admin/configuration/incidents",
   },
 
+  // On-call schedules
+  ONCALL: {
+    LIST: "/admin/oncall",
+    NEW: "/admin/oncall/new",
+    DETAIL: (id: number | string) => `/admin/oncall/${id}`,
+  },
+
   // Logs
   LOGS: "/admin/logs",
 
