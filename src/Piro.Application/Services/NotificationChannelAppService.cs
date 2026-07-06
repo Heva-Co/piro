@@ -31,6 +31,7 @@ public class NotificationChannelAppService(
             IsGlobal = request.IsGlobal,
             IsLocked = request.IsLocked,
             IsInactive = request.IsInactive,
+            IntegrationId = request.IntegrationId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -55,6 +56,7 @@ public class NotificationChannelAppService(
         if (request.MetaJson is not null) channel.MetaJson = request.MetaJson;
         if (request.IsGlobal is not null) channel.IsGlobal = request.IsGlobal.Value;
         if (request.IsLocked is not null) channel.IsLocked = request.IsLocked.Value;
+        if (request.IntegrationId is not null) channel.IntegrationId = request.IntegrationId == 0 ? null : request.IntegrationId;
         channel.UpdatedAt = DateTime.UtcNow;
 
         var updated = await channelRepository.UpdateAsync(channel, ct);
@@ -95,6 +97,8 @@ public class NotificationChannelAppService(
     private static NotificationChannelDto ToDto(NotificationChannel c) => new(
         c.Id, c.Name, c.Type, c.Description, c.IsInactive, c.MetaJson,
         c.IsGlobal, c.IsLocked, c.CreatedAt, c.UpdatedAt,
-        c.AlertConfigNotificationChannels.Count
+        c.AlertConfigNotificationChannels.Count,
+        c.IntegrationId,
+        c.Integration?.Name
     );
 }

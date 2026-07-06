@@ -7,6 +7,6 @@ namespace Piro.Application.Interfaces;
 /// <summary>Sends a notification through a specific channel when an alert fires or recovers.</summary>
 public interface INotificationChannelDispatcher
 {
-    NotificationChannelType Type { get; }
+    IntegrationType Type { get; }
     Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default);
 }

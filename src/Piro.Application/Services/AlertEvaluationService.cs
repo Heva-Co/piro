@@ -21,7 +21,7 @@ public class AlertEvaluationService(
     IEnumerable<INotificationChannelDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger)
 {
-    private readonly Dictionary<NotificationChannelType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>
