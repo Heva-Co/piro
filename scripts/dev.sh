@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 build_api() {
   echo "▶  Building API..."
   cd "$REPO_ROOT"
-  BUILD_OUT=$(dotnet build src/Piro.Api/Piro.Api.csproj -c Debug -q 2>&1) || { echo "$BUILD_OUT"; exit 1; }
+  dotnet build src/Piro.Api/Piro.Api.csproj -c Debug || exit 1
 }
 
 start_api() {
