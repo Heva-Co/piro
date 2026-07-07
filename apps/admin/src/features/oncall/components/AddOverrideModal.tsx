@@ -2,6 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { onCallApi, usersApi } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DateTimePicker } from "@/components/DateTimePicker";
+import { DatePicker } from "@/components/DatePicker";
 
 interface Props {
   scheduleId: string;
@@ -10,11 +19,12 @@ interface Props {
 }
 
 export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
-  const [userId, setUserId] = useState<number | "">("");
-  const [replacesUserId, setReplacesUserId] = useState<number | "">("");
+  const [userId, setUserId] = useState<string>("");
+  const [replacesUserId, setReplacesUserId] = useState<string>("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [reason, setReason] = useState("");
+  const [allDay, setAllDay] = useState(false);
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
@@ -24,14 +34,29 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
   const mutation = useMutation({
     mutationFn: () =>
       onCallApi.createOverride(scheduleId, {
-        userId: userId as number,
-        replacesUserId: replacesUserId !== "" ? (replacesUserId as number) : undefined,
-        startsAtUtc: new Date(startsAt).toISOString(),
-        endsAtUtc: new Date(endsAt).toISOString(),
+        userId: Number(userId),
+        replacesUserId: replacesUserId !== "" ? Number(replacesUserId) : undefined,
+        startsAtUtc: startsAtUtc(),
+        endsAtUtc: endsAtUtc(),
         reason: reason || undefined,
       }),
     onSuccess,
   });
+
+  function handleAllDayToggle(checked: boolean) {
+    setAllDay(checked);
+    setStartsAt("");
+    setEndsAt("");
+  }
+
+  function startsAtUtc(): string {
+    if (!startsAt) return "";
+    return allDay ? `${startsAt}T00:00:00Z` : startsAt;
+  }
+  function endsAtUtc(): string {
+    if (!endsAt) return "";
+    return allDay ? `${endsAt}T23:59:59Z` : endsAt;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -47,52 +72,67 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
           {/* On-call user */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Who takes on-call</label>
-            <select
-              value={userId}
-              onChange={(e) => setUserId(e.target.value === "" ? "" : Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Select user…</option>
-              {users.map((u: { id: number; name: string }) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
+            <Select value={userId} onValueChange={setUserId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select user…">
+                  {users.find((u: { id: number; name: string }) => String(u.id) === userId)?.name ?? "Select user…"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u: { id: number; name: string }) => (
+                  <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Replaces user (optional) */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Replacing (optional)</label>
-            <select
-              value={replacesUserId}
-              onChange={(e) => setReplacesUserId(e.target.value === "" ? "" : Number(e.target.value))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">No one — additional coverage</option>
-              {users.map((u: { id: number; name: string }) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
+            <Select value={replacesUserId} onValueChange={setReplacesUserId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="No one — additional coverage">
+                  {replacesUserId === ""
+                    ? "No one — additional coverage"
+                    : users.find((u: { id: number; name: string }) => String(u.id) === replacesUserId)?.name ?? "No one — additional coverage"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No one — additional coverage</SelectItem>
+                {users.map((u: { id: number; name: string }) => (
+                  <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Date range */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Starts</label>
-              <input
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground">Date range</span>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allDay}
+                  onChange={(e) => handleAllDayToggle(e.target.checked)}
+                  className="accent-indigo-600 w-3.5 h-3.5"
+                />
+                All day
+              </label>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Ends</label>
-              <input
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Starts</label>
+                {allDay
+                  ? <DatePicker value={startsAt} onChange={setStartsAt} className="w-full" />
+                  : <DateTimePicker value={startsAt} onChange={setStartsAt} placeholder="Pick date & time" className="w-full" />}
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Ends</label>
+                {allDay
+                  ? <DatePicker value={endsAt} onChange={setEndsAt} className="w-full" />
+                  : <DateTimePicker value={endsAt} onChange={setEndsAt} placeholder="Pick date & time" className="w-full" />}
+              </div>
             </div>
           </div>
 
@@ -117,7 +157,7 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
           </button>
           <button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !userId || !startsAt || !endsAt}
+            disabled={mutation.isPending || !userId || !startsAtUtc() || !endsAtUtc()}
             className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {mutation.isPending ? "Adding…" : "Add override"}
