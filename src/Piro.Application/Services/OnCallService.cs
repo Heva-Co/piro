@@ -98,16 +98,23 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
     /// Expands the schedule into concrete on-call slots for Gantt rendering.
     /// Returns slots for each layer + a merged "final schedule" view.
     /// </summary>
+    /// <summary>
+    /// Expands rotation slots for Gantt rendering.
+    /// applyOverrides=false → pure rotation (no override substitution, used for the Rotations section).
+    /// applyOverrides=true  → overrides applied, plus override-only slots appended (used for Final Schedule and Overrides section).
+    /// </summary>
     public async Task<List<OnCallSlotDto>> ExpandScheduleAsync(
-        int scheduleId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+        int scheduleId, DateTimeOffset from, DateTimeOffset to,
+        bool applyOverrides = true,
+        CancellationToken ct = default)
     {
         var schedule = await scheduleRepo.GetByIdWithLayersAsync(scheduleId, ct);
         if (schedule is null) return [];
 
         var slots = new List<OnCallSlotDto>();
-        var overrides = schedule.Overrides
-            .Where(o => o.EndsAtUtc > from && o.StartsAtUtc < to)
-            .ToList();
+        var overrides = applyOverrides
+            ? schedule.Overrides.Where(o => o.EndsAtUtc > from && o.StartsAtUtc < to).ToList()
+            : [];
 
         foreach (var layer in schedule.Layers.OrderBy(l => l.Order))
         {
@@ -119,38 +126,49 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
 
             var occurrences = rruleExpander.GetOccurrences(dtStart, layer.RecurrenceRule, from.UtcDateTime, to.UtcDateTime);
 
-            int occIndex = 0;
+            // Count occurrences before `from` so rotation index is correct regardless of window start
+            var occsBefore = rruleExpander.GetOccurrences(dtStart, layer.RecurrenceRule, dtStart, from.UtcDateTime).Count();
+            int occIndex = occsBefore;
             foreach (var occ in occurrences.OrderBy(o => o))
             {
                 var occStart = new DateTimeOffset(occ, TimeSpan.Zero);
                 var occEnd = occStart + duration;
 
-                // Clip to [from, to]
                 var slotStart = occStart < from ? from : occStart;
                 var slotEnd = occEnd > to ? to : occEnd;
                 if (slotStart >= slotEnd) { occIndex++; continue; }
 
-                // Rotation
                 var slotIndex = users.Count > 0 ? occIndex % users.Count : 0;
                 var user = users[slotIndex].User;
 
-                // Check for override replacing this user in this window
-                var replacingOverride = overrides.FirstOrDefault(o =>
-                    o.ReplacesUserId == user.Id &&
-                    o.StartsAtUtc < slotEnd &&
-                    o.EndsAtUtc > slotStart);
-
-                if (replacingOverride is not null)
+                if (applyOverrides)
                 {
-                    // Split into segments: before override, override, after override
-                    if (slotStart < replacingOverride.StartsAtUtc)
-                        AddLayerSlot(slots, layer, user, slotStart, replacingOverride.StartsAtUtc);
+                    var replacingOverride = overrides.FirstOrDefault(o =>
+                        o.ReplacesUserId == user.Id &&
+                        o.StartsAtUtc < slotEnd &&
+                        o.EndsAtUtc > slotStart);
 
-                    AddLayerSlot(slots, layer, replacingOverride.User, replacingOverride.StartsAtUtc, replacingOverride.EndsAtUtc,
-                        isOverride: true, replacesUserName: user.Name);
+                    if (replacingOverride is not null)
+                    {
+                        // Emit the original-user segment before the override starts (if any)
+                        if (slotStart < replacingOverride.StartsAtUtc)
+                            AddLayerSlot(slots, layer, user, slotStart, replacingOverride.StartsAtUtc);
 
-                    if (replacingOverride.EndsAtUtc < slotEnd)
-                        AddLayerSlot(slots, layer, user, replacingOverride.EndsAtUtc, slotEnd);
+                        // Replace this occurrence's slot with the override user (clipped to occurrence bounds)
+                        var overrideSlotStart = replacingOverride.StartsAtUtc < slotStart ? slotStart : replacingOverride.StartsAtUtc;
+                        var overrideSlotEnd   = replacingOverride.EndsAtUtc > slotEnd ? slotEnd : replacingOverride.EndsAtUtc;
+                        if (overrideSlotStart < overrideSlotEnd)
+                            AddLayerSlot(slots, layer, replacingOverride.User, overrideSlotStart, overrideSlotEnd,
+                                isOverride: true, replacesUserName: user.Name);
+
+                        // Emit the original-user segment after the override ends (if any)
+                        if (replacingOverride.EndsAtUtc < slotEnd)
+                            AddLayerSlot(slots, layer, user, replacingOverride.EndsAtUtc, slotEnd);
+                    }
+                    else
+                    {
+                        AddLayerSlot(slots, layer, user, slotStart, slotEnd);
+                    }
                 }
                 else
                 {
@@ -161,24 +179,27 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
             }
         }
 
-        // Additional coverage overrides (no replacement) — add as separate override slots
-        foreach (var o in overrides.Where(o => o.ReplacesUserId is null))
+        if (applyOverrides)
         {
-            var slotStart = o.StartsAtUtc < from ? from : o.StartsAtUtc;
-            var slotEnd = o.EndsAtUtc > to ? to : o.EndsAtUtc;
-            if (slotStart >= slotEnd) continue;
+            // Additional coverage overrides (no replacement)
+            foreach (var o in overrides.Where(o => o.ReplacesUserId is null))
+            {
+                var slotStart = o.StartsAtUtc < from ? from : o.StartsAtUtc;
+                var slotEnd = o.EndsAtUtc > to ? to : o.EndsAtUtc;
+                if (slotStart >= slotEnd) continue;
 
-            slots.Add(new OnCallSlotDto(
-                LayerId: 0,
-                LayerName: "Override",
-                UserId: o.UserId,
-                UserName: o.User.Name,
-                UserInitials: GetInitials(o.User.Name),
-                UserColor: o.User.Color,
-                StartsAt: slotStart,
-                EndsAt: slotEnd,
-                IsOverride: true,
-                ReplacesUserName: null));
+                slots.Add(new OnCallSlotDto(
+                    LayerId: 0,
+                    LayerName: "Override",
+                    UserId: o.UserId,
+                    UserName: o.User.Name,
+                    UserInitials: GetInitials(o.User.Name),
+                    UserColor: o.User.Color,
+                    StartsAt: slotStart,
+                    EndsAt: slotEnd,
+                    IsOverride: true,
+                    ReplacesUserName: null));
+            }
         }
 
         return slots;
