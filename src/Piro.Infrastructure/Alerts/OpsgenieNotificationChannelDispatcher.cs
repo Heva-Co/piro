@@ -12,7 +12,7 @@ namespace Piro.Infrastructure.Alerts;
 public class OpsgenieNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Opsgenie;
+    public IntegrationType Type => IntegrationType.Opsgenie;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

@@ -29,7 +29,7 @@ export default function DashboardPage() {
   });
   const incidentsQuery = useQuery({
     queryKey: QUERY_KEYS.INCIDENTS,
-    queryFn: incidentsApi.list,
+    queryFn: () => incidentsApi.list(),
   });
   const maintenancesQuery = useQuery({
     queryKey: QUERY_KEYS.MAINTENANCES,
@@ -51,7 +51,7 @@ export default function DashboardPage() {
     (s) => s.currentStatus === "DOWN" || s.currentStatus === "DEGRADED"
   ).length;
   const activeIncidents = incidents.filter(
-    (i) => i.status !== "RESOLVED"
+    (i) => i.state !== "Resolved"
   ).length;
   const activeMaintenances = maintenances.filter(
     (m) => m.status === "ACTIVE" || m.status === "SCHEDULED"
@@ -128,13 +128,15 @@ export default function DashboardPage() {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {incidents
-                  .filter((i) => i.status !== "RESOLVED")
+                  .filter((i) => i.state !== "Resolved")
                   .map((incident) => (
                     <li key={incident.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{incident.title}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <StatusBadge status={incident.state} />
-                        <span className="text-xs text-gray-500">{incident.status}</span>
+                        {!incident.isPublic && (
+                          <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1.5 py-0.5">Internal</span>
+                        )}
                       </div>
                     </li>
                   ))}

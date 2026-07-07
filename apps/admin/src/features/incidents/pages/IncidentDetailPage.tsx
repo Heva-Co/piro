@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronLeft, CheckCheck, Save } from "lucide-react";
+import { AlertCircle, ChevronLeft, CheckCheck, Save, Eye, Clock, X } from "lucide-react";
 import { marked } from "marked";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Switch } from "@/components/ui/switch";
@@ -137,6 +137,33 @@ export default function IncidentDetailPage() {
     onError: () => setImpactError("Failed to save impact."),
   });
 
+  const publishKey = ["incident-publish-schedule", id];
+
+  const { data: publishSchedule } = useQuery({
+    queryKey: publishKey,
+    queryFn: () => incidentsApi.getPublishSchedule(id!),
+    enabled: Boolean(id) && !incident?.isPublic,
+    refetchInterval: 30_000,
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: () => incidentsApi.publish(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: incidentKey });
+      qc.invalidateQueries({ queryKey: publishKey });
+    },
+  });
+
+  const delayPublishMutation = useMutation({
+    mutationFn: (mins: number) => incidentsApi.delayPublish(id!, mins),
+    onSuccess: () => qc.invalidateQueries({ queryKey: publishKey }),
+  });
+
+  const cancelPublishMutation = useMutation({
+    mutationFn: () => incidentsApi.cancelPublish(id!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: publishKey }),
+  });
+
   // ── Render ──────────────────────────────────────────────────────────────────
   if (isLoading) {
     return <AdminLayout title="Incident"><p className="text-muted-foreground">Loading…</p></AdminLayout>;
@@ -146,7 +173,7 @@ export default function IncidentDetailPage() {
   }
 
   const comments = incident.comments ?? [];
-  const isResolved = incident.status === "Resolved";
+  const isResolved = incident.state === "Resolved" || incident.isResolved;
 
   return (
     <AdminLayout title={`Incident #${incident.id}`}>
@@ -258,6 +285,66 @@ export default function IncidentDetailPage() {
               </div>
             )}
 
+            {/* Internal / publish banner */}
+            {!incident.isPublic && !isResolved && (
+              <div className="px-5 py-3 border-b border-border bg-yellow-500/10 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Eye size={14} className="text-yellow-600" />
+                  <span className="text-xs font-semibold text-yellow-800 dark:text-yellow-400">Internal — not visible on status page</span>
+                </div>
+                {publishSchedule?.scheduledAt && (
+                  <p className="text-xs text-yellow-700 dark:text-yellow-500">
+                    Auto-publish at {new Date(publishSchedule.scheduledAt).toLocaleTimeString()}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={() => publishMutation.mutate()}
+                    disabled={publishMutation.isPending}
+                    className="flex items-center gap-1.5 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700 disabled:opacity-50"
+                  >
+                    <Eye size={12} /> Publish Now
+                  </button>
+                  <button
+                    onClick={() => delayPublishMutation.mutate(5)}
+                    disabled={delayPublishMutation.isPending}
+                    className="flex items-center gap-1.5 rounded-md border border-yellow-300 bg-background px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-50 disabled:opacity-50"
+                  >
+                    <Clock size={12} /> +5 min
+                  </button>
+                  <button
+                    onClick={() => delayPublishMutation.mutate(15)}
+                    disabled={delayPublishMutation.isPending}
+                    className="flex items-center gap-1.5 rounded-md border border-yellow-300 bg-background px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-50 disabled:opacity-50"
+                  >
+                    <Clock size={12} /> +15 min
+                  </button>
+                  {publishSchedule?.scheduledAt && (
+                    <button
+                      onClick={() => cancelPublishMutation.mutate()}
+                      disabled={cancelPublishMutation.isPending}
+                      className="flex items-center gap-1.5 rounded-md border border-destructive/30 bg-background px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    >
+                      <X size={12} /> Cancel auto-publish
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Merged badge */}
+            {incident.mergedIntoIncidentId && (
+              <div className="px-5 py-3 border-b border-border bg-purple-500/10 text-xs text-purple-700 dark:text-purple-400">
+                This incident was merged into{" "}
+                <button
+                  onClick={() => navigate(ROUTES.INCIDENTS.DETAIL(incident.mergedIntoIncidentId!))}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  #{incident.mergedIntoIncidentId}
+                </button>
+              </div>
+            )}
+
             {comments.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-muted-foreground">No updates yet.</p>
             ) : (
@@ -276,12 +363,14 @@ export default function IncidentDetailPage() {
                         dangerouslySetInnerHTML={{ __html: marked(c.comment ?? "", { async: false }) as string }}
                       />
                     </div>
-                    <button
-                      onClick={() => { if (confirm("Delete this update?")) deleteCommentMutation.mutate(c.id); }}
-                      className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      ×
-                    </button>
+                    {!isResolved && (
+                      <button
+                        onClick={() => { if (confirm("Delete this update?")) deleteCommentMutation.mutate(c.id); }}
+                        className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

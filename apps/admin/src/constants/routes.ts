@@ -65,6 +65,14 @@ export const ROUTES = {
     WORKERS: "/admin/configuration/workers",
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
+    INCIDENTS: "/admin/configuration/incidents",
+  },
+
+  // On-call schedules
+  ONCALL: {
+    LIST: "/admin/oncall",
+    NEW: "/admin/oncall/new",
+    DETAIL: (id: number | string) => `/admin/oncall/${id}`,
   },
 
   // Logs

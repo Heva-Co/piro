@@ -10,11 +10,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 {
     public async Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
-        var query = db.Incidents
-            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
-            .Include(i => i.IncidentServices)
-                .ThenInclude(s => s.Service)
-            .AsQueryable();
+        var query = IncidentBaseQuery();
 
         query = filter.ToLowerInvariant() switch
         {
@@ -29,11 +25,38 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
     }
 
+    public async Task<IEnumerable<Incident>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
+    {
+        var query = IncidentBaseQuery()
+            .Where(i => i.IsPublic)
+            .Where(i => !db.IncidentMerges.Any(m => m.SourceIncidentId == i.Id));
+
+        if (!includeResolved)
+            query = query.Where(i => i.State != IncidentState.Resolved);
+
+        return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
+    }
+
+    private IQueryable<Incident> IncidentBaseQuery() =>
+        db.Incidents
+            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.Service)
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.TriggeringCheck)
+            .Include(i => i.MergesAsSource)
+            .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
+            .AsQueryable();
+
     public async Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
             .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
+            .Include(i => i.IncidentServices)
+                .ThenInclude(s => s.TriggeringCheck)
+            .Include(i => i.MergesAsSource)
+            .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
     public async Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default)
@@ -118,6 +141,57 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             worst = Worst(worst, ServiceStatus.DEGRADED);
 
         return worst;
+    }
+
+    public async Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default) =>
+        await db.Incidents
+            .Include(i => i.IncidentServices)
+            .FirstOrDefaultAsync(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                !i.IsGlobal &&
+                i.IncidentServices.Any(s => s.ServiceId == serviceId), ct);
+
+    public async Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default)
+    {
+        var sinceUnix = since.ToUnixTimeSeconds();
+        return await db.Incidents
+            .Include(i => i.IncidentServices)
+            .Where(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                !i.IsGlobal &&
+                i.StartDateTime >= sinceUnix)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default) =>
+        await db.Incidents
+            .Include(i => i.IncidentServices)
+            .FirstOrDefaultAsync(i =>
+                i.Source == "ALERT" &&
+                i.State != IncidentState.Resolved &&
+                i.IsGlobal, ct);
+
+    public async Task PublishAsync(Incident incident, CancellationToken ct = default)
+    {
+        incident.IsPublic = true;
+        db.Incidents.Update(incident);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default)
+    {
+        db.IncidentMerges.Add(merge);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddImpactChangeAsync(Incident incident, IncidentImpactChange change, CancellationToken ct = default)
+    {
+        incident.CurrentImpact = change.Impact;
+        db.Incidents.Update(incident);
+        db.IncidentImpactChanges.Add(change);
+        await db.SaveChangesAsync(ct);
     }
 
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>

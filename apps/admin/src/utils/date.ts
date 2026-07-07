@@ -16,3 +16,11 @@ export function formatDuration(startSeconds: number, endSeconds?: number): strin
   const m = diff % 60;
   return `${h}h ${m}m`;
 }
+
+
+export function getWeekday(date: Date, long = false): string {
+  return date.toLocaleDateString(undefined, {
+    weekday: long ? "long" : "short",
+    timeZone: "UTC",
+  });
+}

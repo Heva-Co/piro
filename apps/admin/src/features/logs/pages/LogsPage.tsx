@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { logsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
@@ -21,9 +22,7 @@ export default function LogsPage() {
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const params = {
     page,
@@ -38,17 +37,6 @@ export default function LogsPage() {
     queryKey: QUERY_KEYS.LOGS(params),
     queryFn: () => logsApi.list(params),
   });
-
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(() => refetch(), 60_000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [autoRefresh, refetch]);
 
   const items = data?.items ?? [];
   const total = data?.totalCount ?? 0;
@@ -117,17 +105,7 @@ export default function LogsPage() {
             </select>
           </div>
 
-          <button
-            onClick={() => setAutoRefresh((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-              autoRefresh
-                ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                : "border-border bg-background text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            <RefreshCw size={14} className={autoRefresh ? "animate-spin" : ""} />
-            Refresh
-          </button>
+          <AutoRefreshButton onRefetch={refetch} />
         </div>
 
         {/* Table */}

@@ -308,6 +308,10 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
@@ -394,8 +398,17 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutomaticallyCreateIncident")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Criticality")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("High");
 
                     b.Property<string>("Cron")
                         .IsRequired()
@@ -405,12 +418,6 @@ namespace Piro.Infrastructure.Migrations
                         .HasDefaultValue("* * * * *");
 
                     b.Property<string>("CurrentStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("NO_DATA");
-
-                    b.Property<string>("DefaultStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
@@ -530,10 +537,19 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CurrentImpact")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("DOWN");
+
                     b.Property<long?>("EndDateTime")
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsGlobal")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Source")
@@ -613,6 +629,61 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("IncidentComments");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.IncidentImpactChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Impact")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("IncidentId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Timestamp")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentId", "Timestamp");
+
+                    b.ToTable("IncidentImpactChanges");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.IncidentMerge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("MergedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("SourceIncidentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TargetIncidentId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceIncidentId");
+
+                    b.HasIndex("TargetIncidentId");
+
+                    b.ToTable("IncidentMerges");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.IncidentService", b =>
                 {
                     b.Property<int>("IncidentId")
@@ -628,12 +699,17 @@ namespace Piro.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("TriggeringCheckId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("IncidentId", "ServiceId");
 
                     b.HasIndex("ServiceId");
+
+                    b.HasIndex("TriggeringCheckId");
 
                     b.ToTable("IncidentServices");
                 });
@@ -800,6 +876,9 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<int?>("IntegrationId")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsGlobal")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -836,6 +915,8 @@ namespace Piro.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Id");
+
+                    b.HasIndex("IntegrationId");
 
                     b.ToTable("NotificationChannels", (string)null);
                 });
@@ -896,6 +977,152 @@ namespace Piro.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OidcProviderConfigs", (string)null);
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallLayer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("FirstOccurrenceEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("FirstOccurrenceStartsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RecurrenceRule")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("OnCallLayers", (string)null);
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallLayerUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("LayerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LayerId", "Position");
+
+                    b.ToTable("OnCallLayerUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallOverride", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("ReplacesUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacesUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ScheduleId", "StartsAtUtc", "EndsAtUtc");
+
+                    b.ToTable("OnCallOverrides", (string)null);
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("NotifyOnShiftStart")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OnCallSchedules", (string)null);
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Page", b =>
@@ -1140,28 +1367,6 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("ServiceDependencies");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.ServiceStatusSnapshot", b =>
-                {
-                    b.Property<int>("ServiceId")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("Timestamp")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ComputedStatus")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PropagationSources")
-                        .HasColumnType("text");
-
-                    b.HasKey("ServiceId", "Timestamp");
-
-                    b.HasIndex("ServiceId", "Timestamp");
-
-                    b.ToTable("ServiceStatusSnapshots");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.SiteData", b =>
                 {
                     b.Property<int>("Id")
@@ -1198,6 +1403,40 @@ namespace Piro.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("SiteData");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Handle")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("IntegrationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IntegrationId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "IntegrationId")
+                        .IsUnique();
+
+                    b.ToTable("UserNotificationPreferences", (string)null);
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.WorkerRegistration", b =>
@@ -1377,6 +1616,36 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Incident");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.IncidentImpactChange", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Incident", "Incident")
+                        .WithMany("ImpactChanges")
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.IncidentMerge", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Incident", "SourceIncident")
+                        .WithMany("MergesAsSource")
+                        .HasForeignKey("SourceIncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.Incident", "TargetIncident")
+                        .WithMany("MergesAsTarget")
+                        .HasForeignKey("TargetIncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SourceIncident");
+
+                    b.Navigation("TargetIncident");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.IncidentService", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Incident", "Incident")
@@ -1391,9 +1660,16 @@ namespace Piro.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Piro.Domain.Entities.Check", "TriggeringCheck")
+                        .WithMany()
+                        .HasForeignKey("TriggeringCheckId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Incident");
 
                     b.Navigation("Service");
+
+                    b.Navigation("TriggeringCheck");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.MaintenanceEvent", b =>
@@ -1424,6 +1700,72 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Maintenance");
 
                     b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.NotificationChannel", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
+                        .WithMany()
+                        .HasForeignKey("IntegrationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Integration");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallLayer", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.OnCallSchedule", "Schedule")
+                        .WithMany("Layers")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallLayerUser", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.OnCallLayer", "Layer")
+                        .WithMany("Users")
+                        .HasForeignKey("LayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Layer");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallOverride", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.AppUser", "ReplacesUser")
+                        .WithMany()
+                        .HasForeignKey("ReplacesUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Piro.Domain.Entities.OnCallSchedule", "Schedule")
+                        .WithMany("Overrides")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReplacesUser");
+
+                    b.Navigation("Schedule");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PageService", b =>
@@ -1483,15 +1825,23 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Service");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.ServiceStatusSnapshot", b =>
+            modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
                 {
-                    b.HasOne("Piro.Domain.Entities.Service", "Service")
+                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
                         .WithMany()
-                        .HasForeignKey("ServiceId")
+                        .HasForeignKey("IntegrationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Service");
+                    b.HasOne("Piro.Domain.Entities.AppUser", "User")
+                        .WithMany("NotificationPreferences")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Integration");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.AlertConfig", b =>
@@ -1502,6 +1852,11 @@ namespace Piro.Infrastructure.Migrations
             modelBuilder.Entity("Piro.Domain.Entities.AppRole", b =>
                 {
                     b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.AppUser", b =>
+                {
+                    b.Navigation("NotificationPreferences");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Check", b =>
@@ -1515,7 +1870,13 @@ namespace Piro.Infrastructure.Migrations
                 {
                     b.Navigation("Comments");
 
+                    b.Navigation("ImpactChanges");
+
                     b.Navigation("IncidentServices");
+
+                    b.Navigation("MergesAsSource");
+
+                    b.Navigation("MergesAsTarget");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Integration", b =>
@@ -1533,6 +1894,18 @@ namespace Piro.Infrastructure.Migrations
             modelBuilder.Entity("Piro.Domain.Entities.NotificationChannel", b =>
                 {
                     b.Navigation("AlertConfigNotificationChannels");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallLayer", b =>
+                {
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.OnCallSchedule", b =>
+                {
+                    b.Navigation("Layers");
+
+                    b.Navigation("Overrides");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Page", b =>

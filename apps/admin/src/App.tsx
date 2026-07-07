@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { ConfirmDialogProvider } from "@/providers/ConfirmDialogProvider";
 import { AuthGuard } from "@/components/AuthGuard";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
@@ -39,6 +40,9 @@ import SsoPage from "@/features/configuration/pages/SsoPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
+import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
+import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
+import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,11 +53,11 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedLayout() {
   return (
     <AuthGuard>
       <ErrorBoundary fallback={<ErrorFallback />}>
-        {children}
+        <Outlet />
       </ErrorBoundary>
     </AuthGuard>
   );
@@ -63,6 +67,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+      <ConfirmDialogProvider>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -76,54 +81,62 @@ export default function App() {
             <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
 
             {/* Protected admin routes */}
-            <Route path={ROUTES.DASHBOARD} element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route element={<ProtectedLayout />}>
+              <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 
-            {/* Services */}
-            <Route path={ROUTES.SERVICES.LIST} element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-            <Route path={ROUTES.SERVICES.NEW} element={<ProtectedRoute><ServiceFormPage /></ProtectedRoute>} />
-            <Route path="/admin/services/:slug" element={<ProtectedRoute><ServiceDetailPage /></ProtectedRoute>} />
-            <Route path="/admin/checks" element={<ProtectedRoute><ChecksPage /></ProtectedRoute>} />
-            <Route path="/admin/services/:slug/checks/new" element={<ProtectedRoute><CheckFormPage /></ProtectedRoute>} />
-            <Route path="/admin/services/:slug/checks/:checkSlug" element={<ProtectedRoute><CheckDetailPage /></ProtectedRoute>} />
-            <Route path="/admin/services/:slug/checks/:checkSlug/logs" element={<ProtectedRoute><CheckLogsPage /></ProtectedRoute>} />
+              {/* Services */}
+              <Route path={ROUTES.SERVICES.LIST} element={<ServicesPage />} />
+              <Route path={ROUTES.SERVICES.NEW} element={<ServiceFormPage />} />
+              <Route path="/admin/services/:slug" element={<ServiceDetailPage />} />
+              <Route path="/admin/checks" element={<ChecksPage />} />
+              <Route path="/admin/services/:slug/checks/new" element={<CheckFormPage />} />
+              <Route path="/admin/services/:slug/checks/:checkSlug" element={<CheckDetailPage />} />
+              <Route path="/admin/services/:slug/checks/:checkSlug/logs" element={<CheckLogsPage />} />
 
-            {/* Incidents */}
-            <Route path={ROUTES.INCIDENTS.LIST} element={<ProtectedRoute><IncidentsPage /></ProtectedRoute>} />
-            <Route path={ROUTES.INCIDENTS.NEW} element={<ProtectedRoute><IncidentFormPage /></ProtectedRoute>} />
-            <Route path="/admin/incidents/:id" element={<ProtectedRoute><IncidentDetailPage /></ProtectedRoute>} />
+              {/* Incidents */}
+              <Route path={ROUTES.INCIDENTS.LIST} element={<IncidentsPage />} />
+              <Route path={ROUTES.INCIDENTS.NEW} element={<IncidentFormPage />} />
+              <Route path="/admin/incidents/:id" element={<IncidentDetailPage />} />
 
-            {/* Channels */}
-            <Route path={ROUTES.CHANNELS.LIST} element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CHANNELS.NEW} element={<ProtectedRoute><ChannelFormPage /></ProtectedRoute>} />
-            <Route path="/admin/channels/:id" element={<ProtectedRoute><ChannelFormPage /></ProtectedRoute>} />
+              {/* Channels */}
+              <Route path={ROUTES.CHANNELS.LIST} element={<ChannelsPage />} />
+              <Route path={ROUTES.CHANNELS.NEW} element={<ChannelFormPage />} />
+              <Route path="/admin/channels/:id" element={<ChannelFormPage />} />
 
-            {/* Integrations */}
-            <Route path={ROUTES.INTEGRATIONS.LIST} element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
-            <Route path={ROUTES.INTEGRATIONS.NEW} element={<ProtectedRoute><IntegrationFormPage /></ProtectedRoute>} />
-            <Route path="/admin/settings/integrations/:id" element={<ProtectedRoute><IntegrationFormPage /></ProtectedRoute>} />
+              {/* Integrations */}
+              <Route path={ROUTES.INTEGRATIONS.LIST} element={<IntegrationsPage />} />
+              <Route path={ROUTES.INTEGRATIONS.NEW} element={<IntegrationFormPage />} />
+              <Route path="/admin/settings/integrations/:id" element={<IntegrationFormPage />} />
 
-            {/* Maintenances */}
-            <Route path={ROUTES.MAINTENANCES.LIST} element={<ProtectedRoute><MaintenancesPage /></ProtectedRoute>} />
-            <Route path={ROUTES.MAINTENANCES.NEW} element={<ProtectedRoute><MaintenanceFormPage /></ProtectedRoute>} />
-            <Route path="/admin/maintenances/:id" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
+              {/* Maintenances */}
+              <Route path={ROUTES.MAINTENANCES.LIST} element={<MaintenancesPage />} />
+              <Route path={ROUTES.MAINTENANCES.NEW} element={<MaintenanceFormPage />} />
+              <Route path="/admin/maintenances/:id" element={<MaintenanceDetailPage />} />
 
-            {/* Logs */}
-            <Route path={ROUTES.LOGS} element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
+              {/* Logs */}
+              <Route path={ROUTES.LOGS} element={<LogsPage />} />
 
-            {/* Configuration */}
-            <Route path={ROUTES.CONFIG.SITE} element={<ProtectedRoute><SiteConfigPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.EMAIL} element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.SSO} element={<ProtectedRoute><SsoPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.API_KEYS} element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.USERS} element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.WORKERS} element={<ProtectedRoute><WorkersPage /></ProtectedRoute>} />
-            <Route path={ROUTES.CONFIG.IMPORT} element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
+              {/* Configuration */}
+              <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
+              <Route path={ROUTES.CONFIG.EMAIL} element={<EmailConfigPage />} />
+              <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
+              <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />
+              <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
+              <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
+              <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
+              <Route path={ROUTES.CONFIG.INCIDENTS} element={<IncidentsConfigPage />} />
+
+              {/* On-Call */}
+              <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />
+              <Route path="/admin/oncall/:id" element={<OnCallScheduleDetailPage />} />
+            </Route>
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </ConfirmDialogProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

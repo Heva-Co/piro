@@ -15,10 +15,13 @@ public class AlertEvaluationService(
     ICheckDataPointRepository dataPointRepository,
     ICheckRepository checkRepository,
     IServiceRepository serviceRepository,
+    IIncidentRepository incidentRepository,
+    ISiteConfigRepository siteConfigRepository,
+    IIncidentPublishScheduler publishScheduler,
     IEnumerable<INotificationChannelDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger)
 {
-    private readonly Dictionary<NotificationChannelType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>
@@ -49,6 +52,29 @@ public class AlertEvaluationService(
         }
     }
 
+    /// <summary>
+    /// Evaluates auto-incident creation/closure based solely on the check's new status.
+    /// Called from the ingester on every status change — independent of alert configs.
+    /// Creates an incident when the check transitions to DOWN/DEGRADED and
+    /// <see cref="Check.AutomaticallyCreateIncident"/> is true; closes it on recovery
+    /// when <see cref="Check.AutomaticallyCloseIncident"/> is true.
+    /// </summary>
+    public async Task EvaluateIncidentPolicyAsync(int checkId, ServiceStatus previousStatus, ServiceStatus newStatus, CancellationToken ct = default)
+    {
+        if (previousStatus == newStatus) return;
+
+        var check = await checkRepository.GetByIdAsync(checkId, ct);
+        if (check is null) return;
+
+        var service = await serviceRepository.GetByIdAsync(check.ServiceId, ct);
+        if (service is null) return;
+
+        bool isFailure = newStatus is ServiceStatus.DOWN or ServiceStatus.DEGRADED;
+
+        if (check.AutomaticallyCreateIncident && isFailure)
+            await HandleAutoCreateIncidentAsync(check, service, ct);
+    }
+
     private async Task EvaluateConfigAsync(
         AlertConfig config,
         Check check,
@@ -70,7 +96,7 @@ public class AlertEvaluationService(
         if (shouldFire)
             logger.LogWarning("Alert fired for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Failures} consecutive failure(s).",
                 check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveFailures);
-        else
+        else if (logger.IsEnabled(LogLevel.Information))
             logger.LogInformation("Alert recovered for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Successes} consecutive success(es).",
                 check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveSuccesses);
 
@@ -102,8 +128,9 @@ public class AlertEvaluationService(
             try
             {
                 await dispatcher.DispatchAsync(channel, context, ct);
-                logger.LogInformation("Notification channel {ChannelName} ({ChannelType}) dispatched for check {CheckName} — {Event}.",
-                    channel.Name, channel.Type, check.Name, shouldRecover ? "recovery" : "alert");
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("Notification channel {ChannelName} ({ChannelType}) dispatched for check {CheckName} — {Event}.",
+                        channel.Name, channel.Type, check.Name, shouldRecover ? "recovery" : "alert");
             }
             catch (Exception ex)
             {
@@ -113,6 +140,233 @@ public class AlertEvaluationService(
 
         config.IsAlerting = shouldFire;
         await alertConfigRepository.UpdateAsync(config, ct);
+    }
+
+    /// <summary>
+    /// Entry point for auto-incident creation. Reads system settings to determine
+    /// correlation mode and incident impact, then delegates to the appropriate handler.
+    /// </summary>
+    private async Task HandleAutoCreateIncidentAsync(Check check, Service service, CancellationToken ct)
+    {
+        var settings = await siteConfigRepository.GetAsync(ct);
+        var impact = check.Criticality == CheckCriticality.Critical ? ServiceStatus.DOWN : ServiceStatus.DEGRADED;
+        var now = DateTimeOffset.UtcNow;
+        bool isPublic = settings.IncidentPublishDelayMinutes == 0;
+
+        switch (settings.IncidentCorrelationMode)
+        {
+            case IncidentCorrelationMode.PerService:
+                await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
+                break;
+
+            case IncidentCorrelationMode.Global:
+                await HandleGlobalCorrelationAsync(check, service, impact, isPublic, settings, now, ct);
+                break;
+
+            case IncidentCorrelationMode.Hybrid:
+            default:
+                await HandleHybridCorrelationAsync(check, service, impact, isPublic, settings, now, ct);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// PerService mode: finds an existing open ALERT incident for the service and attaches to it,
+    /// or creates a new per-service incident. Schedules <see cref="PublishIncidentJob"/> when a delay is configured.
+    /// </summary>
+    private async Task EnsurePerServiceIncidentAsync(
+        Check check, Service service, ServiceStatus impact, bool isPublic, int publishDelayMinutes, CancellationToken ct)
+    {
+        var existing = await incidentRepository.GetOpenAlertIncidentForServiceAsync(service.Id, ct);
+        if (existing is not null)
+        {
+            // Attach this check's service to an existing incident if not already linked
+            if (!existing.IncidentServices.Any(s => s.ServiceId == service.Id))
+            {
+                existing.IncidentServices.Add(new IncidentService
+                {
+                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+                });
+                await incidentRepository.UpdateAsync(existing, ct);
+                await RecordImpactIfChangedAsync(existing, ct);
+            }
+            return;
+        }
+
+        var incident = BuildAlertIncident(IncidentTitleFactory.Build(check.Type), isPublic, isGlobal: false);
+        incident.IncidentServices.Add(new IncidentService
+        {
+            ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+        });
+        var created = await incidentRepository.CreateAsync(incident, ct);
+        await RecordImpactIfChangedAsync(created, ct);
+
+        if (!isPublic && publishDelayMinutes > 0)
+            await publishScheduler.ScheduleAsync(created.Id, publishDelayMinutes, ct);
+    }
+
+    /// <summary>
+    /// Global mode: counts Critical services alerting within the correlation window.
+    /// Does NOT create any incident until the threshold is reached — risk is that isolated failures produce no incident.
+    /// Once threshold is met, creates or attaches to a single global incident.
+    /// </summary>
+    private async Task HandleGlobalCorrelationAsync(
+        Check check, Service service, ServiceStatus impact, bool isPublic,
+        SiteConfig settings, DateTimeOffset now, CancellationToken ct)
+    {
+        var window = now.AddMinutes(-settings.GlobalIncidentCorrelationWindowMinutes);
+        var recentAlerts = await incidentRepository.GetRecentAlertIncidentsAsync(window, ct);
+        var criticalServiceCount = recentAlerts.Select(i => i.IncidentServices.Select(s => s.ServiceId)).SelectMany(x => x).Distinct().Count() + 1;
+
+        if (criticalServiceCount < settings.GlobalIncidentThreshold)
+        {
+            // Threshold not reached — do not create any incident yet
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Global correlation: {Count}/{Threshold} critical services — no incident created yet.", criticalServiceCount, settings.GlobalIncidentThreshold);
+            return;
+        }
+
+        var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
+        if (globalIncident is null)
+        {
+            globalIncident = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
+            foreach (var i in recentAlerts)
+                foreach (var s in i.IncidentServices)
+                    globalIncident.IncidentServices.Add(new IncidentService
+                    {
+                        ServiceId = s.ServiceId, Impact = s.Impact, TriggeringCheckId = s.TriggeringCheckId
+                    });
+            globalIncident = await incidentRepository.CreateAsync(globalIncident, ct);
+            await RecordImpactIfChangedAsync(globalIncident, ct);
+            if (!isPublic && settings.IncidentPublishDelayMinutes > 0)
+                await publishScheduler.ScheduleAsync(globalIncident.Id, settings.IncidentPublishDelayMinutes, ct);
+        }
+
+        if (!globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
+        {
+            globalIncident.IncidentServices.Add(new IncidentService
+            {
+                ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+            });
+            await incidentRepository.UpdateAsync(globalIncident, ct);
+            await RecordImpactIfChangedAsync(globalIncident, ct);
+        }
+    }
+
+    /// <summary>
+    /// Hybrid mode (default): guarantees an incident is always created immediately (per-service),
+    /// and elevates to a global incident when the threshold of simultaneously failing services is reached.
+    /// Existing per-service incidents within the correlation window are merged into the global via <see cref="IncidentMerge"/> records.
+    /// </summary>
+    private async Task HandleHybridCorrelationAsync(
+        Check check, Service service, ServiceStatus impact, bool isPublic,
+        SiteConfig settings, DateTimeOffset now, CancellationToken ct)
+    {
+        // If a global incident is already open, attach directly to it
+        var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
+        if (globalIncident is not null)
+        {
+            if (!globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
+            {
+                globalIncident.IncidentServices.Add(new IncidentService
+                {
+                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+                });
+                await incidentRepository.UpdateAsync(globalIncident, ct);
+                await RecordImpactIfChangedAsync(globalIncident, ct);
+            }
+            return;
+        }
+
+        var window = now.AddMinutes(-settings.GlobalIncidentCorrelationWindowMinutes);
+        var recentPerServiceIncidents = await incidentRepository.GetRecentAlertIncidentsAsync(window, ct);
+        var affectedServiceCount = recentPerServiceIncidents
+            .SelectMany(i => i.IncidentServices.Select(s => s.ServiceId))
+            .Distinct().Count() + 1; // +1 for the current service
+
+        if (affectedServiceCount >= settings.GlobalIncidentThreshold)
+        {
+            // Elevate: create global incident and merge existing per-service incidents into it
+            var newGlobal = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
+            newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
+
+            foreach (var perService in recentPerServiceIncidents)
+            {
+                // Move service links to global incident
+                foreach (var link in perService.IncidentServices)
+                {
+                    newGlobal.IncidentServices.Add(new IncidentService
+                    {
+                        ServiceId = link.ServiceId, Impact = link.Impact, TriggeringCheckId = link.TriggeringCheckId
+                    });
+                }
+
+                // Record the merge
+                await incidentRepository.AddMergeAsync(new IncidentMerge
+                {
+                    SourceIncidentId = perService.Id,
+                    TargetIncidentId = newGlobal.Id,
+                    MergedAt = now,
+                    Reason = "Automatic correlation"
+                }, ct);
+
+                // Hide per-service incidents from status page
+                perService.IsPublic = false;
+                await incidentRepository.UpdateAsync(perService, ct);
+            }
+
+            // Attach current triggering service
+            if (!newGlobal.IncidentServices.Any(s => s.ServiceId == service.Id))
+            {
+                newGlobal.IncidentServices.Add(new IncidentService
+                {
+                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+                });
+            }
+
+            await incidentRepository.UpdateAsync(newGlobal, ct);
+            await RecordImpactIfChangedAsync(newGlobal, ct);
+            logger.LogWarning("Hybrid correlation: elevated {Count} per-service incidents into global incident #{GlobalId}.",
+                recentPerServiceIncidents.Count, newGlobal.Id);
+        }
+        else
+        {
+            // Below threshold — create or attach to per-service incident
+            await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
+        }
+    }
+
+    /// <summary>Constructs a new ALERT-sourced incident in Investigating state.</summary>
+    private static Incident BuildAlertIncident(string title, bool isPublic, bool isGlobal) => new()
+    {
+        Title = title,
+        StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+        State = IncidentState.Investigating,
+        Status = IncidentStatus.Active,
+        Source = "ALERT",
+        IsGlobal = isGlobal,
+        IsPublic = isPublic,
+    };
+
+    /// <summary>
+    /// Recalculates the worst impact across all <see cref="IncidentService"/> entries and records
+    /// an <see cref="IncidentImpactChange"/> if the impact has changed. No-op if unchanged.
+    /// </summary>
+    private async Task RecordImpactIfChangedAsync(Incident incident, CancellationToken ct)
+    {
+        var worst = incident.IncidentServices
+            .Select(s => s.Impact)
+            .DefaultIfEmpty(ServiceStatus.DOWN)
+            .Aggregate(ServiceStatus.DOWN, (a, b) => (int)b > (int)a ? b : a);
+
+        if (worst == incident.CurrentImpact) return;
+
+        await incidentRepository.AddImpactChangeAsync(incident, new IncidentImpactChange
+        {
+            IncidentId = incident.Id,
+            Impact = worst,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+        }, ct);
     }
 
     /// <summary>Returns true when a data point's metric meets the alert threshold condition.</summary>

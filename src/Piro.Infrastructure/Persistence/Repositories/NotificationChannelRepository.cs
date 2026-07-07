@@ -10,6 +10,7 @@ internal class NotificationChannelRepository(PiroDbContext db) : INotificationCh
     public async Task<IEnumerable<NotificationChannel>> GetAllAsync(CancellationToken ct = default) =>
         await db.NotificationChannels
             .Include(c => c.AlertConfigNotificationChannels)
+            .Include(c => c.Integration)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
 
@@ -17,7 +18,10 @@ internal class NotificationChannelRepository(PiroDbContext db) : INotificationCh
         await db.NotificationChannels.Where(c => c.IsGlobal).ToListAsync(ct);
 
     public async Task<NotificationChannel?> GetByIdAsync(int id, CancellationToken ct = default) =>
-        await db.NotificationChannels.FindAsync([id], ct);
+        await db.NotificationChannels
+            .Include(c => c.Integration)
+            .Include(c => c.AlertConfigNotificationChannels)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task<NotificationChannel> CreateAsync(NotificationChannel channel, CancellationToken ct = default)
     {

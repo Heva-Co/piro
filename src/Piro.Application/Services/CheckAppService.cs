@@ -1,6 +1,7 @@
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
 
 namespace Piro.Application.Services;
@@ -61,8 +62,7 @@ public class CheckAppService(
             Type = request.Type,
             Cron = request.Cron,
             TypeDataJson = request.TypeDataJson,
-            DefaultStatus = request.DefaultStatus,
-            CurrentStatus = request.DefaultStatus,
+            CurrentStatus = ServiceStatus.NO_DATA,
             IsActive = request.IsActive,
             IsMultiRegion = request.IsMultiRegion,
             FailureThreshold = request.FailureThreshold,
@@ -86,7 +86,6 @@ public class CheckAppService(
         if (request.Description is not null) check.Description = request.Description;
         if (request.Cron is not null) check.Cron = request.Cron;
         if (request.TypeDataJson is not null) check.TypeDataJson = request.TypeDataJson;
-        if (request.DefaultStatus is not null) check.DefaultStatus = request.DefaultStatus.Value;
         if (request.IsActive is not null) check.IsActive = request.IsActive.Value;
         if (request.IsMultiRegion is not null) check.IsMultiRegion = request.IsMultiRegion.Value;
         if (request.FailureThreshold is not null) check.FailureThreshold = request.FailureThreshold;
@@ -94,6 +93,8 @@ public class CheckAppService(
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
+        if (request.Criticality is not null) check.Criticality = request.Criticality.Value;
+        if (request.AutomaticallyCreateIncident is not null) check.AutomaticallyCreateIncident = request.AutomaticallyCreateIncident.Value;
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
@@ -128,9 +129,10 @@ public class CheckAppService(
     private static CheckDto ToDto(Check c) => new(
         c.Id, c.ServiceId, c.Slug, c.Name, c.Description,
         c.Type, c.Cron, c.TypeDataJson,
-        c.CurrentStatus, c.DefaultStatus, c.IsActive, c.IsMultiRegion,
+        c.CurrentStatus, c.IsActive, c.IsMultiRegion,
         c.FailureThreshold, c.RecoveryThreshold,
         c.HistoryDaysDesktop, c.HistoryDaysMobile,
-        c.CreatedAt, c.UpdatedAt, c.IntegrationId
+        c.CreatedAt, c.UpdatedAt, c.IntegrationId,
+        c.Criticality, c.AutomaticallyCreateIncident
     );
 }

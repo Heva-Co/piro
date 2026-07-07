@@ -61,11 +61,6 @@ export interface ServiceOverviewDto {
   dailyData: DailyStatsDto[];
 }
 
-export interface StatusPoint {
-  timestamp: number;
-  status: ServiceStatus;
-}
-
 export interface IncidentComment {
   id: number;
   comment: string;
@@ -80,6 +75,11 @@ export interface IncidentService {
   impact: ServiceStatus;
 }
 
+export interface IncidentImpactChange {
+  timestamp: number;
+  impact: ServiceStatus;
+}
+
 export interface Incident {
   id: number;
   title: string;
@@ -88,9 +88,13 @@ export interface Incident {
   status: IncidentStatus;
   state: IncidentState;
   isGlobal: boolean;
+  isPublic: boolean;
+  mergedIntoIncidentId: number | null;
   source: string | null;
   comments: IncidentComment[];
   services: IncidentService[];
+  currentImpact: ServiceStatus;
+  impactChanges: IncidentImpactChange[];
 }
 
 export interface MaintenanceEvent {
@@ -135,11 +139,8 @@ export const publicApi = {
   overview: (slug: string, days: number) =>
     get<ServiceOverviewDto>(`/public/services/${slug}/overview?days=${days}`),
 
-  history: (slug: string, from: number, to: number) =>
-    get<StatusPoint[]>(`/public/services/${slug}/history?from=${from}&to=${to}`, 0),
-
   incidents: (includeResolved = false) =>
-    get<Incident[]>(`/incidents?includeResolved=${includeResolved}`),
+    get<Incident[]>(`/incidents/public?includeResolved=${includeResolved}`),
 
   incident: (id: number | string) => get<Incident>(`/incidents/${id}`, 0),
 

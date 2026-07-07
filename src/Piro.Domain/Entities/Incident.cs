@@ -35,9 +35,21 @@ public class Incident
     /// <summary>Display name of the user who acknowledged the incident.</summary>
     public string? AcknowledgedBy { get; set; }
 
+    /// <summary>When false, the incident is a draft not visible on the public status page. Auto-created incidents start as drafts when a publish delay is configured.</summary>
+    public bool IsPublic { get; set; } = true;
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>
+    /// Denormalized worst-case impact — mirrors the most recent <see cref="IncidentImpactChange.Impact"/>.
+    /// Updated automatically whenever a new ImpactChange is recorded.
+    /// </summary>
+    public ServiceStatus CurrentImpact { get; set; } = ServiceStatus.DOWN;
+
     public ICollection<IncidentComment> Comments { get; set; } = [];
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
+    public ICollection<IncidentMerge> MergesAsSource { get; set; } = [];
+    public ICollection<IncidentMerge> MergesAsTarget { get; set; } = [];
+    public ICollection<IncidentImpactChange> ImpactChanges { get; set; } = [];
 }

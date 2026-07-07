@@ -25,6 +25,7 @@ import {
   Plug,
   Sun,
   Moon,
+  CalendarClock,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,6 +49,7 @@ const mainNavItems: NavItem[] = [
   { label: "Incidents", to: ROUTES.INCIDENTS.LIST, icon: <CloudAlert size={18} /> },
   { label: "Maintenances", to: ROUTES.MAINTENANCES.LIST, icon: <ClockAlert size={18} /> },
   { label: "Notification Channels", to: ROUTES.CHANNELS.LIST, icon: <Bell size={18} /> },
+  { label: "On-Call", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
   { label: "Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} /> },
 ];
 
@@ -59,6 +61,7 @@ const configNavItems: NavItem[] = [
   { label: "SSO", to: ROUTES.CONFIG.SSO, icon: <KeyRound size={18} /> },
   { label: "Site", to: ROUTES.CONFIG.SITE, icon: <Globe size={18} /> },
   { label: "Email", to: ROUTES.CONFIG.EMAIL, icon: <Mail size={18} /> },
+  { label: "Incidents", to: ROUTES.CONFIG.INCIDENTS, icon: <CloudAlert size={18} /> },
 ];
 
 interface SidebarProps {

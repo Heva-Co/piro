@@ -12,7 +12,7 @@ namespace Piro.Infrastructure.Alerts;
 public class NtfyNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Ntfy;
+    public IntegrationType Type => IntegrationType.Ntfy;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

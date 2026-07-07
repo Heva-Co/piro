@@ -10,8 +10,16 @@ public interface IIncidentRepository
     /// Returns incidents filtered by <paramref name="filter"/>:
     /// "active" (default) = non-resolved, "all" = everything, "resolved" = only resolved,
     /// or an <see cref="IncidentState"/> name (e.g. "investigating").
+    /// Admin-facing — returns all incidents regardless of <see cref="Incident.IsPublic"/>.
     /// </summary>
     Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns only published (<see cref="Incident.IsPublic"/> = true), non-merged incidents
+    /// for the public status page. Pass <paramref name="includeResolved"/> = true to include
+    /// resolved incidents in the history view.
+    /// </summary>
+    Task<IEnumerable<Incident>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default);
     Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default);
     Task<Incident> UpdateAsync(Incident incident, CancellationToken ct = default);
@@ -30,4 +38,32 @@ public interface IIncidentRepository
     /// Returns <c>null</c> when no active incident affects the service.
     /// </summary>
     Task<ServiceStatus?> GetActiveImpactForServiceAsync(int serviceId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the open ALERT-sourced incident for a service, if one exists.
+    /// Used by auto-create logic to attach new checks to an existing per-service incident.
+    /// </summary>
+    Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns all open ALERT-sourced per-service incidents created within the given window.
+    /// Used by Hybrid/Global correlation to count and merge simultaneous failures.
+    /// </summary>
+    Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default);
+
+    /// <summary>Returns the open global incident if one exists.</summary>
+    Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default);
+
+    /// <summary>Publishes an incident by setting <see cref="Incident.IsPublic"/> to true.</summary>
+    Task PublishAsync(Incident incident, CancellationToken ct = default);
+
+    /// <summary>
+    /// Records a new impact change for the incident and updates <see cref="Incident.CurrentImpact"/>.
+    /// Should only be called when the impact actually changes (caller must check).
+    /// </summary>
+    Task AddImpactChangeAsync(Incident incident, IncidentImpactChange change, CancellationToken ct = default);
+
+    /// <summary>Records a merge between a per-service incident and a global incident.</summary>
+    Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default);
+
 }

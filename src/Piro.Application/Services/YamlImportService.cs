@@ -54,7 +54,7 @@ public class YamlImportService(
             { errors.Add("Notification channel entry missing required field 'name'."); continue; }
             if (string.IsNullOrWhiteSpace(t.Type))
             { errors.Add($"Notification channel '{t.Name}' missing required field 'type'."); continue; }
-            if (!Enum.TryParse<NotificationChannelType>(t.Type, ignoreCase: true, out var channelType))
+            if (!Enum.TryParse<IntegrationType>(t.Type, ignoreCase: true, out var channelType))
             { errors.Add($"Notification channel '{t.Name}': unknown type '{t.Type}'."); continue; }
 
             var metaJson = ToJson(t.Meta);
@@ -163,9 +163,6 @@ public class YamlImportService(
                     ? await checkRepo.GetBySlugAsync(service.Id, c.Slug, ct)
                     : null;
 
-                var defaultStatus = Enum.TryParse<ServiceStatus>(c.DefaultStatus, ignoreCase: true, out var ds)
-                    ? ds : ServiceStatus.NO_DATA;
-
                 if (existingCheck is not null)
                 {
                     bool changed = existingCheck.Name != displayName
@@ -174,7 +171,6 @@ public class YamlImportService(
                         || existingCheck.Description != c.Description
                         || existingCheck.IsActive != c.IsActive
                         || existingCheck.IsMultiRegion != c.IsMultiRegion
-                        || existingCheck.DefaultStatus != defaultStatus
                         || existingCheck.FailureThreshold != c.FailureThreshold
                         || existingCheck.RecoveryThreshold != c.RecoveryThreshold
                         || existingCheck.HistoryDaysDesktop != c.HistoryDaysDesktop
@@ -191,7 +187,6 @@ public class YamlImportService(
                         existingCheck.Description = c.Description;
                         existingCheck.IsActive = c.IsActive;
                         existingCheck.IsMultiRegion = c.IsMultiRegion;
-                        existingCheck.DefaultStatus = defaultStatus;
                         existingCheck.FailureThreshold = c.FailureThreshold;
                         existingCheck.RecoveryThreshold = c.RecoveryThreshold;
                         existingCheck.HistoryDaysDesktop = c.HistoryDaysDesktop;
@@ -217,7 +212,6 @@ public class YamlImportService(
                             Description = c.Description,
                             IsActive = c.IsActive,
                             IsMultiRegion = c.IsMultiRegion,
-                            DefaultStatus = defaultStatus,
                             FailureThreshold = c.FailureThreshold,
                             RecoveryThreshold = c.RecoveryThreshold,
                             HistoryDaysDesktop = c.HistoryDaysDesktop,

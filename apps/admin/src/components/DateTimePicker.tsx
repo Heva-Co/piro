@@ -1,6 +1,7 @@
 /**
  * DateTimePicker — calendar popover + time input, similar to MUI DateTimePicker.
- * Value/onChange use "YYYY-MM-DDTHH:MM" strings (same as DateTimeInput).
+ * Value/onChange use "YYYY-MM-DDTHH:MMZ" strings (UTC ISO 8601).
+ * Displayed in local time; stored/emitted as UTC by appending "Z".
  */
 import { useState, useRef, useEffect } from "react";
 import { DayPicker, useDayPicker } from "react-day-picker";
@@ -9,15 +10,17 @@ import { format, parse, isValid } from "date-fns";
 import "react-day-picker/style.css";
 
 interface Props {
-  value: string; // "YYYY-MM-DDTHH:MM" or ""
-  onChange: (v: string) => void;
+  value: string; // "YYYY-MM-DDTHH:MMZ" (UTC) or ""
+  onChange: (v: string) => void; // emits "YYYY-MM-DDTHH:MMZ"
   placeholder?: string;
   className?: string;
 }
 
 function splitValue(v: string): { date: Date | undefined; time: string } {
   if (!v) return { date: undefined, time: "00:00" };
-  const [datePart, timePart = "00:00"] = v.split("T");
+  // Strip trailing Z before splitting for display
+  const clean = v.endsWith("Z") ? v.slice(0, -1) : v;
+  const [datePart, timePart = "00:00"] = clean.split("T");
   const parsed = parse(datePart, "yyyy-MM-dd", new Date());
   return { date: isValid(parsed) ? parsed : undefined, time: timePart.slice(0, 5) };
 }
@@ -68,13 +71,13 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", c
   function handleDaySelect(day: Date | undefined) {
     if (!day) return;
     const datePart = format(day, "yyyy-MM-dd");
-    onChange(`${datePart}T${time || "00:00"}`);
+    onChange(`${datePart}T${time || "00:00"}Z`);
   }
 
   function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newTime = e.target.value;
     const datePart = selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
-    onChange(`${datePart}T${newTime}`);
+    onChange(`${datePart}T${newTime}Z`);
   }
 
   const displayLabel = selectedDate
@@ -82,11 +85,11 @@ export function DateTimePicker({ value, onChange, placeholder = "Pick a date", c
     : "";
 
   return (
-    <div ref={ref} className={`relative inline-block ${className ?? ""}`}>
+    <div ref={ref} className={`relative ${className ?? "inline-block"}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between gap-2 min-w-52 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         <span className={displayLabel ? "text-foreground" : "text-muted-foreground"}>
           {displayLabel || placeholder}
