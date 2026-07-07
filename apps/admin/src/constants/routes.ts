@@ -75,6 +75,9 @@ export const ROUTES = {
     DETAIL: (id: number | string) => `/admin/oncall/${id}`,
   },
 
+  // Escalation policy
+  ESCALATION: "/admin/escalation-policy",
+
   // Logs
   LOGS: "/admin/logs",
 
