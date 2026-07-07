@@ -157,6 +157,8 @@ export const QUERY_KEYS = {
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
   ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
   ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
+  ESCALATION_POLICY: ["escalation-policy"] as const,
+  TIMEZONES: ["timezones"] as const,
 } as const;
 
 /** Status display constants */

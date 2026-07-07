@@ -792,3 +792,53 @@ export const onCallApi = {
   setNotificationPreferences: (userId: number | string, preferences: { integrationId: number; handle: string; priority: number }[]) =>
     api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
 };
+
+// ─── Escalation ──────────────────────────────────────────────────────────────
+
+export interface EscalationStep {
+  id: number;
+  order: number;
+  delayMinutes: number;
+  scheduleId: number;
+  scheduleName: string;
+}
+
+export interface EscalationPolicy {
+  id: number;
+  name: string;
+  description?: string;
+  reEscalateAfterAckMinutes: number;
+  reEscalateAfterInactivityMinutes: number;
+  steps: EscalationStep[];
+}
+
+export interface UpsertEscalationPolicyRequest {
+  name: string;
+  description?: string;
+  reEscalateAfterAckMinutes: number;
+  reEscalateAfterInactivityMinutes: number;
+  steps: { order: number; delayMinutes: number; scheduleId: number }[];
+}
+
+// ─── Utils ───────────────────────────────────────────────────────────────────
+
+export interface TimezoneOption {
+  id: string;
+  displayName: string;
+  offset: string;
+  offsetMinutes: number;
+}
+
+export const utilsApi = {
+  timezones: () => api.get<TimezoneOption[]>("/api/v1/utils/timezones").then((r) => r.data),
+};
+
+export const escalationApi = {
+  get: () =>
+    api.get<EscalationPolicy>("/api/v1/escalation-policy")
+      .then((r) => r.data)
+      .catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e))),
+  upsert: (data: UpsertEscalationPolicyRequest) =>
+    api.put<EscalationPolicy>("/api/v1/escalation-policy", data).then((r) => r.data),
+  delete: () => api.delete("/api/v1/escalation-policy"),
+};
