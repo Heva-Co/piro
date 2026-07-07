@@ -12,4 +12,6 @@ public interface IOnCallScheduleRepository
     Task<OnCallLayer> CreateLayerAsync(OnCallLayer layer, CancellationToken ct = default);
     Task<OnCallLayer> UpdateLayerAsync(OnCallLayer layer, CancellationToken ct = default);
     Task DeleteLayerAsync(int layerId, CancellationToken ct = default);
+    Task<OnCallOverride> CreateOverrideAsync(OnCallOverride ov, CancellationToken ct = default);
+    Task DeleteOverrideAsync(int overrideId, CancellationToken ct = default);
 }

@@ -61,10 +61,11 @@ public class OnCallSchedulesController(OnCallScheduleAppService scheduleService)
         int id,
         [FromQuery] DateTimeOffset from,
         [FromQuery] DateTimeOffset to,
-        CancellationToken ct)
+        [FromQuery] bool applyOverrides = true,
+        CancellationToken ct = default)
     {
         if (to <= from) return BadRequest("'to' must be after 'from'.");
-        var slots = await scheduleService.ExpandAsync(id, from, to, ct);
+        var slots = await scheduleService.ExpandAsync(id, from, to, applyOverrides, ct);
         return Ok(slots);
     }
 
@@ -92,6 +93,24 @@ public class OnCallSchedulesController(OnCallScheduleAppService scheduleService)
     public async Task<IActionResult> DeleteLayer(int id, int layerId, CancellationToken ct)
     {
         await scheduleService.DeleteLayerAsync(id, layerId, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/overrides")]
+    [ProducesResponseType<OnCallOverrideDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateOverride(int id, [FromBody] CreateOnCallOverrideRequest request, CancellationToken ct)
+    {
+        var dto = await scheduleService.CreateOverrideAsync(id, request, ct);
+        return StatusCode(StatusCodes.Status201Created, dto);
+    }
+
+    [HttpDelete("{id:int}/overrides/{overrideId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteOverride(int id, int overrideId, CancellationToken ct)
+    {
+        await scheduleService.DeleteOverrideAsync(id, overrideId, ct);
         return NoContent();
     }
 

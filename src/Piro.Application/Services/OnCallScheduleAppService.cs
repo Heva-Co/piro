@@ -63,8 +63,8 @@ public class OnCallScheduleAppService(
     public Task<IReadOnlyList<AppUser>> GetCurrentOnCallUsersAsync(int scheduleId, CancellationToken ct = default)
         => onCallService.GetCurrentOnCallUsersAsync(scheduleId, ct);
 
-    public Task<List<OnCallSlotDto>> ExpandAsync(int scheduleId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
-        => onCallService.ExpandScheduleAsync(scheduleId, from, to, ct);
+    public Task<List<OnCallSlotDto>> ExpandAsync(int scheduleId, DateTimeOffset from, DateTimeOffset to, bool applyOverrides = true, CancellationToken ct = default)
+        => onCallService.ExpandScheduleAsync(scheduleId, from, to, applyOverrides, ct);
 
     public async Task<OnCallLayerDto> CreateLayerAsync(int scheduleId, CreateOnCallLayerRequest request, CancellationToken ct = default)
     {
@@ -121,6 +121,38 @@ public class OnCallScheduleAppService(
         if (schedule.Layers.All(l => l.Id != layerId))
             throw new NotFoundException(nameof(OnCallLayer), layerId.ToString());
         await scheduleRepo.DeleteLayerAsync(layerId, ct);
+    }
+
+    public async Task<OnCallOverrideDto> CreateOverrideAsync(int scheduleId, CreateOnCallOverrideRequest request, CancellationToken ct = default)
+    {
+        _ = await scheduleRepo.GetByIdWithLayersAsync(scheduleId, ct)
+            ?? throw new NotFoundException(nameof(OnCallSchedule), scheduleId.ToString());
+
+        var ov = new OnCallOverride
+        {
+            ScheduleId = scheduleId,
+            UserId = request.UserId,
+            ReplacesUserId = request.ReplacesUserId,
+            StartsAtUtc = request.StartsAtUtc,
+            EndsAtUtc = request.EndsAtUtc,
+            Reason = request.Reason,
+        };
+        var saved = await scheduleRepo.CreateOverrideAsync(ov, ct);
+        return new OnCallOverrideDto(
+            saved.Id, saved.ScheduleId, saved.UserId,
+            saved.User?.Name ?? string.Empty,
+            saved.User?.Color ?? "#6366f1",
+            saved.ReplacesUserId, saved.ReplacesUser?.Name,
+            saved.StartsAtUtc, saved.EndsAtUtc, saved.Reason);
+    }
+
+    public async Task DeleteOverrideAsync(int scheduleId, int overrideId, CancellationToken ct = default)
+    {
+        var schedule = await scheduleRepo.GetByIdWithLayersAsync(scheduleId, ct)
+            ?? throw new NotFoundException(nameof(OnCallSchedule), scheduleId.ToString());
+        if (schedule.Overrides.All(o => o.Id != overrideId))
+            throw new NotFoundException(nameof(OnCallOverride), overrideId.ToString());
+        await scheduleRepo.DeleteOverrideAsync(overrideId, ct);
     }
 
     private static OnCallScheduleDto ToDto(OnCallSchedule s) => new(
