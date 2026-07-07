@@ -78,4 +78,24 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
             await db.SaveChangesAsync(ct);
         }
     }
+
+    public async Task<OnCallOverride> CreateOverrideAsync(OnCallOverride ov, CancellationToken ct = default)
+    {
+        db.OnCallOverrides.Add(ov);
+        await db.SaveChangesAsync(ct);
+        return await db.OnCallOverrides
+            .Include(o => o.User)
+            .Include(o => o.ReplacesUser)
+            .FirstAsync(o => o.Id == ov.Id, ct);
+    }
+
+    public async Task DeleteOverrideAsync(int overrideId, CancellationToken ct = default)
+    {
+        var ov = await db.OnCallOverrides.FindAsync([overrideId], ct);
+        if (ov is not null)
+        {
+            db.OnCallOverrides.Remove(ov);
+            await db.SaveChangesAsync(ct);
+        }
+    }
 }
