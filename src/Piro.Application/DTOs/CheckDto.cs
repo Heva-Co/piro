@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
@@ -13,7 +14,6 @@ public record CheckDto(
     string Cron,
     string TypeDataJson,
     ServiceStatus CurrentStatus,
-    ServiceStatus DefaultStatus,
     bool IsActive,
     bool IsMultiRegion,
     int? FailureThreshold,
@@ -22,18 +22,19 @@ public record CheckDto(
     int? HistoryDaysMobile,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    int? IntegrationId
+    int? IntegrationId,
+    CheckCriticality Criticality,
+    bool AutomaticallyCreateIncident
 );
 
 /// <summary>Payload for creating a new check within a service.</summary>
 public record CreateCheckRequest(
-    string Slug,
-    string Name,
+    [Required, StringLength(200, MinimumLength = 1)] string Slug,
+    [Required, StringLength(200, MinimumLength = 1)] string Name,
     string? Description,
     CheckType Type,
-    string Cron,
-    string TypeDataJson,
-    ServiceStatus DefaultStatus,
+    [Required] string Cron,
+    [Required] string TypeDataJson,
     bool IsActive = true,
     bool IsMultiRegion = false,
     int? FailureThreshold = null,
@@ -47,14 +48,15 @@ public record UpdateCheckRequest(
     string? Description,
     string? Cron,
     string? TypeDataJson,
-    ServiceStatus? DefaultStatus,
     bool? IsActive,
     bool? IsMultiRegion,
     int? FailureThreshold,
     int? RecoveryThreshold,
     int? HistoryDaysDesktop,
     int? HistoryDaysMobile,
-    int? IntegrationId = null
+    int? IntegrationId = null,
+    CheckCriticality? Criticality = null,
+    bool? AutomaticallyCreateIncident = null
 );
 
 /// <summary>Check with its parent service info — used in the global checks list.</summary>

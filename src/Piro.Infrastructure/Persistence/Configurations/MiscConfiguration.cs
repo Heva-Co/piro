@@ -19,6 +19,10 @@ internal class NotificationChannelConfiguration : IEntityTypeConfiguration<Notif
         builder.Property(c => c.IsGlobal).HasDefaultValue(false);
         builder.Property(c => c.IsLocked).HasDefaultValue(false);
         builder.Property(c => c.IsInactive).HasDefaultValue(false);
+        builder.HasOne(c => c.Integration)
+               .WithMany()
+               .HasForeignKey(c => c.IntegrationId)
+               .OnDelete(DeleteBehavior.SetNull);
     }
 }
 

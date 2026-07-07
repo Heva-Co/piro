@@ -13,7 +13,7 @@ namespace Piro.Infrastructure.Alerts;
 public partial class DiscordNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordNotificationChannelDispatcher> logger)
     : INotificationChannelDispatcher
 {
-    public NotificationChannelType Type => NotificationChannelType.Discord;
+    public IntegrationType Type => IntegrationType.Discord;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {

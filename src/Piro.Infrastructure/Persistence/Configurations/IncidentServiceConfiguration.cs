@@ -23,5 +23,10 @@ internal class IncidentServiceConfiguration : IEntityTypeConfiguration<IncidentS
             .WithMany(s => s.IncidentServices)
             .HasForeignKey(i => i.ServiceId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(i => i.TriggeringCheck)
+            .WithMany()
+            .HasForeignKey(i => i.TriggeringCheckId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

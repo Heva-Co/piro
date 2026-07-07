@@ -7,6 +7,7 @@ export function useAllChecks() {
   return useQuery({
     queryKey: QUERY_KEYS.CHECKS,
     queryFn: () => checksApi.listAll(),
+    refetchInterval: 60_000,
   });
 }
 

@@ -26,7 +26,6 @@ public class Check
     public string TypeDataJson { get; set; } = "{}";
 
     public ServiceStatus CurrentStatus { get; set; } = ServiceStatus.NO_DATA;
-    public ServiceStatus DefaultStatus { get; set; } = ServiceStatus.NO_DATA;
     public bool IsActive { get; set; } = true;
 
     /// <summary>Consecutive failures required before transitioning to DOWN.</summary>
@@ -53,6 +52,12 @@ public class Check
 
     /// <summary>Optional reference to a shared Integration (e.g. Google Cloud service account).</summary>
     public int? IntegrationId { get; set; }
+
+    /// <summary>How critical this check is to the parent service. Determines incident impact when auto-creating incidents.</summary>
+    public CheckCriticality Criticality { get; set; } = CheckCriticality.High;
+
+    /// <summary>When true, a draft incident is automatically created when this check transitions to alerting.</summary>
+    public bool AutomaticallyCreateIncident { get; set; }
 
     public Service Service { get; set; } = null!;
     public Integration? Integration { get; set; }

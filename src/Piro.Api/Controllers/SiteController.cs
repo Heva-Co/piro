@@ -36,6 +36,33 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
         return NoContent();
     }
 
+    /// <summary>Returns current incident automation configuration.</summary>
+    [HttpGet("incidents-config")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<IncidentsConfigResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetIncidentsConfig(CancellationToken ct)
+    {
+        var cfg = await siteConfig.GetAsync(ct);
+        return Ok(new IncidentsConfigResponse(
+            cfg.IncidentPublishDelayMinutes,
+            cfg.IncidentCorrelationMode.ToString(),
+            cfg.GlobalIncidentThreshold,
+            cfg.GlobalIncidentCorrelationWindowMinutes));
+    }
+
+    /// <summary>Updates incident automation settings.</summary>
+    [HttpPut("incidents-config")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> PutIncidentsConfig([FromBody] UpdateIncidentsConfigRequest request, CancellationToken ct)
+    {
+        await siteConfig.SetAsync("incidents:publish_delay_minutes",          request.PublishDelayMinutes?.ToString(),          ct);
+        await siteConfig.SetAsync("incidents:correlation_mode",               request.CorrelationMode,                          ct);
+        await siteConfig.SetAsync("incidents:global_threshold",               request.GlobalThreshold?.ToString(),              ct);
+        await siteConfig.SetAsync("incidents:global_correlation_window_minutes", request.GlobalCorrelationWindowMinutes?.ToString(), ct);
+        return NoContent();
+    }
+
     /// <summary>Uploads a site asset (logo | favicon | og-image). Stores in wwwroot/uploads/.</summary>
     [HttpPost("upload/{type}")]
     [Authorize(Roles = "Owner,Admin")]
@@ -103,5 +130,13 @@ public record SiteConfigResponse(
 
 public record UpdateSiteConfigRequest(
     string? Name, string? Url, string? MetaTitle, string? MetaDescription);
+
+public record IncidentsConfigResponse(
+    int PublishDelayMinutes, string CorrelationMode,
+    int GlobalThreshold, int GlobalCorrelationWindowMinutes);
+
+public record UpdateIncidentsConfigRequest(
+    int? PublishDelayMinutes, string? CorrelationMode,
+    int? GlobalThreshold, int? GlobalCorrelationWindowMinutes);
 
 public record UploadResponse(string Url);

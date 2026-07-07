@@ -17,11 +17,13 @@ public class RRuleExpander : IRRuleExpander
                 RecurrenceRules = [new RecurrencePattern(rRule)]
             };
 
-            // TakeWhile prevents unbounded iteration for infinite RRULEs (no COUNT/UNTIL).
+            // ical.Net 5.x has no ranged overload — enumerate lazily and stop at `to`.
+            // We include occurrences starting from `dtStart` (or before `from`) so we
+            // don't miss a slot that started before the visible window but ends within it.
             return calEvent.GetOccurrences()
                 .Select(o => o.Period.StartTime.Value)
                 .TakeWhile(d => d <= to)
-                .Where(d => d >= from)
+                .Where(d => d >= dtStart)   // never go before the actual first occurrence
                 .ToList();
         }
         catch

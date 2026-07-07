@@ -87,8 +87,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ICheckRepository, CheckRepository>();
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
         services.AddScoped<ICheckDataPointRepository, CheckDataPointRepository>();
-        services.AddScoped<IServiceStatusSnapshotRepository, ServiceStatusSnapshotRepository>();
-        services.AddScoped<IIncidentRepository, IncidentRepository>();
+services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
 
         // Check executors — registered as ICheckExecutor so CheckRunnerService can inject IEnumerable<ICheckExecutor>
@@ -153,10 +152,16 @@ public static class InfrastructureServiceExtensions
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
+        services.AddScoped<IIncidentPublishScheduler, IncidentPublishScheduler>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
         // Integration repository
         services.AddScoped<IIntegrationRepository, IntegrationRepository>();
+
+        // On-call scheduling
+        services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
+        services.AddScoped<OnCallService>();
+        services.AddScoped<OnCallScheduleAppService>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();

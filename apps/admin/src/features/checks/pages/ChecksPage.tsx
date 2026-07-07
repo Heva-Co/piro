@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, FileText, Settings } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useAllChecks } from "@/hooks/useChecks";
 import { ROUTES } from "@/constants/routes";
@@ -36,7 +37,7 @@ function StatCardSkeleton() {
 
 export default function ChecksPage() {
   const navigate = useNavigate();
-  const { data: checks, isLoading } = useAllChecks();
+  const { data: checks, isLoading, refetch } = useAllChecks();
   const [search, setSearch] = useState("");
 
   const filtered = (checks ?? []).filter((c) => {
@@ -83,9 +84,9 @@ export default function ChecksPage() {
 
         {/* Table card */}
         <div className="rounded-xl border bg-card overflow-hidden">
-          {/* Search */}
-          <div className="px-4 py-3 border-b">
-            <div className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2 text-sm">
+          {/* Search + refresh */}
+          <div className="px-4 py-3 border-b flex items-center gap-3">
+            <div className="flex flex-1 items-center gap-2.5 rounded-lg border bg-background px-3 py-2 text-sm">
               <Search size={14} className="text-muted-foreground shrink-0" />
               <input
                 value={search}
@@ -94,6 +95,7 @@ export default function ChecksPage() {
                 className="flex-1 bg-transparent outline-none text-sm"
               />
             </div>
+            <AutoRefreshButton onRefetch={refetch} />
           </div>
 
           {isLoading ? (

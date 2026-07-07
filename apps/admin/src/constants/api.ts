@@ -29,6 +29,7 @@ export const ENDPOINTS = {
   // Site config
   SITE: {
     CONFIG: `${API_BASE}/site/config`,
+    INCIDENTS_CONFIG: `${API_BASE}/site/incidents-config`,
     UPLOAD: (type: string) => `${API_BASE}/site/upload/${type}`,
   },
 
@@ -106,6 +107,20 @@ export const ENDPOINTS = {
 
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
+
+  // On-call schedules
+  ONCALL_SCHEDULES: `${API_BASE}/oncall/schedules`,
+  ONCALL_SCHEDULE: (id: number | string) => `${API_BASE}/oncall/schedules/${id}`,
+  ONCALL_SCHEDULE_CURRENT: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/current`,
+  ONCALL_SCHEDULE_EXPAND: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/expand`,
+  ONCALL_SCHEDULE_LAYERS: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/layers`,
+  ONCALL_SCHEDULE_LAYER: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}`,
+  ONCALL_SCHEDULE_LAYER_USERS: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}/users`,
+  ONCALL_SCHEDULE_OVERRIDES: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides`,
+  ONCALL_SCHEDULE_OVERRIDE: (id: number | string, overrideId: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides/${overrideId}`,
+
+  // User notification preferences
+  USER_NOTIFICATION_PREFERENCES: (userId: number | string) => `${API_BASE}/users/${userId}/notification-preferences`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */
@@ -131,6 +146,7 @@ export const QUERY_KEYS = {
   OIDC_CONFIGS: ["oidc-configs"] as const,
   OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,
+  INCIDENTS_CONFIG: ["incidents-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
@@ -138,6 +154,9 @@ export const QUERY_KEYS = {
   INTEGRATIONS: ["integrations"] as const,
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
   CHECK_TYPES: ["check-types"] as const,
+  ONCALL_SCHEDULES: ["oncall-schedules"] as const,
+  ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
+  ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
 } as const;
 
 /** Status display constants */

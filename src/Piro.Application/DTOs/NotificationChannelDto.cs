@@ -5,7 +5,7 @@ namespace Piro.Application.DTOs;
 public record NotificationChannelDto(
     int Id,
     string Name,
-    NotificationChannelType Type,
+    IntegrationType Type,
     string? Description,
     bool IsInactive,
     string MetaJson,
@@ -13,17 +13,20 @@ public record NotificationChannelDto(
     bool IsLocked,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    int AlertConfigCount = 0
+    int AlertConfigCount = 0,
+    int? IntegrationId = null,
+    string? IntegrationName = null
 );
 
 public record CreateNotificationChannelRequest(
     string Name,
-    NotificationChannelType Type,
+    IntegrationType Type,
     string? Description = null,
     string MetaJson = "{}",
     bool IsGlobal = false,
     bool IsLocked = false,
-    bool IsInactive = false
+    bool IsInactive = false,
+    int? IntegrationId = null
 );
 
 public record UpdateNotificationChannelRequest(
@@ -32,5 +35,6 @@ public record UpdateNotificationChannelRequest(
     bool? IsInactive,
     string? MetaJson,
     bool? IsGlobal = null,
-    bool? IsLocked = null
+    bool? IsLocked = null,
+    int? IntegrationId = null
 );

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, Settings, ChevronLeft } from "lucide-react";
+import { Settings, ChevronLeft } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
 import { checksApi } from "@/lib/api";
@@ -29,14 +30,13 @@ export default function CheckLogsPage() {
   const [statusFilter, setStatusFilter] = useState<"" | "UP" | "DOWN">("");
   const [page, setPage] = useState(1);
 
-  const { data: logs, isLoading, isFetching, refetch } = useQuery({
+  const { data: logs, isLoading, refetch } = useQuery({
     queryKey: ["check-logs-full", serviceSlug, checkSlug, limit, region],
     queryFn: () => checksApi.logs(serviceSlug!, checkSlug!, {
       limit,
       region: region || undefined,
     }),
     enabled: !!serviceSlug && !!checkSlug,
-    refetchInterval: 60_000,
   });
 
   // Client-side status filter + pagination
@@ -104,14 +104,7 @@ export default function CheckLogsPage() {
               <Settings size={14} />
               Configure
             </button>
-            <button
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
-              Refresh
-            </button>
+            <AutoRefreshButton onRefetch={refetch} />
           </div>
         </div>
 

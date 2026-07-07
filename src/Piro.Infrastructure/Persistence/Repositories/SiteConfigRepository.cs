@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Piro.Application.Constants;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 
@@ -6,29 +7,30 @@ namespace Piro.Infrastructure.Persistence.Repositories;
 
 internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
 {
-    private static readonly string[] AllKeys =
-    [
-        "site:name", "site:url", "site:logo_url", "site:favicon_url",
-        "site:meta_title", "site:meta_description", "site:og_image_url",
-        "worker:builtin_disabled",
-    ];
-
     public async Task<SiteConfig> GetAsync(CancellationToken ct = default)
     {
         var rows = await db.SiteData
-            .Where(s => AllKeys.Contains(s.Key))
+            .Where(s => SiteDataKeys.All.Contains(s.Key))
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
 
         return new SiteConfig(
-            rows.GetValueOrDefault("site:name"),
-            rows.GetValueOrDefault("site:url"),
-            rows.GetValueOrDefault("site:logo_url"),
-            rows.GetValueOrDefault("site:favicon_url"),
-            rows.GetValueOrDefault("site:meta_title"),
-            rows.GetValueOrDefault("site:meta_description"),
-            rows.GetValueOrDefault("site:og_image_url"),
-            BuiltinWorkerDisabled: rows.TryGetValue("worker:builtin_disabled", out var flag) &&
-                                   string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase)
+            rows.GetValueOrDefault(SiteDataKeys.SiteName),
+            rows.GetValueOrDefault(SiteDataKeys.SiteUrl),
+            rows.GetValueOrDefault(SiteDataKeys.SiteLogoUrl),
+            rows.GetValueOrDefault(SiteDataKeys.SiteFaviconUrl),
+            rows.GetValueOrDefault(SiteDataKeys.SiteMetaTitle),
+            rows.GetValueOrDefault(SiteDataKeys.SiteMetaDescription),
+            rows.GetValueOrDefault(SiteDataKeys.SiteOgImageUrl),
+            BuiltinWorkerDisabled: rows.TryGetValue(SiteDataKeys.WorkerBuiltinDisabled, out var flag) &&
+                                   string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase),
+            IncidentPublishDelayMinutes: rows.TryGetValue(SiteDataKeys.IncidentPublishDelayMinutes, out var delay) &&
+                int.TryParse(delay, out var delayVal) ? delayVal : 0,
+            IncidentCorrelationMode: rows.TryGetValue(SiteDataKeys.IncidentCorrelationMode, out var mode) &&
+                Enum.TryParse<IncidentCorrelationMode>(mode, out var modeVal) ? modeVal : IncidentCorrelationMode.Hybrid,
+            GlobalIncidentThreshold: rows.TryGetValue(SiteDataKeys.IncidentGlobalThreshold, out var threshold) &&
+                int.TryParse(threshold, out var thresholdVal) ? thresholdVal : 3,
+            GlobalIncidentCorrelationWindowMinutes: rows.TryGetValue(SiteDataKeys.IncidentGlobalCorrelationWindowMinutes, out var window) &&
+                int.TryParse(window, out var windowVal) ? windowVal : 5
         );
     }
 
@@ -44,8 +46,11 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
         {
             db.SiteData.Add(new SiteData
             {
-                Key = key, Value = value, DataType = "string",
-                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+                Key = key,
+                Value = value,
+                DataType = "string",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
             });
         }
         else
