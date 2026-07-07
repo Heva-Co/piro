@@ -19,5 +19,10 @@ internal class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(i => i.State).HasConversion<string>().HasDefaultValue(IncidentState.Investigating);
         builder.Property(i => i.Source).HasMaxLength(30);
         builder.Property(i => i.CurrentImpact).HasConversion<string>().HasDefaultValue(ServiceStatus.DOWN);
+
+        builder.HasOne(i => i.EscalationPolicy)
+            .WithMany()
+            .HasForeignKey(i => i.EscalationPolicyId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
