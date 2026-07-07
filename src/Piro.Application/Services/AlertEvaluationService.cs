@@ -19,7 +19,8 @@ public class AlertEvaluationService(
     ISiteConfigRepository siteConfigRepository,
     IIncidentPublishScheduler publishScheduler,
     IEnumerable<INotificationChannelDispatcher> dispatchers,
-    ILogger<AlertEvaluationService> logger)
+    ILogger<AlertEvaluationService> logger,
+    IncidentAppService incidentAppService)
 {
     private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
@@ -193,7 +194,7 @@ public class AlertEvaluationService(
             return;
         }
 
-        var incident = BuildAlertIncident(IncidentTitleFactory.Build(check.Type), isPublic, isGlobal: false);
+        var incident = await incidentAppService.CreateAlertIncidentAsync(IncidentTitleFactory.Build(check.Type), isPublic, isGlobal: false, ct);
         incident.IncidentServices.Add(new IncidentService
         {
             ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
@@ -229,7 +230,7 @@ public class AlertEvaluationService(
         var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
         if (globalIncident is null)
         {
-            globalIncident = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
+            globalIncident = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isPublic, isGlobal: true, ct);
             foreach (var i in recentAlerts)
                 foreach (var s in i.IncidentServices)
                     globalIncident.IncidentServices.Add(new IncidentService
@@ -287,7 +288,7 @@ public class AlertEvaluationService(
         if (affectedServiceCount >= settings.GlobalIncidentThreshold)
         {
             // Elevate: create global incident and merge existing per-service incidents into it
-            var newGlobal = BuildAlertIncident("Multiple services affected", isPublic, isGlobal: true);
+            var newGlobal = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isPublic, isGlobal: true, ct);
             newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
 
             foreach (var perService in recentPerServiceIncidents)
@@ -335,18 +336,6 @@ public class AlertEvaluationService(
             await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
         }
     }
-
-    /// <summary>Constructs a new ALERT-sourced incident in Investigating state.</summary>
-    private static Incident BuildAlertIncident(string title, bool isPublic, bool isGlobal) => new()
-    {
-        Title = title,
-        StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-        State = IncidentState.Investigating,
-        Status = IncidentStatus.Active,
-        Source = "ALERT",
-        IsGlobal = isGlobal,
-        IsPublic = isPublic,
-    };
 
     /// <summary>
     /// Recalculates the worst impact across all <see cref="IncidentService"/> entries and records

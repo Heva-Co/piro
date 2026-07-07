@@ -33,6 +33,32 @@ public class IncidentAppService(
         return Map(incident);
     }
 
+    /// <summary>
+    /// Creates an ALERT-sourced incident and assigns the global escalation policy if one exists.
+    /// Returns the raw entity so <see cref="AlertEvaluationService"/> can attach services before saving.
+    /// </summary>
+    public async Task<Incident> CreateAlertIncidentAsync(string title, bool isPublic, bool isGlobal, CancellationToken ct = default)
+    {
+        var incident = new Incident
+        {
+            Title = title,
+            StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            State = IncidentState.Investigating,
+            Status = IncidentStatus.Active,
+            Source = "ALERT",
+            IsGlobal = isGlobal,
+            IsPublic = isPublic,
+        };
+
+        if (escalationPolicyRepo is not null)
+        {
+            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
+            if (policy is not null) incident.EscalationPolicyId = policy.Id;
+        }
+
+        return incident;
+    }
+
     public async Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken ct = default)
     {
         var incident = new Incident
