@@ -65,11 +65,11 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
   const displayLabel = selectedDate ? format(selectedDate, "MMM d, yyyy") : "";
 
   return (
-    <div ref={ref} className={`relative inline-block ${className ?? ""}`}>
+    <div ref={ref} className={`relative ${className ?? "inline-block"}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between gap-2 min-w-52 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-left hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         <span className={displayLabel ? "text-foreground" : "text-muted-foreground"}>
           {displayLabel || placeholder}
