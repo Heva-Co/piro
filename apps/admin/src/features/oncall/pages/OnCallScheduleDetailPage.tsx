@@ -74,9 +74,17 @@ export default function OnCallScheduleDetailPage() {
     enabled: !!id,
   });
 
+  // Pure rotation slots — no overrides applied (for the Rotations section)
+  const { data: rotationSlots = [] } = useQuery({
+    queryKey: [...QUERY_KEYS.ONCALL_SCHEDULE_EXPAND(id!, isoStr(from), isoStr(to)), "pure"],
+    queryFn: () => onCallApi.expand(id!, isoStr(from), isoStr(to), false),
+    enabled: !!id,
+  });
+
+  // Slots with overrides applied — for Overrides section and Final Schedule
   const { data: slots = [], isLoading: loadingSlots } = useQuery({
     queryKey: QUERY_KEYS.ONCALL_SCHEDULE_EXPAND(id!, isoStr(from), isoStr(to)),
-    queryFn: () => onCallApi.expand(id!, isoStr(from), isoStr(to)),
+    queryFn: () => onCallApi.expand(id!, isoStr(from), isoStr(to), true),
     enabled: !!id,
   });
 
@@ -102,17 +110,44 @@ export default function OnCallScheduleDetailPage() {
     return <AdminLayout title="Not Found"><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></AdminLayout>;
   }
 
-  // Group slots by layer for "Rotations" section; overrides; final merged
+  // Rotations: pure schedule without any override substitution
   const rotationRows = schedule.layers.map((layer: OnCallLayer) => ({
     label: layer.name,
     layer,
-    slots: slots.filter((s: OnCallSlot) => s.layerId === layer.id && !s.isOverride),
+    slots: rotationSlots.filter((s: OnCallSlot) => s.layerId === layer.id),
   }));
 
-  const overrideRows = schedule.layers.map((layer: OnCallLayer) => ({
-    label: layer.name,
-    slots: slots.filter((s: OnCallSlot) => s.layerId === layer.id && s.isOverride),
-  })).filter(r => r.slots.length > 0);
+  // One row per unique override (deduplicated by userId+replacesUserName),
+  // spanning the full override range (min startsAt → max endsAt of all its slots)
+  const overrideSlots = slots.filter((s: OnCallSlot) => s.isOverride);
+  const overrideMap = new Map<string, { label: string; slots: OnCallSlot[] }>();
+  for (const s of overrideSlots) {
+    const key = `${s.userId}:${s.replacesUserName ?? ""}`;
+    if (!overrideMap.has(key)) {
+      overrideMap.set(key, {
+        label: s.replacesUserName
+          ? `${s.userInitials} → ${s.replacesUserName}`
+          : `${s.userName} (extra)`,
+        slots: [],
+      });
+    }
+    overrideMap.get(key)!.slots.push(s);
+  }
+  // Collapse each group into one synthetic slot spanning the full override range + avatar info
+  const overrideRows = Array.from(overrideMap.values()).map(({ label, slots: oSlots }) => {
+    const first = oSlots[0];
+    const startsAt = oSlots.reduce((min, s) => s.startsAt < min ? s.startsAt : min, first.startsAt);
+    const endsAt   = oSlots.reduce((max, s) => s.endsAt > max ? s.endsAt : max, first.endsAt);
+    // Find color for the replaced user from rotation slots
+    const replacedSlot = rotationSlots.find((s: OnCallSlot) => s.userName === first.replacesUserName);
+    const overrideInfo = first.replacesUserName ? {
+      fromInitials: first.userInitials,
+      fromColor: first.userColor || "#6366f1",
+      toInitials: (first.replacesUserName.split(" ").map((p: string) => p[0]).join("")).toUpperCase(),
+      toColor: replacedSlot?.userColor || "#94a3b8",
+    } : undefined;
+    return { label, slots: [{ ...first, startsAt, endsAt }], overrideInfo };
+  });
 
   // Final: all slots merged (rotations with overrides applied)
   const finalRows = schedule.layers.map((layer: OnCallLayer) => ({
