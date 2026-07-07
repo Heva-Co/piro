@@ -765,8 +765,8 @@ export const onCallApi = {
     api.put<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id), data).then((r) => r.data),
   delete: (id: number | string) => api.delete(ENDPOINTS.ONCALL_SCHEDULE(id)),
   getCurrent: (id: number | string) => api.get<OnCallUser[]>(ENDPOINTS.ONCALL_SCHEDULE_CURRENT(id)).then((r) => r.data),
-  expand: (id: number | string, from: string, to: string) =>
-    api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_SCHEDULE_EXPAND(id)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.data),
+  expand: (id: number | string, from: string, to: string, applyOverrides = true) =>
+    api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_SCHEDULE_EXPAND(id)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&applyOverrides=${applyOverrides}`).then((r) => r.data),
 
   // Layers
   createLayer: (scheduleId: number | string, data: { name: string; order: number; recurrenceRule: string; firstOccurrenceStartsAt: string; firstOccurrenceEndsAt: string; userIds: number[] }) =>
