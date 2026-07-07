@@ -43,6 +43,7 @@ import ImportPage from "@/features/configuration/pages/ImportPage";
 import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
+import EscalationPolicyPage from "@/features/escalation/pages/EscalationPolicyPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,7 @@ export default function App() {
               {/* On-Call */}
               <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />
               <Route path="/admin/oncall/:id" element={<OnCallScheduleDetailPage />} />
+              <Route path={ROUTES.ESCALATION} element={<EscalationPolicyPage />} />
             </Route>
 
             {/* Catch-all */}
