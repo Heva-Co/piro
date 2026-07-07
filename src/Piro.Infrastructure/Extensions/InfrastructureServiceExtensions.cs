@@ -148,6 +148,13 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 .WithIdentity("maintenance-scheduler-trigger")
                 .WithCronSchedule("0 0/15 * * * ?"));
 
+            // Escalation policy step checks — every minute
+            q.AddJob<EscalationCheckJob>(j => j.WithIdentity(EscalationCheckJob.Key).StoreDurably());
+            q.AddTrigger(t => t
+                .ForJob(EscalationCheckJob.Key)
+                .WithIdentity("escalation-check-trigger")
+                .WithCronSchedule("0 * * * * ?"));
+
         });
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
@@ -162,6 +169,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
         services.AddScoped<OnCallService>();
         services.AddScoped<OnCallScheduleAppService>();
+
+        // Escalation
+        services.AddScoped<IEscalationPolicyRepository, EscalationPolicyRepository>();
+        services.AddScoped<EscalationCheckerService>();
+        services.AddScoped<EscalationPolicyAppService>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
