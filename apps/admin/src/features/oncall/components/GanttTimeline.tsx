@@ -3,10 +3,18 @@ import { X, Pencil, Trash2 } from "lucide-react";
 import type { OnCallSlot, OnCallLayer } from "@/lib/api";
 import { getWeekday } from "@/utils/date";
 
+interface OverrideInfo {
+  fromInitials: string;
+  fromColor: string;
+  toInitials: string;
+  toColor: string;
+}
+
 interface GanttRow {
   label: string;
   slots: OnCallSlot[];
   layer?: OnCallLayer;
+  overrideInfo?: OverrideInfo;
 }
 
 interface GanttTimelineProps {
@@ -83,7 +91,19 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
           {rows.map((row, ri) => (
             <div key={ri} className="group pl-4 pr-2 pt-1 pb-1" style={{ minHeight: "2.25rem" }}>
               <div className="flex items-center gap-1">
-                <span className="text-xs font-semibold text-foreground truncate flex-1" title={row.label}>{row.label}</span>
+                {row.overrideInfo ? (
+                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: row.overrideInfo.fromColor }}>
+                      {row.overrideInfo.fromInitials}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">→</span>
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: row.overrideInfo.toColor }}>
+                      {row.overrideInfo.toInitials}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold text-foreground truncate flex-1" title={row.label}>{row.label}</span>
+                )}
                 {row.layer && onEditLayer && (
                   <button onClick={() => onEditLayer(row.layer!)} className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0" title="Edit layer">
                     <Pencil size={10} />
@@ -131,22 +151,32 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
                 {dayColumns.map((day, i) => (
                   <div key={i} className="absolute top-0 h-full border-l border-border/30" style={{ left: pct(day.getTime() - from.getTime()) }} />
                 ))}
-                {row.slots.map((slot, si) => (
-                  <button
-                    key={si}
-                    title={`${slot.userName}${slot.isOverride ? " (override)" : ""}`}
-                    onClick={() => setModal(slot)}
-                    className="absolute top-0.5 h-6 rounded flex items-center justify-center text-xs font-semibold text-white truncate px-1 cursor-pointer hover:brightness-110 transition-all"
-                    style={{
-                      left: slotLeft(slot),
-                      width: slotWidth(slot),
-                      backgroundColor: slot.userColor || "#6366f1",
-                      outline: slot.isOverride ? "2px solid rgba(255,255,255,0.6)" : "none",
-                    }}
-                  >
-                    {slot.userInitials}
-                  </button>
-                ))}
+                {row.slots.map((slot, si) => {
+                  const label = slot.isOverride && slot.replacesUserName
+                    ? `${slot.userInitials} → ${slot.replacesUserName.split(" ").map((p: string) => p[0]).join("")}`
+                    : slot.userInitials;
+                  const tooltipText = slot.isOverride
+                    ? slot.replacesUserName
+                      ? `${slot.userName} replacing ${slot.replacesUserName}`
+                      : `${slot.userName} (extra coverage)`
+                    : slot.userName;
+                  return (
+                    <button
+                      key={si}
+                      title={tooltipText}
+                      onClick={() => setModal(slot)}
+                      className="absolute top-0.5 h-6 rounded flex items-center justify-center text-xs font-semibold text-white truncate px-1 cursor-pointer hover:brightness-110 transition-all"
+                      style={{
+                        left: slotLeft(slot),
+                        width: slotWidth(slot),
+                        backgroundColor: slot.userColor || "#6366f1",
+                        outline: slot.isOverride ? "2px solid rgba(255,255,255,0.6)" : "none",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
