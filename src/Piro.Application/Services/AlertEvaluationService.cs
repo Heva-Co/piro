@@ -8,7 +8,7 @@ namespace Piro.Application.Services;
 
 /// <summary>
 /// Evaluates alert thresholds after a check executes and dispatches notifications
-/// via registered <see cref="INotificationChannelDispatcher"/> implementations.
+/// via registered <see cref="INotificationDispatcher"/> implementations.
 /// </summary>
 public class AlertEvaluationService(
     IAlertConfigRepository alertConfigRepository,
@@ -18,11 +18,11 @@ public class AlertEvaluationService(
     IIncidentRepository incidentRepository,
     ISiteConfigRepository siteConfigRepository,
     IIncidentPublishScheduler publishScheduler,
-    IEnumerable<INotificationChannelDispatcher> dispatchers,
+    IEnumerable<INotificationDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger,
     IncidentAppService incidentAppService)
 {
-    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>

@@ -62,6 +62,7 @@ export const ROUTES = {
     SSO_DETAIL: (id: string) => `/admin/configuration/sso/${id}`,
     API_KEYS: "/admin/configuration/api-keys",
     USERS: "/admin/configuration/users",
+    USER_DETAIL: (id: number | string) => `/admin/configuration/users/${id}`,
     WORKERS: "/admin/configuration/workers",
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
@@ -77,6 +78,9 @@ export const ROUTES = {
 
   // Escalation policy
   ESCALATION: "/admin/escalation-policy",
+
+  // User profile
+  PROFILE: "/admin/profile",
 
   // Logs
   LOGS: "/admin/logs",

@@ -11,7 +11,9 @@ public class UserManagementService(
     RoleManager<AppRole> roleManager,
     IEmailService emailService,
     IConfiguration configuration,
-    ISiteConfigRepository siteConfigRepo) : IUserManagementService
+    ISiteConfigRepository siteConfigRepo,
+    IIntegrationRepository integrationRepo,
+    IUserNotificationPreferenceRepository prefRepo) : IUserManagementService
 {
     private const string InvitationTokenPurpose = "Invitation";
     private static readonly TimeSpan InvitationExpiry = TimeSpan.FromHours(48);
@@ -164,6 +166,57 @@ public class UserManagementService(
             .Select(r => new RoleDto(r.Id, r.Name!))
             .ToList();
     }
+
+    public async Task<UserProfileDto> GetProfileAsync(int userId, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+        var roles = await userManager.GetRolesAsync(user);
+        var isOidc = user.ExternalProvider is not null;
+        return new UserProfileDto(user.Id, user.Email!, user.Name, user.Color, roles.ToArray(), isOidc);
+    }
+
+    public async Task<UserProfileDto> UpdateProfileAsync(int userId, UpdateProfileRequest request, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+
+        if (request.Name is not null) user.Name = request.Name;
+        if (request.Color is not null) user.Color = request.Color;
+
+        await userManager.UpdateAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
+        return new UserProfileDto(user.Id, user.Email!, user.Name, user.Color, roles.ToArray(), user.ExternalProvider is not null);
+    }
+
+    public async Task<List<UserNotificationPreferenceDto>> GetNotificationPreferencesAsync(int userId, CancellationToken ct = default)
+    {
+        var prefs = await prefRepo.GetByUserIdAsync(userId, ct);
+        return prefs.Select(MapPref).ToList();
+    }
+
+    public async Task<List<UserNotificationPreferenceDto>> SetNotificationPreferencesAsync(int userId, SetUserNotificationPreferencesRequest request, CancellationToken ct = default)
+    {
+        var newPrefs = request.Preferences.Select(r => new UserNotificationPreference
+        {
+            UserId = userId,
+            IntegrationId = r.IntegrationId,
+            Handle = r.Handle,
+            Priority = r.Priority,
+        }).ToList();
+
+        await prefRepo.SetAsync(userId, newPrefs, ct);
+        return (await prefRepo.GetByUserIdAsync(userId, ct)).Select(MapPref).ToList();
+    }
+
+    private static UserNotificationPreferenceDto MapPref(UserNotificationPreference p) => new(
+        p.Id,
+        p.IntegrationId,
+        p.Integration?.Name ?? p.IntegrationId.ToString(),
+        p.Integration?.Type.ToString() ?? "",
+        p.Handle,
+        p.Priority
+    );
 
     private static string BuildInvitationEmail(string inviteUrl) => $"""
         <!DOCTYPE html>
