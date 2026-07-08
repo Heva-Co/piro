@@ -17,3 +17,17 @@ public record InviteUserRequest(string Email, int RoleId);
 public record AcceptInviteRequest(string Token, string Name, string Password);
 
 public record ChangeRoleRequest(int RoleId);
+
+public record UserProfileDto(
+    int Id,
+    string Email,
+    string Name,
+    string Color,
+    string[] Roles,
+    bool IsOidc
+);
+
+public record UpdateProfileRequest(
+    string? Name,
+    string? Color
+);

@@ -89,4 +89,29 @@ public class UsersController(IUserManagementService userService) : ControllerBas
             return BadRequest(new { title = ex.Message, status = 400 });
         }
     }
+
+    /// <summary>Returns a single user by ID.</summary>
+    [HttpGet("{id:int}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<UserListDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
+    {
+        var users = await userService.GetAllAsync(ct);
+        var user = users.FirstOrDefault(u => u.Id == id);
+        return user is null ? NotFound() : Ok(user);
+    }
+
+    /// <summary>Returns a user's personal notification preferences.</summary>
+    [HttpGet("{id:int}/notification-preferences")]
+    [ProducesResponseType<List<UserNotificationPreferenceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNotificationPreferences(int id, CancellationToken ct) =>
+        Ok(await userService.GetNotificationPreferencesAsync(id, ct));
+
+    /// <summary>Replaces all personal notification preferences for a user.</summary>
+    [HttpPut("{id:int}/notification-preferences")]
+    [ProducesResponseType<List<UserNotificationPreferenceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetNotificationPreferences(
+        int id, [FromBody] SetUserNotificationPreferencesRequest request, CancellationToken ct) =>
+        Ok(await userService.SetNotificationPreferencesAsync(id, request, ct));
 }

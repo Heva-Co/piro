@@ -3,11 +3,54 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, CalendarClock, X, Trash2 } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { onCallApi } from "@/lib/api";
+import { onCallApi, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { TimezonePicker } from "@/components/TimezonePicker";
+
+const MAX_VISIBLE = 4;
+
+function MemberAvatars({ layers }: { layers: OnCallLayer[] }) {
+  // Collect unique users across all layers
+  const seen = new Set<number>();
+  const users: { userId: number; userName: string; userInitials: string; userColor: string }[] = [];
+  for (const layer of layers) {
+    for (const u of layer.users) {
+      if (!seen.has(u.userId)) {
+        seen.add(u.userId);
+        users.push(u);
+      }
+    }
+  }
+
+  if (users.length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  const visible = users.slice(0, MAX_VISIBLE);
+  const extra = users.length - MAX_VISIBLE;
+
+  return (
+    <div className="flex items-center -space-x-2">
+      {visible.map((u) => (
+        <div
+          key={u.userId}
+          title={u.userName}
+          className="size-7 rounded-full border-2 border-card flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+          style={{ backgroundColor: u.userColor || "#6366f1" }}
+        >
+          {u.userInitials}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div className="size-7 rounded-full border-2 border-card bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 export default function OnCallSchedulesPage() {
@@ -97,7 +140,7 @@ export default function OnCallSchedulesPage() {
                 <tr>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Name</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Timezone</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Layers</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Members</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
@@ -115,7 +158,9 @@ export default function OnCallSchedulesPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground text-xs">{s.timeZone}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{s.layers.length}</td>
+                    <td className="px-5 py-3.5">
+                      <MemberAvatars layers={s.layers} />
+                    </td>
                     <td className="px-5 py-3.5 text-right">
                       <button
                         onClick={(e) => handleDelete(e, s.id, s.name)}

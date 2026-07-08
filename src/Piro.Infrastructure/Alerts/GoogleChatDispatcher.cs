@@ -1,6 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
@@ -10,27 +10,19 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Google Chat Incoming Webhook.</summary>
-public partial class GoogleChatNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatNotificationChannelDispatcher> logger)
-    : INotificationChannelDispatcher
+public partial class GoogleChatDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatDispatcher> logger)
+    : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.GoogleChat;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<GoogleChatTriggerMeta>(channel.MetaJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException("Invalid Google Chat trigger metadata.");
+        var meta = JsonUtils.DeserializeAndValidate<GoogleChatTriggerMeta>(channel.MetaJson);
 
-        if (string.IsNullOrWhiteSpace(meta.WebhookUrl))
-        {
-            logger.LogWarning("Google Chat channel {ChannelId} has no webhook URL configured.", channel.Id);
-            return;
-        }
-
-        var variables = BuildVariables(context);
+        var variables = NotificationTemplateHelper.BuildVariables(context);
         var body = string.IsNullOrWhiteSpace(meta.Body)
             ? BuildDefaultBody(context)
-            : ReplaceMustache(meta.Body, variables);
+            : NotificationTemplateHelper.RenderPlain(meta.Body, variables);
 
         var client = httpClientFactory.CreateClient("piro-webhook");
         using var request = new HttpRequestMessage(HttpMethod.Post, meta.WebhookUrl);
@@ -102,27 +94,8 @@ public partial class GoogleChatNotificationChannelDispatcher(IHttpClientFactory 
         });
     }
 
-    private static Dictionary<string, string> BuildVariables(AlertNotificationContext ctx) => new()
-    {
-        ["alert_name"]        = ctx.CheckName,
-        ["alert_for"]         = ctx.ServiceName,
-        ["alert_status"]      = ctx.CurrentStatus.ToString(),
-        ["alert_severity"]    = ctx.Severity.ToString(),
-        ["alert_description"] = ctx.AlertDescription ?? string.Empty,
-        ["alert_timestamp"]   = ctx.FiredAt.ToString("O"),
-        ["is_resolved"]       = ctx.IsRecovery ? "true" : "false",
-        ["is_triggered"]      = ctx.IsRecovery ? "false" : "true",
-    };
+    private record GoogleChatTriggerMeta([property: Required] string WebhookUrl, string? Body = null);
+    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
+        Task.FromResult(false);
 
-    private static string ReplaceMustache(string template, Dictionary<string, string> vars) =>
-        MustachePattern().Replace(template, m =>
-        {
-            var key = m.Groups[1].Value.Trim();
-            return vars.TryGetValue(key, out var val) ? val : m.Value;
-        });
-
-    [GeneratedRegex(@"\{\{(\w+)\}\}")]
-    private static partial Regex MustachePattern();
-
-    private record GoogleChatTriggerMeta(string WebhookUrl, string? Body = null);
 }

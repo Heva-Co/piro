@@ -312,6 +312,9 @@ export const channelsApi = {
 
   test: (data: { type: string; metaJson: string; name?: string; integrationId?: number }) =>
     api.post(ENDPOINTS.CHANNEL_TEST, data),
+
+  testPersonal: (data: { integrationId: number; handle: string }) =>
+    api.post<{ message: string }>(ENDPOINTS.CHANNEL_TEST_PERSONAL, data),
 };
 
 // ─── Alert configs ────────────────────────────────────────────────────────────
@@ -409,6 +412,44 @@ export const usersApi = {
 
   roles: () =>
     api.get<{ id: number; name: string }[]>(ENDPOINTS.ROLES).then((r) => r.data),
+
+  getNotificationPreferences: (userId: number | string) =>
+    api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
+
+  setNotificationPreferences: (userId: number | string, preferences: UpsertNotificationPreference[]) =>
+    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+};
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
+  color: string;
+  roles: string[];
+  isOidc: boolean;
+}
+
+export interface UserNotificationPreference {
+  id: number;
+  integrationId: number;
+  integrationName: string;
+  integrationType: string;
+  handle: string;
+  priority: number;
+}
+
+export interface UpsertNotificationPreference {
+  integrationId: number;
+  handle: string;
+  priority: number;
+}
+
+export const profileApi = {
+  get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
+  update: (data: { name?: string; color?: string }) =>
+    api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
 };
 
 // ─── Site config ─────────────────────────────────────────────────────────────
@@ -646,10 +687,18 @@ export const INTEGRATION_TYPES = {
 
 export type IntegrationType = keyof typeof INTEGRATION_TYPES;
 
+export const INTEGRATION_CATEGORIES = {
+  Notification: "Notification", 
+  ThirdParty: "ThirdParty"
+}
+
+export type NotificationCategoryType = keyof typeof INTEGRATION_CATEGORIES;
+
 export interface Integration {
   id: number;
   name: string;
   type: IntegrationType;
+  category: NotificationCategoryType;
   description?: string;
   configJson: string;
   checkCount: number;

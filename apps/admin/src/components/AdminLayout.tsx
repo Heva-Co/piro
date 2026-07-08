@@ -27,6 +27,7 @@ import {
   Moon,
   CalendarClock,
   Siren,
+  User,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -196,6 +197,14 @@ function Sidebar({ onClose }: SidebarProps) {
           </button>
           {userMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-md shadow-md py-1 z-50">
+              <NavLink
+                to={ROUTES.PROFILE}
+                onClick={() => setUserMenuOpen(false)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors"
+              >
+                <User size={16} />
+                Profile
+              </NavLink>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors text-destructive"

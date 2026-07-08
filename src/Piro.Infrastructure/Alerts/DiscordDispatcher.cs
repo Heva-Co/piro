@@ -1,6 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
@@ -10,28 +10,20 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Discord Incoming Webhook.</summary>
-public partial class DiscordNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordNotificationChannelDispatcher> logger)
-    : INotificationChannelDispatcher
+public partial class DiscordDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordDispatcher> logger)
+    : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Discord;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<DiscordTriggerMeta>(channel.MetaJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException("Invalid Discord trigger metadata.");
+        var meta = JsonUtils.DeserializeAndValidate<DiscordTriggerMeta>(channel.MetaJson);
 
-        if (string.IsNullOrWhiteSpace(meta.WebhookUrl))
-        {
-            logger.LogWarning("Discord channel {ChannelId} has no webhook URL configured.", channel.Id);
-            return;
-        }
-
-        var variables = BuildVariables(context);
+        var variables = NotificationTemplateHelper.BuildVariables(context);
         string body;
         if (!string.IsNullOrWhiteSpace(meta.Template))
         {
-            var content = ReplaceMustache(meta.Template, variables);
+            var content = NotificationTemplateHelper.RenderPlain(meta.Template, variables);
             body = JsonSerializer.Serialize(new
             {
                 content,
@@ -112,27 +104,8 @@ public partial class DiscordNotificationChannelDispatcher(IHttpClientFactory htt
         });
     }
 
-    private static Dictionary<string, string> BuildVariables(AlertNotificationContext ctx) => new()
-    {
-        ["alert_name"]        = ctx.CheckName,
-        ["alert_for"]         = ctx.ServiceName,
-        ["alert_status"]      = ctx.CurrentStatus.ToString(),
-        ["alert_severity"]    = ctx.Severity.ToString(),
-        ["alert_description"] = ctx.AlertDescription ?? string.Empty,
-        ["alert_timestamp"]   = ctx.FiredAt.ToString("O"),
-        ["is_resolved"]       = ctx.IsRecovery ? "true" : "false",
-        ["is_triggered"]      = ctx.IsRecovery ? "false" : "true",
-    };
+    private record DiscordTriggerMeta([property: Required] string WebhookUrl, string? Username = null, string? Template = null);
+    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
+        Task.FromResult(false);
 
-    private static string ReplaceMustache(string template, Dictionary<string, string> vars) =>
-        MustachePattern().Replace(template, m =>
-        {
-            var key = m.Groups[1].Value.Trim();
-            return vars.TryGetValue(key, out var val) ? val : m.Value;
-        });
-
-    [GeneratedRegex(@"\{\{(\w+)\}\}")]
-    private static partial Regex MustachePattern();
-
-    private record DiscordTriggerMeta(string WebhookUrl, string? Username = null, string? Template = null);
 }

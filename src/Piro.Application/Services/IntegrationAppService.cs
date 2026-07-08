@@ -2,6 +2,7 @@ using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
+using Piro.Domain.Extensions;
 
 namespace Piro.Application.Services;
 
@@ -59,7 +60,14 @@ public class IntegrationAppService(IIntegrationRepository repository)
     }
 
     private static IntegrationDto ToDto(Integration i) => new(
-        i.Id, i.Name, i.Type, i.Description, i.ConfigJson,
-        i.Checks.Count, i.CreatedAt, i.UpdatedAt
+        i.Id, 
+        i.Name, 
+        i.Type, 
+        i.Type.GetCategory(), 
+        i.Description, 
+        i.ConfigJson,
+        i.Checks.Count, 
+        i.CreatedAt, 
+        i.UpdatedAt
     );
 }

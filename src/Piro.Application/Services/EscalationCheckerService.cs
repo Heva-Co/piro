@@ -14,11 +14,12 @@ public class EscalationCheckerService(
     IEscalationPolicyRepository policyRepo,
     IIncidentRepository incidentRepo,
     OnCallService onCallService,
-    IEnumerable<INotificationChannelDispatcher> dispatchers,
+    IEnumerable<INotificationDispatcher> dispatchers,
     INotificationChannelRepository channelRepo,
+    IUserNotificationPreferenceRepository prefRepo,
     ILogger<EscalationCheckerService> logger)
 {
-    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     public async Task ProcessAsync(CancellationToken ct = default)
@@ -69,16 +70,14 @@ public class EscalationCheckerService(
         var steps = policy.Steps.OrderBy(s => s.Order).ToList();
         if (steps.Count == 0) return;
 
-        // Initialize on first encounter
+        // Initialize on first encounter — fall through immediately so step 0 fires in the same tick
         if (incident.EscalationCurrentStep is null)
         {
             incident.EscalationCurrentStep = 0;
             incident.EscalationStepStartedAt = new DateTimeOffset(incident.CreatedAt, TimeSpan.Zero);
-            await incidentRepo.UpdateAsync(incident, ct);
             logger.LogInformation(
                 "Escalation initialized for incident #{IncidentId} \"{Title}\" — starting at step 1 of {Total}.",
                 incident.Id, incident.Title, steps.Count);
-            return;
         }
 
         var currentStepIndex = incident.EscalationCurrentStep.Value;
@@ -112,7 +111,7 @@ public class EscalationCheckerService(
         // If ACKed and no re-escalation configured, pause
         if (incident.AcknowledgedAt.HasValue && policy.ReEscalateAfterAckMinutes == 0)
         {
-            logger.LogDebug(
+            logger.LogInformation(
                 "Escalation paused for incident #{IncidentId} \"{Title}\" — acknowledged, re-escalation disabled.",
                 incident.Id, incident.Title);
             return;
@@ -120,7 +119,7 @@ public class EscalationCheckerService(
 
         if (currentStepIndex >= steps.Count)
         {
-            logger.LogDebug(
+            logger.LogInformation(
                 "Escalation exhausted for incident #{IncidentId} \"{Title}\" — all {Total} step(s) already fired.",
                 incident.Id, incident.Title, steps.Count);
             return;
@@ -132,7 +131,7 @@ public class EscalationCheckerService(
 
         if (elapsed < step.DelayMinutes)
         {
-            logger.LogDebug(
+            logger.LogInformation(
                 "Escalation waiting for incident #{IncidentId} — step {StepNum}/{Total}, {Elapsed:F1}/{Delay} min elapsed.",
                 incident.Id, currentStepIndex + 1, steps.Count, elapsed, step.DelayMinutes);
             return;
@@ -155,22 +154,63 @@ public class EscalationCheckerService(
         }
 
         var context = BuildContext(incident);
+        bool anyPersonalNotified = false;
 
-        foreach (var channel in globalChannels)
+        // Notify each on-call user via their personal preferences (ordered by priority)
+        foreach (var user in onCallUsers)
         {
-            if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher)) continue;
-            try
+            var prefs = await prefRepo.GetByUserIdAsync(user.Id, ct);
+            if (prefs.Count == 0) continue;
+
+            foreach (var pref in prefs.OrderBy(p => p.Priority))
             {
-                await dispatcher.DispatchAsync(channel, context, ct);
-                logger.LogInformation(
-                    "Escalation notification sent via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
-                    channel.Type, channel.Name, incident.Id);
+                if (pref.Integration is null) continue;
+                var channelType = pref.Integration.Type;
+                if (!_dispatchers.TryGetValue(channelType, out var dispatcher)) continue;
+
+                try
+                {
+                    var sent = await dispatcher.DispatchPersonalAsync(pref.Integration, pref.Handle, context, ct);
+                    if (!sent) continue; // dispatcher doesn't support personal dispatch; try next
+
+                    anyPersonalNotified = true;
+                    logger.LogInformation(
+                        "Escalation personal notification sent to {UserName} via {ChannelType} for incident #{IncidentId}.",
+                        user.UserName ?? user.Email, channelType, incident.Id);
+                    break; // Only use first working preference per user
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex,
+                        "Escalation personal dispatch failed for {UserName} via {ChannelType} for incident #{IncidentId} — trying next preference.",
+                        user.UserName ?? user.Email, channelType, incident.Id);
+                }
             }
-            catch (Exception ex)
+        }
+
+        // Fall back to global channels if no personal preferences were notified
+        if (!anyPersonalNotified)
+        {
+            logger.LogInformation(
+                "Escalation falling back to global channels for incident #{IncidentId} — no on-call users had personal preferences.",
+                incident.Id);
+
+            foreach (var channel in globalChannels)
             {
-                logger.LogError(ex,
-                    "Escalation dispatch failed via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
-                    channel.Type, channel.Name, incident.Id);
+                if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher)) continue;
+                try
+                {
+                    await dispatcher.DispatchAsync(channel, context, ct);
+                    logger.LogInformation(
+                        "Escalation notification sent via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
+                        channel.Type, channel.Name, incident.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Escalation dispatch failed via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
+                        channel.Type, channel.Name, incident.Id);
+                }
             }
         }
 
