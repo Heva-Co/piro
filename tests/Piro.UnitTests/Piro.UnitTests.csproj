@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Piro.Domain\Piro.Domain.csproj" />
     <ProjectReference Include="..\..\src\Piro.Application\Piro.Application.csproj" />
+    <ProjectReference Include="..\..\src\Piro.Infrastructure\Piro.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

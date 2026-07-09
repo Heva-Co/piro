@@ -42,16 +42,7 @@ internal class SslCheckExecutor : ICheckExecutor
                            ?? new X509Certificate2(ssl.RemoteCertificate!);
 
                 var expiresIn = cert.NotAfter - DateTime.UtcNow;
-
-                if (expiresIn <= TimeSpan.Zero)
-                    return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
-                        $"Certificate expired on {cert.NotAfter:yyyy-MM-dd}.");
-
-                if (expiresIn.TotalDays < data.WarningDaysBeforeExpiry)
-                    return new CheckExecutionResult(ServiceStatus.DEGRADED, sw.Elapsed.TotalMilliseconds,
-                        $"Certificate expires in {(int)expiresIn.TotalDays} day(s) ({cert.NotAfter:yyyy-MM-dd}).");
-
-                return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
+                return ClassifyExpiry(expiresIn, cert.NotAfter, sw.Elapsed.TotalMilliseconds, data);
             }
             catch (Exception ex)
             {
@@ -63,5 +54,22 @@ internal class SslCheckExecutor : ICheckExecutor
         {
             return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Executor error: {ex.Message}");
         }
+    }
+
+    internal static CheckExecutionResult ClassifyExpiry(TimeSpan expiresIn, DateTime notAfter, double? latencyMs, SslCheckData data)
+    {
+        if (expiresIn <= TimeSpan.Zero)
+            return new CheckExecutionResult(ServiceStatus.DOWN, latencyMs,
+                $"Certificate expired on {notAfter:yyyy-MM-dd}.");
+
+        if (expiresIn.TotalDays < data.CriticalDaysBeforeExpiry)
+            return new CheckExecutionResult(ServiceStatus.DOWN, latencyMs,
+                $"Certificate expires in {(int)expiresIn.TotalDays} day(s) ({notAfter:yyyy-MM-dd}) — critical threshold.");
+
+        if (expiresIn.TotalDays < data.WarningDaysBeforeExpiry)
+            return new CheckExecutionResult(ServiceStatus.DEGRADED, latencyMs,
+                $"Certificate expires in {(int)expiresIn.TotalDays} day(s) ({notAfter:yyyy-MM-dd}).");
+
+        return new CheckExecutionResult(ServiceStatus.UP, latencyMs, null);
     }
 }
