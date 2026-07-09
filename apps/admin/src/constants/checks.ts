@@ -32,7 +32,7 @@ export const CHECK_TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
   DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [], degradedLatencyMs: "", downLatencyMs: "" },
   TCP:             { host: "", port: 80 },
   Ping:            { host: "" },
-  SSL:             { host: "", port: 443, warningDaysBeforeExpiry: 30 },
+  SSL:             { host: "", port: 443, warningDaysBeforeExpiry: 14, criticalDaysBeforeExpiry: 3 },
   Heartbeat:       { gracePeriodSeconds: 60 },
   GCP_CloudRunJob: { integrationId: "", projectId: "", region: "", jobName: "", maxAgeHours: 25 },
 };

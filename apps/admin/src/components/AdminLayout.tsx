@@ -26,6 +26,8 @@ import {
   Sun,
   Moon,
   CalendarClock,
+  Siren,
+  User,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +52,7 @@ const mainNavItems: NavItem[] = [
   { label: "Maintenances", to: ROUTES.MAINTENANCES.LIST, icon: <ClockAlert size={18} /> },
   { label: "Notification Channels", to: ROUTES.CHANNELS.LIST, icon: <Bell size={18} /> },
   { label: "On-Call", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
+  { label: "Escalation", to: ROUTES.ESCALATION, icon: <Siren size={18} /> },
   { label: "Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} /> },
 ];
 
@@ -194,6 +197,14 @@ function Sidebar({ onClose }: SidebarProps) {
           </button>
           {userMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-md shadow-md py-1 z-50">
+              <NavLink
+                to={ROUTES.PROFILE}
+                onClick={() => setUserMenuOpen(false)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors"
+              >
+                <User size={16} />
+                Profile
+              </NavLink>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors text-destructive"

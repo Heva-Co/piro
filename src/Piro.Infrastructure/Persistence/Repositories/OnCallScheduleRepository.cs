@@ -8,6 +8,9 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
 {
     public async Task<List<OnCallSchedule>> GetAllAsync(CancellationToken ct = default) =>
         await db.OnCallSchedules
+            .Include(s => s.Layers)
+                .ThenInclude(l => l.Users)
+                    .ThenInclude(u => u.User)
             .OrderBy(s => s.Name)
             .ToListAsync(ct);
 

@@ -23,7 +23,12 @@ public record IncidentDto(
     long? AcknowledgedAt,
     string? AcknowledgedBy,
     ServiceStatus CurrentImpact,
-    IEnumerable<IncidentImpactChangeDto> ImpactChanges
+    IEnumerable<IncidentImpactChangeDto> ImpactChanges,
+    int? EscalationPolicyId,
+    int? EscalationCurrentStep,
+    DateTimeOffset? EscalationStepStartedAt,
+    int? EscalationTotalSteps,
+    DateTimeOffset? NextEscalationAt
 );
 
 /// <summary>Point-in-time severity change recorded on an incident.</summary>

@@ -1,6 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
@@ -10,27 +10,19 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Slack Incoming Webhook URL.</summary>
-public partial class SlackNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<SlackNotificationChannelDispatcher> logger)
-    : INotificationChannelDispatcher
+public partial class SlackDispatcher(IHttpClientFactory httpClientFactory, ILogger<SlackDispatcher> logger)
+    : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Slack;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<SlackTriggerMeta>(channel.MetaJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException("Invalid Slack trigger metadata.");
+        var meta = JsonUtils.DeserializeAndValidate<SlackTriggerMeta>(channel.MetaJson);
 
-        if (string.IsNullOrWhiteSpace(meta.Url))
-        {
-            logger.LogWarning("Slack channel {ChannelId} has no webhook URL configured.", channel.Id);
-            return;
-        }
-
-        var variables = BuildVariables(context);
+        var variables = NotificationTemplateHelper.BuildVariables(context);
         var body = string.IsNullOrWhiteSpace(meta.Body)
             ? BuildDefaultBody(context)
-            : ReplaceMustache(meta.Body, variables);
+            : NotificationTemplateHelper.RenderPlain(meta.Body, variables);
 
         var client = httpClientFactory.CreateClient("piro-webhook");
         using var request = new HttpRequestMessage(HttpMethod.Post, meta.Url);
@@ -85,27 +77,8 @@ public partial class SlackNotificationChannelDispatcher(IHttpClientFactory httpC
         });
     }
 
-    private static Dictionary<string, string> BuildVariables(AlertNotificationContext ctx) => new()
-    {
-        ["alert_name"]        = ctx.CheckName,
-        ["alert_for"]         = ctx.ServiceName,
-        ["alert_status"]      = ctx.CurrentStatus.ToString(),
-        ["alert_severity"]    = ctx.Severity.ToString(),
-        ["alert_description"] = ctx.AlertDescription ?? string.Empty,
-        ["alert_timestamp"]   = ctx.FiredAt.ToString("O"),
-        ["is_resolved"]       = ctx.IsRecovery ? "true" : "false",
-        ["is_triggered"]      = ctx.IsRecovery ? "false" : "true",
-    };
+    private record SlackTriggerMeta([property: Required] string Url, string? Body = null);
+    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
+        Task.FromResult(false);
 
-    private static string ReplaceMustache(string template, Dictionary<string, string> vars) =>
-        MustachePattern().Replace(template, m =>
-        {
-            var key = m.Groups[1].Value.Trim();
-            return vars.TryGetValue(key, out var val) ? val : m.Value;
-        });
-
-    [GeneratedRegex(@"\{\{(\w+)\}\}")]
-    private static partial Regex MustachePattern();
-
-    private record SlackTriggerMeta(string Url, string? Body = null);
 }

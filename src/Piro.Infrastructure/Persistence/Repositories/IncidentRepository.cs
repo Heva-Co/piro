@@ -194,6 +194,12 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<List<Incident>> GetOpenWithEscalationAsync(CancellationToken ct = default) =>
+        await db.Incidents
+            .Where(i => i.State != Piro.Domain.Enums.IncidentState.Resolved && i.EscalationPolicyId != null)
+            .OrderBy(i => i.Id)
+            .ToListAsync(ct);
+
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>
         (int)a > (int)b ? a : b;
 }

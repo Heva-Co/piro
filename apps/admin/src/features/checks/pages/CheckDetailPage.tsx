@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ExternalLink, Play, RefreshCw, Save } from "lucide-react";
+import { Bell, ExternalLink, Play, RefreshCw, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import {
   useCheck,
@@ -14,61 +14,65 @@ import {
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
 import { channelsApi, integrationsApi } from "@/lib/api";
-import { CHECK_CRITICALITY_MAP, type CheckCriticalityKey } from "@/constants/checks";
+import { useForm, FormProvider } from "react-hook-form";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { StatusPill } from "@/components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
+import { CheckGeneralSettingsFields, type CheckGeneralFormValues } from "@/features/checks/components/CheckGeneralSettingsFields";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
 import { formatTimestamp } from "@/utils/date";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type CheckType = string;
-
-
 
 // ── General Settings ──────────────────────────────────────────────────────────
 
 function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<CheckType>("Http");
-  const [cron, setCron] = useState("* * * * *");
-  const [showCustomCron, setShowCustomCron] = useState(false);
-  const [isActive, setIsActive] = useState(true);
-  const [isMultiRegion, setIsMultiRegion] = useState(false);
-  const [criticality, setCriticality] = useState<CheckCriticalityKey>("High");
-  const [autoCreate, setAutoCreate] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
+  const methods = useForm<CheckGeneralFormValues>({
+    defaultValues: {
+      name: "",
+      description: "",
+      cron: "* * * * *",
+      showCustomCron: false,
+      isActive: true,
+      isMultiRegion: false,
+      criticality: "High",
+      autoCreate: false,
+    },
+  });
+
   useEffect(() => {
     if (!check) return;
-    setName(check.name);
-    setDescription(check.description ?? "");
-    setType(check.type);
-    setCron(check.cron ?? "* * * * *");
-    setIsActive(check.isActive);
-    setIsMultiRegion(check.isMultiRegion);
-    setCriticality(check.criticality ?? "High");
-    setAutoCreate(check.automaticallyCreateIncident ?? false);
     const isPreset = CRON_PRESETS.some((p) => p.value === check.cron);
-    setShowCustomCron(!isPreset);
-  }, [check]);
+    methods.reset({
+      name: check.name,
+      description: check.description ?? "",
+      cron: check.cron ?? "* * * * *",
+      showCustomCron: !isPreset,
+      isActive: check.isActive,
+      isMultiRegion: check.isMultiRegion,
+      criticality: (check.criticality as CheckGeneralFormValues["criticality"]) ?? "High",
+      autoCreate: check.automaticallyCreateIncident ?? false,
+    });
+  }, [check, methods]);
 
-  async function handleSave() {
+  async function handleSave(values: CheckGeneralFormValues) {
     setError("");
     try {
       await updateCheck.mutateAsync({
-        name, description: description || undefined, type, cron, isActive, isMultiRegion,
-        criticality, automaticallyCreateIncident: autoCreate,
+        name: values.name,
+        description: values.description || undefined,
+        cron: values.cron,
+        isActive: values.isActive,
+        isMultiRegion: values.isMultiRegion,
+        criticality: values.criticality,
+        automaticallyCreateIncident: values.autoCreate,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -77,130 +81,38 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     }
   }
 
+  const typeNode = (
+    <input value={CHECK_TYPE_LABELS[check?.type ?? ""] ?? check?.type ?? ""} readOnly
+      className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none h-9 w-full" />
+  );
+
+  const slugNode = (
+    <>
+      <label className="text-sm font-semibold">Slug</label>
+      <input value={checkSlug} readOnly
+        className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none h-9 w-full" />
+      <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
+    </>
+  );
+
   return (
-    <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-      {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
-      {/* Name + Slug */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Slug</label>
-          <input value={checkSlug} readOnly className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none" />
-          <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
-        </div>
-      </div>
-
-      {/* Description */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Description</label>
-        <textarea value={description} rows={2} onChange={(e) => setDescription(e.target.value)}
-          placeholder="A brief description" className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full resize-none" />
-      </div>
-
-      {/* Type + Cron */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Type</label>
-          <input value={CHECK_TYPE_LABELS[type] ?? type} readOnly
-            className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none" />
-          <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Cron Schedule</label>
-          {showCustomCron ? (
-            <Input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="*/5 * * * *" className="font-mono" />
-          ) : (
-            <Select value={cron} onValueChange={(v) => v && setCron(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{(v: string) => CRON_PRESETS.find((p) => p.value === v)?.label ?? v}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {CRON_PRESETS.filter((p) => p.value !== "custom").map((p) => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <button type="button" onClick={() => setShowCustomCron((v) => !v)}
-            className="text-xs text-left hover:underline w-fit">
-            {showCustomCron ? "← Use preset" : "Enter custom cron →"}
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(handleSave)} className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+        {error && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+        <CheckGeneralSettingsFields typeNode={typeNode} slugNode={slugNode} />
+        <div className="flex justify-end">
+          <button type="submit" disabled={updateCheck.isPending}
+            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+            <Save size={14} />
+            {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
           </button>
         </div>
-      </div>
-
-      {/* Active + Multi-region */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold">Active</label>
-          <div className="flex items-center gap-2.5">
-            <Switch checked={isActive} onCheckedChange={setIsActive} />
-            <span className="text-sm text-muted-foreground">{isActive ? "Running" : "Paused"}</span>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold">Multi-region</label>
-          <div className="flex items-center gap-2.5">
-            <Switch checked={isMultiRegion} onCheckedChange={setIsMultiRegion} />
-            <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Incident automation */}
-      <div className="border-t pt-5 flex flex-col gap-4">
-        <div>
-          <p className="text-sm font-semibold">Incident Automation</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Configure how this check interacts with incident management</p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          {/* Criticality */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold">Criticality</label>
-            <Select value={criticality} onValueChange={(v) => v && setCriticality(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.entries(CHECK_CRITICALITY_MAP) as [CheckCriticalityKey, { label: string; description: string }][]).map(([key, meta]) => (
-                  <SelectItem key={key} value={key}>
-                    {meta.label} — {meta.description}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Determines incident impact when auto-created</p>
-          </div>
-
-          {/* Auto-create */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold">Auto-create incident</label>
-            <div className="flex items-center gap-2.5">
-              <Switch checked={autoCreate} onCheckedChange={setAutoCreate} />
-              <span className="text-sm text-muted-foreground">{autoCreate ? "Enabled" : "Disabled"}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Creates an internal incident when this check starts alerting</p>
-          </div>
-
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button type="button" onClick={handleSave} disabled={updateCheck.isPending}
-          className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
-          <Save size={14} />
-          {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
-        </button>
-      </div>
-    </div>
+      </form>
+    </FormProvider>
   );
 }
 
@@ -281,61 +193,60 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
 // ── Recent Logs ───────────────────────────────────────────────────────────────
 
 function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const navigate = useNavigate();
   const { data: logs, isLoading, isFetching, refetch } = useCheckLogs(serviceSlug, checkSlug);
+
+  if (isLoading) return <div className="text-sm text-muted-foreground py-2">Loading…</div>;
+
+  if (!logs || logs.length === 0) {
+    return <div className="text-sm text-muted-foreground text-center py-6">No logs yet.</div>;
+  }
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b">
-        <p className="text-sm text-muted-foreground">Recent check results</p>
-        <div className="flex items-center gap-2">
-          <button onClick={() => refetch()} disabled={isFetching}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors">
-            <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
-            Refresh
-          </button>
-          <button onClick={() => navigate(ROUTES.CHECKS.LOGS(serviceSlug, checkSlug))}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
-            <ExternalLink size={12} />
-            View all logs
-          </button>
-        </div>
-      </div>
-      {isLoading ? (
-        <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
-      ) : !logs || logs.length === 0 ? (
-        <div className="px-5 py-8 text-sm text-muted-foreground text-center">No logs yet.</div>
-      ) : (
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40">
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Time</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Latency</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Region</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Message</th>
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/40">
+            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Time</th>
+            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
+            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Latency</th>
+            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Region</th>
+            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Message</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {logs.map((log) => (
+            <tr key={log.timestamp} className="hover:bg-muted/30 transition-colors">
+              <td className="px-5 py-2.5 text-xs text-muted-foreground">{formatTimestamp(log.timestamp)}</td>
+              <td className="px-5 py-2.5"><StatusPill status={log.status} dataType={log.dataType} /></td>
+              <td className="px-5 py-2.5 text-sm text-muted-foreground">
+                {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}
+              </td>
+              <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion}</td>
+              <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.errorMessage ?? ""}</td>
             </tr>
-          </thead>
-          <tbody className="divide-y">
-            {logs.map((log) => (
-              <tr key={log.timestamp} className="hover:bg-muted/30 transition-colors">
-                <td className="px-5 py-2.5 text-xs text-muted-foreground">
-                  {formatTimestamp(log.timestamp)}
-                </td>
-                <td className="px-5 py-2.5">
-                  <StatusPill status={log.status} dataType={log.dataType} />
-                </td>
-                <td className="px-5 py-2.5 text-sm text-muted-foreground">
-                  {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}
-                </td>
-                <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion}</td>
-                <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.errorMessage ?? ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+          ))}
+        </tbody>
+      </table>
     </div>
+  );
+}
+
+function RecentLogsActions({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
+  const navigate = useNavigate();
+  const { isFetching, refetch } = useCheckLogs(serviceSlug, checkSlug);
+  return (
+    <>
+      <button onClick={() => refetch()} disabled={isFetching}
+        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors">
+        <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
+        Refresh
+      </button>
+      <button onClick={() => navigate(ROUTES.CHECKS.LOGS(serviceSlug, checkSlug))}
+        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
+        <ExternalLink size={12} />
+        View all logs
+      </button>
+    </>
   );
 }
 
@@ -527,27 +438,53 @@ export default function CheckDetailPage() {
         </div>
       </div>
 
-      <SectionAccordion title="General Settings" defaultOpen>
+      <SectionAccordion
+        title="General Settings"
+        description="Basic information about this check"
+        icon={<Settings size={16} className="text-muted-foreground" />}
+        defaultOpen
+      >
         <GeneralSettingsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
 
-      <SectionAccordion title="Configuration">
+      <SectionAccordion
+        title="Configuration"
+        description={`Settings for the ${check.type} check`}
+        icon={<Wrench size={16} className="text-muted-foreground" />}
+      >
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
 
-      <SectionAccordion title="Recent Logs">
+      <SectionAccordion
+        title="Recent Logs"
+        description="Latest check executions"
+        icon={<ClipboardList size={16} className="text-muted-foreground" />}
+        actions={<RecentLogsActions serviceSlug={serviceSlug!} checkSlug={checkSlug!} />}
+      >
         <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
 
-      <SectionAccordion title="Status History" upcomming />
+      <SectionAccordion
+        title="Status History"
+        description="Uptime and status over time"
+        icon={<Clock size={16} className="text-muted-foreground" />}
+        upcomming
+      />
 
-      <SectionAccordion title={
-        <span className="flex items-center gap-1.5"><Bell size={14} />Alert Configurations</span>
-      }>
+      <SectionAccordion
+        title="Alert Configurations"
+        description="Notification channels triggered by this check"
+        icon={<Bell size={16} className="text-muted-foreground" />}
+      >
         <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
 
-      <SectionAccordion title="Danger Zone" titleClassName="text-destructive">
+      <SectionAccordion
+        title="Danger Zone"
+        description="Irreversible actions for this check"
+        icon={<AlertTriangle size={16} className="text-destructive" />}
+        titleClassName="text-destructive"
+      >
         <DangerZone serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
     </AdminLayout>

@@ -6,7 +6,7 @@ public record LogDto(
     string Level,
     string Message,
     string? Exception,
-    string? SourceContext,
+    string? Source,
     string? Properties
 );
 

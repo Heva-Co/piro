@@ -112,9 +112,10 @@ export interface CreateCheck {
   type: string;
   cron: string;
   typeDataJson: string;
-  defaultStatus?: string;
   isActive?: boolean;
   isMultiRegion?: boolean;
+  criticality?: CheckCriticality;
+  automaticallyCreateIncident?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
   integrationId?: number;
@@ -312,6 +313,9 @@ export const channelsApi = {
 
   test: (data: { type: string; metaJson: string; name?: string; integrationId?: number }) =>
     api.post(ENDPOINTS.CHANNEL_TEST, data),
+
+  testPersonal: (data: { integrationId: number; handle: string }) =>
+    api.post<{ message: string }>(ENDPOINTS.CHANNEL_TEST_PERSONAL, data),
 };
 
 // ─── Alert configs ────────────────────────────────────────────────────────────
@@ -409,6 +413,44 @@ export const usersApi = {
 
   roles: () =>
     api.get<{ id: number; name: string }[]>(ENDPOINTS.ROLES).then((r) => r.data),
+
+  getNotificationPreferences: (userId: number | string) =>
+    api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
+
+  setNotificationPreferences: (userId: number | string, preferences: UpsertNotificationPreference[]) =>
+    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+};
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
+  color: string;
+  roles: string[];
+  isOidc: boolean;
+}
+
+export interface UserNotificationPreference {
+  id: number;
+  integrationId: number;
+  integrationName: string;
+  integrationType: string;
+  handle: string;
+  priority: number;
+}
+
+export interface UpsertNotificationPreference {
+  integrationId: number;
+  handle: string;
+  priority: number;
+}
+
+export const profileApi = {
+  get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
+  update: (data: { name?: string; color?: string }) =>
+    api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
 };
 
 // ─── Site config ─────────────────────────────────────────────────────────────
@@ -646,10 +688,18 @@ export const INTEGRATION_TYPES = {
 
 export type IntegrationType = keyof typeof INTEGRATION_TYPES;
 
+export const INTEGRATION_CATEGORIES = {
+  Notification: "Notification", 
+  ThirdParty: "ThirdParty"
+}
+
+export type NotificationCategoryType = keyof typeof INTEGRATION_CATEGORIES;
+
 export interface Integration {
   id: number;
   name: string;
   type: IntegrationType;
+  category: NotificationCategoryType;
   description?: string;
   configJson: string;
   checkCount: number;
@@ -791,4 +841,54 @@ export const onCallApi = {
     api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
   setNotificationPreferences: (userId: number | string, preferences: { integrationId: number; handle: string; priority: number }[]) =>
     api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+};
+
+// ─── Escalation ──────────────────────────────────────────────────────────────
+
+export interface EscalationStep {
+  id: number;
+  order: number;
+  delayMinutes: number;
+  scheduleId: number;
+  scheduleName: string;
+}
+
+export interface EscalationPolicy {
+  id: number;
+  name: string;
+  description?: string;
+  reEscalateAfterAckMinutes: number;
+  reEscalateAfterInactivityMinutes: number;
+  steps: EscalationStep[];
+}
+
+export interface UpsertEscalationPolicyRequest {
+  name: string;
+  description?: string;
+  reEscalateAfterAckMinutes: number;
+  reEscalateAfterInactivityMinutes: number;
+  steps: { order: number; delayMinutes: number; scheduleId: number }[];
+}
+
+// ─── Utils ───────────────────────────────────────────────────────────────────
+
+export interface TimezoneOption {
+  id: string;
+  displayName: string;
+  offset: string;
+  offsetMinutes: number;
+}
+
+export const utilsApi = {
+  timezones: () => api.get<TimezoneOption[]>("/api/v1/utils/timezones").then((r) => r.data),
+};
+
+export const escalationApi = {
+  get: () =>
+    api.get<EscalationPolicy>("/api/v1/escalation-policy")
+      .then((r) => r.data)
+      .catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e))),
+  upsert: (data: UpsertEscalationPolicyRequest) =>
+    api.put<EscalationPolicy>("/api/v1/escalation-policy", data).then((r) => r.data),
+  delete: () => api.delete("/api/v1/escalation-policy"),
 };
