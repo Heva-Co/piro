@@ -36,6 +36,7 @@ import LogsPage from "@/features/logs/pages/LogsPage";
 import SiteConfigPage from "@/features/configuration/pages/SiteConfigPage";
 import EmailConfigPage from "@/features/configuration/pages/EmailConfigPage";
 import UsersPage from "@/features/configuration/pages/UsersPage";
+import UserDetailPage from "@/features/configuration/pages/UserDetailPage";
 import SsoPage from "@/features/configuration/pages/SsoPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
@@ -43,6 +44,9 @@ import ImportPage from "@/features/configuration/pages/ImportPage";
 import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
+import EscalationPolicyPage from "@/features/escalation/pages/EscalationPolicyPage";
+import ProfilePage from "@/features/profile/pages/ProfilePage";
+import { ToastContainer, toast } from 'react-toastify';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +70,7 @@ function ProtectedLayout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ToastContainer />
       <ThemeProvider>
       <ConfirmDialogProvider>
       <BrowserRouter>
@@ -122,6 +127,7 @@ export default function App() {
               <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
               <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />
               <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
+              <Route path={ROUTES.CONFIG.USER_DETAIL(":id")} element={<UserDetailPage />} />
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
               <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
               <Route path={ROUTES.CONFIG.INCIDENTS} element={<IncidentsConfigPage />} />
@@ -129,6 +135,8 @@ export default function App() {
               {/* On-Call */}
               <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />
               <Route path="/admin/oncall/:id" element={<OnCallScheduleDetailPage />} />
+              <Route path={ROUTES.ESCALATION} element={<EscalationPolicyPage />} />
+              <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
             </Route>
 
             {/* Catch-all */}

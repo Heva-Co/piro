@@ -7,5 +7,8 @@ public record SslCheckData
     public int Port { get; init; } = 443;
 
     /// <summary>Certificate expiry within this many days is reported as DEGRADED.</summary>
-    public int WarningDaysBeforeExpiry { get; init; } = 30;
+    public int WarningDaysBeforeExpiry { get; init; } = 14;
+
+    /// <summary>Certificate expiry within this many days is reported as DOWN.</summary>
+    public int CriticalDaysBeforeExpiry { get; init; } = 3;
 }

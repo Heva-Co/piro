@@ -18,9 +18,9 @@ namespace Piro.Api.Controllers;
 public class NotificationChannelsController(
     NotificationChannelAppService channelApp,
     IIntegrationRepository integrationRepository,
-    IEnumerable<INotificationChannelDispatcher> dispatchers) : ControllerBase
+    IEnumerable<INotificationDispatcher> dispatchers) : ControllerBase
 {
-    private readonly Dictionary<IntegrationType, INotificationChannelDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>Returns all configured notification channels.</summary>
@@ -135,6 +135,55 @@ public class NotificationChannelsController(
 
         return Ok(new { message = "Test notification sent." });
     }
+
+    /// <summary>
+    /// Sends a test personal notification to a specific handle using an integration.
+    /// Used to verify that a user's notification preference is correctly configured.
+    /// </summary>
+    [HttpPost("test-personal")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TestPersonal([FromBody] TestPersonalNotificationRequest request, CancellationToken ct)
+    {
+        var integration = await integrationRepository.GetByIdAsync(request.IntegrationId, ct);
+        if (integration is null)
+            return BadRequest(new { error = $"Integration {request.IntegrationId} not found." });
+
+        if (!_dispatchers.TryGetValue(integration.Type, out var dispatcher))
+            return BadRequest(new { error = $"No dispatcher available for type: {integration.Type}" });
+
+        var context = new AlertNotificationContext(
+            ServiceName: "Example Service",
+            CheckName: "Health Check",
+            CurrentStatus: ServiceStatus.DOWN,
+            AlertDescription: "This is a test personal notification from Piro.",
+            Severity: AlertSeverity.Warning,
+            IsRecovery: false,
+            FiredAt: DateTime.UtcNow
+        );
+
+        bool sent;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            sent = await dispatcher.DispatchPersonalAsync(integration, request.Handle, context, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return BadRequest(new { error = "Timeout: the notification could not be delivered within 20 seconds." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        if (!sent)
+            return BadRequest(new { error = $"The {integration.Type} integration does not support personal notifications." });
+
+        return Ok(new { message = "Test notification sent." });
+    }
 }
+
+public record TestPersonalNotificationRequest(int IntegrationId, string Handle);
 
 public record TestNotificationChannelRequest(string Type, string? MetaJson = null, string? Name = null, int? IntegrationId = null);

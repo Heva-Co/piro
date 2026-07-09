@@ -1,8 +1,8 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
@@ -12,27 +12,19 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>POSTs a JSON payload to a webhook URL when an alert fires or recovers.</summary>
-public partial class WebhookNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<WebhookNotificationChannelDispatcher> logger)
-    : INotificationChannelDispatcher
+public partial class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<WebhookDispatcher> logger)
+    : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Webhook;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<WebhookTriggerMeta>(channel.MetaJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException("Invalid webhook trigger metadata.");
+        var meta = JsonUtils.DeserializeAndValidate<WebhookTriggerMeta>(channel.MetaJson);
 
-        if (string.IsNullOrWhiteSpace(meta.Url))
-        {
-            logger.LogWarning("Webhook channel {ChannelId} has no URL configured.", channel.Id);
-            return;
-        }
-
-        var variables = BuildVariables(context);
+        var variables = NotificationTemplateHelper.BuildVariables(context);
         string body = string.IsNullOrWhiteSpace(meta.Body)
             ? BuildDefaultBody(context)
-            : ReplaceMustache(meta.Body, variables);
+            : NotificationTemplateHelper.RenderPlain(meta.Body, variables);
 
         var client = httpClientFactory.CreateClient("piro-webhook");
         using var request = new HttpRequestMessage(HttpMethod.Post, meta.Url);
@@ -87,27 +79,6 @@ public partial class WebhookNotificationChannelDispatcher(IHttpClientFactory htt
         fired_at = context.FiredAt
     });
 
-    private static Dictionary<string, string> BuildVariables(AlertNotificationContext ctx) => new()
-    {
-        ["alert_name"]              = ctx.CheckName,
-        ["alert_for"]               = ctx.ServiceName,
-        ["alert_status"]            = ctx.CurrentStatus.ToString(),
-        ["alert_severity"]          = ctx.Severity.ToString(),
-        ["alert_description"]       = ctx.AlertDescription ?? string.Empty,
-        ["alert_timestamp"]         = ctx.FiredAt.ToString("O"),
-        ["is_resolved"]             = ctx.IsRecovery ? "true" : "false",
-        ["is_triggered"]            = ctx.IsRecovery ? "false" : "true",
-    };
-
-    private static string ReplaceMustache(string template, Dictionary<string, string> vars)
-    {
-        return MustachePattern().Replace(template, m =>
-        {
-            var key = m.Groups[1].Value.Trim();
-            return vars.TryGetValue(key, out var val) ? val : m.Value;
-        });
-    }
-
     private static string ComputeHmacSha256(string payload, string secret)
     {
         var key = Encoding.UTF8.GetBytes(secret);
@@ -116,9 +87,9 @@ public partial class WebhookNotificationChannelDispatcher(IHttpClientFactory htt
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    [GeneratedRegex(@"\{\{(\w+)\}\}")]
-    private static partial Regex MustachePattern();
-
     private record WebhookHeader(string Key, string Value);
-    private record WebhookTriggerMeta(string Url, string? Secret = null, string? Body = null, List<WebhookHeader>? Headers = null);
+    private record WebhookTriggerMeta([property: Required] string Url, string? Secret = null, string? Body = null, List<WebhookHeader>? Headers = null);
+    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
+        Task.FromResult(false);
+
 }

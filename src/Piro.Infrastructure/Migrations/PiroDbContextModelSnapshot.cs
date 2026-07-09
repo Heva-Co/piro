@@ -520,6 +520,70 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("CheckDataPoints");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ReEscalateAfterAckMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReEscalateAfterInactivityMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EscalationPolicies", (string)null);
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationStep", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DelayMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PolicyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.HasIndex("PolicyId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("EscalationSteps", (string)null);
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.Incident", b =>
                 {
                     b.Property<int>("Id")
@@ -546,11 +610,23 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<long?>("EndDateTime")
                         .HasColumnType("bigint");
 
+                    b.Property<int?>("EscalationCurrentStep")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("EscalationPolicyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("EscalationStepStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsGlobal")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastUserActivityAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Source")
                         .HasMaxLength(30)
@@ -580,6 +656,8 @@ namespace Piro.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EscalationPolicyId");
 
                     b.HasIndex("StartDateTime");
 
@@ -1605,6 +1683,35 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Check");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationStep", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.EscalationPolicy", "Policy")
+                        .WithMany("Steps")
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.OnCallSchedule", "Schedule")
+                        .WithMany()
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Policy");
+
+                    b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.Incident", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.EscalationPolicy", "EscalationPolicy")
+                        .WithMany()
+                        .HasForeignKey("EscalationPolicyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("EscalationPolicy");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.IncidentComment", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Incident", "Incident")
@@ -1864,6 +1971,11 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("AlertConfigs");
 
                     b.Navigation("DataPoints");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
+                {
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Incident", b =>

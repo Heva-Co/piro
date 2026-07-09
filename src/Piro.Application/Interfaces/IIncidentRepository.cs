@@ -66,4 +66,6 @@ public interface IIncidentRepository
     /// <summary>Records a merge between a per-service incident and a global incident.</summary>
     Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default);
 
+    /// <summary>Returns all open (non-resolved) incidents that have an escalation policy assigned.</summary>
+    Task<List<Incident>> GetOpenWithEscalationAsync(CancellationToken ct = default);
 }

@@ -48,6 +48,10 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<OnCallOverride> OnCallOverrides => Set<OnCallOverride>();
     public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
 
+    // Escalation
+    public DbSet<EscalationPolicy> EscalationPolicies => Set<EscalationPolicy>();
+    public DbSet<EscalationStep> EscalationSteps => Set<EscalationStep>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Identity must configure its tables before our custom configurations run

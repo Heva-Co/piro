@@ -11,7 +11,8 @@ public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
     ServiceStatusService statusService,
-    IIncidentPublishScheduler publishScheduler)
+    IIncidentPublishScheduler publishScheduler,
+    IEscalationPolicyRepository? escalationPolicyRepo = null)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
@@ -30,6 +31,32 @@ public class IncidentAppService(
         var incident = await incidentRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
         return Map(incident);
+    }
+
+    /// <summary>
+    /// Creates an ALERT-sourced incident and assigns the global escalation policy if one exists.
+    /// Returns the raw entity so <see cref="AlertEvaluationService"/> can attach services before saving.
+    /// </summary>
+    public async Task<Incident> CreateAlertIncidentAsync(string title, bool isPublic, bool isGlobal, CancellationToken ct = default)
+    {
+        var incident = new Incident
+        {
+            Title = title,
+            StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            State = IncidentState.Investigating,
+            Status = IncidentStatus.Active,
+            Source = "ALERT",
+            IsGlobal = isGlobal,
+            IsPublic = isPublic,
+        };
+
+        if (escalationPolicyRepo is not null)
+        {
+            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
+            if (policy is not null) incident.EscalationPolicyId = policy.Id;
+        }
+
+        return incident;
     }
 
     public async Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken ct = default)
@@ -56,6 +83,12 @@ public class IncidentAppService(
                     Impact = affected.Impact
                 });
             }
+        }
+
+        if (escalationPolicyRepo is not null)
+        {
+            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
+            if (policy is not null) incident.EscalationPolicyId = policy.Id;
         }
 
         var created = await incidentRepo.CreateAsync(incident, ct);
@@ -118,6 +151,7 @@ public class IncidentAppService(
             incident.State = request.State;
         }
 
+        incident.LastUserActivityAt = DateTimeOffset.UtcNow;
         await incidentRepo.AddCommentAsync(incident, comment, ct);
         await RecomputeAffectedAsync(incident, ct);
     }
@@ -287,5 +321,11 @@ public class IncidentAppService(
         i.CreatedAt, i.UpdatedAt,
         i.AcknowledgedAt, i.AcknowledgedBy,
         i.CurrentImpact,
-        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString())));
+        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString())),
+        EscalationPolicyId: i.EscalationPolicyId,
+        EscalationCurrentStep: i.EscalationCurrentStep,
+        EscalationStepStartedAt: i.EscalationStepStartedAt,
+        EscalationTotalSteps: null,
+        NextEscalationAt: null
+    );
 }

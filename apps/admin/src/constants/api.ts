@@ -62,6 +62,7 @@ export const ENDPOINTS = {
   CHANNELS: `${API_BASE}/notification-channels`,
   CHANNEL: (id: number | string) => `${API_BASE}/notification-channels/${id}`,
   CHANNEL_TEST: `${API_BASE}/notification-channels/test`,
+  CHANNEL_TEST_PERSONAL: `${API_BASE}/notification-channels/test-personal`,
 
   // Alert configs
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
@@ -121,6 +122,9 @@ export const ENDPOINTS = {
 
   // User notification preferences
   USER_NOTIFICATION_PREFERENCES: (userId: number | string) => `${API_BASE}/users/${userId}/notification-preferences`,
+
+  // Auth/me
+  AUTH_ME: `${API_BASE}/auth/me`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */
@@ -157,6 +161,10 @@ export const QUERY_KEYS = {
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
   ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
   ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
+  ESCALATION_POLICY: ["escalation-policy"] as const,
+  TIMEZONES: ["timezones"] as const,
+  MY_PROFILE: ["my-profile"] as const,
+  USER_NOTIFICATION_PREFERENCES: (userId: number | string) => ["user-notification-preferences", userId] as const,
 } as const;
 
 /** Status display constants */

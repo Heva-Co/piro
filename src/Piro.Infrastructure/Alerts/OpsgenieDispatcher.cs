@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -9,22 +10,14 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Opens and closes Opsgenie alerts via the REST API.</summary>
-public class OpsgenieNotificationChannelDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieNotificationChannelDispatcher> logger)
-    : INotificationChannelDispatcher
+public class OpsgenieDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieDispatcher> logger)
+    : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Opsgenie;
 
     public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
-        var meta = JsonSerializer.Deserialize<OpsgenieTriggerMeta>(channel.MetaJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException("Invalid Opsgenie trigger metadata.");
-
-        if (string.IsNullOrWhiteSpace(meta.ApiKey))
-        {
-            logger.LogWarning("Opsgenie channel {ChannelId} has no API key configured.", channel.Id);
-            return;
-        }
+        var meta = JsonUtils.DeserializeAndValidate<OpsgenieTriggerMeta>(channel.MetaJson);
 
         var baseUrl = string.Equals(meta.Region, "eu", StringComparison.OrdinalIgnoreCase)
             ? "https://api.eu.opsgenie.com"
@@ -95,5 +88,8 @@ public class OpsgenieNotificationChannelDispatcher(IHttpClientFactory httpClient
             .Replace(' ', '-')
             .Replace('/', '-');
 
-    private record OpsgenieTriggerMeta(string ApiKey, string? Region = null, string? Priority = null);
+    private record OpsgenieTriggerMeta([property: Required] string ApiKey, string? Region = null, string? Priority = null);
+    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
+        Task.FromResult(false);
+
 }

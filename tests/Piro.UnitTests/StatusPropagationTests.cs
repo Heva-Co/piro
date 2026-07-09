@@ -13,7 +13,6 @@ public class StatusPropagationTests
     private readonly IServiceRepository _serviceRepo = Substitute.For<IServiceRepository>();
     private readonly ICheckRepository _checkRepo = Substitute.For<ICheckRepository>();
     private readonly IServiceDependencyRepository _depRepo = Substitute.For<IServiceDependencyRepository>();
-    private readonly IServiceStatusSnapshotRepository _snapshotRepo = Substitute.For<IServiceStatusSnapshotRepository>();
     private readonly IIncidentRepository _incidentRepo = Substitute.For<IIncidentRepository>();
     private readonly ServiceStatusService _sut;
 
@@ -21,7 +20,7 @@ public class StatusPropagationTests
     {
         _incidentRepo.GetActiveImpactForServiceAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((ServiceStatus?)null);
-        _sut = new ServiceStatusService(_serviceRepo, _checkRepo, _depRepo, _snapshotRepo, _incidentRepo);
+        _sut = new ServiceStatusService(_serviceRepo, _checkRepo, _depRepo, _incidentRepo);
     }
 
     // ── Single service, no deps ─────────────────────────────────────────────

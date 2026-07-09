@@ -1,31 +1,57 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Plus, CalendarClock, X } from "lucide-react";
+import { Plus, CalendarClock, X, Trash2 } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { onCallApi } from "@/lib/api";
+import { onCallApi, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { TimezonePicker } from "@/components/TimezonePicker";
 
-const TIMEZONES = [
-  "UTC",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Bogota",
-  "America/Argentina/Buenos_Aires",
-  "America/Sao_Paulo",
-  "America/Mexico_City",
-  "Europe/London",
-  "Europe/Madrid",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Asia/Tokyo",
-  "Asia/Shanghai",
-  "Asia/Kolkata",
-  "Australia/Sydney",
-];
+const MAX_VISIBLE = 4;
+
+function MemberAvatars({ layers }: { layers: OnCallLayer[] }) {
+  // Collect unique users across all layers
+  const seen = new Set<number>();
+  const users: { userId: number; userName: string; userInitials: string; userColor: string }[] = [];
+  for (const layer of layers) {
+    for (const u of layer.users) {
+      if (!seen.has(u.userId)) {
+        seen.add(u.userId);
+        users.push(u);
+      }
+    }
+  }
+
+  if (users.length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  const visible = users.slice(0, MAX_VISIBLE);
+  const extra = users.length - MAX_VISIBLE;
+
+  return (
+    <div className="flex items-center -space-x-2">
+      {visible.map((u) => (
+        <div
+          key={u.userId}
+          title={u.userName}
+          className="size-7 rounded-full border-2 border-card flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+          style={{ backgroundColor: u.userColor || "#6366f1" }}
+        >
+          {u.userInitials}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div className="size-7 rounded-full border-2 border-card bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function OnCallSchedulesPage() {
   const navigate = useNavigate();
@@ -41,6 +67,24 @@ export default function OnCallSchedulesPage() {
     queryKey: QUERY_KEYS.ONCALL_SCHEDULES,
     queryFn: onCallApi.list,
   });
+
+  const confirm = useConfirmDialog();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => onCallApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULES }),
+  });
+
+  const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
+    e.stopPropagation();
+    const ok = await confirm({
+      title: "Delete schedule",
+      description: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(id);
+  };
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -96,7 +140,8 @@ export default function OnCallSchedulesPage() {
                 <tr>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Name</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Timezone</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Layers</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Members</th>
+                  <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -113,7 +158,17 @@ export default function OnCallSchedulesPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground text-xs">{s.timeZone}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{s.layers.length}</td>
+                    <td className="px-5 py-3.5">
+                      <MemberAvatars layers={s.layers} />
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={(e) => handleDelete(e, s.id, s.name)}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -148,15 +203,7 @@ export default function OnCallSchedulesPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-foreground">Timezone</label>
-                <select
-                  value={timeZone}
-                  onChange={(e) => setTimeZone(e.target.value)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
+                <TimezonePicker value={timeZone} onChange={setTimeZone} />
                 <p className="text-xs text-muted-foreground">
                   Used to display shift times in the Gantt and for shift-start notifications. All data is stored in UTC — this only affects how times are shown.
                 </p>

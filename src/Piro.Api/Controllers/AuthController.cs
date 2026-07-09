@@ -12,7 +12,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService) : ControllerBase
+public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService, IUserManagementService userService) : ControllerBase
 {
     /// <summary>Authenticates with email and password, returns JWT + refresh token.</summary>
     [HttpPost("sign-in")]
@@ -43,6 +43,28 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct) =>
         Ok(await authService.RefreshAsync(request, ct));
+
+    // ── Profile ──────────────────────────────────────────────────────────────
+
+    /// <summary>Returns the authenticated user's profile.</summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType<UserProfileDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMe(CancellationToken ct)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return Ok(await userService.GetProfileAsync(userId, ct));
+    }
+
+    /// <summary>Updates the authenticated user's display name and/or color.</summary>
+    [HttpPut("me")]
+    [Authorize]
+    [ProducesResponseType<UserProfileDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateMe([FromBody] UpdateProfileRequest request, CancellationToken ct)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return Ok(await userService.UpdateProfileAsync(userId, request, ct));
+    }
 
     // ── API Keys ─────────────────────────────────────────────────────────────
 

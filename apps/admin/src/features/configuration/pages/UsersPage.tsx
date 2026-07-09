@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Plus, User as UserIcon, AlertCircle } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { usersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/hooks/useAuth";
 
 interface RoleOption { id: number; name: string; }
@@ -37,6 +39,7 @@ function capitalize(s: unknown) {
 
 export default function UsersPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { user: me } = useAuth();
 
   const { data: users = [], isLoading } = useQuery({
@@ -129,7 +132,8 @@ export default function UsersPage() {
 
           return (
             <div key={u.id}
-              className={`flex items-center gap-4 px-5 py-4 ${i > 0 ? "border-t border-gray-100" : ""}`}
+              onClick={() => navigate(ROUTES.CONFIG.USER_DETAIL(u.id))}
+              className={`flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-muted/50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
             >
               <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
                 <UserIcon size={18} className="text-gray-400" />
@@ -144,14 +148,6 @@ export default function UsersPage() {
                 </span>
                 {createdAt && (
                   <span className="text-sm text-gray-400">{createdAt}</span>
-                )}
-                {!isMe && (
-                  <button
-                    onClick={() => openChangeRole(u as any)}
-                    className="text-sm text-gray-600 hover:text-gray-900 hover:underline"
-                  >
-                    Change role
-                  </button>
                 )}
               </div>
             </div>
