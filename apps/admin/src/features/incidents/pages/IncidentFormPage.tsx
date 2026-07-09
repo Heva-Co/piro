@@ -44,7 +44,7 @@ export default function IncidentFormPage() {
         isGlobal,
       });
       for (const [slug] of Object.entries(selectedServices)) {
-        try { await incidentsApi.addService(incident.id, slug); } catch { /* best effort */ }
+        try { await incidentsApi.addService(incident.id, slug, ""); } catch { /* best effort */ }
       }
       if (initialComment.trim()) {
         await incidentsApi.addComment(incident.id, initialComment, state);

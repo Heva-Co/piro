@@ -18,8 +18,6 @@ import { useForm, FormProvider } from "react-hook-form";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { StatusPill } from "@/components/StatusBadge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 import { CheckGeneralSettingsFields, type CheckGeneralFormValues } from "@/features/checks/components/CheckGeneralSettingsFields";
@@ -193,7 +191,7 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
 // ── Recent Logs ───────────────────────────────────────────────────────────────
 
 function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const { data: logs, isLoading, isFetching, refetch } = useCheckLogs(serviceSlug, checkSlug);
+  const { data: logs, isLoading } = useCheckLogs(serviceSlug, checkSlug);
 
   if (isLoading) return <div className="text-sm text-muted-foreground py-2">Loading…</div>;
 

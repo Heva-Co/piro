@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { onCallApi, type OnCallSlot, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";

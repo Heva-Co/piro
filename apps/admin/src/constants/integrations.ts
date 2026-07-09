@@ -33,8 +33,8 @@ export const INTEGRATION_TYPE_MAP = {
 
 export type IntegrationTypeKey = keyof typeof INTEGRATION_TYPE_MAP;
 
-export const INTEGRATION_TYPES = Object.entries(INTEGRATION_TYPE_MAP).map(
-  ([value, meta]) => ({ value: value as IntegrationTypeKey, ...meta })
+export const INTEGRATION_TYPES: (IntegrationTypeMeta & { value: IntegrationTypeKey })[] = Object.entries(INTEGRATION_TYPE_MAP).map(
+  ([value, meta]) => ({ value: value as IntegrationTypeKey, ...(meta as IntegrationTypeMeta) })
 );
 
 export const INTEGRATION_TYPES_THIRDPARTY = INTEGRATION_TYPES.filter((t) => t.category === "thirdparty");
