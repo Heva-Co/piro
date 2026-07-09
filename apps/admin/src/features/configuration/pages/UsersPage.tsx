@@ -6,7 +6,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { usersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { useAuth } from "@/hooks/useAuth";
+
 
 interface RoleOption { id: number; name: string; }
 
@@ -40,8 +40,6 @@ function capitalize(s: unknown) {
 export default function UsersPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { user: me } = useAuth();
-
   const { data: users = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.USERS,
     queryFn: usersApi.list,
@@ -92,13 +90,6 @@ export default function UsersPage() {
     setShowInvite(true);
   }
 
-  function openChangeRole(u: { id: number; name: string; roles: string[] }) {
-    const currentRoleName = u.roles?.[0];
-    const currentRole = roles.find((r) => r.name.toLowerCase() === currentRoleName?.toLowerCase());
-    setChangeRoleUser({ id: u.id, name: u.name });
-    setSelectedRoleId(currentRole?.id ?? defaultRoleId ?? "");
-  }
-
   return (
     <AdminLayout title="Users">
       {/* Header */}
@@ -125,7 +116,6 @@ export default function UsersPage() {
         )}
         {users.map((u, i) => {
           const role = u.roles?.[0] ?? "";
-          const isMe = u.id === me?.id;
           const createdAt = (u as any).createdAt
             ? new Date((u as any).createdAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })
             : null;

@@ -13,6 +13,7 @@ import {
   INTEGRATION_TYPE_MAP,
   INTEGRATION_TYPES_THIRDPARTY,
   INTEGRATION_TYPES_NOTIFICATION,
+  type IntegrationTypeMeta,
 } from "@/constants/integrations";
 import { integrationFormSchema, INTEGRATION_FORM_DEFAULTS, type IntegrationFormValues } from "../components/types";
 import { GoogleCloudConfig } from "../components/GoogleCloudConfig";
@@ -119,7 +120,7 @@ export default function IntegrationFormPage() {
   });
 
   const pageTitle = isEdit ? (existing?.name ?? "Edit Integration") : "New Integration";
-  const typeMeta = INTEGRATION_TYPE_MAP[type as keyof typeof INTEGRATION_TYPE_MAP];
+  const typeMeta = INTEGRATION_TYPE_MAP[type as keyof typeof INTEGRATION_TYPE_MAP] as IntegrationTypeMeta | undefined;
 
   return (
     <AdminLayout title={pageTitle}>

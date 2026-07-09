@@ -159,7 +159,7 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
           {/* Recurrence */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Rotation frequency</label>
-            <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+            <Select value={selectedPreset} onValueChange={(v) => v && setSelectedPreset(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue>
                   {PRESET_OPTIONS.find((p) => p.value === selectedPreset)?.label}

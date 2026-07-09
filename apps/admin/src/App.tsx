@@ -46,7 +46,7 @@ import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 import EscalationPolicyPage from "@/features/escalation/pages/EscalationPolicyPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 
 const queryClient = new QueryClient({
   defaultOptions: {

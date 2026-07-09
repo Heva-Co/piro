@@ -72,7 +72,7 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
           {/* On-call user */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Who takes on-call</label>
-            <Select value={userId} onValueChange={setUserId}>
+            <Select value={userId} onValueChange={(v) => v && setUserId(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select user…">
                   {users.find((u: { id: number; name: string }) => String(u.id) === userId)?.name ?? "Select user…"}
@@ -89,7 +89,7 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
           {/* Replaces user (optional) */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Replacing (optional)</label>
-            <Select value={replacesUserId} onValueChange={setReplacesUserId}>
+            <Select value={replacesUserId} onValueChange={(v) => setReplacesUserId(v ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="No one — additional coverage">
                   {replacesUserId === ""
