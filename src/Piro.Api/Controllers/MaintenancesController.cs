@@ -67,4 +67,14 @@ public class MaintenancesController(MaintenanceAppService maintenanceService) : 
         await maintenanceService.DeleteAsync(id, ct);
         return NoContent();
     }
+
+    /// <summary>Cancels a single occurrence of a recurring maintenance, leaving the maintenance and its other events untouched.</summary>
+    [HttpPost("{id:int}/events/{eventId:int}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelEvent(int id, int eventId, CancellationToken ct)
+    {
+        await maintenanceService.CancelEventAsync(id, eventId, ct);
+        return NoContent();
+    }
 }

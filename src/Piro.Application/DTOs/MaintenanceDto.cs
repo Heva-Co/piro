@@ -11,6 +11,7 @@ public record MaintenanceDto(
     string RRule,
     int DurationSeconds,
     MaintenanceStatus Status,
+    MaintenanceDisplayStatus DisplayStatus,
     bool IsGlobal,
     IEnumerable<MaintenanceEventDto> UpcomingEvents,
     IEnumerable<string> ServiceSlugs,

@@ -19,4 +19,13 @@ public interface IMaintenanceRepository
 
     /// <summary>Returns true if <paramref name="serviceId"/> is affected by a currently ongoing maintenance event.</summary>
     Task<bool> HasActiveWindowAsync(int serviceId, CancellationToken ct = default);
+
+    /// <summary>Returns the IDs of all services affected by the given maintenance (all services if it is global).</summary>
+    Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(int maintenanceId, CancellationToken ct = default);
+
+    /// <summary>Returns a single materialized event by ID, or null if it doesn't exist or doesn't belong to that maintenance.</summary>
+    Task<MaintenanceEvent?> GetEventByIdAsync(int maintenanceId, int eventId, CancellationToken ct = default);
+
+    /// <summary>Marks a single event as cancelled without affecting the parent maintenance or its other events.</summary>
+    Task CancelEventAsync(MaintenanceEvent maintenanceEvent, CancellationToken ct = default);
 }

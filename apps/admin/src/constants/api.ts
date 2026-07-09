@@ -76,6 +76,7 @@ export const ENDPOINTS = {
   MAINTENANCES: `${API_BASE}/maintenances`,
   MAINTENANCE: (id: number | string) => `${API_BASE}/maintenances/${id}`,
   MAINTENANCE_CANCEL: (id: number | string) => `${API_BASE}/maintenances/${id}/cancel`,
+  MAINTENANCE_EVENT_CANCEL: (id: number | string, eventId: number) => `${API_BASE}/maintenances/${id}/events/${eventId}/cancel`,
 
   // Users & roles
   USERS: `${API_BASE}/users`,
@@ -97,6 +98,9 @@ export const ENDPOINTS = {
   // Workers
   WORKERS: `${API_BASE}/workers`,
   WORKER: (id: string) => `${API_BASE}/workers/${id}`,
+
+  // Jobs (scheduler status)
+  JOBS: `${API_BASE}/jobs`,
 
   // Config import
   CONFIG_IMPORT: `${API_BASE}/config/import`,
@@ -149,6 +153,7 @@ export const QUERY_KEYS = {
   ROLES: ["roles"] as const,
   API_KEYS: ["api-keys"] as const,
   WORKERS: ["workers"] as const,
+  JOBS: ["jobs"] as const,
   OIDC_CONFIGS: ["oidc-configs"] as const,
   OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,

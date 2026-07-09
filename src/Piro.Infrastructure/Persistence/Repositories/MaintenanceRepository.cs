@@ -79,6 +79,30 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
     public async Task<bool> HasActiveWindowAsync(int serviceId, CancellationToken ct = default) =>
         await db.MaintenanceEvents
             .Where(e => e.Status == MaintenanceEventStatus.Ongoing)
-            .SelectMany(e => e.Maintenance.MaintenanceServices)
-            .AnyAsync(ms => ms.ServiceId == serviceId, ct);
+            .AnyAsync(e => e.Maintenance.IsGlobal || e.Maintenance.MaintenanceServices.Any(ms => ms.ServiceId == serviceId), ct);
+
+    public async Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(int maintenanceId, CancellationToken ct = default)
+    {
+        var maintenance = await db.Maintenances
+            .Include(m => m.MaintenanceServices)
+            .FirstOrDefaultAsync(m => m.Id == maintenanceId, ct);
+        if (maintenance is null) return [];
+
+        if (maintenance.IsGlobal)
+            return await db.Services.Select(s => s.Id).ToListAsync(ct);
+
+        return maintenance.MaintenanceServices.Select(ms => ms.ServiceId).ToList();
+    }
+
+    public async Task<MaintenanceEvent?> GetEventByIdAsync(int maintenanceId, int eventId, CancellationToken ct = default)
+    {
+        return await db.MaintenanceEvents.FirstOrDefaultAsync(e => e.Id == eventId && e.MaintenanceId == maintenanceId, ct);
+    }
+
+    public async Task CancelEventAsync(MaintenanceEvent maintenanceEvent, CancellationToken ct = default)
+    {
+        maintenanceEvent.Status = MaintenanceEventStatus.Cancelled;
+        db.MaintenanceEvents.Update(maintenanceEvent);
+        await db.SaveChangesAsync(ct);
+    }
 }

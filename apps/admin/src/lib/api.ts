@@ -366,15 +366,55 @@ export const alertConfigsApi = {
 
 // ─── Maintenances ────────────────────────────────────────────────────────────
 
+export const MAINTENANCE_DISPLAY_STATUSES = {
+  Scheduled: "Scheduled",
+  Active: "Active",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+} as const;
+
+export type MaintenanceDisplayStatus = keyof typeof MAINTENANCE_DISPLAY_STATUSES;
+
+export interface MaintenanceEvent {
+  id: number;
+  startDateTime: number;
+  endDateTime: number;
+  status: string;
+}
+
 export interface Maintenance {
   id: number;
-  name: string;
+  title: string;
   description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  startDateTime: number;
+  rRule: string;
+  durationSeconds: number;
   status: string;
+  displayStatus: MaintenanceDisplayStatus;
   isGlobal: boolean;
-  services: { slug: string; name: string }[];
+  upcomingEvents: MaintenanceEvent[];
+  serviceSlugs: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMaintenanceRequest {
+  title: string;
+  description?: string;
+  startDateTime: number;
+  rRule: string;
+  durationSeconds: number;
+  isGlobal: boolean;
+  serviceSlugs?: string[];
+}
+
+export interface UpdateMaintenanceRequest {
+  title?: string;
+  description?: string;
+  startDateTime?: number;
+  rRule?: string;
+  durationSeconds?: number;
+  isGlobal?: boolean;
 }
 
 export const maintenancesApi = {
@@ -383,14 +423,17 @@ export const maintenancesApi = {
   get: (id: number | string) =>
     api.get<Maintenance>(ENDPOINTS.MAINTENANCE(id)).then((r) => r.data),
 
-  create: (data: Omit<Maintenance, "id" | "status" | "services">) =>
+  create: (data: CreateMaintenanceRequest) =>
     api.post<Maintenance>(ENDPOINTS.MAINTENANCES, data).then((r) => r.data),
 
-  update: (id: number | string, data: Partial<Omit<Maintenance, "id">>) =>
+  update: (id: number | string, data: UpdateMaintenanceRequest) =>
     api.put<Maintenance>(ENDPOINTS.MAINTENANCE(id), data).then((r) => r.data),
 
   cancel: (id: number | string) =>
     api.post(ENDPOINTS.MAINTENANCE_CANCEL(id)),
+
+  cancelEvent: (id: number | string, eventId: number) =>
+    api.post(ENDPOINTS.MAINTENANCE_EVENT_CANCEL(id, eventId)),
 
   delete: (id: number | string) => api.delete(ENDPOINTS.MAINTENANCE(id)),
 };
@@ -616,6 +659,22 @@ export const workersApi = {
 
   toggleBuiltin: (disabled: boolean) =>
     api.post(`${ENDPOINTS.WORKERS}/builtin/toggle`, { disabled }).then((r) => r.data),
+};
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+
+export interface JobStatus {
+  jobGroup: string;
+  jobName: string;
+  triggerGroup: string;
+  triggerName: string;
+  state: string;
+  nextFireTimeUtc?: string | null;
+  previousFireTimeUtc?: string | null;
+}
+
+export const jobsApi = {
+  list: () => api.get<JobStatus[]>(ENDPOINTS.JOBS).then((r) => r.data),
 };
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
