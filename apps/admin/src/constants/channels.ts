@@ -1,31 +1,19 @@
-export type ChannelTypeKey =
-  | "Webhook" | "Email" | "Slack" | "PagerDuty" | "MSTeams"
-  | "Telegram" | "TwilioSms" | "GoogleChat" | "Discord"
-  | "Opsgenie" | "Pushover" | "Ntfy";
+import { INTEGRATION_TYPE_MAP, type IntegrationTypeMeta, type IntegrationTypeKey } from "./integrations";
 
-export interface ChannelTypeMeta {
-  label: string;
-  icon: string;
-  iconClass?: string;
-  alpha?: boolean;
-}
+// Channel types are the notification subset of integrations
+export type ChannelTypeKey = IntegrationTypeKey;
 
-// Stable: Email (system), Telegram, GoogleChat. All others are alpha.
-export const CHANNEL_TYPE_MAP: Record<ChannelTypeKey, ChannelTypeMeta> = {
-  Webhook:    { label: "Webhook",         icon: "lucide:webhook",            alpha: true },
-  Email:      { label: "Email",           icon: "lucide:mail" },
-  Slack:      { label: "Slack",           icon: "logos:slack-icon",          alpha: true },
-  PagerDuty:  { label: "PagerDuty",       icon: "logos:pagerduty",           alpha: true },
-  MSTeams:    { label: "Microsoft Teams", icon: "logos:microsoft-teams",     alpha: true },
-  Telegram:   { label: "Telegram",        icon: "logos:telegram" },
-  TwilioSms:  { label: "Twilio SMS",      icon: "logos:twilio-icon",         alpha: true },
-  GoogleChat: { label: "Google Chat",     icon: "selfh:google-chat" },
-  Discord:    { label: "Discord",         icon: "logos:discord-icon",        alpha: true },
-  Opsgenie:   { label: "Opsgenie",        icon: "simple-icons:opsgenie",     iconClass: "dark:invert", alpha: true },
-  Pushover:   { label: "Pushover",        icon: "selfh:pushover",            alpha: true },
-  Ntfy:       { label: "Ntfy",            icon: "simple-icons:ntfy",         iconClass: "dark:invert", alpha: true },
-};
+export const CHANNEL_TYPE_MAP = Object.fromEntries(
+  (Object.entries(INTEGRATION_TYPE_MAP) as [string, IntegrationTypeMeta][])
+    .filter(([, meta]) => meta.category === "notification")
+    .map(([key, meta]) => [key, { label: meta.label, icon: meta.icon, iconClass: meta.iconClass, alpha: meta.alpha }])
+) as Record<ChannelTypeKey, { label: string; icon: string; iconClass?: string; alpha?: boolean }>;
 
 export const CHANNEL_TYPES = Object.entries(CHANNEL_TYPE_MAP).map(
   ([value, meta]) => ({ value: value as ChannelTypeKey, ...meta })
 );
+
+/** Types that carry credentials in the channel itself — no global Integration needed. */
+export const CHANNEL_ONLY_TYPES = new Set<ChannelTypeKey>([
+  "Discord", "Email", "Webhook", "GoogleChat", "Slack",
+]);

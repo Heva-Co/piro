@@ -1,12 +1,11 @@
+import { useFormContext } from "react-hook-form";
 import { Upload } from "lucide-react";
+import type { IntegrationFormValues } from "./types";
 
-export function GoogleCloudConfig({
-  serviceAccountJson,
-  setServiceAccountJson,
-}: {
-  serviceAccountJson: string;
-  setServiceAccountJson: (v: string) => void;
-}) {
+export function GoogleCloudConfig() {
+  const { setValue, watch, formState: { errors } } = useFormContext<IntegrationFormValues>();
+  const value = watch("serviceAccountJson");
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -14,9 +13,9 @@ export function GoogleCloudConfig({
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       try {
-        setServiceAccountJson(JSON.stringify(JSON.parse(text), null, 2));
+        setValue("serviceAccountJson", JSON.stringify(JSON.parse(text), null, 2), { shouldValidate: true });
       } catch {
-        setServiceAccountJson(text);
+        setValue("serviceAccountJson", text, { shouldValidate: true });
       }
     };
     reader.readAsText(file);
@@ -31,27 +30,21 @@ export function GoogleCloudConfig({
         </label>
         <label className="cursor-pointer flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium hover:bg-muted transition-colors">
           <Upload size={12} /> Upload .json
-          <input
-            type="file"
-            accept=".json,application/json"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
+          <input type="file" accept=".json,application/json" className="hidden" onChange={handleFileUpload} />
         </label>
       </div>
       <p className="text-xs text-muted-foreground">
-        Paste the contents of your Google Cloud service account key file (.json) or upload it
-        directly. The key must have the necessary IAM permissions for the checks that use this
-        integration (e.g. <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
+        Paste the contents of your Google Cloud service account key file (.json) or upload it directly.
+        The key must have the necessary IAM permissions (e.g. <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
       </p>
       <textarea
-        value={serviceAccountJson}
-        onChange={(e) => setServiceAccountJson(e.target.value)}
+        value={value}
+        onChange={(e) => setValue("serviceAccountJson", e.target.value, { shouldValidate: true })}
         rows={14}
         placeholder={'{\n  "type": "service_account",\n  "project_id": "my-project",\n  ...\n}'}
         className="rounded-lg border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-ring resize-none w-full"
-        required
       />
+      {errors.serviceAccountJson && <p className="text-xs text-destructive">{errors.serviceAccountJson.message}</p>}
     </div>
   );
 }

@@ -1,0 +1,18 @@
+import { useFormContext } from "react-hook-form";
+import { Input } from "@base-ui/react";
+import type { IntegrationFormValues } from "./types";
+
+const inp = "rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full";
+const lbl = "text-sm font-semibold";
+
+export function PushoverConfig() {
+  const { register, formState: { errors } } = useFormContext<IntegrationFormValues>();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className={lbl}>App Token <span className="text-destructive">*</span></label>
+      <Input {...register("poAppToken", { required: "Required" })} placeholder="axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className={inp} />
+      {errors.poAppToken && <p className="text-xs text-destructive">{errors.poAppToken.message}</p>}
+      <p className="text-xs text-muted-foreground">Each user provides their own User Key when configuring a channel.</p>
+    </div>
+  );
+}
