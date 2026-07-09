@@ -43,14 +43,7 @@ public class CheckResultIngesterService(
             WorkerRegion = workerRegion
         };
 
-        try
-        {
-            await dataPointRepo.CreateAsync(dataPoint, ct);
-        }
-        catch (Exception)
-        {
-            // Duplicate PK (same minute + region) — safe to ignore
-        }
+        await dataPointRepo.CreateAsync(dataPoint, ct);
     }
 
     // ── Status update + events + alerts (multi-region step 2, once per batch) ─

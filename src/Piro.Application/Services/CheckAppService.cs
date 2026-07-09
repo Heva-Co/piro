@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -33,7 +34,7 @@ public class CheckAppService(
         var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
             ?? throw new NotFoundException(nameof(Service), serviceSlug);
         var checks = await checkRepository.GetByServiceIdAsync(service.Id, ct);
-        return checks.Select(ToDto);
+        return checks.Select(c => c.ToDto());
     }
 
     public async Task<CheckDto> GetBySlugAsync(string serviceSlug, string checkSlug, CancellationToken ct = default)
@@ -42,7 +43,7 @@ public class CheckAppService(
             ?? throw new NotFoundException(nameof(Service), serviceSlug);
         var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
             ?? throw new NotFoundException(nameof(Check), checkSlug);
-        return ToDto(check);
+        return check.ToDto();
     }
 
     public async Task<CheckDto> CreateAsync(string serviceSlug, CreateCheckRequest request, CancellationToken ct = default)
@@ -72,7 +73,7 @@ public class CheckAppService(
 
         var created = await checkRepository.CreateAsync(check, ct);
         await scheduler.ScheduleAsync(created, ct);
-        return ToDto(created);
+        return created.ToDto();
     }
 
     public async Task<CheckDto> UpdateAsync(string serviceSlug, string checkSlug, UpdateCheckRequest request, CancellationToken ct = default)
@@ -98,7 +99,7 @@ public class CheckAppService(
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
-        return ToDto(updated);
+        return updated.ToDto();
     }
 
     public async Task DeleteAsync(string serviceSlug, string checkSlug, CancellationToken ct = default)
@@ -111,7 +112,13 @@ public class CheckAppService(
         await scheduler.UnscheduleAsync(check.Id, ct);
     }
 
-    /// <summary>Returns data points for a check in the given time range, ordered newest first.</summary>
+    /// <summary>Default lookback window applied to <see cref="GetRecentLogsAsync"/> when no range is given.</summary>
+    private static readonly TimeSpan DefaultLogsWindow = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// Returns data points for a check in the given time range, ordered newest first.
+    /// Defaults to the last 7 days when <paramref name="from"/>/<paramref name="to"/> are omitted.
+    /// </summary>
     public async Task<IEnumerable<CheckDataPointDto>> GetRecentLogsAsync(
         string serviceSlug, string checkSlug, int limit = 20, string? region = null,
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
@@ -120,13 +127,13 @@ public class CheckAppService(
             ?? throw new NotFoundException(nameof(Service), serviceSlug);
         var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
             ?? throw new NotFoundException(nameof(Check), checkSlug);
-        var fromUnix = from.HasValue ? (long?)from.Value.ToUnixTimeSeconds() : null;
-        var toUnix = to.HasValue ? (long?)to.Value.ToUnixTimeSeconds() : null;
-        var points = await dataPointRepository.GetByCheckIdAsync(check.Id, fromUnix, toUnix, ct);
-        return points
-            .Where(p => region is null || p.WorkerRegion.Equals(region, StringComparison.OrdinalIgnoreCase))
-            .Take(limit)
-            .Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType?.ToString(), p.ErrorMessage, p.WorkerRegion));
+
+        var toValue = to ?? DateTimeOffset.UtcNow;
+        var fromValue = from ?? toValue - DefaultLogsWindow;
+
+        var points = await dataPointRepository.GetByCheckIdAsync(
+            check.Id, fromValue.ToUnixTimeSeconds(), toValue.ToUnixTimeSeconds(), region, limit, ct);
+        return points.Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType?.ToString(), p.ErrorMessage, p.WorkerRegion));
     }
 
     public async Task<IEnumerable<CheckDailyStatsDto>> GetDailyStatsAsync(
@@ -143,14 +150,4 @@ public class CheckAppService(
         var stats = await dataPointRepository.GetDailyStatsByCheckIdAsync(check.Id, from, to, ct);
         return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.AvgLatencyMs));
     }
-
-    private static CheckDto ToDto(Check c) => new(
-        c.Id, c.ServiceId, c.Slug, c.Name, c.Description,
-        c.Type, c.Cron, c.TypeDataJson,
-        c.CurrentStatus, c.IsActive, c.IsMultiRegion,
-        c.FailureThreshold, c.RecoveryThreshold,
-        c.HistoryDaysDesktop, c.HistoryDaysMobile,
-        c.CreatedAt, c.UpdatedAt, c.IntegrationId,
-        c.Criticality, c.AutomaticallyCreateIncident
-    );
 }

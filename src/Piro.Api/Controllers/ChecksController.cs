@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Services;
-using Piro.Domain.Exceptions;
 
 namespace Piro.Api.Controllers;
 
@@ -78,7 +78,7 @@ public class ChecksController(CheckAppService checkApp, CheckRunnerService check
     public async Task<IActionResult> Run(string serviceSlug, string checkSlug, CancellationToken ct)
     {
         var check = await checkApp.GetBySlugAsync(serviceSlug, checkSlug, ct);
-        await checkRunner.RunAsync(check.Id, ct);
-        return Ok(await checkApp.GetBySlugAsync(serviceSlug, checkSlug, ct));
+        var ran = await checkRunner.RunAsync(check.Id, ct);
+        return Ok(ran is not null ? ran.ToDto() : check);
     }
 }
