@@ -1,7 +1,10 @@
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
+using Piro.Application.Models;
 using Piro.Application.Services;
+using Piro.Domain.Enums;
 
 namespace Piro.Api.Controllers;
 
@@ -9,7 +12,10 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/services")]
 [Produces("application/json")]
-public class ServicesController(ServiceAppService serviceApp, ServiceStatusService statusService, IServiceRepository serviceRepo) : ControllerBase
+public class ServicesController(
+    ServiceAppService serviceApp,
+    IServiceRepository serviceRepo,
+    Channel<CheckStatusChangedEvent> statusChannel) : ControllerBase
 {
     /// <summary>Returns all services ordered by display_order.</summary>
     [HttpGet]
@@ -50,14 +56,19 @@ public class ServicesController(ServiceAppService serviceApp, ServiceStatusServi
     }
         
 
-    /// <summary>Recomputes the derived status for all services.</summary>
+    /// <summary>
+    /// Enqueues status recomputation for all services. Runs asynchronously through the same
+    /// channel check results use, so it serializes with other in-flight recomputations
+    /// instead of racing them with a direct read-modify-write.
+    /// </summary>
     [HttpPost("recompute-status")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> RecomputeAll(CancellationToken ct)
     {
         var services = await serviceRepo.GetAllAsync(ct);
-        await statusService.ComputeAllWithCascadeAsync(services.Select(s => s.Id), ct);
-        return NoContent();
+        foreach (var svc in services)
+            statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, svc.Id, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
+        return Accepted();
     }
 
     /// <summary>Deletes a service and all its checks.</summary>

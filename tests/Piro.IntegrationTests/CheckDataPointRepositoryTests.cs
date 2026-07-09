@@ -11,9 +11,7 @@ namespace Piro.IntegrationTests;
 /// <summary>Verifies duplicate data point inserts are handled against a real Postgres instance.</summary>
 public class CheckDataPointRepositoryTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:17-alpine")
-        .Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine").Build();
 
     private PiroDbContext _db = null!;
 
