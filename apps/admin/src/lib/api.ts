@@ -112,9 +112,10 @@ export interface CreateCheck {
   type: string;
   cron: string;
   typeDataJson: string;
-  defaultStatus?: string;
   isActive?: boolean;
   isMultiRegion?: boolean;
+  criticality?: CheckCriticality;
+  automaticallyCreateIncident?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
   integrationId?: number;
