@@ -10,7 +10,8 @@ namespace Piro.Application.Services;
 public class MaintenanceAppService(
     IMaintenanceRepository maintenanceRepo,
     IServiceRepository serviceRepo,
-    IRRuleExpander rruleExpander)
+    IRRuleExpander rruleExpander,
+    ServiceStatusService statusService)
 {
     /// <summary>Number of future days to materialize maintenance events on create/update.</summary>
     private const int MaterializeHorizonDays = 90;
@@ -102,6 +103,26 @@ public class MaintenanceAppService(
         await maintenanceRepo.DeleteAsync(maintenance, ct);
     }
 
+    /// <summary>
+    /// Cancels a single occurrence of a recurring maintenance without affecting the
+    /// parent maintenance or its other events. If the event was ongoing, recomputes
+    /// status for the services it affected so they stop reporting MAINTENANCE.
+    /// </summary>
+    public async Task CancelEventAsync(int maintenanceId, int eventId, CancellationToken ct = default)
+    {
+        var maintenanceEvent = await maintenanceRepo.GetEventByIdAsync(maintenanceId, eventId, ct)
+            ?? throw new NotFoundException(nameof(MaintenanceEvent), eventId.ToString());
+
+        var wasOngoing = maintenanceEvent.Status == MaintenanceEventStatus.Ongoing;
+        await maintenanceRepo.CancelEventAsync(maintenanceEvent, ct);
+
+        if (wasOngoing)
+        {
+            var affectedServiceIds = await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceId, ct);
+            await statusService.ComputeAllWithCascadeAsync(affectedServiceIds, ct);
+        }
+    }
+
     // ── Event materialization ────────────────────────────────────────────────
 
     /// <summary>
@@ -130,7 +151,7 @@ public class MaintenanceAppService(
 
     private static MaintenanceDto Map(Maintenance m) => new(
         m.Id, m.Title, m.Description, m.StartDateTime, m.RRule,
-        m.DurationSeconds, m.Status, m.IsGlobal,
+        m.DurationSeconds, m.Status, DeriveDisplayStatus(m), m.IsGlobal,
         m.Events
             .Where(e => e.Status != MaintenanceEventStatus.Completed)
             .OrderBy(e => e.StartDateTime)
@@ -138,4 +159,19 @@ public class MaintenanceAppService(
             .Select(e => new MaintenanceEventDto(e.Id, e.StartDateTime, e.EndDateTime, e.Status)),
         m.MaintenanceServices.Select(ms => ms.Service?.Slug ?? ms.ServiceId.ToString()),
         m.CreatedAt, m.UpdatedAt);
+
+    /// <summary>Combines <see cref="Maintenance.Status"/> with event states into a single user-facing lifecycle status.</summary>
+    private static MaintenanceDisplayStatus DeriveDisplayStatus(Maintenance m)
+    {
+        if (m.Status == MaintenanceStatus.Cancelled)
+            return MaintenanceDisplayStatus.Cancelled;
+
+        if (m.Events.Any(e => e.Status == MaintenanceEventStatus.Ongoing))
+            return MaintenanceDisplayStatus.Active;
+
+        if (m.Events.Any(e => e.Status == MaintenanceEventStatus.Scheduled))
+            return MaintenanceDisplayStatus.Scheduled;
+
+        return MaintenanceDisplayStatus.Completed;
+    }
 }

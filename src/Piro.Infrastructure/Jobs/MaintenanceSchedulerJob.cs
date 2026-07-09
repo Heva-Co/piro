@@ -24,6 +24,7 @@ public class MaintenanceSchedulerJob(
         await using var scope = scopeFactory.CreateAsyncScope();
         var maintenanceRepo = scope.ServiceProvider.GetRequiredService<IMaintenanceRepository>();
         var maintenanceService = scope.ServiceProvider.GetRequiredService<MaintenanceAppService>();
+        var statusService = scope.ServiceProvider.GetRequiredService<ServiceStatusService>();
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var db = scope.ServiceProvider.GetRequiredService<Piro.Infrastructure.Persistence.PiroDbContext>();
@@ -42,11 +43,20 @@ public class MaintenanceSchedulerJob(
         foreach (var ev in completedEvents)
             ev.Status = MaintenanceEventStatus.Completed;
 
-        if (startingEvents.Count + completedEvents.Count > 0)
+        var transitionedEvents = startingEvents.Concat(completedEvents).ToList();
+        if (transitionedEvents.Count > 0)
         {
             await db.SaveChangesAsync(context.CancellationToken);
             logger.LogInformation("Updated {Starting} event(s) to Ongoing, {Completed} to Completed.",
                 startingEvents.Count, completedEvents.Count);
+
+            var affectedServiceIds = new HashSet<int>();
+            foreach (var maintenanceId in transitionedEvents.Select(e => e.MaintenanceId).Distinct())
+                foreach (var serviceId in await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceId, context.CancellationToken))
+                    affectedServiceIds.Add(serviceId);
+
+            if (affectedServiceIds.Count > 0)
+                await statusService.ComputeAllWithCascadeAsync(affectedServiceIds, context.CancellationToken);
         }
 
         // Extend horizon: materialize more events when nearest future event < 30 days out

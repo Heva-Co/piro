@@ -3,33 +3,46 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, ChevronDown } from "lucide-react";
 import { AdminLayout } from "@/components/AdminLayout";
-import { maintenancesApi } from "@/lib/api";
+import { maintenancesApi, type Maintenance, type MaintenanceDisplayStatus } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
-const STATUS_BADGE: Record<string, string> = {
-  ACTIVE:    "bg-green-500/15 text-green-600 dark:text-green-400",
-  CANCELLED: "bg-muted text-muted-foreground",
-  SCHEDULED: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  COMPLETED: "bg-indigo-100 text-indigo-700",
+const STATUS_BADGE: Record<MaintenanceDisplayStatus, string> = {
+  Active:    "bg-green-500/15 text-green-600 dark:text-green-400",
+  Cancelled: "bg-muted text-muted-foreground",
+  Scheduled: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  Completed: "bg-indigo-100 text-indigo-700",
 };
 
 const PAGE_SIZE = 10;
 
-function formatDuration(start: string, end: string) {
-  const diff = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+function formatDuration(durationSeconds: number) {
+  const diff = Math.round(durationSeconds / 60);
   if (diff < 60) return `${diff}m`;
   const h = Math.floor(diff / 60);
   const m = diff % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-const FILTER_OPTIONS = [
+function isOneTime(rRule: string) {
+  return rRule.includes("COUNT=1");
+}
+
+function formatNextEvent(m: Maintenance) {
+  const next = m.upcomingEvents[0];
+  if (!next) return "—";
+  return new Date(next.startDateTime * 1000).toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+const FILTER_OPTIONS: { label: string; value: "all" | MaintenanceDisplayStatus }[] = [
   { label: "All",       value: "all" },
-  { label: "Active",    value: "active" },
-  { label: "Scheduled", value: "scheduled" },
-  { label: "Completed", value: "completed" },
-  { label: "Cancelled", value: "cancelled" },
+  { label: "Active",    value: "Active" },
+  { label: "Scheduled", value: "Scheduled" },
+  { label: "Completed", value: "Completed" },
+  { label: "Cancelled", value: "Cancelled" },
 ];
 
 export default function MaintenancesPage() {
@@ -44,7 +57,7 @@ export default function MaintenancesPage() {
 
   const filtered = maintenances.filter((m) => {
     if (statusFilter === "all") return true;
-    return m.status?.toLowerCase() === statusFilter;
+    return m.displayStatus === statusFilter;
   });
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -104,27 +117,24 @@ export default function MaintenancesPage() {
               {paged.map((m) => (
                 <tr key={m.id} className="hover:bg-muted">
                   <td className="px-5 py-3.5 text-gray-400 font-mono text-xs">#{m.id}</td>
-                  <td className="px-5 py-3.5 font-medium text-gray-900">{m.name}</td>
+                  <td className="px-5 py-3.5 font-medium text-gray-900">{m.title}</td>
                   <td className="px-5 py-3.5">
                     <span className="inline-flex items-center rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 px-2.5 py-0.5 text-xs font-medium">
-                      One-Time
+                      {isOneTime(m.rRule) ? "One-Time" : "Recurring"}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-gray-500">
-                    {formatDuration(m.scheduledStart, m.scheduledEnd)}
+                    {formatDuration(m.durationSeconds)}
                   </td>
                   <td className="px-5 py-3.5 text-gray-500">
-                    {m.isGlobal ? <span className="text-xs text-indigo-600 font-medium">All</span> : (m.services?.length ?? 0)}
+                    {m.isGlobal ? <span className="text-xs text-indigo-600 font-medium">All</span> : m.serviceSlugs.length}
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
-                    {new Date(m.scheduledStart).toLocaleString("en-US", {
-                      month: "short", day: "numeric", year: "numeric",
-                      hour: "numeric", minute: "2-digit",
-                    })}
+                    {formatNextEvent(m)}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE[m.status?.toUpperCase()] ?? "bg-muted text-muted-foreground"}`}>
-                      {m.status?.toLowerCase()}
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.displayStatus]}`}>
+                      {m.displayStatus}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
