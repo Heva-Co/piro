@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Services;
+using Piro.Domain.Attributes;
+using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
 
 namespace Piro.Api.Controllers;
@@ -28,6 +30,9 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateIntegrationRequest request, CancellationToken ct)
     {
+        if (request.Type.IsChannelOnly())
+            return BadRequest(new { error = $"Integration type '{request.Type}' does not support global credentials. Configure it directly on the Notification Channel." });
+
         var created = await integrationApp.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
