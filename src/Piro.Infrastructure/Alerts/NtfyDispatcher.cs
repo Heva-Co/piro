@@ -73,7 +73,7 @@ public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDi
         var client = httpClientFactory.CreateClient("piro-webhook");
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Content = new StringContent(message, Encoding.UTF8, "text/plain");
-        request.Headers.Add("Title", title);
+        request.Headers.Add("Title", EncodeRfc2047(title));
         request.Headers.Add("Priority", priority.ToString());
         request.Headers.Add("Tags", context.IsRecovery ? "white_check_mark" : "rotating_light");
         if (!string.IsNullOrWhiteSpace(accessToken))
@@ -93,6 +93,12 @@ public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDi
             throw new InvalidOperationException($"ntfy error {(int)response.StatusCode}: {body}");
         }
     }
+
+    // RFC 2047 encoding allows non-ASCII characters in HTTP headers
+    private static string EncodeRfc2047(string value) =>
+        value.Any(c => c > 127)
+            ? $"=?utf-8?B?{Convert.ToBase64String(Encoding.UTF8.GetBytes(value))}?="
+            : value;
 
     private record NtfyChannelMeta(
         [property: Required] string Topic,

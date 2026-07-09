@@ -11,31 +11,31 @@ public enum IntegrationType
     Jira,
 
     // Notification integrations (formerly NotificationChannelType)
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Email,
-    
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+
+    [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Webhook,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Slack,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification)]
     PagerDuty,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification)]
     MSTeams,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification)]
     Telegram,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification)]
     TwilioSms,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     GoogleChat,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Discord,
 
     [IntegrationCategory(IntegrationCategory.Notification)] 
