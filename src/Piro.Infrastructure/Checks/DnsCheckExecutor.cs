@@ -71,6 +71,12 @@ internal class DnsCheckExecutor : ICheckExecutor
         var tasks = nameServers.Select(ns => QueryNameServerAsync(ns, data.Host, queryType, data.ExpectedValue, data.RecordType, ct)).ToList();
         var results = await Task.WhenAll(tasks);
 
+        return ClassifyNsResults(results, nameServers, data);
+    }
+
+    internal static CheckExecutionResult ClassifyNsResults(
+        CheckExecutionResult[] results, List<string> nameServers, DnsCheckData data)
+    {
         var failures = results.Count(r => r.Status != ServiceStatus.UP);
         var maxLatency = results.Max(r => r.LatencyMs);
         var degradedAfter = data.DegradedAfter ?? 1;
