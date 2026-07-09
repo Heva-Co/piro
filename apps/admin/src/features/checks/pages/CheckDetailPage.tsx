@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, ExternalLink, Play, RefreshCw, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { AdminLayout } from "@/components/AdminLayout";
 import {
   useCheck,
@@ -17,12 +18,16 @@ import { channelsApi, integrationsApi } from "@/lib/api";
 import { useForm, FormProvider } from "react-hook-form";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { StatusPill } from "@/components/StatusBadge";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
 import { CheckGeneralSettingsFields, type CheckGeneralFormValues } from "@/features/checks/components/CheckGeneralSettingsFields";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
-import { formatTimestamp } from "@/utils/date";
+import StatusHistorySection from "../components/StatusHistorySection";
+import RecentLogsSection from "../components/RecentLogsSection";
+import DangerZone from "@/components/DangerZone";
+import { StatusPill } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
+import RecentLogsActions from "../components/RecentLogsActions";
 
 // ── General Settings ──────────────────────────────────────────────────────────
 
@@ -123,19 +128,17 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
     queryKey: QUERY_KEYS.INTEGRATIONS,
     queryFn: integrationsApi.list,
   });
-  const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!check) return;
+  const [config, setConfig] = useState<Record<string, unknown>>(() => {
+    if (!check) return {};
     try {
       const parsed = check.typeDataJson ? JSON.parse(check.typeDataJson) : {};
-      setConfig({ ...parsed, ...(check.integrationId != null ? { integrationId: check.integrationId } : {}) });
+      return { ...parsed, ...(check.integrationId != null ? { integrationId: check.integrationId } : {}) };
     } catch {
-      setConfig({});
+      return {};
     }
-  }, [check?.typeDataJson, check?.integrationId]);
+  });
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSave() {
     setError("");
@@ -188,67 +191,6 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   );
 }
 
-// ── Recent Logs ───────────────────────────────────────────────────────────────
-
-function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const { data: logs, isLoading } = useCheckLogs(serviceSlug, checkSlug);
-
-  if (isLoading) return <div className="text-sm text-muted-foreground py-2">Loading…</div>;
-
-  if (!logs || logs.length === 0) {
-    return <div className="text-sm text-muted-foreground text-center py-6">No logs yet.</div>;
-  }
-
-  return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/40">
-            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Time</th>
-            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
-            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Latency</th>
-            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Region</th>
-            <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Message</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {logs.map((log) => (
-            <tr key={log.timestamp} className="hover:bg-muted/30 transition-colors">
-              <td className="px-5 py-2.5 text-xs text-muted-foreground">{formatTimestamp(log.timestamp)}</td>
-              <td className="px-5 py-2.5"><StatusPill status={log.status} dataType={log.dataType} /></td>
-              <td className="px-5 py-2.5 text-sm text-muted-foreground">
-                {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}
-              </td>
-              <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion}</td>
-              <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.errorMessage ?? ""}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function RecentLogsActions({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const navigate = useNavigate();
-  const { isFetching, refetch } = useCheckLogs(serviceSlug, checkSlug);
-  return (
-    <>
-      <button onClick={() => refetch()} disabled={isFetching}
-        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors">
-        <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
-        Refresh
-      </button>
-      <button onClick={() => navigate(ROUTES.CHECKS.LOGS(serviceSlug, checkSlug))}
-        className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
-        <ExternalLink size={12} />
-        View all logs
-      </button>
-    </>
-  );
-}
-
-// ── Alert Configurations ──────────────────────────────────────────────────────
 
 function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: alertConfigs, isLoading } = useAlertConfigs(serviceSlug, checkSlug);
@@ -341,44 +283,6 @@ function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; 
   );
 }
 
-// ── Danger Zone ───────────────────────────────────────────────────────────────
-
-function DangerZone({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const navigate = useNavigate();
-  const deleteCheck = useDeleteCheck(serviceSlug, checkSlug);
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-
-  async function handleDelete() {
-    if (confirm !== checkSlug) return;
-    setError("");
-    try {
-      await deleteCheck.mutateAsync();
-      navigate(ROUTES.SERVICES.DETAIL(serviceSlug));
-    } catch {
-      setError("Failed to delete check.");
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex flex-col gap-4">
-      <p className="text-sm">
-        Permanently delete this check. Type{" "}
-        <code className="font-mono font-semibold">{checkSlug}</code> to confirm.
-      </p>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="flex items-center gap-3">
-        <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={checkSlug}
-          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive w-64" />
-        <button onClick={handleDelete} disabled={confirm !== checkSlug || deleteCheck.isPending}
-          className="rounded-lg bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity">
-          {deleteCheck.isPending ? "Deleting…" : "Delete Check"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CheckDetailPage() {
@@ -386,6 +290,12 @@ export default function CheckDetailPage() {
   const navigate = useNavigate();
   const { data: check, isLoading } = useCheck(serviceSlug!, checkSlug!);
   const runCheck = useRunCheck(serviceSlug!, checkSlug!);
+  const deleteCheck = useDeleteCheck(serviceSlug!, checkSlug!);
+
+  async function handleDelete() {
+    await deleteCheck.mutateAsync();
+    navigate(ROUTES.SERVICES.DETAIL(serviceSlug!));
+  }
 
   if (isLoading) {
     return (
@@ -405,36 +315,27 @@ export default function CheckDetailPage() {
 
   return (
     <AdminLayout title={check.name}>
-      {/* Breadcrumb + actions */}
-      <div className="flex items-center justify-between mb-6">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-          <button type="button" onClick={() => navigate(ROUTES.SERVICES.LIST)} className="hover:text-foreground transition-colors">
-            Services
-          </button>
-          <span>/</span>
-          <button type="button" onClick={() => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!))} className="hover:text-foreground transition-colors">
-            {serviceSlug}
-          </button>
-          <span>/</span>
-          <span className="text-foreground font-medium">{check.name}</span>
-        </nav>
-        <div className="flex items-center gap-2">
-          <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{check.type}</span>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-            check.currentStatus === "UP" ? "bg-foreground text-background" : "border text-muted-foreground"
-          }`}>
-            {check.currentStatus === "NO_DATA" ? "No data" : check.currentStatus}
-          </span>
-          <button
-            onClick={() => runCheck.mutate()}
-            disabled={runCheck.isPending}
-            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
-          >
-            <Play size={12} />
-            {runCheck.isPending ? "Running…" : "Run now"}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Services", onClick: () => navigate(ROUTES.SERVICES.LIST) },
+          { label: serviceSlug!, onClick: () => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!)) },
+          { label: check.name },
+        ]}
+        actions={
+          <>
+            <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{check.type}</span>
+            <StatusPill status={check.currentStatus}/>
+            <Button
+              onClick={() => runCheck.mutate()}
+              disabled={runCheck.isPending}
+              variant="outline"
+            >
+              <Play size={12} />
+              {runCheck.isPending ? "Running…" : "Run now"}
+            </Button>
+          </>
+        }
+      />
 
       <SectionAccordion
         title="General Settings"
@@ -464,10 +365,11 @@ export default function CheckDetailPage() {
 
       <SectionAccordion
         title="Status History"
-        description="Uptime and status over time"
+        description="Uptime and status over the last 14 days"
         icon={<Clock size={16} className="text-muted-foreground" />}
-        upcomming
-      />
+      >
+        <StatusHistorySection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
+      </SectionAccordion>
 
       <SectionAccordion
         title="Alert Configurations"
@@ -483,7 +385,7 @@ export default function CheckDetailPage() {
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
       >
-        <DangerZone serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
+        <DangerZone objectName="check" objectId={checkSlug!} onDelete={handleDelete} />
       </SectionAccordion>
     </AdminLayout>
   );

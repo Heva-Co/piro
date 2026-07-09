@@ -53,13 +53,23 @@ public class ChecksController(CheckAppService checkApp, CheckRunnerService check
         return NoContent();
     }
 
-    /// <summary>Returns the most recent execution log entries for a check. Optionally filtered by worker region.</summary>
+    /// <summary>Returns execution log entries for a check. Filter by region and/or ISO 8601 time range.</summary>
     [HttpGet("{checkSlug}/logs")]
     [ProducesResponseType<IEnumerable<CheckDataPointDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetLogs(string serviceSlug, string checkSlug,
-        [FromQuery] int limit = 20, [FromQuery] string? region = null, CancellationToken ct = default) =>
-        Ok(await checkApp.GetRecentLogsAsync(serviceSlug, checkSlug, limit, region, ct));
+        [FromQuery] int limit = 20, [FromQuery] string? region = null,
+        [FromQuery] DateTimeOffset? from = null, [FromQuery] DateTimeOffset? to = null,
+        CancellationToken ct = default) =>
+        Ok(await checkApp.GetRecentLogsAsync(serviceSlug, checkSlug, limit, region, from, to, ct));
+
+    /// <summary>Returns daily up/down/degraded counts per region for the last N days.</summary>
+    [HttpGet("{checkSlug}/history")]
+    [ProducesResponseType<IEnumerable<CheckDailyStatsDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetHistory(string serviceSlug, string checkSlug,
+        [FromQuery] int days = 14, CancellationToken ct = default) =>
+        Ok(await checkApp.GetDailyStatsAsync(serviceSlug, checkSlug, days, ct));
 
     /// <summary>Manually triggers an immediate check execution. Useful for testing and on-demand refresh.</summary>
     [HttpPost("{checkSlug}/run")]

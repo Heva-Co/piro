@@ -85,3 +85,12 @@ public record CheckDataPointDto(
     string? ErrorMessage,
     string WorkerRegion
 );
+
+public record CheckDailyStatsDto(
+    string Region,
+    long Timestamp,
+    int CountUp,
+    int CountDown,
+    int CountDegraded,
+    double? AvgLatencyMs
+);

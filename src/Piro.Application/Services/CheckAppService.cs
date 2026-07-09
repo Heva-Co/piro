@@ -111,19 +111,37 @@ public class CheckAppService(
         await scheduler.UnscheduleAsync(check.Id, ct);
     }
 
-    /// <summary>Returns the most recent data points for a check, ordered newest first.</summary>
+    /// <summary>Returns data points for a check in the given time range, ordered newest first.</summary>
     public async Task<IEnumerable<CheckDataPointDto>> GetRecentLogsAsync(
-        string serviceSlug, string checkSlug, int limit = 20, string? region = null, CancellationToken ct = default)
+        string serviceSlug, string checkSlug, int limit = 20, string? region = null,
+        DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
     {
         var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
             ?? throw new NotFoundException(nameof(Service), serviceSlug);
         var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
             ?? throw new NotFoundException(nameof(Check), checkSlug);
-        var points = await dataPointRepository.GetByCheckIdAsync(check.Id, ct: ct);
+        var fromUnix = from.HasValue ? (long?)from.Value.ToUnixTimeSeconds() : null;
+        var toUnix = to.HasValue ? (long?)to.Value.ToUnixTimeSeconds() : null;
+        var points = await dataPointRepository.GetByCheckIdAsync(check.Id, fromUnix, toUnix, ct);
         return points
             .Where(p => region is null || p.WorkerRegion.Equals(region, StringComparison.OrdinalIgnoreCase))
             .Take(limit)
             .Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType?.ToString(), p.ErrorMessage, p.WorkerRegion));
+    }
+
+    public async Task<IEnumerable<CheckDailyStatsDto>> GetDailyStatsAsync(
+        string serviceSlug, string checkSlug, int days = 14, CancellationToken ct = default)
+    {
+        var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
+            ?? throw new NotFoundException(nameof(Service), serviceSlug);
+        var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
+            ?? throw new NotFoundException(nameof(Check), checkSlug);
+
+        var to = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var from = to - (long)days * 86400;
+
+        var stats = await dataPointRepository.GetDailyStatsByCheckIdAsync(check.Id, from, to, ct);
+        return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.AvgLatencyMs));
     }
 
     private static CheckDto ToDto(Check c) => new(

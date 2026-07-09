@@ -10,10 +10,18 @@ public interface ICheckDataPointRepository
     Task<IEnumerable<(long DayTimestamp, double Avg, double Min, double Max)>> GetDailyLatencyByServiceIdAsync(int serviceId, long from, long to, CancellationToken ct = default);
     Task<CheckDataPoint?> GetLatestByServiceIdAsync(int serviceId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Returns average latency grouped by region and day for a multi-region check.
-    /// Used to render per-region latency breakdowns on the check detail page.
-    /// </summary>
     Task<IEnumerable<(string Region, long DayTimestamp, double Avg, double Min, double Max)>> GetDailyLatencyByRegionAsync(
         int checkId, long from, long to, CancellationToken ct = default);
+
+    /// <summary>Returns up/down/degraded counts and avg latency grouped by region and day.</summary>
+    Task<IEnumerable<CheckDailyStats>> GetDailyStatsByCheckIdAsync(
+        int checkId, long from, long to, CancellationToken ct = default);
 }
+
+public record CheckDailyStats(
+    string Region,
+    long DayTimestamp,
+    int CountUp,
+    int CountDown,
+    int CountDegraded,
+    double? AvgLatencyMs);

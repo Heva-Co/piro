@@ -76,6 +76,14 @@ export function useCheckLogs(serviceSlug: string, checkSlug: string) {
   });
 }
 
+export function useCheckHistory(serviceSlug: string, checkSlug: string, days = 14) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.CHECK_LOGS(serviceSlug, checkSlug), "history", days],
+    queryFn: () => checksApi.history(serviceSlug, checkSlug, days),
+    enabled: !!serviceSlug && !!checkSlug,
+  });
+}
+
 export function useAlertConfigs(serviceSlug: string, checkSlug: string) {
   return useQuery({
     queryKey: QUERY_KEYS.ALERT_CONFIGS(serviceSlug, checkSlug),

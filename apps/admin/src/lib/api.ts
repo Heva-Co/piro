@@ -130,6 +130,15 @@ export interface CheckLog {
   workerRegion: string;
 }
 
+export interface CheckDailyStats {
+  region: string;
+  timestamp: number;
+  countUp: number;
+  countDown: number;
+  countDegraded: number;
+  avgLatencyMs: number | null;
+}
+
 export interface CheckSummary {
   id: number;
   serviceSlug: string;
@@ -174,8 +183,11 @@ export const checksApi = {
   run: (serviceSlug: string, checkSlug: string) =>
     api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
 
-  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string }) =>
+  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string; from?: string; to?: string }) =>
     api.get<CheckLog[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug), { params }).then((r) => r.data),
+
+  history: (serviceSlug: string, checkSlug: string, days = 14) =>
+    api.get<CheckDailyStats[]>(ENDPOINTS.SERVICE_CHECK_HISTORY(serviceSlug, checkSlug), { params: { days } }).then((r) => r.data),
 };
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
