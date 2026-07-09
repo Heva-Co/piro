@@ -69,6 +69,28 @@ public class ServiceStatusService(
     /// to downstream services until no further status changes occur. Each service is
     /// recomputed at most once per pass; duplicate work across overlapping cascades is skipped.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Do not call this directly from controllers, jobs, or other application services.</b>
+    /// It performs a read-modify-write on <see cref="Service.CurrentStatus"/> with no optimistic
+    /// concurrency guard. If two callers invoke it for the same service at nearly the same time —
+    /// e.g. a check finishing execution while a maintenance window transitions, or an admin
+    /// clicking "recompute all" mid-way through another recomputation — both read the same stale
+    /// status, and whichever writes last silently overwrites the other's result, even if the
+    /// other result was the more correct/recent one. No exception is thrown; the wrong status just
+    /// sticks until something else happens to trigger another recompute.
+    /// </para>
+    /// <para>
+    /// The only place this is safe to call is <c>StatusDrainHostedService</c>, which is the single
+    /// consumer of the <c>Channel&lt;CheckStatusChangedEvent&gt;</c> queue and therefore processes
+    /// one service recomputation at a time — that serialization is what actually prevents the race,
+    /// not this method. Every other caller (controllers, Quartz jobs, application services) must
+    /// enqueue a <c>CheckStatusChangedEvent</c> onto that channel instead of calling this method or
+    /// <see cref="ComputeAsync"/> directly. See <c>DependencyService.TriggerRecompute</c> for the
+    /// established pattern (a synthetic event with <c>CheckId = 0</c>).
+    /// </para>
+    /// </remarks>
+    [Obsolete("Call sites outside StatusDrainHostedService race concurrently with the channel consumer and can silently overwrite a more recent status. Enqueue a CheckStatusChangedEvent on the shared channel instead — see DependencyService.TriggerRecompute.", error: false)]
     public async Task ComputeAllWithCascadeAsync(IEnumerable<int> rootServiceIds, CancellationToken ct = default)
     {
         var queue = new Queue<int>(rootServiceIds);

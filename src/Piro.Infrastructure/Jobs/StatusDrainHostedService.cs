@@ -28,7 +28,15 @@ internal class StatusDrainHostedService(
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var statusService = scope.ServiceProvider.GetRequiredService<ServiceStatusService>();
+
+                // This is the one sanctioned call site for ComputeAllWithCascadeAsync: as the
+                // single consumer of `channel`, this loop processes one event at a time, which is
+                // what actually prevents the concurrent read-modify-write race the method warns
+                // about. Any other caller must enqueue onto `channel` instead — see the method's
+                // XML doc remarks for why.
+#pragma warning disable CS0618
                 await statusService.ComputeAllWithCascadeAsync([evt.ServiceId], stoppingToken);
+#pragma warning restore CS0618
             }
             catch (Exception ex)
             {

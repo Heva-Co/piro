@@ -1,5 +1,7 @@
+using System.Threading.Channels;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
+using Piro.Application.Models;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
@@ -11,7 +13,7 @@ public class MaintenanceAppService(
     IMaintenanceRepository maintenanceRepo,
     IServiceRepository serviceRepo,
     IRRuleExpander rruleExpander,
-    ServiceStatusService statusService)
+    Channel<CheckStatusChangedEvent> statusChannel)
 {
     /// <summary>Number of future days to materialize maintenance events on create/update.</summary>
     private const int MaterializeHorizonDays = 90;
@@ -118,8 +120,12 @@ public class MaintenanceAppService(
 
         if (wasOngoing)
         {
+            // Enqueue through the shared channel rather than calling ServiceStatusService
+            // directly — StatusDrainHostedService serializes all recomputation for a
+            // given service, avoiding concurrent read-modify-write races.
             var affectedServiceIds = await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceId, ct);
-            await statusService.ComputeAllWithCascadeAsync(affectedServiceIds, ct);
+            foreach (var serviceId in affectedServiceIds)
+                statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
         }
     }
 

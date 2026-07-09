@@ -1,6 +1,8 @@
+using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
+using Piro.Application.Models;
 using Piro.Application.Services;
 using Piro.Domain.Enums;
 using Quartz;
@@ -15,6 +17,7 @@ namespace Piro.Infrastructure.Jobs;
 [DisallowConcurrentExecution]
 public class MaintenanceSchedulerJob(
     IServiceScopeFactory scopeFactory,
+    Channel<CheckStatusChangedEvent> statusChannel,
     ILogger<MaintenanceSchedulerJob> logger) : IJob
 {
     public static readonly JobKey Key = new("maintenance-scheduler", "piro");
@@ -24,7 +27,6 @@ public class MaintenanceSchedulerJob(
         await using var scope = scopeFactory.CreateAsyncScope();
         var maintenanceRepo = scope.ServiceProvider.GetRequiredService<IMaintenanceRepository>();
         var maintenanceService = scope.ServiceProvider.GetRequiredService<MaintenanceAppService>();
-        var statusService = scope.ServiceProvider.GetRequiredService<ServiceStatusService>();
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var db = scope.ServiceProvider.GetRequiredService<Piro.Infrastructure.Persistence.PiroDbContext>();
@@ -55,8 +57,11 @@ public class MaintenanceSchedulerJob(
                 foreach (var serviceId in await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceId, context.CancellationToken))
                     affectedServiceIds.Add(serviceId);
 
-            if (affectedServiceIds.Count > 0)
-                await statusService.ComputeAllWithCascadeAsync(affectedServiceIds, context.CancellationToken);
+            // Enqueue through the same channel CheckResultIngesterService uses, rather than calling
+            // ServiceStatusService directly — StatusDrainHostedService is the single consumer that
+            // serializes all recomputation for a given service, avoiding concurrent read-modify-write.
+            foreach (var serviceId in affectedServiceIds)
+                statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
         }
 
         // Extend horizon: materialize more events when nearest future event < 30 days out
