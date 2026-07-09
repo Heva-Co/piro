@@ -24,39 +24,15 @@ internal class StatusDrainHostedService(
                 "Check {CheckId} (service {ServiceId}) status changed: {Old} → {New}.",
                 evt.CheckId, evt.ServiceId, evt.PreviousStatus, evt.NewStatus);
 
-            await RecomputeWithCascadeAsync(evt.ServiceId, stoppingToken);
-        }
-    }
-
-    /// <summary>
-    /// Recomputes the status for <paramref name="serviceId"/> and recursively
-    /// cascades to any downstream services whose status may be affected.
-    /// Uses a queue to avoid deep recursion on wide dependency graphs.
-    /// </summary>
-    private async Task RecomputeWithCascadeAsync(int rootServiceId, CancellationToken ct)
-    {
-        var queue = new Queue<int>();
-        var visited = new HashSet<int>();
-        queue.Enqueue(rootServiceId);
-
-        while (queue.Count > 0)
-        {
-            var serviceId = queue.Dequeue();
-            if (!visited.Add(serviceId)) continue;
-
             try
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var statusService = scope.ServiceProvider.GetRequiredService<ServiceStatusService>();
-
-                var downstream = await statusService.ComputeAsync(serviceId, ct);
-                foreach (var id in downstream)
-                    if (!visited.Contains(id))
-                        queue.Enqueue(id);
+                await statusService.ComputeAllWithCascadeAsync([evt.ServiceId], stoppingToken);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error recomputing status for service {ServiceId}.", serviceId);
+                logger.LogError(ex, "Error recomputing status for service {ServiceId}.", evt.ServiceId);
             }
         }
     }

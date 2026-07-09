@@ -16,6 +16,9 @@ internal class ServiceRepository(PiroDbContext db) : IServiceRepository
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+    public async Task<int> GetCheckCountAsync(int serviceId, CancellationToken ct = default) =>
+        await db.Checks.CountAsync(c => c.ServiceId == serviceId, ct);
+
     public async Task<Service?> GetBySlugAsync(string slug, CancellationToken ct = default) =>
         await db.Services.FirstOrDefaultAsync(s => s.Slug == slug, ct);
 

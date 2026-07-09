@@ -14,7 +14,8 @@ public class ServiceStatusService(
     IServiceRepository serviceRepo,
     ICheckRepository checkRepo,
     IServiceDependencyRepository dependencyRepo,
-    IIncidentRepository incidentRepo)
+    IIncidentRepository incidentRepo,
+    IMaintenanceRepository maintenanceRepo)
 {
     /// <summary>
     /// Computes the current status for <paramref name="serviceId"/> and returns
@@ -25,17 +26,16 @@ public class ServiceStatusService(
         var service = await serviceRepo.GetByIdAsync(serviceId, ct);
         if (service is null) return [];
 
-        // 1. Raw status from own checks
+        // 1. Maintenance overrides everything — short-circuit
+        if (await maintenanceRepo.HasActiveWindowAsync(serviceId, ct))
+            return await PersistAndCascadeAsync(service, ServiceStatus.MAINTENANCE, [], ct);
+
+        // 2. Raw status from own checks
         var checks = await checkRepo.GetByServiceIdAsync(serviceId, ct);
         var rawStatus = checks
             .Where(c => c.IsActive)
             .Select(c => c.CurrentStatus)
             .Aggregate(ServiceStatus.NO_DATA, Worst);
-
-        // 2. Maintenance overrides everything — short-circuit
-        // (MaintenanceService will be implemented in v0.9; placeholder check here)
-        // if (await maintenanceRepo.HasActiveWindowAsync(serviceId, ct))
-        //     return await PersistAndCascadeAsync(service, ServiceStatus.MAINTENANCE, [], ct);
 
         // 3. Active incident impact overrides check status
         var incidentImpact = await incidentRepo.GetActiveImpactForServiceAsync(serviceId, ct);
@@ -62,6 +62,28 @@ public class ServiceStatusService(
         }
 
         return await PersistAndCascadeAsync(service, rawStatus, propagationSources, ct);
+    }
+
+    /// <summary>
+    /// Computes status for every service in <paramref name="rootServiceIds"/> and cascades
+    /// to downstream services until no further status changes occur. Each service is
+    /// recomputed at most once per pass; duplicate work across overlapping cascades is skipped.
+    /// </summary>
+    public async Task ComputeAllWithCascadeAsync(IEnumerable<int> rootServiceIds, CancellationToken ct = default)
+    {
+        var queue = new Queue<int>(rootServiceIds);
+        var visited = new HashSet<int>();
+
+        while (queue.Count > 0)
+        {
+            var serviceId = queue.Dequeue();
+            if (!visited.Add(serviceId)) continue;
+
+            var downstream = await ComputeAsync(serviceId, ct);
+            foreach (var id in downstream)
+                if (!visited.Contains(id))
+                    queue.Enqueue(id);
+        }
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

@@ -75,4 +75,10 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
             .Include(e => e.Maintenance).ThenInclude(m => m.MaintenanceServices)
             .ToListAsync(ct);
     }
+
+    public async Task<bool> HasActiveWindowAsync(int serviceId, CancellationToken ct = default) =>
+        await db.MaintenanceEvents
+            .Where(e => e.Status == MaintenanceEventStatus.Ongoing)
+            .SelectMany(e => e.Maintenance.MaintenanceServices)
+            .AnyAsync(ms => ms.ServiceId == serviceId, ct);
 }

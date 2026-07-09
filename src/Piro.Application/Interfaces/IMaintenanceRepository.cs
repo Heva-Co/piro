@@ -16,4 +16,7 @@ public interface IMaintenanceRepository
 
     /// <summary>Returns ongoing or upcoming events (for status computation and scheduler).</summary>
     Task<IEnumerable<MaintenanceEvent>> GetActiveEventsAsync(CancellationToken ct = default);
+
+    /// <summary>Returns true if <paramref name="serviceId"/> is affected by a currently ongoing maintenance event.</summary>
+    Task<bool> HasActiveWindowAsync(int serviceId, CancellationToken ct = default);
 }
