@@ -14,15 +14,21 @@ public class ServicesController(ServiceAppService serviceApp, ServiceStatusServi
     /// <summary>Returns all services ordered by display_order.</summary>
     [HttpGet]
     [ProducesResponseType<IEnumerable<ServiceDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        Ok(await serviceApp.GetAllAsync(ct));
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        return Ok(await serviceApp.GetAllAsync(ct));
+    }
+        
 
     /// <summary>Returns a single service by its slug.</summary>
     [HttpGet("{slug}")]
     [ProducesResponseType<ServiceDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetBySlug(string slug, CancellationToken ct) =>
-        Ok(await serviceApp.GetBySlugAsync(slug, ct));
+    public async Task<IActionResult> GetBySlug(string slug, CancellationToken ct)
+    {
+        return Ok(await serviceApp.GetBySlugAsync(slug, ct));
+    }
+        
 
     /// <summary>Creates a new service.</summary>
     [HttpPost]
@@ -38,8 +44,11 @@ public class ServicesController(ServiceAppService serviceApp, ServiceStatusServi
     [HttpPut("{slug}")]
     [ProducesResponseType<ServiceDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(string slug, [FromBody] UpdateServiceRequest request, CancellationToken ct) =>
-        Ok(await serviceApp.UpdateAsync(slug, request, ct));
+    public async Task<IActionResult> Update(string slug, [FromBody] UpdateServiceRequest request, CancellationToken ct)
+    {
+        return Ok(await serviceApp.UpdateAsync(slug, request, ct));
+    }
+        
 
     /// <summary>Recomputes the derived status for all services.</summary>
     [HttpPost("recompute-status")]

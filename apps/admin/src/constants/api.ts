@@ -46,6 +46,8 @@ export const ENDPOINTS = {
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/run`,
   SERVICE_CHECK_LOGS: (serviceSlug: string, checkSlug: string) =>
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/logs`,
+  SERVICE_CHECK_HISTORY: (serviceSlug: string, checkSlug: string) =>
+    `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/history`,
 
   // Incidents
   INCIDENTS: `${API_BASE}/incidents`,

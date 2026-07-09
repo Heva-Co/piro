@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
@@ -48,6 +49,29 @@ internal class CheckDataPointRepository(PiroDbContext db) : ICheckDataPointRepos
                 Max: g.Max(p => p.LatencyMs!.Value)
             ))
             .OrderBy(d => d.DayTimestamp)
+            .ToList();
+    }
+
+    public async Task<IEnumerable<CheckDailyStats>> GetDailyStatsByCheckIdAsync(
+        int checkId, long from, long to, CancellationToken ct = default)
+    {
+        var rows = await db.CheckDataPoints
+            .Where(p => p.CheckId == checkId && p.Timestamp >= from && p.Timestamp <= to)
+            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Status, p.LatencyMs })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(p => (p.WorkerRegion, Day: p.Timestamp / 86400))
+            .Select(g => new CheckDailyStats(
+                Region: g.Key.WorkerRegion,
+                DayTimestamp: g.Key.Day * 86400,
+                CountUp: g.Count(p => p.Status == ServiceStatus.UP),
+                CountDown: g.Count(p => p.Status == ServiceStatus.DOWN || p.Status == ServiceStatus.FAILURE),
+                CountDegraded: g.Count(p => p.Status == ServiceStatus.DEGRADED),
+                AvgLatencyMs: g.Any(p => p.LatencyMs.HasValue)
+                    ? g.Where(p => p.LatencyMs.HasValue).Average(p => p.LatencyMs!.Value)
+                    : null))
+            .OrderBy(d => d.Region).ThenBy(d => d.DayTimestamp)
             .ToList();
     }
 
