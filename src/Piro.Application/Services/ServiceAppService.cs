@@ -23,7 +23,8 @@ public class ServiceAppService(IServiceRepository repository)
     {
         var service = await repository.GetBySlugAsync(slug, ct)
             ?? throw new NotFoundException(nameof(Service), slug);
-        return ToDto(service);
+        var checkCount = await repository.GetCheckCountAsync(service.Id, ct);
+        return ToDto(service, checkCount);
     }
 
     public async Task<ServiceDto> CreateAsync(CreateServiceRequest request, CancellationToken ct = default)

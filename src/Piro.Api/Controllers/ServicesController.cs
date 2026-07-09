@@ -56,8 +56,7 @@ public class ServicesController(ServiceAppService serviceApp, ServiceStatusServi
     public async Task<IActionResult> RecomputeAll(CancellationToken ct)
     {
         var services = await serviceRepo.GetAllAsync(ct);
-        foreach (var svc in services)
-            await statusService.ComputeAsync(svc.Id, ct);
+        await statusService.ComputeAllWithCascadeAsync(services.Select(s => s.Id), ct);
         return NoContent();
     }
 
