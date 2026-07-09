@@ -4,11 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, ExternalLink } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { AdminLayout } from "@/components/AdminLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { channelsApi, integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { CHANNEL_TYPE_MAP, CHANNEL_TYPES } from "@/constants/channels";
+import { CHANNEL_TYPE_MAP, CHANNEL_TYPES, CHANNEL_ONLY_TYPES } from "@/constants/channels";
+
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +94,7 @@ export default function ChannelFormPage() {
     setIntegrationId(existing.integrationId ?? null);
     try {
       const meta = existing.metaJson ? JSON.parse(existing.metaJson) : {};
-      setTarget(meta.target ?? meta.chatId ?? meta.channel ?? meta.toNumber ?? meta.to ?? meta.userKey ?? meta.topic ?? "");
+      setTarget(meta.target ?? meta.url ?? meta.chatId ?? meta.channel ?? meta.webhookUrl ?? meta.toNumber ?? meta.to ?? meta.userKey ?? meta.topic ?? "");
     } catch { /* ignore */ }
   }, [existing]);
 
@@ -106,13 +109,14 @@ export default function ChannelFormPage() {
     if (!t) return "{}";
     switch (type) {
       case "Telegram":   return JSON.stringify({ chatId: t });
-      case "Slack":      return JSON.stringify({ channel: t });
-      case "Discord":    return JSON.stringify({ channelId: t });
+      case "Slack":      return JSON.stringify({ url: t });
+      case "Webhook":    return JSON.stringify({ url: t });
+      case "Discord":    return JSON.stringify({ webhookUrl: t });
       case "Email":      return JSON.stringify({ to: t });
       case "TwilioSms":  return JSON.stringify({ toNumber: t });
       case "Pushover":   return JSON.stringify({ userKey: t });
       case "Ntfy":       return JSON.stringify({ topic: t });
-      case "GoogleChat": return JSON.stringify({ spaceId: t });
+      case "GoogleChat": return JSON.stringify({ webhookUrl: t });
       case "MSTeams":    return JSON.stringify({ channel: t });
       case "PagerDuty":  return JSON.stringify({ routingKey: t });
       case "Opsgenie":   return JSON.stringify({ responders: t });
@@ -180,27 +184,30 @@ export default function ChannelFormPage() {
   }
 
   const pageTitle = isEdit ? (existing?.name ?? "Edit Channel") : "New Channel";
-  const selectedIntegration = integrations.find((i) => i.id === effectiveIntegrationId);
   const typeMeta = CHANNEL_TYPE_MAP[type as keyof typeof CHANNEL_TYPE_MAP];
 
   const TARGET_CONFIG: Record<string, { label: string; placeholder: string; hint?: string; required?: boolean }> = {
     Telegram:   { label: "Chat ID",       placeholder: "-1001234567890",       hint: "Group, channel or user chat ID. Forward a message to @userinfobot to find it.", required: true },
-    Slack:      { label: "Channel",        placeholder: "#alerts",              hint: "Channel name (with #) or user ID for DMs.", required: true },
-    Discord:    { label: "Channel ID",     placeholder: "123456789012345678",   hint: "Right-click the channel → Copy Channel ID.", required: true },
+    Slack:      { label: "Webhook URL",    placeholder: "https://hooks.slack.com/services/…", hint: "Slack App → Incoming Webhooks → Copy Webhook URL.", required: true },
+    Discord:    { label: "Webhook URL",    placeholder: "https://discord.com/api/webhooks/******/...", hint: "Channel Settings → Integrations → Webhooks → Copy Webhook URL.", required: true },
     Email:      { label: "To",             placeholder: "ops@example.com",      hint: "Comma-separated recipients. Uses the system email provider.", required: true },
     TwilioSms:  { label: "To number",      placeholder: "+15005550006",         hint: "E.164 format destination number.", required: true },
     Pushover:   { label: "User Key",       placeholder: "uQiRzpo4DXghDmr9QzzfQu", hint: "Found in your Pushover dashboard.", required: true },
     Ntfy:       { label: "Topic",          placeholder: "my-alerts",            hint: "The topic name to publish to.", required: true },
-    GoogleChat: { label: "Space ID",       placeholder: "AAAA…",               hint: "From the space URL: chat.google.com/room/{spaceId}", required: true },
+    GoogleChat: { label: "Webhook URL",    placeholder: "https://chat.googleapis.com/v1/spaces/…/messages?key=…&token=…", hint: "Space Settings → Apps & Integrations → Webhooks → Copy URL.", required: true },
     MSTeams:    { label: "Channel",        placeholder: "General",              hint: "Optional: the channel name within the team." },
     PagerDuty:  { label: "Routing Key override", placeholder: "Leave blank to use integration key", hint: "Optional: override the routing key from the integration." },
     Opsgenie:   { label: "Responders",     placeholder: "team:ops, user:john",  hint: "Optional: comma-separated team/user responders." },
-    Webhook:    { label: "URL override",   placeholder: "https://…",            hint: "Optional: override the URL set in the integration." },
+    Webhook:    { label: "Webhook URL",    placeholder: "https://example.com/webhook", hint: "The URL to POST the notification payload to.", required: true },
   };
 
-  const canTest = type === "Email"
-    ? !!target.trim()
+  const isChannelOnly = CHANNEL_ONLY_TYPES.has(type as never);
+
+  const canTest = isChannelOnly
+    ? (!TARGET_CONFIG[type]?.required || !!target.trim())
     : !!effectiveIntegrationId && (!TARGET_CONFIG[type]?.required || !!target.trim());
+
+    console.log(`"${deleteConfirm}"`, `"${existing?.name}"`, deleteConfirm !== existing?.name || deleteMutation.isPending)
 
   return (
     <AdminLayout title={pageTitle}>
@@ -304,22 +311,16 @@ export default function ChannelFormPage() {
               </div>
             )}
 
-            {/* Integration selector — Email uses the system email service, no integration needed */}
-            {type === "Email" ? (
+            {/* Integration selector — channel-only types don't need a global integration */}
+            {isChannelOnly ? (
               <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-start gap-3">
-                <Icon icon="lucide:mail" className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                <Icon icon={typeMeta?.icon ?? "lucide:info"} className={`size-4 mt-0.5 text-muted-foreground shrink-0 ${typeMeta?.iconClass ?? ""}`} />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Uses system email</p>
+                  <p className="text-sm font-medium text-foreground">No integration required</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Email channels use the provider configured in{" "}
-                    <button
-                      type="button"
-                      onClick={() => navigate(ROUTES.CONFIG.EMAIL)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Settings → Email
-                    </button>
-                    . No integration required.
+                    {type === "Email"
+                      ? <>Uses the provider configured in <button type="button" onClick={() => navigate(ROUTES.CONFIG.EMAIL)} className="text-blue-600 hover:underline">Settings → Email</button>.</>
+                      : "Credentials are configured directly on this channel."}
                   </p>
                 </div>
               </div>
@@ -389,36 +390,35 @@ export default function ChannelFormPage() {
 
           {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleTest}
               disabled={testing || !canTest}
-              className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
             >
               <FlaskConical size={14} />
               {testing ? "Testing…" : "Test Trigger"}
-            </button>
+            </Button>
             <div className="flex items-center gap-3">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => navigate(ROUTES.CHANNELS.LIST)}
-                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => { setError(""); saveMutation.mutate(); }}
                 disabled={
                   saveMutation.isPending ||
                   !name ||
-                  (type !== "Email" && !effectiveIntegrationId) ||
+                  (!isChannelOnly && !effectiveIntegrationId) ||
                   (TARGET_CONFIG[type]?.required && !target.trim())
                 }
-                className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {saveMutation.isPending ? "Saving…" : isEdit ? "Save changes" : "Create Trigger"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -431,20 +431,20 @@ export default function ChannelFormPage() {
               <code className="font-mono font-semibold">{existing?.name}</code> to confirm.
             </p>
             <div className="flex items-center gap-3">
-              <input
+              <Input
                 value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
+                onValueChange={(v) => setDeleteConfirm(v)}
                 placeholder={existing?.name ?? ""}
-                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive w-64"
+                className="border outline-none focus:ring-2 focus:ring-destructive w-64"
               />
-              <button
+              <Button
                 type="button"
-                disabled={deleteConfirm !== existing?.name || deleteMutation.isPending}
+                variant="destructive"
+                disabled={deleteConfirm !== existing?.name?.trim() || deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate()}
-                className="rounded-lg bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 {deleteMutation.isPending ? "Deleting…" : "Delete Channel"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
