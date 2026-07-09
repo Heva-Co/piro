@@ -134,6 +134,23 @@ export default function MaintenanceGeneralSettingsSection({ maintenance }: Props
         </div>
       )}
 
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold">Affected Services</label>
+        {maintenance.isGlobal ? (
+          <span className="self-start rounded-full bg-indigo-500/15 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
+            All services
+          </span>
+        ) : maintenance.serviceSlugs.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {maintenance.serviceSlugs.map((slug) => (
+              <span key={slug} className="rounded-md border bg-muted px-2 py-1 text-xs">{slug}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No services selected.</p>
+        )}
+      </div>
+
       <div className="flex justify-end">
         <Button type="submit" disabled={updateMutation.isPending || isCancelled}>
           <Save size={14} />
