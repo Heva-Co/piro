@@ -56,7 +56,7 @@ public class HttpCheckExecutorTests
     public async Task Returns_Up_When_Status_Matches_ExpectedStatusCodes()
     {
         var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.NotFound));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { 404 } });
+        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "404" } });
 
         var result = await sut.ExecuteAsync(check);
 
@@ -67,7 +67,7 @@ public class HttpCheckExecutorTests
     public async Task Returns_Down_When_Status_Not_In_ExpectedStatusCodes()
     {
         var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { 201 } });
+        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "201" } });
 
         var result = await sut.ExecuteAsync(check);
 
@@ -75,10 +75,13 @@ public class HttpCheckExecutorTests
     }
 
     [Fact]
-    public async Task Returns_Up_When_Body_Contains_Expected_String()
+    public async Task Returns_Up_When_Body_Contains_Rule_Passes()
     {
         var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
-        var check = MakeCheck(new { url = "http://example.com", expectedBodyContains = "world" });
+        var check = MakeCheck(new {
+            url = "http://example.com",
+            responseRules = new[] { new { type = "contains", value = "world", degraded = false } }
+        });
 
         var result = await sut.ExecuteAsync(check);
 
@@ -86,15 +89,102 @@ public class HttpCheckExecutorTests
     }
 
     [Fact]
-    public async Task Returns_Down_When_Body_Missing_Expected_String()
+    public async Task Returns_Down_When_Body_Contains_Rule_Fails()
     {
         var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
-        var check = MakeCheck(new { url = "http://example.com", expectedBodyContains = "piro" });
+        var check = MakeCheck(new {
+            url = "http://example.com",
+            responseRules = new[] { new { type = "contains", value = "piro", degraded = false } }
+        });
 
         var result = await sut.ExecuteAsync(check);
 
         result.Status.Should().Be(ServiceStatus.DOWN);
         result.ErrorMessage.Should().Contain("body");
+    }
+
+    [Fact]
+    public async Task Returns_Degraded_When_Rule_Fails_With_Degraded_Flag()
+    {
+        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
+        var check = MakeCheck(new {
+            url = "http://example.com",
+            responseRules = new[] { new { type = "contains", value = "piro", degraded = true } }
+        });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.DEGRADED);
+    }
+
+    [Fact]
+    public async Task Returns_Up_When_JsonPath_Rule_Passes()
+    {
+        var body = """{"status":{"indicator":"none"}}""";
+        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, body));
+        var check = MakeCheck(new {
+            url = "http://example.com",
+            responseRules = new[] { new { type = "json_path", value = "$.status.indicator", expected = "none", degraded = false } }
+        });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.UP);
+    }
+
+    [Fact]
+    public async Task Returns_Down_When_JsonPath_Expected_Value_Mismatches()
+    {
+        var body = """{"status":{"indicator":"major"}}""";
+        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, body));
+        var check = MakeCheck(new {
+            url = "http://example.com",
+            responseRules = new[] { new { type = "json_path", value = "$.status.indicator", expected = "none", degraded = false } }
+        });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.ErrorMessage.Should().Contain("major");
+    }
+
+    [Fact]
+    public async Task Returns_Down_When_DownLatencyMs_Exceeded()
+    {
+        // Use a handler that adds a small delay to reliably exceed the threshold
+        var handler = new DelayedHandler(HttpStatusCode.OK, delayMs: 50);
+        var client = new HttpClient(handler);
+        var factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient(Arg.Any<string>()).Returns(client);
+        var sut = new HttpCheckExecutor(factory);
+        var check = MakeCheck(new { url = "http://example.com", downLatencyMs = 10 });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.ErrorMessage.Should().Contain("threshold");
+    }
+
+    [Fact]
+    public async Task Returns_Up_When_Status_Matches_2xx_Class()
+    {
+        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.Created));
+        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "2xx" } });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.UP);
+    }
+
+    [Fact]
+    public async Task Returns_Down_When_Status_Does_Not_Match_2xx_Class()
+    {
+        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.NotFound));
+        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "2xx" } });
+
+        var result = await sut.ExecuteAsync(check);
+
+        result.Status.Should().Be(ServiceStatus.DOWN);
     }
 
     [Fact]
@@ -143,5 +233,14 @@ public class HttpCheckExecutorTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
             Task.FromException<HttpResponseMessage>(ex);
+    }
+
+    private sealed class DelayedHandler(HttpStatusCode statusCode, int delayMs) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            await Task.Delay(delayMs, ct);
+            return new HttpResponseMessage(statusCode);
+        }
     }
 }
