@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Piro.Application.Constants;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
+using Piro.Domain.Extensions;
 
 namespace Piro.Api.Controllers;
 
@@ -70,16 +73,17 @@ public class SetupController(
 
             // Save site config
             if (!string.IsNullOrWhiteSpace(request.SiteTitle))
-                await siteConfigRepo.SetAsync("site:name", request.SiteTitle, ct);
+                await siteConfigRepo.SetAsync(SiteDataKeys.SiteName, request.SiteTitle, ct);
             if (!string.IsNullOrWhiteSpace(request.SiteUrl))
-                await siteConfigRepo.SetAsync("site:url", request.SiteUrl, ct);
+                await siteConfigRepo.SetAsync(SiteDataKeys.SiteUrl, request.SiteUrl, ct);
 
             // Save email config
             if (!string.IsNullOrWhiteSpace(request.EmailHost) || !string.IsNullOrWhiteSpace(request.ResendApiKey))
             {
-                var isResend = !string.IsNullOrWhiteSpace(request.ResendApiKey);
+                var provider = string.IsNullOrWhiteSpace(request.ResendApiKey) ? EmailProvider.Smtp : EmailProvider.Resend;
+                var isResend = provider == EmailProvider.Resend;
                 var cfg = new EmailProviderConfig(
-                    Provider:     isResend ? "resend" : "smtp",
+                    Provider:     provider.ToStorageString(),
                     SmtpHost:     isResend ? null : request.EmailHost,
                     SmtpPort:     isResend ? null : request.EmailPort ?? 587,
                     SmtpUsername: isResend ? null : request.EmailUsername,
