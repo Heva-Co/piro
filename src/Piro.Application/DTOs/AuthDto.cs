@@ -1,3 +1,5 @@
+using Piro.Domain.Enums;
+
 namespace Piro.Application.DTOs;
 
 /// <summary>Credentials for local sign-in.</summary>
@@ -27,4 +29,4 @@ public record CreateApiKeyRequest(string Name);
 public record ApiKeyCreatedResponse(int Id, string Name, string RawKey, string MaskedKey, DateTime CreatedAt);
 
 /// <summary>Safe representation of an API key (no raw key).</summary>
-public record ApiKeyDto(int Id, string Name, string MaskedKey, string Status, DateTime CreatedAt);
+public record ApiKeyDto(int Id, string Name, string MaskedKey, ApiKeyStatus Status, DateTime CreatedAt, DateTime? LastUsedAt);

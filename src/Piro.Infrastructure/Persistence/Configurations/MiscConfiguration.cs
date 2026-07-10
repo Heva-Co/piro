@@ -36,7 +36,7 @@ internal class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
         builder.Property(k => k.Name).HasMaxLength(255).IsRequired();
         builder.Property(k => k.HashedKey).HasMaxLength(255).IsRequired();
         builder.Property(k => k.MaskedKey).HasMaxLength(255).IsRequired();
-        builder.Property(k => k.Status).HasMaxLength(20).HasDefaultValue("ACTIVE");
+        builder.Property(k => k.Status).HasConversion<string>().HasMaxLength(20).HasDefaultValue(ApiKeyStatus.Active);
 
         builder.HasOne(k => k.User)
             .WithMany()
