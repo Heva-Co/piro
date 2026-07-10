@@ -20,9 +20,6 @@ public class WorkerAppService(
         var workerToken = GenerateToken();
         var tokenHash = HashToken(workerToken);
 
-        if (request.IsDefault)
-            await workerRepo.ClearDefaultAsync(ct);
-
         var registration = new WorkerRegistration
         {
             Id = Guid.NewGuid(),
@@ -30,10 +27,15 @@ public class WorkerAppService(
             Region = request.Region,
             WorkerTokenHash = tokenHash,
             IsActive = true,
-            IsDefault = request.IsDefault
+            IsDefault = false
         };
 
         await workerRepo.CreateAsync(registration, ct);
+
+        // Set-as-default is a separate atomic step so two concurrent "create as default"
+        // requests can't both observe zero existing defaults and leave two set.
+        if (request.IsDefault)
+            await workerRepo.SetAsDefaultAsync(registration, ct);
 
         return new CreateWorkerResponse(
             registration.Id,
@@ -81,6 +83,9 @@ public class WorkerAppService(
             registration.Region = request.Region;
 
         await workerRepo.UpdateAsync(registration, ct);
+
+        if (request.IsDefault is true)
+            await workerRepo.SetAsDefaultAsync(registration, ct);
     }
 
     /// <summary>Deactivates a worker registration and revokes its token.</summary>
