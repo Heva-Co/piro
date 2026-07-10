@@ -6,7 +6,6 @@ export const ROUTES = {
   AUTH: {
     SIGN_IN: "/admin/auth/sign-in",
     OIDC_CALLBACK: "/admin/auth/oidc/callback",
-    OIDC_COMPLETE: "/admin/auth/oidc/complete",
     SIGN_OUT: "/admin/auth/sign-out",
   },
 
@@ -59,6 +58,7 @@ export const ROUTES = {
     SITE: "/admin/configuration/site",
     EMAIL: "/admin/configuration/email",
     SSO: "/admin/configuration/sso",
+    SSO_NEW: "/admin/configuration/sso/new",
     SSO_DETAIL: (id: string) => `/admin/configuration/sso/${id}`,
     API_KEYS: "/admin/configuration/api-keys",
     USERS: "/admin/configuration/users",

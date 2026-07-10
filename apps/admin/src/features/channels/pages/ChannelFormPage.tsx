@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/button";
+import { TestButton } from "@/components/TestButton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { channelsApi, integrationsApi } from "@/lib/api";
@@ -389,15 +390,7 @@ export default function ChannelFormPage() {
 
           {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleTest}
-              disabled={testing || !canTest}
-            >
-              <FlaskConical size={14} />
-              {testing ? "Testing…" : "Test Trigger"}
-            </Button>
+            <TestButton onClick={handleTest} loading={testing} disabled={!canTest} label="Test Trigger" />
             <div className="flex items-center gap-3">
               <Button
                 type="button"

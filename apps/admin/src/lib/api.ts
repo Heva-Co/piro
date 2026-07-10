@@ -590,8 +590,9 @@ export const oidcApi = {
   setSsoMode: (ssoOnly: boolean) =>
     api.put(ENDPOINTS.OIDC_CONFIG_SSO_MODE, { ssoOnly }),
 
-  test: (providerId: string) =>
-    api.post<{ success: boolean; message: string }>(ENDPOINTS.OIDC_CONFIG_TEST, { providerId }).then((r) => r.data),
+  /** Pass authority to test an authority URL directly (e.g. before the provider is saved); pass providerId to test a saved provider. */
+  test: (params: { providerId?: string; authority?: string }) =>
+    api.post<{ success: boolean; message: string }>(ENDPOINTS.OIDC_CONFIG_TEST, params).then((r) => r.data),
 };
 
 // ─── Email config ─────────────────────────────────────────────────────────────

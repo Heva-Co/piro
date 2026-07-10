@@ -19,8 +19,11 @@ public interface IOidcService
     /// <summary>Handles the callback: exchanges code, upserts user, returns Piro JWT pair.</summary>
     Task<SignInResponse> HandleCallbackAsync(string code, string state, CancellationToken ct = default);
 
-    /// <summary>Verifies the provider is reachable by fetching its discovery document.</summary>
+    /// <summary>Verifies a saved provider is reachable by fetching its discovery document.</summary>
     Task<bool> TestProviderAsync(string providerId, CancellationToken ct = default);
+
+    /// <summary>Verifies an authority URL is reachable, without requiring the provider to be saved yet.</summary>
+    Task<bool> TestAuthorityAsync(string authority, CancellationToken ct = default);
 
     /// <summary>Returns whether SSO-only mode is active (password sign-in disabled).</summary>
     Task<bool> GetSsoOnlyModeAsync(CancellationToken ct = default);
