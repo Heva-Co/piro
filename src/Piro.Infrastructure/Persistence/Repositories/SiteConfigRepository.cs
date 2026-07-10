@@ -36,29 +36,40 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
 
     public async Task SetAsync(string key, string? value, CancellationToken ct = default)
     {
-        var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
+        await SetManyAsync(new Dictionary<string, string?> { [key] = value }, ct);
+    }
 
-        if (value is null)
+    public async Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+        foreach (var (key, value) in values)
         {
-            if (row is not null) db.SiteData.Remove(row);
-        }
-        else if (row is null)
-        {
-            db.SiteData.Add(new SiteData
+            var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
+
+            if (value is null)
             {
-                Key = key,
-                Value = value,
-                DataType = "string",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            });
-        }
-        else
-        {
-            row.Value = value;
-            row.UpdatedAt = DateTime.UtcNow;
+                if (row is not null) db.SiteData.Remove(row);
+            }
+            else if (row is null)
+            {
+                db.SiteData.Add(new SiteData
+                {
+                    Key = key,
+                    Value = value,
+                    DataType = "string",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                });
+            }
+            else
+            {
+                row.Value = value;
+                row.UpdatedAt = DateTime.UtcNow;
+            }
         }
 
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
     }
 }

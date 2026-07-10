@@ -21,8 +21,10 @@ export default function SiteConfigPage() {
 
   const [infoSaving, setInfoSaving] = useState(false);
   const [infoSuccess, setInfoSuccess] = useState(false);
+  const [infoError, setInfoError] = useState("");
   const [seoSaving, setSeoSaving] = useState(false);
   const [seoSuccess, setSeoSuccess] = useState(false);
+  const [seoError, setSeoError] = useState("");
 
   const [uploading, setUploading] = useState<"logo" | "favicon" | "og-image" | null>(null);
   const [uploadError, setUploadError] = useState("");
@@ -41,23 +43,25 @@ export default function SiteConfigPage() {
 
   const infoMutation = useMutation({
     mutationFn: () => siteApi.update({ name, url }),
-    onMutate: () => setInfoSaving(true),
+    onMutate: () => { setInfoSaving(true); setInfoError(""); },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG });
       setInfoSuccess(true);
       setTimeout(() => setInfoSuccess(false), 3000);
     },
+    onError: () => setInfoError("Failed to save. Check that the URL is valid."),
     onSettled: () => setInfoSaving(false),
   });
 
   const seoMutation = useMutation({
     mutationFn: () => siteApi.update({ metaTitle, metaDescription }),
-    onMutate: () => setSeoSaving(true),
+    onMutate: () => { setSeoSaving(true); setSeoError(""); },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG });
       setSeoSuccess(true);
       setTimeout(() => setSeoSuccess(false), 3000);
     },
+    onError: () => setSeoError("Failed to save."),
     onSettled: () => setSeoSaving(false),
   });
 

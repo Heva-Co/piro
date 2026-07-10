@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Piro.Application.Constants;
 using Piro.Application.Interfaces;
 
 namespace Piro.Api.Controllers;
@@ -27,12 +29,16 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
     [HttpPut("config")]
     [Authorize(Roles = "Owner,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PutConfig([FromBody] UpdateSiteConfigRequest request, CancellationToken ct)
     {
-        await siteConfig.SetAsync("site:name",             request.Name,            ct);
-        await siteConfig.SetAsync("site:url",              request.Url,             ct);
-        await siteConfig.SetAsync("site:meta_title",       request.MetaTitle,       ct);
-        await siteConfig.SetAsync("site:meta_description", request.MetaDescription, ct);
+        await siteConfig.SetManyAsync(new Dictionary<string, string?>
+        {
+            [SiteDataKeys.SiteName] = request.Name,
+            [SiteDataKeys.SiteUrl] = request.Url,
+            [SiteDataKeys.SiteMetaTitle] = request.MetaTitle,
+            [SiteDataKeys.SiteMetaDescription] = request.MetaDescription,
+        }, ct);
         return NoContent();
     }
 
@@ -54,12 +60,16 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
     [HttpPut("incidents-config")]
     [Authorize(Roles = "Owner,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PutIncidentsConfig([FromBody] UpdateIncidentsConfigRequest request, CancellationToken ct)
     {
-        await siteConfig.SetAsync("incidents:publish_delay_minutes",          request.PublishDelayMinutes?.ToString(),          ct);
-        await siteConfig.SetAsync("incidents:correlation_mode",               request.CorrelationMode,                          ct);
-        await siteConfig.SetAsync("incidents:global_threshold",               request.GlobalThreshold?.ToString(),              ct);
-        await siteConfig.SetAsync("incidents:global_correlation_window_minutes", request.GlobalCorrelationWindowMinutes?.ToString(), ct);
+        await siteConfig.SetManyAsync(new Dictionary<string, string?>
+        {
+            [SiteDataKeys.IncidentPublishDelayMinutes] = request.PublishDelayMinutes?.ToString(),
+            [SiteDataKeys.IncidentCorrelationMode] = request.CorrelationMode,
+            [SiteDataKeys.IncidentGlobalThreshold] = request.GlobalThreshold?.ToString(),
+            [SiteDataKeys.IncidentGlobalCorrelationWindowMinutes] = request.GlobalCorrelationWindowMinutes?.ToString(),
+        }, ct);
         return NoContent();
     }
 
@@ -93,14 +103,7 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
             await file.CopyToAsync(stream, ct);
 
         var url = $"/uploads/{fileName}";
-        var key = type switch
-        {
-            "logo"     => "site:logo_url",
-            "favicon"  => "site:favicon_url",
-            "og-image" => "site:og_image_url",
-            _          => throw new InvalidOperationException(),
-        };
-        await siteConfig.SetAsync(key, url, ct);
+        await siteConfig.SetAsync(UploadKeyFor(type)!, url, ct);
 
         return Ok(new UploadResponse(url));
     }
@@ -111,17 +114,19 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteUpload(string type, CancellationToken ct)
     {
-        var key = type switch
-        {
-            "logo"     => "site:logo_url",
-            "favicon"  => "site:favicon_url",
-            "og-image" => "site:og_image_url",
-            _          => null,
-        };
+        var key = UploadKeyFor(type);
         if (key is null) return BadRequest();
         await siteConfig.SetAsync(key, null, ct);
         return NoContent();
     }
+
+    private static string? UploadKeyFor(string type) => type switch
+    {
+        "logo"     => SiteDataKeys.SiteLogoUrl,
+        "favicon"  => SiteDataKeys.SiteFaviconUrl,
+        "og-image" => SiteDataKeys.SiteOgImageUrl,
+        _          => null,
+    };
 }
 
 public record SiteConfigResponse(
@@ -129,14 +134,19 @@ public record SiteConfigResponse(
     string? MetaTitle, string? MetaDescription, string? OgImageUrl);
 
 public record UpdateSiteConfigRequest(
-    string? Name, string? Url, string? MetaTitle, string? MetaDescription);
+    string? Name,
+    [property: Url] string? Url,
+    string? MetaTitle,
+    string? MetaDescription);
 
 public record IncidentsConfigResponse(
     int PublishDelayMinutes, string CorrelationMode,
     int GlobalThreshold, int GlobalCorrelationWindowMinutes);
 
 public record UpdateIncidentsConfigRequest(
-    int? PublishDelayMinutes, string? CorrelationMode,
-    int? GlobalThreshold, int? GlobalCorrelationWindowMinutes);
+    [property: Range(0, int.MaxValue)] int? PublishDelayMinutes,
+    [property: EnumDataType(typeof(Piro.Application.Interfaces.IncidentCorrelationMode))] string? CorrelationMode,
+    [property: Range(1, int.MaxValue)] int? GlobalThreshold,
+    [property: Range(1, int.MaxValue)] int? GlobalCorrelationWindowMinutes);
 
 public record UploadResponse(string Url);
