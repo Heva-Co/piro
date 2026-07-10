@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
@@ -79,9 +80,10 @@ public class UsersController(IUserManagementService userService) : ControllerBas
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
+        var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         try
         {
-            await userService.DeleteAsync(id, ct);
+            await userService.DeleteAsync(id, currentUserId, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -97,8 +99,7 @@ public class UsersController(IUserManagementService userService) : ControllerBas
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
-        var users = await userService.GetAllAsync(ct);
-        var user = users.FirstOrDefault(u => u.Id == id);
+        var user = await userService.GetByIdAsync(id, ct);
         return user is null ? NotFound() : Ok(user);
     }
 
