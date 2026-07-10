@@ -1,5 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { Upload } from "lucide-react";
+import { MASKED_SECRET_VALUE } from "@/constants/integrations";
 import type { IntegrationFormValues } from "./types";
 
 export function GoogleCloudConfig() {
@@ -37,6 +38,11 @@ export function GoogleCloudConfig() {
         Paste the contents of your Google Cloud service account key file (.json) or upload it directly.
         The key must have the necessary IAM permissions (e.g. <code className="font-mono">run.executions.list</code> for Cloud Run Jobs).
       </p>
+      {value === MASKED_SECRET_VALUE && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          A key is already configured and hidden for security. Leave as-is to keep it, or paste/upload a new one to replace it.
+        </p>
+      )}
       <textarea
         value={value}
         onChange={(e) => setValue("serviceAccountJson", e.target.value, { shouldValidate: true })}

@@ -11,7 +11,7 @@ export function OpsgenieConfig() {
     <>
       <div className="flex flex-col gap-1.5">
         <label className={lbl}>API Key <span className="text-destructive">*</span></label>
-        <Input {...register("ogApiKey", { required: "Required" })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className={inp} />
+        <Input type="password" {...register("ogApiKey", { required: "Required" })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className={inp} />
         {errors.ogApiKey && <p className="text-xs text-destructive">{errors.ogApiKey.message}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
