@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -63,6 +64,8 @@ public class OidcService(
                     "Cannot disable the only enabled SSO provider while SSO-only mode is active.");
         }
 
+        var normalizedAllowedDomains = NormalizeAllowedDomains(request.AllowedDomains);
+
         var config = existing ?? new OidcProviderConfig();
         config.Id = request.Id.ToLowerInvariant();
         config.DisplayName = request.DisplayName;
@@ -71,7 +74,7 @@ public class OidcService(
         config.ClientSecret = clientSecret;
         config.RedirectUri = string.IsNullOrWhiteSpace(request.RedirectUri) ? null : request.RedirectUri;
         config.Scopes = request.Scopes;
-        config.AllowedDomains = string.IsNullOrWhiteSpace(request.AllowedDomains) ? null : request.AllowedDomains;
+        config.AllowedDomains = normalizedAllowedDomains;
         config.DefaultRole = request.DefaultRole == "Owner" ? "Member" : request.DefaultRole;
         config.IsEnabled = request.IsEnabled;
 
@@ -189,6 +192,33 @@ public class OidcService(
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
+
+    private static readonly Regex DomainPattern = new(
+        @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Validates and normalizes a comma-separated AllowedDomains list into a canonical
+    /// lowercase, trimmed form. Rejects entries containing '@', whitespace, or anything
+    /// else that isn't a bare domain — the previous behavior silently accepted garbage
+    /// (e.g. "example.com " or "@example.com") that only surfaced as a confusing
+    /// "domain not allowed" error at sign-in time.
+    /// </summary>
+    private static string? NormalizeAllowedDomains(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        var domains = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(d => d.ToLowerInvariant())
+            .ToList();
+
+        var invalid = domains.Where(d => !DomainPattern.IsMatch(d)).ToList();
+        if (invalid.Count > 0)
+            throw new InvalidOperationException(
+                $"Invalid domain(s) in Allowed Email Domains: {string.Join(", ", invalid)}. Use bare domains like 'example.com', comma-separated.");
+
+        return domains.Count > 0 ? string.Join(",", domains) : null;
+    }
 
     private async Task<OidcDiscoveryDocument> GetDiscoveryDocumentAsync(string authority, CancellationToken ct)
     {
