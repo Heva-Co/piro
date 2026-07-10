@@ -648,18 +648,29 @@ export interface Worker {
   isDefault: boolean;
 }
 
+export interface CreateWorkerResponse {
+  id: string;
+  name: string;
+  region: string;
+  workerToken: string;
+  createdAt: string;
+}
+
 export const workersApi = {
   list: () => api.get<Worker[]>(ENDPOINTS.WORKERS).then((r) => r.data),
 
   get: (id: string) => api.get<Worker>(ENDPOINTS.WORKER(id)).then((r) => r.data),
 
   create: (name: string, region: string, isDefault?: boolean) =>
-    api.post(ENDPOINTS.WORKERS, { name, region, isDefault: isDefault ?? false }).then((r) => r.data),
+    api.post<CreateWorkerResponse>(ENDPOINTS.WORKERS, { name, region, isDefault: isDefault ?? false }).then((r) => r.data),
 
   delete: (id: string) => api.delete(ENDPOINTS.WORKER(id)),
 
   updateRegion: (id: string, region: string) =>
     api.patch(ENDPOINTS.WORKER(id), { region }).then((r) => r.data),
+
+  setDefault: (id: string) =>
+    api.patch(ENDPOINTS.WORKER(id), { isDefault: true }).then((r) => r.data),
 
   toggleBuiltin: (disabled: boolean) =>
     api.post(`${ENDPOINTS.WORKERS}/builtin/toggle`, { disabled }).then((r) => r.data),
