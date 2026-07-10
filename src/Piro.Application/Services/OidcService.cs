@@ -52,6 +52,17 @@ public class OidcService(
         else
             throw new InvalidOperationException("Client secret is required when creating a new provider.");
 
+        // If this update would disable the only enabled provider while SSO-only mode is active,
+        // it would lock every user out (no password sign-in, no working SSO) — same guard as
+        // SetSsoOnlyModeAsync, approached from the provider-edit side instead.
+        if (!request.IsEnabled && existing is { IsEnabled: true } && await configRepo.GetSsoOnlyAsync(ct))
+        {
+            var enabled = await configRepo.GetEnabledAsync(ct);
+            if (enabled.Count == 1 && enabled[0].Id == existing.Id)
+                throw new InvalidOperationException(
+                    "Cannot disable the only enabled SSO provider while SSO-only mode is active.");
+        }
+
         var config = existing ?? new OidcProviderConfig();
         config.Id = request.Id.ToLowerInvariant();
         config.DisplayName = request.DisplayName;
