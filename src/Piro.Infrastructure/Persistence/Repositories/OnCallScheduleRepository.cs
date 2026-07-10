@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Exceptions;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
@@ -41,10 +43,16 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
     public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
         var schedule = await db.OnCallSchedules.FindAsync([id], ct);
-        if (schedule is not null)
+        if (schedule is null) return;
+
+        db.OnCallSchedules.Remove(schedule);
+        try
         {
-            db.OnCallSchedules.Remove(schedule);
             await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            throw new DomainValidationException("This schedule is referenced by an escalation policy and cannot be deleted.");
         }
     }
 

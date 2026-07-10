@@ -71,6 +71,8 @@ public class OnCallScheduleAppService(
         var schedule = await scheduleRepo.GetByIdWithLayersAsync(scheduleId, ct)
             ?? throw new NotFoundException(nameof(OnCallSchedule), scheduleId.ToString());
 
+        ValidateLayerRequest(request.FirstOccurrenceStartsAt, request.FirstOccurrenceEndsAt, request.UserIds);
+
         var order = schedule.Layers.Count > 0 ? schedule.Layers.Max(l => l.Order) + 1 : 0;
 
         var layer = new OnCallLayer
@@ -98,6 +100,8 @@ public class OnCallScheduleAppService(
             ?? throw new NotFoundException(nameof(OnCallSchedule), scheduleId.ToString());
         var layer = schedule.Layers.FirstOrDefault(l => l.Id == layerId)
             ?? throw new NotFoundException(nameof(OnCallLayer), layerId.ToString());
+
+        ValidateLayerRequest(request.FirstOccurrenceStartsAt, request.FirstOccurrenceEndsAt, request.UserIds);
 
         layer.Name = request.Name;
         layer.RecurrenceRule = request.RecurrenceRule;
@@ -153,6 +157,14 @@ public class OnCallScheduleAppService(
         if (schedule.Overrides.All(o => o.Id != overrideId))
             throw new NotFoundException(nameof(OnCallOverride), overrideId.ToString());
         await scheduleRepo.DeleteOverrideAsync(overrideId, ct);
+    }
+
+    private static void ValidateLayerRequest(DateTimeOffset startsAt, DateTimeOffset endsAt, List<int> userIds)
+    {
+        if (endsAt <= startsAt)
+            throw new DomainValidationException("Layer's first occurrence end must be after its start.");
+        if (userIds.Count == 0)
+            throw new DomainValidationException("A rotation layer must have at least one user.");
     }
 
     private static OnCallScheduleDto ToDto(OnCallSchedule s) => new(

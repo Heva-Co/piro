@@ -47,27 +47,26 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
 
             // Find the last occurrence that started before or at `at` and whose end covers `at`
             AppUser? layerUser = null;
-            int elapsedIntervals = 0;
+            DateTime? matchedOcc = null;
 
             foreach (var occ in occurrences.OrderBy(o => o))
             {
                 var occEnd = occ + duration;
                 if (occ <= atUtc && atUtc < occEnd)
                 {
-                    // Calculate how many full intervals have elapsed from the first occurrence
-                    var intervalDuration = layer.RecurrenceRule.Contains("FREQ=DAILY", StringComparison.OrdinalIgnoreCase)
-                        ? TimeSpan.FromDays(1)
-                        : duration; // fallback to occurrence duration for custom RRULEs
-
-                    var totalElapsed = occ - dtStart;
-                    elapsedIntervals = duration.TotalSeconds > 0
-                        ? (int)(totalElapsed.TotalSeconds / duration.TotalSeconds)
-                        : 0;
-
-                    var slotIndex = users.Count > 0 ? elapsedIntervals % users.Count : 0;
-                    layerUser = users[slotIndex].User;
+                    matchedOcc = occ;
                     break;
                 }
+            }
+
+            if (matchedOcc.HasValue)
+            {
+                // slotIndex must track the occurrence's position in the full RRULE sequence
+                // (from dtStart), not elapsed wall-clock time — a shift can be shorter than the
+                // recurrence interval (e.g. an 8h shift within a weekly rotation).
+                var occIndex = rruleExpander.GetOccurrences(dtStart, layer.RecurrenceRule, dtStart, matchedOcc.Value).Count(o => o < matchedOcc.Value);
+                var slotIndex = users.Count > 0 ? occIndex % users.Count : 0;
+                layerUser = users[slotIndex].User;
             }
 
             if (layerUser is null) continue;

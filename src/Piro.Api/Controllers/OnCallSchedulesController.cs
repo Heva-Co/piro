@@ -65,6 +65,7 @@ public class OnCallSchedulesController(OnCallScheduleAppService scheduleService)
         CancellationToken ct = default)
     {
         if (to <= from) return BadRequest("'to' must be after 'from'.");
+        if (to - from > TimeSpan.FromDays(366)) return BadRequest("Range cannot exceed 366 days.");
         var slots = await scheduleService.ExpandAsync(id, from, to, applyOverrides, ct);
         return Ok(slots);
     }

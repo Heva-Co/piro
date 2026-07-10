@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Plus, CalendarClock, X, Trash2 } from "lucide-react";
+import { Plus, CalendarClock, X, Trash2, AlertTriangle } from "lucide-react";
 import { onCallApi, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -154,6 +154,14 @@ export default function OnCallSchedulesPage() {
                       <div className="flex items-center gap-2">
                         <CalendarClock size={14} className="text-muted-foreground shrink-0" />
                         <span className="font-medium text-foreground">{s.name}</span>
+                        {s.layers.length === 0 && (
+                          <span
+                            title="No rotation layers — nobody is on-call for this schedule"
+                            className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500"
+                          >
+                            <AlertTriangle size={12} /> No coverage
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground text-xs">{s.timeZone}</td>

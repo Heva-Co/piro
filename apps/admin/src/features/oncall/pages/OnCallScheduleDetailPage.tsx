@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertTriangle } from "lucide-react";
 import { onCallApi, type OnCallSlot, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -178,10 +178,17 @@ export default function OnCallScheduleDetailPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{schedule.timeZone}</p>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            Active
-          </span>
+          {schedule.layers.length === 0 ? (
+            <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
+              <AlertTriangle size={13} />
+              No coverage — add a rotation layer
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              Active
+            </span>
+          )}
         </div>
       </div>
 

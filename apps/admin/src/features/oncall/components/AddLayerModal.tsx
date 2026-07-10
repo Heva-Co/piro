@@ -97,6 +97,9 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
 
           {/* First occurrence */}
           <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Shift times are interpreted in UTC — the schedule's timezone only affects how times are displayed.
+            </p>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground">First shift</span>
               <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none">
