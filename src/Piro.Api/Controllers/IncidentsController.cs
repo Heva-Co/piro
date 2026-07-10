@@ -11,8 +11,8 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/incidents")]
 [Produces("application/json")]
-[Authorize]
-public class IncidentsController(IncidentAppService incidentService, IIncidentPublishScheduler publishScheduler) : ControllerBase
+[Authorize(Roles = "Owner,Admin,Member")]
+public class IncidentsController(IncidentAppService incidentService) : ControllerBase
 {
     /// <summary>
     /// Returns incidents filtered by <paramref name="filter"/>:
@@ -31,17 +31,30 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     /// </summary>
     [HttpGet("public")]
     [AllowAnonymous]
-    [ProducesResponseType<IEnumerable<IncidentDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IEnumerable<PublicIncidentDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPublic([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
         Ok(await incidentService.GetAllPublicAsync(includeResolved, ct));
 
-    /// <summary>Returns a single incident by ID.</summary>
+    /// <summary>
+    /// Returns a single incident by ID. Authenticated team members get the full admin view;
+    /// anonymous callers only get the incident if it's published, with internal fields stripped.
+    /// </summary>
     [HttpGet("{id:int}")]
     [AllowAnonymous]
     [ProducesResponseType<IncidentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PublicIncidentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
-        Ok(await incidentService.GetByIdAsync(id, ct));
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
+    {
+        // [AllowAnonymous] disables the class-level [Authorize(Roles=...)] for this action,
+        // so the admin branch must check the role explicitly rather than just IsAuthenticated —
+        // otherwise any authenticated principal without one of these roles (e.g. a future
+        // "Viewer" role, or an API key without a role claim) would get the full admin DTO.
+        if (User.IsInRole("Owner") || User.IsInRole("Admin") || User.IsInRole("Member"))
+            return Ok(await incidentService.GetByIdAsync(id, ct));
+
+        return Ok(await incidentService.GetPublicByIdAsync(id, ct));
+    }
 
     /// <summary>Creates a new incident and optionally links affected services.</summary>
     [HttpPost]
@@ -127,54 +140,26 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await incidentService.DeleteAsync(id, ct);
-        await publishScheduler.CancelAsync(id, ct);
         return NoContent();
     }
 
-    /// <summary>Immediately publishes a draft incident to the status page, cancelling any pending auto-publish timer.</summary>
+    /// <summary>Publishes an incident to the status page. Always a manual, explicit action.</summary>
     [HttpPost("{id:int}/publish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Publish(int id, CancellationToken ct)
     {
         await incidentService.PublishAsync(id, ct);
-        await publishScheduler.CancelAsync(id, ct);
         return NoContent();
     }
 
-    /// <summary>
-    /// Extends the auto-publish timer by the specified number of minutes.
-    /// If no timer is pending, schedules a new one from now.
-    /// </summary>
-    [HttpPost("{id:int}/publish/delay")]
-    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DelayPublish(int id, [FromBody] DelayPublishRequest request, CancellationToken ct)
-    {
-        await incidentService.GetByIdAsync(id, ct); // throws 404 if not found
-        await publishScheduler.ExtendAsync(id, request.AdditionalMinutes, ct);
-        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
-        return Ok(new PublishScheduleDto(scheduledAt));
-    }
-
-    /// <summary>Cancels the auto-publish timer, keeping the incident as a draft indefinitely.</summary>
-    [HttpDelete("{id:int}/publish/schedule")]
+    /// <summary>Reverts a published incident back to private, hiding it (and its public comments) from the status page.</summary>
+    [HttpPost("{id:int}/unpublish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> CancelPublish(int id, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Unpublish(int id, CancellationToken ct)
     {
-        await publishScheduler.CancelAsync(id, ct);
+        await incidentService.UnpublishAsync(id, ct);
         return NoContent();
-    }
-
-    /// <summary>Returns when the incident is scheduled to be auto-published, or null if no timer is set.</summary>
-    [HttpGet("{id:int}/publish/schedule")]
-    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPublishSchedule(int id, CancellationToken ct)
-    {
-        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
-        return Ok(new PublishScheduleDto(scheduledAt));
     }
 }
-
-public record DelayPublishRequest(int AdditionalMinutes);
-public record PublishScheduleDto(DateTimeOffset? ScheduledAt);

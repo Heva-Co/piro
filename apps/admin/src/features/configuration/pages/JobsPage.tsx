@@ -20,7 +20,6 @@ const CHECK_EXECUTION_SOURCE = "Piro.Infrastructure.Jobs.CheckExecutionJob";
 const JOB_SOURCE_CONTEXT: Record<string, string> = {
   "piro:escalation-check": "Piro.Infrastructure.Jobs.EscalationCheckJob",
   "piro:maintenance-scheduler": "Piro.Infrastructure.Jobs.MaintenanceSchedulerJob",
-  "incident-publish": "Piro.Infrastructure.Jobs.PublishIncidentJob",
 };
 
 function logsUrlFor(job: { jobGroup: string; jobName: string; check?: { id: number } | null }) {

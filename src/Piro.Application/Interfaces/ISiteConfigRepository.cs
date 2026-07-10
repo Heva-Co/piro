@@ -18,7 +18,6 @@ public record SiteConfig(
     string? MetaDescription,
     string? OgImageUrl,
     bool BuiltinWorkerDisabled = false,
-    int IncidentPublishDelayMinutes = 0,
     IncidentCorrelationMode IncidentCorrelationMode = IncidentCorrelationMode.Hybrid,
     int GlobalIncidentThreshold = 3,
     int GlobalIncidentCorrelationWindowMinutes = 5

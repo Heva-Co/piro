@@ -23,8 +23,6 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
             rows.GetValueOrDefault(SiteDataKeys.SiteOgImageUrl),
             BuiltinWorkerDisabled: rows.TryGetValue(SiteDataKeys.WorkerBuiltinDisabled, out var flag) &&
                                    string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase),
-            IncidentPublishDelayMinutes: rows.TryGetValue(SiteDataKeys.IncidentPublishDelayMinutes, out var delay) &&
-                int.TryParse(delay, out var delayVal) ? delayVal : 0,
             IncidentCorrelationMode: rows.TryGetValue(SiteDataKeys.IncidentCorrelationMode, out var mode) &&
                 Enum.TryParse<IncidentCorrelationMode>(mode, out var modeVal) ? modeVal : IncidentCorrelationMode.Hybrid,
             GlobalIncidentThreshold: rows.TryGetValue(SiteDataKeys.IncidentGlobalThreshold, out var threshold) &&

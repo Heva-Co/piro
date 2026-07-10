@@ -2,19 +2,17 @@ using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
 
-/// <summary>Outbound representation of an incident.</summary>
+/// <summary>Outbound representation of an incident (admin-facing — includes internal fields).</summary>
 public record IncidentDto(
     int Id,
     string Title,
     long StartDateTime,
     long? EndDateTime,
-    [property: Obsolete("Use IsResolved (derived from State) instead.")]
     IncidentStatus Status,
-    IncidentState State,
     bool IsResolved,
     bool IsGlobal,
     string? Source,
-    bool IsPublic,
+    IncidentVisibility Visibility,
     IEnumerable<IncidentCommentDto> Comments,
     IEnumerable<IncidentServiceDto> Services,
     int? MergedIntoIncidentId,
@@ -34,16 +32,46 @@ public record IncidentDto(
 /// <summary>Point-in-time severity change recorded on an incident.</summary>
 public record IncidentImpactChangeDto(long Timestamp, string Impact);
 
-/// <summary>Outbound representation of a single incident status update.</summary>
+/// <summary>Outbound representation of a single incident status update (admin-facing).</summary>
 public record IncidentCommentDto(
     int Id,
     string Comment,
     long CommentedAt,
-    IncidentState State,
-    [property: Obsolete("Use IncidentDto.IsResolved instead.")]
+    IncidentStatus Status,
+    CommentVisibility Visibility,
+    DateTime CreatedAt
+);
+
+/// <summary>
+/// Outbound representation of an incident for the public status page.
+/// Deliberately omits internal-only fields (Source, AcknowledgedBy, escalation state)
+/// and only includes Public comments / non-hidden services.
+/// </summary>
+public record PublicIncidentDto(
+    int Id,
+    string Title,
+    long StartDateTime,
+    long? EndDateTime,
+    IncidentStatus Status,
+    bool IsResolved,
+    bool IsGlobal,
+    IEnumerable<PublicIncidentCommentDto> Comments,
+    IEnumerable<PublicIncidentServiceDto> Services,
+    ServiceStatus CurrentImpact,
+    IEnumerable<IncidentImpactChangeDto> ImpactChanges
+);
+
+/// <summary>Public-facing status update.</summary>
+public record PublicIncidentCommentDto(
+    int Id,
+    string Comment,
+    long CommentedAt,
     IncidentStatus Status,
     DateTime CreatedAt
 );
+
+/// <summary>Service affected by an incident, public view — no triggering check exposed.</summary>
+public record PublicIncidentServiceDto(string ServiceSlug, string? ServiceName);
 
 /// <summary>Service affected by an incident with its declared impact level.</summary>
 public record IncidentServiceDto(string ServiceSlug, string? ServiceName, ServiceStatus Impact, string? TriggeringCheckSlug);
@@ -52,28 +80,29 @@ public record IncidentServiceDto(string ServiceSlug, string? ServiceName, Servic
 public record CreateIncidentRequest(
     string Title,
     long StartDateTime,
-    IncidentState State,
+    IncidentStatus Status,
     bool IsGlobal,
     IEnumerable<IncidentServiceImpact>? AffectedServices
 );
 
-/// <summary>Payload for updating incident metadata or advancing its state.</summary>
+/// <summary>Payload for updating incident metadata or advancing its status.</summary>
 public record UpdateIncidentRequest(
     string? Title,
     long? StartDateTime,
     long? EndDateTime,
-    IncidentState? State,
+    IncidentStatus? Status,
     bool? IsGlobal
 );
 
-/// <summary>Payload for posting a comment / state update on an incident.</summary>
+/// <summary>Payload for posting a comment / status update on an incident. Defaults to Private — must be explicitly made Public.</summary>
 public record AddCommentRequest(
     string Comment,
-    IncidentState State
+    IncidentStatus Status,
+    CommentVisibility Visibility = CommentVisibility.Private
 );
 
 /// <summary>Payload for updating an existing comment.</summary>
-public record UpdateCommentRequest(string Comment, IncidentState State);
+public record UpdateCommentRequest(string Comment, IncidentStatus Status, CommentVisibility Visibility);
 
 /// <summary>Payload for adding a service to an existing incident.</summary>
 public record AddIncidentServiceRequest(string ServiceSlug, ServiceStatus Impact);

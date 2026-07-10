@@ -17,7 +17,6 @@ public class AlertEvaluationService(
     IServiceRepository serviceRepository,
     IIncidentRepository incidentRepository,
     ISiteConfigRepository siteConfigRepository,
-    IIncidentPublishScheduler publishScheduler,
     IEnumerable<INotificationDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger,
     IncidentAppService incidentAppService)
@@ -152,31 +151,30 @@ public class AlertEvaluationService(
         var settings = await siteConfigRepository.GetAsync(ct);
         var impact = check.Criticality == CheckCriticality.Critical ? ServiceStatus.DOWN : ServiceStatus.DEGRADED;
         var now = DateTimeOffset.UtcNow;
-        bool isPublic = settings.IncidentPublishDelayMinutes == 0;
 
         switch (settings.IncidentCorrelationMode)
         {
             case IncidentCorrelationMode.PerService:
-                await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
+                await EnsurePerServiceIncidentAsync(check, service, impact, ct);
                 break;
 
             case IncidentCorrelationMode.Global:
-                await HandleGlobalCorrelationAsync(check, service, impact, isPublic, settings, now, ct);
+                await HandleGlobalCorrelationAsync(check, service, impact, settings, now, ct);
                 break;
 
             case IncidentCorrelationMode.Hybrid:
             default:
-                await HandleHybridCorrelationAsync(check, service, impact, isPublic, settings, now, ct);
+                await HandleHybridCorrelationAsync(check, service, impact, settings, now, ct);
                 break;
         }
     }
 
     /// <summary>
     /// PerService mode: finds an existing open ALERT incident for the service and attaches to it,
-    /// or creates a new per-service incident. Schedules <see cref="PublishIncidentJob"/> when a delay is configured.
+    /// or creates a new per-service incident. Publishing is always a separate, manual action.
     /// </summary>
     private async Task EnsurePerServiceIncidentAsync(
-        Check check, Service service, ServiceStatus impact, bool isPublic, int publishDelayMinutes, CancellationToken ct)
+        Check check, Service service, ServiceStatus impact, CancellationToken ct)
     {
         var existing = await incidentRepository.GetOpenAlertIncidentForServiceAsync(service.Id, ct);
         if (existing is not null)
@@ -194,16 +192,13 @@ public class AlertEvaluationService(
             return;
         }
 
-        var incident = await incidentAppService.CreateAlertIncidentAsync(IncidentTitleFactory.Build(check.Type), isPublic, isGlobal: false, ct);
+        var incident = await incidentAppService.CreateAlertIncidentAsync(IncidentTitleFactory.Build(check.Type), isGlobal: false, ct);
         incident.IncidentServices.Add(new IncidentService
         {
             ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
         });
         var created = await incidentRepository.CreateAsync(incident, ct);
         await RecordImpactIfChangedAsync(created, ct);
-
-        if (!isPublic && publishDelayMinutes > 0)
-            await publishScheduler.ScheduleAsync(created.Id, publishDelayMinutes, ct);
     }
 
     /// <summary>
@@ -212,7 +207,7 @@ public class AlertEvaluationService(
     /// Once threshold is met, creates or attaches to a single global incident.
     /// </summary>
     private async Task HandleGlobalCorrelationAsync(
-        Check check, Service service, ServiceStatus impact, bool isPublic,
+        Check check, Service service, ServiceStatus impact,
         SiteConfig settings, DateTimeOffset now, CancellationToken ct)
     {
         var window = now.AddMinutes(-settings.GlobalIncidentCorrelationWindowMinutes);
@@ -230,7 +225,7 @@ public class AlertEvaluationService(
         var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
         if (globalIncident is null)
         {
-            globalIncident = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isPublic, isGlobal: true, ct);
+            globalIncident = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isGlobal: true, ct);
             foreach (var i in recentAlerts)
                 foreach (var s in i.IncidentServices)
                     globalIncident.IncidentServices.Add(new IncidentService
@@ -239,8 +234,6 @@ public class AlertEvaluationService(
                     });
             globalIncident = await incidentRepository.CreateAsync(globalIncident, ct);
             await RecordImpactIfChangedAsync(globalIncident, ct);
-            if (!isPublic && settings.IncidentPublishDelayMinutes > 0)
-                await publishScheduler.ScheduleAsync(globalIncident.Id, settings.IncidentPublishDelayMinutes, ct);
         }
 
         if (!globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
@@ -260,7 +253,7 @@ public class AlertEvaluationService(
     /// Existing per-service incidents within the correlation window are merged into the global via <see cref="IncidentMerge"/> records.
     /// </summary>
     private async Task HandleHybridCorrelationAsync(
-        Check check, Service service, ServiceStatus impact, bool isPublic,
+        Check check, Service service, ServiceStatus impact,
         SiteConfig settings, DateTimeOffset now, CancellationToken ct)
     {
         // If a global incident is already open, attach directly to it
@@ -288,7 +281,7 @@ public class AlertEvaluationService(
         if (affectedServiceCount >= settings.GlobalIncidentThreshold)
         {
             // Elevate: create global incident and merge existing per-service incidents into it
-            var newGlobal = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isPublic, isGlobal: true, ct);
+            var newGlobal = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isGlobal: true, ct);
             newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
 
             foreach (var perService in recentPerServiceIncidents)
@@ -312,7 +305,7 @@ public class AlertEvaluationService(
                 }, ct);
 
                 // Hide per-service incidents from status page
-                perService.IsPublic = false;
+                perService.Visibility = IncidentVisibility.Private;
                 await incidentRepository.UpdateAsync(perService, ct);
             }
 
@@ -333,7 +326,7 @@ public class AlertEvaluationService(
         else
         {
             // Below threshold — create or attach to per-service incident
-            await EnsurePerServiceIncidentAsync(check, service, impact, isPublic, settings.IncidentPublishDelayMinutes, ct);
+            await EnsurePerServiceIncidentAsync(check, service, impact, ct);
         }
     }
 

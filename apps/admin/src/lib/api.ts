@@ -5,6 +5,7 @@
 
 import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
+import type { IncidentVisibilityKey } from "@/constants/incidents";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -191,100 +192,13 @@ export const checksApi = {
 };
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
-
-export interface IncidentService {
-  serviceSlug: string;
-  impact: string;
-  triggeringCheckSlug?: string | null;
-}
-
-export interface Incident {
-  id: number;
-  title: string;
-  /** @deprecated Use `isResolved` (derived from `state`) instead. */
-  status: string;
-  state: string;
-  isResolved: boolean;
-  startDateTime: number;
-  endDateTime?: number | null;
-  isGlobal: boolean;
-  source?: string | null;
-  isPublic: boolean;
-  mergedIntoIncidentId?: number | null;
-  services: IncidentService[];
-  comments: IncidentComment[];
-  createdAt: string;
-  updatedAt: string;
-  acknowledgedAt?: number;
-  acknowledgedBy?: string;
-  currentImpact: string;
-  impactChanges: { timestamp: number; impact: string }[];
-}
-
-export interface PublishSchedule {
-  scheduledAt: string | null;
-}
-
-export interface IncidentComment {
-  id: number;
-  comment: string;
-  commentedAt: number;
-  state: string;
-  /** @deprecated Use `IncidentDto.isResolved` instead. */
-  status: string;
-  createdAt: string;
-}
+// Moved to @/lib/actions/incidents — re-exported here only for `updateCheck`,
+// which lives on the same object despite belonging to Checks, not Incidents.
+export type { Incident, IncidentComment, IncidentService } from "@/lib/actions/incidents";
+import { incidentsApi as incidentsApiBase } from "@/lib/actions/incidents";
 
 export const incidentsApi = {
-  list: (filter = "active") =>
-    api.get<Incident[]>(`${ENDPOINTS.INCIDENTS}?filter=${filter}`).then((r) => r.data),
-
-  get: (id: number | string) =>
-    api.get<Incident>(ENDPOINTS.INCIDENT(id)).then((r) => r.data),
-
-  create: (data: { title: string; startDateTime: number; state: string; isGlobal: boolean }) =>
-    api.post<Incident>(ENDPOINTS.INCIDENTS, data).then((r) => r.data),
-
-  update: (id: number | string, data: Partial<Omit<Incident, "id">>) =>
-    api.put<Incident>(ENDPOINTS.INCIDENT(id), data).then((r) => r.data),
-
-  delete: (id: number | string) => api.delete(ENDPOINTS.INCIDENT(id)),
-
-  comments: (id: number | string) =>
-    api.get<IncidentComment[]>(ENDPOINTS.INCIDENT_COMMENTS(id)).then((r) => r.data),
-
-  addComment: (id: number | string, comment: string, state: string) =>
-    api
-      .post<IncidentComment>(ENDPOINTS.INCIDENT_COMMENTS(id), { comment, state })
-      .then((r) => r.data),
-
-  deleteComment: (id: number | string, commentId: number | string) =>
-    api.delete(ENDPOINTS.INCIDENT_COMMENT(id, commentId)),
-
-  addService: (id: number | string, slug: string, impact: string) =>
-    api.post(ENDPOINTS.INCIDENT_SERVICES(id), { serviceSlug: slug, impact }),
-
-  setServices: (id: number | string, services: { serviceSlug: string; impact: string }[]) =>
-    api.put<Incident>(ENDPOINTS.INCIDENT_SERVICES(id), { services }).then((r) => r.data),
-
-  acknowledge: (id: number | string) =>
-    api.post<Incident>(ENDPOINTS.INCIDENT_ACKNOWLEDGE(id)).then((r) => r.data),
-
-  removeService: (id: number | string, slug: string) =>
-    api.delete(ENDPOINTS.INCIDENT_SERVICE(id, slug)),
-
-  publish: (id: number | string) =>
-    api.post(`/api/v1/incidents/${id}/publish`),
-
-  getPublishSchedule: (id: number | string) =>
-    api.get<PublishSchedule>(`/api/v1/incidents/${id}/publish/schedule`).then((r) => r.data),
-
-  delayPublish: (id: number | string, additionalMinutes: number) =>
-    api.post<PublishSchedule>(`/api/v1/incidents/${id}/publish/delay`, { additionalMinutes }).then((r) => r.data),
-
-  cancelPublish: (id: number | string) =>
-    api.delete(`/api/v1/incidents/${id}/publish/schedule`),
-
+  ...incidentsApiBase,
   updateCheck: (serviceSlug: string, checkSlug: string, data: Partial<{
     criticality: string;
     automaticallyCreateIncident: boolean;
@@ -524,7 +438,6 @@ export interface SiteConfig {
 }
 
 export interface IncidentsConfig {
-  publishDelayMinutes: number;
   correlationMode: import("@/constants/incidents").IncidentCorrelationModeKey;
   globalThreshold: number;
   globalCorrelationWindowMinutes: number;

@@ -74,22 +74,3 @@ internal class IntegrationConfiguration : IEntityTypeConfiguration<Integration>
             .IsRequired(false);
     }
 }
-
-internal class IncidentCommentConfiguration : IEntityTypeConfiguration<IncidentComment>
-{
-    public void Configure(EntityTypeBuilder<IncidentComment> builder)
-    {
-        builder.HasKey(c => c.Id);
-        builder.HasIndex(c => c.IncidentId);
-
-        builder.Property(c => c.State).HasConversion<string>();
-        builder.Property(c => c.Status)
-            .HasConversion<string>()
-            .HasDefaultValue(IncidentStatus.Active);
-
-        builder.HasOne(c => c.Incident)
-            .WithMany(i => i.Comments)
-            .HasForeignKey(c => c.IncidentId)
-            .OnDelete(DeleteBehavior.Cascade);
-    }
-}

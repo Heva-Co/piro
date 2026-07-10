@@ -160,7 +160,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
         services.AddScoped<IJobStatusService, JobStatusService>();
-        services.AddScoped<IIncidentPublishScheduler, IncidentPublishScheduler>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
         // Integration repository
