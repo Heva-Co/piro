@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
@@ -15,6 +16,39 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
                     .ThenInclude(u => u.User)
             .OrderBy(s => s.Name)
             .ToListAsync(ct);
+
+    public async Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default)
+    {
+        var schedules = await db.OnCallSchedules
+            .OrderBy(s => s.Name)
+            .Select(s => new
+            {
+                s.Id,
+                s.Name,
+                Members = s.Layers
+                    .SelectMany(l => l.Users)
+                    .Select(u => new { u.UserId, u.User.Name, u.User.Color })
+                    .Distinct()
+                    .ToList(),
+            })
+            .ToListAsync(ct);
+
+        return schedules.Select(s => new OnCallScheduleMembersDto(
+            s.Id, s.Name,
+            s.Members.Select(m => new OnCallMemberDto(m.UserId, m.Name, GetInitials(m.Name), m.Color)).ToList()
+        )).ToList();
+    }
+
+    private static string GetInitials(string name)
+    {
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant(),
+            _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant()
+        };
+    }
 
     public async Task<OnCallSchedule?> GetByIdWithLayersAsync(int id, CancellationToken ct = default) =>
         await db.OnCallSchedules

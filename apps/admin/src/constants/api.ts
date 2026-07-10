@@ -117,6 +117,7 @@ export const ENDPOINTS = {
 
   // On-call schedules
   ONCALL_SCHEDULES: `${API_BASE}/oncall/schedules`,
+  ONCALL_SCHEDULES_MEMBERS: `${API_BASE}/oncall/schedules/members`,
   ONCALL_SCHEDULE: (id: number | string) => `${API_BASE}/oncall/schedules/${id}`,
   ONCALL_SCHEDULE_CURRENT: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/current`,
   ONCALL_SCHEDULE_EXPAND: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/expand`,
@@ -166,6 +167,7 @@ export const QUERY_KEYS = {
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
   CHECK_TYPES: ["check-types"] as const,
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
+  ONCALL_SCHEDULES_MEMBERS: ["oncall-schedules", "members"] as const,
   ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
   ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
   ESCALATION_POLICY: ["escalation-policy"] as const,

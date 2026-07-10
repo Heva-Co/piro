@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
@@ -11,6 +12,8 @@ public class OnCallServiceTests
     private class FakeScheduleRepository(OnCallSchedule schedule) : IOnCallScheduleRepository
     {
         public Task<List<OnCallSchedule>> GetAllAsync(CancellationToken ct = default) => Task.FromResult(new List<OnCallSchedule> { schedule });
+        public Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default) =>
+            Task.FromResult(new List<OnCallScheduleMembersDto>());
         public Task<OnCallSchedule?> GetByIdWithLayersAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(id == schedule.Id ? schedule : null);
         public Task<OnCallSchedule> CreateAsync(OnCallSchedule s, CancellationToken ct = default) => Task.FromResult(s);

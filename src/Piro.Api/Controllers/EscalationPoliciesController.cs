@@ -8,7 +8,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/escalation-policy")]
 [Produces("application/json")]
-[Authorize]
+[Authorize(Roles = "Owner,Admin")]
 public class EscalationPoliciesController(EscalationPolicyAppService service) : ControllerBase
 {
     [HttpGet]
@@ -25,14 +25,5 @@ public class EscalationPoliciesController(EscalationPolicyAppService service) : 
     {
         var result = await service.UpsertAsync(request, ct);
         return Ok(result);
-    }
-
-    [HttpDelete]
-    public async Task<IActionResult> Delete(CancellationToken ct)
-    {
-        var policy = await service.GetAsync(ct);
-        if (policy is null) return NotFound();
-        await service.DeleteAsync(policy.Id, ct);
-        return NoContent();
     }
 }
