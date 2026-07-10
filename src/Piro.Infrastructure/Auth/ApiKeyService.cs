@@ -3,13 +3,18 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Piro.Application.DTOs;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
+using Piro.Domain.Exceptions;
 using Piro.Infrastructure.Persistence;
 
 namespace Piro.Infrastructure.Auth;
 
 /// <summary>Creates, lists, and validates API keys.</summary>
 /// <remarks>
-/// Raw keys are never stored. Only the HMAC-SHA256 hash is persisted.
+/// Raw keys are never stored. Only the SHA-256 hash is persisted — this is safe without
+/// a per-key salt/pepper because the raw key itself is 32 cryptographically random bytes
+/// (not a low-entropy secret like a password), so it isn't vulnerable to precomputed
+/// rainbow-table attacks the way a salted password hash would need to defend against.
 /// Format: <c>pk_{32 random hex bytes}</c>.
 /// </remarks>
 public class ApiKeyService(PiroDbContext db)
@@ -26,7 +31,7 @@ public class ApiKeyService(PiroDbContext db)
             Name = request.Name,
             HashedKey = hashed,
             MaskedKey = masked,
-            Status = "ACTIVE"
+            Status = ApiKeyStatus.Active
         };
 
         db.ApiKeys.Add(entity);
@@ -38,28 +43,38 @@ public class ApiKeyService(PiroDbContext db)
     public async Task<IEnumerable<ApiKeyDto>> GetByUserAsync(int userId, CancellationToken ct = default)
     {
         var keys = await db.ApiKeys
-            .Where(k => k.UserId == userId && k.Status == "ACTIVE")
+            .Where(k => k.UserId == userId && k.Status == ApiKeyStatus.Active)
             .OrderByDescending(k => k.CreatedAt)
             .ToListAsync(ct);
 
-        return keys.Select(k => new ApiKeyDto(k.Id, k.Name, k.MaskedKey, k.Status, k.CreatedAt));
+        return keys.Select(k => new ApiKeyDto(k.Id, k.Name, k.MaskedKey, k.Status, k.CreatedAt, k.LastUsedAt));
     }
 
+    /// <summary>Revokes an active API key. Throws if the key doesn't exist or is already revoked.</summary>
     public async Task RevokeAsync(int keyId, int userId, CancellationToken ct = default)
     {
         var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == keyId && k.UserId == userId, ct)
-            ?? throw new InvalidOperationException("API key not found.");
+            ?? throw new NotFoundException("ApiKey", keyId);
 
-        key.Status = "REVOKED";
+        if (key.Status == ApiKeyStatus.Revoked)
+            throw new DomainValidationException("API key is already revoked.");
+
+        key.Status = ApiKeyStatus.Revoked;
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>Validates a raw API key and returns the owning user ID, or null if invalid.</summary>
+    /// <summary>Validates a raw API key and returns the owning user ID, or null if invalid. Updates LastUsedAt on success.</summary>
     public async Task<int?> ValidateAsync(string rawKey, CancellationToken ct = default)
     {
         var hashed = Hash(rawKey);
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.HashedKey == hashed && k.Status == "ACTIVE", ct);
-        return key?.UserId;
+        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.HashedKey == hashed && k.Status == ApiKeyStatus.Active, ct);
+        if (key is null)
+            return null;
+
+        key.LastUsedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return key.UserId;
     }
 
     private static string Hash(string rawKey)

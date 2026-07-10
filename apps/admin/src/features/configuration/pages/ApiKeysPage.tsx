@@ -1,33 +1,24 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Copy, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Copy, AlertCircle, KeyRound } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-// Modal backdrop
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 relative">
-        {children}
-      </div>
-    </div>
-  );
-}
+type ModalState = "none" | "create" | "secret";
 
-function ModalClose({ onClose }: { onClose: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl leading-none"
-    >
-      ×
-    </button>
-  );
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
 }
 
 export default function ApiKeysPage() {
@@ -37,9 +28,9 @@ export default function ApiKeysPage() {
     queryFn: authApi.apiKeys,
   });
 
-  const [modal, setModal] = useState<"none" | "create" | "secret">("none");
+  const [modal, setModal] = useState<ModalState>("none");
   const [name, setName] = useState("");
-  const [newSecret, setNewSecret] = useState<string>("");
+  const [newSecret, setNewSecret] = useState("");
   const [copied, setCopied] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -79,142 +70,140 @@ export default function ApiKeysPage() {
   }
 
   function handleDelete(id: number, keyName: string) {
-    if (confirm(`Delete API key "${keyName}"?`)) {
+    if (confirm(`Revoke API key "${keyName}"? This cannot be undone.`)) {
       deleteMutation.mutate(id);
     }
   }
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage API keys for programmatic access to the Piro API.</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
-        >
-          <Plus size={15} /> New API Key
-        </button>
-      </div>
+      <PageHeader
+        breadcrumbs={[{ label: "API Keys" }]}
+        subheader="Manage API keys for programmatic access to the Piro API."
+        actions={
+          <Button onClick={openCreate}>
+            <Plus size={15} /> New API Key
+          </Button>
+        }
+      />
 
-      {/* Keys list */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading && (
-          <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
+          <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
         )}
         {!isLoading && keys.length === 0 && (
-          <div className="py-16 text-center text-sm text-gray-400">
-            No API keys yet. Create one to get started.
+          <div className="py-14 flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <KeyRound size={20} className="text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold">No API keys yet</p>
+              <p className="text-sm text-muted-foreground">Create one to get started.</p>
+            </div>
+            <Button variant="outline" onClick={openCreate}>
+              <Plus size={15} /> New API Key
+            </Button>
           </div>
         )}
         {keys.map((k, i) => (
           <div
             key={k.id}
-            className={`flex items-center justify-between px-5 py-4 ${i > 0 ? "border-t border-gray-100" : ""}`}
+            className={`flex items-center gap-4 px-5 py-4 ${i > 0 ? "border-t border-border" : ""}`}
           >
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-semibold text-gray-900">{k.name}</span>
-              <span className="text-xs font-mono text-gray-400">{k.maskedKey}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">{k.name}</p>
+              <p className="text-xs font-mono text-muted-foreground">{k.maskedKey}</p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="rounded-full bg-foreground px-3 py-0.5 text-xs font-semibold text-white">ACTIVE</span>
-              <span className="text-sm text-gray-500">
-                {new Date(k.createdAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}
+              <span
+                className={
+                  k.status === "Active"
+                    ? "rounded-full bg-green-500/15 text-green-600 dark:text-green-400 px-3 py-0.5 text-xs font-semibold"
+                    : "rounded-full bg-muted text-muted-foreground px-3 py-0.5 text-xs font-semibold"
+                }
+              >
+                {k.status}
               </span>
-              <button
+              <span className="text-sm text-muted-foreground">
+                {k.lastUsedAt ? `Last used ${formatDate(k.lastUsedAt)}` : "Never used"}
+              </span>
+              <span className="text-sm text-muted-foreground">{formatDate(k.createdAt)}</span>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => handleDelete(k.id, k.name)}
-                className="text-gray-400 hover:text-red-600 transition-colors"
+                className="text-muted-foreground hover:text-destructive"
               >
                 <Trash2 size={16} />
-              </button>
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Create modal */}
-      {modal === "create" && (
-        <Modal onClose={closeModal}>
-          <ModalClose onClose={closeModal} />
-          <h2 className="text-xl font-bold text-gray-900 mb-1">New API Key</h2>
-          <p className="text-sm text-gray-500 mb-5">Give your key a descriptive name.</p>
-          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}>
+      <Dialog open={modal === "create"} onOpenChange={(open) => { if (!open) closeModal(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New API Key</DialogTitle>
+            <DialogDescription>Give your key a descriptive name.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }} className="flex flex-col gap-4">
             {createError && (
-              <div className="flex items-center gap-2 text-sm text-red-600 mb-3">
+              <div className="flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle size={14} /> {createError}
               </div>
             )}
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus
-              placeholder="e.g. CI/CD Pipeline"
-              className="w-full rounded-lg border border-border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-            />
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || !name.trim()}
-                className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold">Name</label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+                placeholder="e.g. CI/CD Pipeline"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeModal}>Cancel</Button>
+              <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
                 {createMutation.isPending ? "Creating…" : "Create"}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
-        </Modal>
-      )}
+        </DialogContent>
+      </Dialog>
 
-      {/* Secret reveal modal */}
-      {modal === "secret" && (
-        <Modal onClose={closeModal}>
-          <ModalClose onClose={closeModal} />
-          <h2 className="text-xl font-bold text-gray-900 mb-1">New API Key</h2>
-          <p className="text-sm text-gray-500 mb-5">Copy your API key now — it won't be shown again.</p>
+      <Dialog open={modal === "secret"} onOpenChange={(open) => { if (!open) closeModal(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New API Key</DialogTitle>
+            <DialogDescription>Copy your API key now — it won't be shown again.</DialogDescription>
+          </DialogHeader>
 
-          <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 flex items-start gap-3 mb-4">
+          <div className="rounded-xl bg-muted border border-border p-4 flex items-start gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 mb-1">Your new API key:</p>
-              <code className="text-sm font-mono text-gray-900 break-all">{newSecret}</code>
+              <p className="text-xs text-muted-foreground mb-1">Your new API key:</p>
+              <code className="text-sm font-mono break-all">{newSecret}</code>
             </div>
-            <button
-              onClick={handleCopy}
-              title="Copy"
-              className="flex-shrink-0 rounded-lg border border-border bg-card p-2 hover:bg-muted transition-colors"
-            >
+            <Button variant="outline" size="icon" onClick={handleCopy} title="Copy">
               {copied
                 ? <span className="text-xs text-green-600 font-medium px-1">Copied!</span>
-                : <Copy size={16} className="text-gray-500" />}
-            </button>
+                : <Copy size={16} />}
+            </Button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 mb-6">
-            <AlertCircle size={16} className="text-yellow-600 shrink-0" />
-            <p className="text-sm text-yellow-800">Store this key securely. You won't be able to see it again.</p>
+          <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3">
+            <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Store this key securely. You won't be able to see it again.
+            </p>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={closeModal}
-              className="rounded-lg bg-foreground px-5 py-2 text-sm font-medium text-background hover:opacity-90"
-            >
-              Done
-            </button>
-          </div>
-        </Modal>
-      )}
+          <DialogFooter>
+            <Button onClick={closeModal}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

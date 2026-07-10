@@ -53,7 +53,7 @@ export interface ApiKey {
   id: number;
   name: string;
   maskedKey: string;
-  status: string;
+  status: "Active" | "Revoked";
   createdAt: string;
   lastUsedAt?: string | null;
 }

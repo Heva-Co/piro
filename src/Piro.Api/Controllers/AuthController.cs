@@ -68,9 +68,9 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
 
     // ── API Keys ─────────────────────────────────────────────────────────────
 
-    /// <summary>Lists API keys for the authenticated user.</summary>
+    /// <summary>Lists API keys for the authenticated user. Owner/Admin only.</summary>
     [HttpGet("api-keys")]
-    [Authorize]
+    [Authorize(Roles = "Owner,Admin")]
     [ProducesResponseType<IEnumerable<ApiKeyDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetApiKeys(CancellationToken ct)
     {
@@ -78,9 +78,9 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
         return Ok(await apiKeyService.GetByUserAsync(userId, ct));
     }
 
-    /// <summary>Creates a new API key. The raw key is returned once and cannot be retrieved again.</summary>
+    /// <summary>Creates a new API key. The raw key is returned once and cannot be retrieved again. Owner/Admin only.</summary>
     [HttpPost("api-keys")]
-    [Authorize]
+    [Authorize(Roles = "Owner,Admin")]
     [ProducesResponseType<ApiKeyCreatedResponse>(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateApiKey([FromBody] CreateApiKeyRequest request, CancellationToken ct)
     {
@@ -89,9 +89,9 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
         return StatusCode(StatusCodes.Status201Created, created);
     }
 
-    /// <summary>Revokes an API key.</summary>
+    /// <summary>Revokes an API key. Owner/Admin only.</summary>
     [HttpDelete("api-keys/{id:int}")]
-    [Authorize]
+    [Authorize(Roles = "Owner,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RevokeApiKey(int id, CancellationToken ct)
     {
