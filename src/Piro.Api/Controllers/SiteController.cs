@@ -50,7 +50,6 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
     {
         var cfg = await siteConfig.GetAsync(ct);
         return Ok(new IncidentsConfigResponse(
-            cfg.IncidentPublishDelayMinutes,
             cfg.IncidentCorrelationMode.ToString(),
             cfg.GlobalIncidentThreshold,
             cfg.GlobalIncidentCorrelationWindowMinutes));
@@ -65,7 +64,6 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
     {
         await siteConfig.SetManyAsync(new Dictionary<string, string?>
         {
-            [SiteDataKeys.IncidentPublishDelayMinutes] = request.PublishDelayMinutes?.ToString(),
             [SiteDataKeys.IncidentCorrelationMode] = request.CorrelationMode,
             [SiteDataKeys.IncidentGlobalThreshold] = request.GlobalThreshold?.ToString(),
             [SiteDataKeys.IncidentGlobalCorrelationWindowMinutes] = request.GlobalCorrelationWindowMinutes?.ToString(),
@@ -140,11 +138,10 @@ public record UpdateSiteConfigRequest(
     string? MetaDescription);
 
 public record IncidentsConfigResponse(
-    int PublishDelayMinutes, string CorrelationMode,
+    string CorrelationMode,
     int GlobalThreshold, int GlobalCorrelationWindowMinutes);
 
 public record UpdateIncidentsConfigRequest(
-    [property: Range(0, int.MaxValue)] int? PublishDelayMinutes,
     [property: EnumDataType(typeof(Piro.Application.Interfaces.IncidentCorrelationMode))] string? CorrelationMode,
     [property: Range(1, int.MaxValue)] int? GlobalThreshold,
     [property: Range(1, int.MaxValue)] int? GlobalCorrelationWindowMinutes);

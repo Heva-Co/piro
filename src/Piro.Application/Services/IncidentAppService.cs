@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -11,7 +12,6 @@ public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
     ServiceStatusService statusService,
-    IIncidentPublishScheduler publishScheduler,
     IEscalationPolicyRepository? escalationPolicyRepo = null)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
@@ -20,10 +20,10 @@ public class IncidentAppService(
         return incidents.Select(Map);
     }
 
-    public async Task<IEnumerable<IncidentDto>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
+    public async Task<IEnumerable<PublicIncidentDto>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
     {
         var incidents = await incidentRepo.GetAllPublicAsync(includeResolved, ct);
-        return incidents.Select(Map);
+        return incidents.Select(i => i.ToPublicDto());
     }
 
     public async Task<IncidentDto> GetByIdAsync(int id, CancellationToken ct = default)
@@ -33,21 +33,29 @@ public class IncidentAppService(
         return Map(incident);
     }
 
+    /// <summary>Returns the incident only if it's publicly visible, with only public comments — for anonymous access.</summary>
+    public async Task<PublicIncidentDto> GetPublicByIdAsync(int id, CancellationToken ct = default)
+    {
+        var incident = await incidentRepo.GetPublicByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        return incident.ToPublicDto();
+    }
+
     /// <summary>
     /// Creates an ALERT-sourced incident and assigns the global escalation policy if one exists.
+    /// Always starts Private — publishing is always a manual action.
     /// Returns the raw entity so <see cref="AlertEvaluationService"/> can attach services before saving.
     /// </summary>
-    public async Task<Incident> CreateAlertIncidentAsync(string title, bool isPublic, bool isGlobal, CancellationToken ct = default)
+    public async Task<Incident> CreateAlertIncidentAsync(string title, bool isGlobal, CancellationToken ct = default)
     {
         var incident = new Incident
         {
             Title = title,
             StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            State = IncidentState.Investigating,
-            Status = IncidentStatus.Active,
+            Status = IncidentStatus.Investigating,
             Source = "ALERT",
             IsGlobal = isGlobal,
-            IsPublic = isPublic,
+            Visibility = IncidentVisibility.Private,
         };
 
         if (escalationPolicyRepo is not null)
@@ -65,10 +73,10 @@ public class IncidentAppService(
         {
             Title = request.Title,
             StartDateTime = request.StartDateTime,
-            State = request.State,
+            Status = request.Status,
             IsGlobal = request.IsGlobal,
-            Status = IncidentStatus.Active,
-            Source = "MANUAL"
+            Source = "MANUAL",
+            Visibility = IncidentVisibility.Private,
         };
 
         if (request.AffectedServices is not null)
@@ -105,19 +113,13 @@ public class IncidentAppService(
         if (request.StartDateTime.HasValue) incident.StartDateTime = request.StartDateTime.Value;
         if (request.EndDateTime.HasValue) incident.EndDateTime = request.EndDateTime.Value;
         if (request.IsGlobal.HasValue) incident.IsGlobal = request.IsGlobal.Value;
-        if (request.State.HasValue)
+        if (request.Status.HasValue)
         {
-            incident.State = request.State.Value;
-            // Advance to Resolved when state is Resolved
-            if (request.State.Value == IncidentState.Resolved)
-            {
-                incident.Status = IncidentStatus.Resolved;
+            incident.Status = request.Status.Value;
+            if (request.Status.Value == IncidentStatus.Resolved)
                 incident.EndDateTime ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                await publishScheduler.CancelAsync(incident.Id, ct);
-            }
         }
 
-        var wasUnresolved = incident.Status != IncidentStatus.Resolved;
         var updated = await incidentRepo.UpdateAsync(incident, ct);
         await RecomputeAffectedAsync(updated, ct);
 
@@ -134,22 +136,14 @@ public class IncidentAppService(
             IncidentId = incident.Id,
             Comment = request.Comment,
             CommentedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            State = request.State,
-            Status = incident.Status
+            Status = request.Status,
+            // A comment can only be Public if its parent incident is also Public.
+            Visibility = incident.IsPublic ? request.Visibility : CommentVisibility.Private,
         };
 
-        // Advance incident state when comment state progresses
-        if (request.State == IncidentState.Resolved)
-        {
-            incident.Status = IncidentStatus.Resolved;
-            incident.State = IncidentState.Resolved;
+        incident.Status = request.Status;
+        if (request.Status == IncidentStatus.Resolved)
             incident.EndDateTime ??= comment.CommentedAt;
-            await publishScheduler.CancelAsync(incident.Id, ct);
-        }
-        else
-        {
-            incident.State = request.State;
-        }
 
         incident.LastUserActivityAt = DateTimeOffset.UtcNow;
         await incidentRepo.AddCommentAsync(incident, comment, ct);
@@ -158,11 +152,10 @@ public class IncidentAppService(
 
     public async Task UpdateCommentAsync(int incidentId, int commentId, UpdateCommentRequest request, CancellationToken ct = default)
     {
-        var comment = await incidentRepo.GetCommentByIdAsync(incidentId, commentId, ct)
-            ?? throw new NotFoundException(nameof(IncidentComment), commentId.ToString());
-        comment.Comment = request.Comment;
-        comment.State = request.State;
-        await incidentRepo.UpdateCommentAsync(comment, ct);
+        var rowsAffected = await incidentRepo.UpdateCommentAsync(
+            incidentId, commentId, request.Comment, request.Status, request.Visibility, ct);
+        if (rowsAffected == 0)
+            throw new NotFoundException(nameof(IncidentComment), commentId.ToString());
     }
 
     public async Task DeleteCommentAsync(int incidentId, int commentId, CancellationToken ct = default)
@@ -260,10 +253,21 @@ public class IncidentAppService(
 
     public async Task PublishAsync(int id, CancellationToken ct = default)
     {
-        var incident = await incidentRepo.GetByIdAsync(id, ct)
+        var visibility = await incidentRepo.GetVisibilityAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
-        if (!incident.IsPublic)
-            await incidentRepo.PublishAsync(incident, ct);
+        if (visibility != IncidentVisibility.Public)
+            await incidentRepo.PublishAsync(id, ct);
+    }
+
+    /// <summary>Reverts an incident to Private. Also forces all its comments back to Private, since a comment can never be Public while its parent incident isn't.</summary>
+    public async Task UnpublishAsync(int id, CancellationToken ct = default)
+    {
+        var visibility = await incidentRepo.GetVisibilityAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        if (visibility != IncidentVisibility.Public) return;
+
+        await incidentRepo.MakeAllCommentsPrivateAsync(id, ct);
+        await incidentRepo.UnpublishAsync(id, ct);
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -308,10 +312,10 @@ public class IncidentAppService(
 
     private static IncidentDto Map(Incident i) => new(
         i.Id, i.Title, i.StartDateTime, i.EndDateTime,
-        i.Status, i.State, i.IsResolved, i.IsGlobal, i.Source,
-        i.IsPublic,
+        i.Status, i.IsResolved, i.IsGlobal, i.Source,
+        i.Visibility,
         i.Comments.Select(c => new IncidentCommentDto(
-            c.Id, c.Comment, c.CommentedAt, c.State, c.Status, c.CreatedAt)),
+            c.Id, c.Comment, c.CommentedAt, c.Status, c.Visibility, c.CreatedAt)),
         i.IncidentServices.Select(s => new IncidentServiceDto(
             s.Service?.Slug ?? s.ServiceId.ToString(),
             s.Service?.Name ?? s.Service?.Slug ?? s.ServiceId.ToString(),

@@ -15,10 +15,11 @@ internal class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.HasIndex(i => i.StartDateTime);
 
         builder.Property(i => i.Title).HasMaxLength(255).IsRequired();
-        builder.Property(i => i.Status).HasConversion<string>().HasDefaultValue(IncidentStatus.Active);
-        builder.Property(i => i.State).HasConversion<string>().HasDefaultValue(IncidentState.Investigating);
+        builder.Property(i => i.Status).HasConversion<string>().HasDefaultValue(IncidentStatus.Investigating);
         builder.Property(i => i.Source).HasMaxLength(30);
         builder.Property(i => i.CurrentImpact).HasConversion<string>().HasDefaultValue(ServiceStatus.DOWN);
+        builder.Property(i => i.Visibility).HasConversion<string>().HasDefaultValue(IncidentVisibility.Private);
+        builder.Ignore(i => i.IsPublic);
 
         builder.HasOne(i => i.EscalationPolicy)
             .WithMany()

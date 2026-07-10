@@ -13,7 +13,6 @@ public static class SiteDataKeys
 
     public const string WorkerBuiltinDisabled = "worker:builtin_disabled";
 
-    public const string IncidentPublishDelayMinutes = "incidents:publish_delay_minutes";
     public const string IncidentCorrelationMode = "incidents:correlation_mode";
     public const string IncidentGlobalThreshold = "incidents:global_threshold";
     public const string IncidentGlobalCorrelationWindowMinutes = "incidents:global_correlation_window_minutes";
@@ -28,7 +27,6 @@ public static class SiteDataKeys
          SiteMetaDescription,
          SiteOgImageUrl,
         WorkerBuiltinDisabled,
-        IncidentPublishDelayMinutes,
         IncidentCorrelationMode,
         IncidentGlobalThreshold,
         IncidentGlobalCorrelationWindowMinutes,

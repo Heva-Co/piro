@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { servicesApi, incidentsApi, maintenancesApi, workersApi } from "@/lib/api";
+import { servicesApi, maintenancesApi, workersApi } from "@/lib/api";
+import { incidentsApi } from "@/lib/actions/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertCircle } from "lucide-react";
@@ -50,7 +51,7 @@ export default function DashboardPage() {
     (s) => s.currentStatus === "DOWN" || s.currentStatus === "DEGRADED"
   ).length;
   const activeIncidents = incidents.filter(
-    (i) => i.state !== "Resolved"
+    (i) => i.status !== "Resolved"
   ).length;
   const activeMaintenances = maintenances.filter(
     (m) => m.status === "ACTIVE" || m.status === "SCHEDULED"
@@ -127,14 +128,14 @@ export default function DashboardPage() {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {incidents
-                  .filter((i) => i.state !== "Resolved")
+                  .filter((i) => i.status !== "Resolved")
                   .map((incident) => (
                     <li key={incident.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-900">{incident.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={incident.state} />
-                        {!incident.isPublic && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1.5 py-0.5">Internal</span>
+                        <StatusBadge status={incident.status} />
+                        {incident.visibility !== "Public" && (
+                          <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1.5 py-0.5">Private</span>
                         )}
                       </div>
                     </li>

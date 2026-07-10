@@ -9,7 +9,7 @@ public interface IIncidentRepository
     /// <summary>
     /// Returns incidents filtered by <paramref name="filter"/>:
     /// "active" (default) = non-resolved, "all" = everything, "resolved" = only resolved,
-    /// or an <see cref="IncidentState"/> name (e.g. "investigating").
+    /// or an <see cref="IncidentStatus"/> name (e.g. "investigating").
     /// Admin-facing — returns all incidents regardless of <see cref="Incident.IsPublic"/>.
     /// </summary>
     Task<IEnumerable<Incident>> GetAllAsync(string filter = "active", CancellationToken ct = default);
@@ -21,11 +21,25 @@ public interface IIncidentRepository
     /// </summary>
     Task<IEnumerable<Incident>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default);
     Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default);
+
+    /// <summary>Returns the incident only if it is publicly visible, with only public comments included. Used for anonymous/public access.</summary>
+    Task<Incident?> GetPublicByIdAsync(int id, CancellationToken ct = default);
+
+    /// <summary>Returns just the incident's visibility, without loading the rest of the aggregate. Null if the incident doesn't exist.</summary>
+    Task<IncidentVisibility?> GetVisibilityAsync(int id, CancellationToken ct = default);
     Task<Incident> CreateAsync(Incident incident, CancellationToken ct = default);
     Task<Incident> UpdateAsync(Incident incident, CancellationToken ct = default);
     Task AddCommentAsync(Incident incident, IncidentComment comment, CancellationToken ct = default);
     Task<IncidentComment?> GetCommentByIdAsync(int incidentId, int commentId, CancellationToken ct = default);
-    Task UpdateCommentAsync(IncidentComment comment, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates a comment's text/status/visibility in a single atomic statement. Public visibility
+    /// is only honored if the parent incident is Public at the moment of the update — this closes
+    /// the race window where a concurrent Unpublish could otherwise leave a Public comment on a
+    /// Private incident. Returns the number of rows affected (0 if the comment doesn't exist).
+    /// </summary>
+    Task<int> UpdateCommentAsync(int incidentId, int commentId, string text, IncidentStatus status, CommentVisibility requestedVisibility, CancellationToken ct = default);
+
     Task DeleteCommentAsync(IncidentComment comment, CancellationToken ct = default);
     Task AddServiceAsync(Incident incident, IncidentService service, CancellationToken ct = default);
     Task UpdateServiceImpactAsync(IncidentService service, CancellationToken ct = default);
@@ -54,8 +68,14 @@ public interface IIncidentRepository
     /// <summary>Returns the open global incident if one exists.</summary>
     Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default);
 
-    /// <summary>Publishes an incident by setting <see cref="Incident.IsPublic"/> to true.</summary>
-    Task PublishAsync(Incident incident, CancellationToken ct = default);
+    /// <summary>Publishes an incident by setting its <see cref="Incident.Visibility"/> to Public.</summary>
+    Task PublishAsync(int incidentId, CancellationToken ct = default);
+
+    /// <summary>Reverts an incident to Private, hiding it from the public status page again.</summary>
+    Task UnpublishAsync(int incidentId, CancellationToken ct = default);
+
+    /// <summary>Sets every Public comment on the incident back to Private in a single statement.</summary>
+    Task MakeAllCommentsPrivateAsync(int incidentId, CancellationToken ct = default);
 
     /// <summary>
     /// Records a new impact change for the incident and updates <see cref="Incident.CurrentImpact"/>.

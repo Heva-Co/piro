@@ -625,9 +625,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<bool>("IsGlobal")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsPublic")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTimeOffset?>("LastUserActivityAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -638,17 +635,11 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<long>("StartDateTime")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Investigating");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasDefaultValue("Active");
+                        .HasDefaultValue("Investigating");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -657,6 +648,12 @@ namespace Piro.Infrastructure.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Private");
 
                     b.HasKey("Id");
 
@@ -690,18 +687,18 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("IncidentId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("State")
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Status")
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Visibility")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasDefaultValue("Active");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasDefaultValue("Private");
 
                     b.HasKey("Id");
 

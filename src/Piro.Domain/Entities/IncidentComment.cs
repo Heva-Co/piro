@@ -12,8 +12,10 @@ public class IncidentComment
     /// <summary>Unix timestamp (seconds) when this update was posted.</summary>
     public long CommentedAt { get; set; }
 
-    public IncidentState State { get; set; }
-    public IncidentStatus Status { get; set; } = IncidentStatus.Active;
+    public IncidentStatus Status { get; set; }
+
+    /// <summary>Controls visibility on the public status page. Can only be Public if the parent incident is also Public.</summary>
+    public CommentVisibility Visibility { get; set; } = CommentVisibility.Private;
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

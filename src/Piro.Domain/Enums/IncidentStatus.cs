@@ -1,8 +1,10 @@
 namespace Piro.Domain.Enums;
 
-/// <summary>Lifecycle status of an incident.</summary>
+/// <summary>Current investigation status of an incident.</summary>
 public enum IncidentStatus
 {
-    Active,
+    Investigating,
+    Identified,
+    Monitoring,
     Resolved
 }

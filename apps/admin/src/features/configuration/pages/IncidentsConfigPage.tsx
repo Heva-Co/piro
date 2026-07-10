@@ -15,7 +15,6 @@ export default function IncidentsConfigPage() {
     queryFn: siteApi.getIncidentsConfig,
   });
 
-  const [publishDelayMinutes, setPublishDelayMinutes] = useState(0);
   const [correlationMode, setCorrelationMode] = useState<IncidentCorrelationModeKey>("Hybrid");
   const [globalThreshold, setGlobalThreshold] = useState(3);
   const [globalCorrelationWindowMinutes, setGlobalCorrelationWindowMinutes] = useState(5);
@@ -25,7 +24,6 @@ export default function IncidentsConfigPage() {
 
   useEffect(() => {
     if (!data) return;
-    setPublishDelayMinutes(data.publishDelayMinutes);
     setCorrelationMode(data.correlationMode as IncidentCorrelationModeKey);
     setGlobalThreshold(data.globalThreshold);
     setGlobalCorrelationWindowMinutes(data.globalCorrelationWindowMinutes);
@@ -34,7 +32,6 @@ export default function IncidentsConfigPage() {
   const mutation = useMutation({
     mutationFn: () =>
       siteApi.updateIncidentsConfig({
-        publishDelayMinutes,
         correlationMode,
         globalThreshold,
         globalCorrelationWindowMinutes,
@@ -80,7 +77,7 @@ export default function IncidentsConfigPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Incidents</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Configure how incidents are automatically created, correlated, and published.
+            Configure how incidents are automatically created and correlated across services.
           </p>
         </div>
 
@@ -89,30 +86,6 @@ export default function IncidentsConfigPage() {
             {error}
           </div>
         )}
-
-        {/* ── Publication ── */}
-        <div className="rounded-xl border bg-card p-6">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold">Auto-Publication</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Automatically-created incidents start as internal. Set a delay before they go public.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1.5 max-w-xs">
-            <label className="text-sm font-medium">Publish delay (minutes)</label>
-            <input
-              type="number"
-              min={0}
-              value={publishDelayMinutes}
-              onChange={(e) => setPublishDelayMinutes(Number(e.target.value))}
-              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <p className="text-xs text-muted-foreground">
-              Set to 0 to publish immediately. The team can cancel or extend from the incident detail page.
-            </p>
-          </div>
-        </div>
 
         {/* ── Correlation ── */}
         <div className="rounded-xl border bg-card p-6">

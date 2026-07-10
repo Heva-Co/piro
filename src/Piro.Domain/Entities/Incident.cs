@@ -14,14 +14,10 @@ public class Incident
     /// <summary>Unix timestamp (seconds) when the incident was resolved. Null if still active.</summary>
     public long? EndDateTime { get; set; }
 
-    /// <inheritdoc cref="IsResolved"/>
-    [Obsolete("Use IsResolved (derived from State) instead.")]
-    public IncidentStatus Status { get; set; } = IncidentStatus.Active;
+    public IncidentStatus Status { get; set; } = IncidentStatus.Investigating;
 
-    public IncidentState State { get; set; } = IncidentState.Investigating;
-
-    /// <summary>True when <see cref="State"/> is <see cref="IncidentState.Resolved"/>.</summary>
-    public bool IsResolved => State == IncidentState.Resolved;
+    /// <summary>True when <see cref="Status"/> is <see cref="IncidentStatus.Resolved"/>.</summary>
+    public bool IsResolved => Status == IncidentStatus.Resolved;
 
     /// <summary>When true, the incident affects all services regardless of <see cref="IncidentServices"/>.</summary>
     public bool IsGlobal { get; set; }
@@ -35,8 +31,11 @@ public class Incident
     /// <summary>Display name of the user who acknowledged the incident.</summary>
     public string? AcknowledgedBy { get; set; }
 
-    /// <summary>When false, the incident is a draft not visible on the public status page. Auto-created incidents start as drafts when a publish delay is configured.</summary>
-    public bool IsPublic { get; set; } = true;
+    /// <summary>Controls visibility on the public status page. All incidents start Private — publishing is always an explicit, manual action.</summary>
+    public IncidentVisibility Visibility { get; set; } = IncidentVisibility.Private;
+
+    /// <summary>True when <see cref="Visibility"/> is <see cref="IncidentVisibility.Public"/>.</summary>
+    public bool IsPublic => Visibility == IncidentVisibility.Public;
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
