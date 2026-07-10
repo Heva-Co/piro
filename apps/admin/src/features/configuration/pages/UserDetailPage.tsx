@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, User as UserIcon } from "lucide-react";
 import { toast } from "react-toastify";
-import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usersApi } from "@/lib/api";
 import { QUERY_KEYS, CHANNEL_TYPE_LABELS } from "@/constants/api";
@@ -57,17 +56,17 @@ export default function UserDetailPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="User">
+      <>
         <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   if (!user) {
     return (
-      <AdminLayout title="User">
+      <>
         <div className="py-12 text-center text-sm text-muted-foreground">User not found.</div>
-      </AdminLayout>
+      </>
     );
   }
 
@@ -76,7 +75,7 @@ export default function UserDetailPage() {
     : <UserIcon size={20} />;
 
   return (
-    <AdminLayout title="User detail">
+    <>
       <div className="max-w-2xl space-y-6">
 
         {/* Back */}
@@ -184,6 +183,6 @@ export default function UserDetailPage() {
         </div>
 
       </div>
-    </AdminLayout>
+    </>
   );
 }

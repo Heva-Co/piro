@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronLeft, CheckCheck, Save, Eye, Clock, X } from "lucide-react";
 import { marked } from "marked";
-import { AdminLayout } from "@/components/AdminLayout";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -166,17 +165,17 @@ export default function IncidentDetailPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   if (isLoading) {
-    return <AdminLayout title="Incident"><p className="text-muted-foreground">Loading…</p></AdminLayout>;
+    return <><p className="text-muted-foreground">Loading…</p></>;
   }
   if (!incident) {
-    return <AdminLayout title="Incident"><p className="text-destructive">Incident not found.</p></AdminLayout>;
+    return <><p className="text-destructive">Incident not found.</p></>;
   }
 
   const comments = incident.comments ?? [];
   const isResolved = incident.state === "Resolved" || incident.isResolved;
 
   return (
-    <AdminLayout title={`Incident #${incident.id}`}>
+    <>
       <div className="flex flex-col gap-5">
         {/* Back */}
         <button
@@ -480,6 +479,6 @@ export default function IncidentDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, AlertCircle, CheckCircle } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { emailApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -84,7 +83,7 @@ export default function EmailConfigPage() {
   });
 
   return (
-    <AdminLayout title="Email">
+    <>
       <div className="max-w-2xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Email</h1>
@@ -271,6 +270,6 @@ export default function EmailConfigPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { siteApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { INCIDENT_CORRELATION_MODE_MAP, type IncidentCorrelationModeKey } from "@/constants/incidents";
@@ -52,7 +51,7 @@ export default function IncidentsConfigPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Incidents">
+      <>
         <div className="max-w-4xl space-y-4">
           <div className="mb-6">
             <Skeleton className="h-8 w-40 mb-2" />
@@ -69,14 +68,14 @@ export default function IncidentsConfigPage() {
             <Skeleton className="h-9 w-56" />
           </div>
         </div>
-      </AdminLayout>
+      </>
     );
   }
 
   const showGlobalOptions = correlationMode === "Global" || correlationMode === "Hybrid";
 
   return (
-    <AdminLayout title="Incidents">
+    <>
       <div className="max-w-4xl space-y-4">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Incidents</h1>
@@ -193,6 +192,6 @@ export default function IncidentsConfigPage() {
           </button>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

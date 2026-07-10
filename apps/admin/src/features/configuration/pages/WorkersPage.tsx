@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Server, Copy, AlertCircle, Pencil, Power } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { workersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -102,7 +101,7 @@ export default function WorkersPage() {
   const noLocalExecution = !isLoading && !workers.some(w => w.isConnected);
 
   return (
-    <AdminLayout title="Workers">
+    <>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -316,6 +315,6 @@ export default function WorkersPage() {
           </form>
         </Modal>
       )}
-    </AdminLayout>
+    </>
   );
 }

@@ -159,6 +159,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
+        services.AddScoped<IJobStatusService, JobStatusService>();
         services.AddScoped<IIncidentPublishScheduler, IncidentPublishScheduler>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 

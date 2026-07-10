@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { GripVertical, Plus, Trash2, Send } from "lucide-react";
 import { toast } from "react-toastify";
-import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { profileApi, usersApi, integrationsApi, channelsApi, type UpsertNotificationPreference, INTEGRATION_CATEGORIES } from "@/lib/api";
 import { QUERY_KEYS, CHANNEL_TYPE_LABELS } from "@/constants/api";
@@ -123,14 +122,14 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Profile">
+      <>
         <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Profile">
+    <>
       <div className="max-w-2xl space-y-6">
 
         {/* Basic info card */}
@@ -298,7 +297,7 @@ export default function ProfilePage() {
         </div>
 
       </div>
-    </AdminLayout>
+    </>
   );
 }
 

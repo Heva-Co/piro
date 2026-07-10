@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { onCallApi, type OnCallSlot, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -103,11 +102,11 @@ export default function OnCallScheduleDetailPage() {
   }
 
   if (loadingSchedule) {
-    return <AdminLayout title="On-Call Schedule"><div className="p-8 text-center text-muted-foreground">Loading…</div></AdminLayout>;
+    return <><div className="p-8 text-center text-muted-foreground">Loading…</div></>;
   }
 
   if (!schedule) {
-    return <AdminLayout title="Not Found"><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></AdminLayout>;
+    return <><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></>;
   }
 
   // Rotations: pure schedule without any override substitution
@@ -163,7 +162,7 @@ export default function OnCallScheduleDetailPage() {
   ];
 
   return (
-    <AdminLayout title={schedule.name}>
+    <>
       {/* Breadcrumb */}
       <button
         onClick={() => navigate(ROUTES.ONCALL.LIST)}
@@ -322,6 +321,6 @@ export default function OnCallScheduleDetailPage() {
           }}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

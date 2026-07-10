@@ -663,6 +663,13 @@ export const workersApi = {
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
+export interface JobCheckRef {
+  id: number;
+  name: string;
+  slug: string;
+  serviceSlug: string;
+}
+
 export interface JobStatus {
   jobGroup: string;
   jobName: string;
@@ -671,6 +678,7 @@ export interface JobStatus {
   state: string;
   nextFireTimeUtc?: string | null;
   previousFireTimeUtc?: string | null;
+  check?: JobCheckRef | null;
 }
 
 export const jobsApi = {

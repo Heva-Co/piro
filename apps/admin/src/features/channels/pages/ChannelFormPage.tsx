@@ -3,7 +3,6 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, ExternalLink } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -210,7 +209,7 @@ export default function ChannelFormPage() {
     console.log(`"${deleteConfirm}"`, `"${existing?.name}"`, deleteConfirm !== existing?.name || deleteMutation.isPending)
 
   return (
-    <AdminLayout title={pageTitle}>
+    <>
       <div className="flex flex-col gap-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -449,6 +448,6 @@ export default function ChannelFormPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { Filter, Plus, Settings } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { StatusPill } from "@/components/StatusBadge";
 import { useServices } from "@/hooks/useServices";
 import { ROUTES } from "@/constants/routes";
@@ -16,7 +15,7 @@ export default function ServicesPage() {
   const { data: services, isLoading, isError } = useServices();
 
   return (
-    <AdminLayout title="Services">
+    <>
       <div>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">Services</h1>
@@ -110,6 +109,6 @@ export default function ServicesPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

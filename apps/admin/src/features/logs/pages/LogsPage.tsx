@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { logsApi } from "@/lib/api";
@@ -52,7 +51,7 @@ export default function LogsPage() {
   }
 
   return (
-    <AdminLayout title="Logs">
+    <>
       <div className="flex flex-col gap-4">
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-end">
@@ -209,6 +208,6 @@ export default function LogsPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }
