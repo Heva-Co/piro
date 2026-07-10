@@ -68,7 +68,10 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<Incident> UpdateAsync(Incident incident, CancellationToken ct = default)
     {
-        db.Incidents.Update(incident);
+        // `incident` is already tracked by `db` (loaded via GetByIdAsync/GetOpenWithEscalationAsync
+        // in this same scope) — no explicit Update() call, so SaveChanges only persists the
+        // properties actually modified by the caller instead of overwriting the whole row and
+        // clobbering concurrent changes (e.g. a user ACK racing the escalation job).
         await db.SaveChangesAsync(ct);
         return incident;
     }
@@ -76,7 +79,6 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     public async Task AddCommentAsync(Incident incident, IncidentComment comment, CancellationToken ct = default)
     {
         db.IncidentComments.Add(comment);
-        db.Incidents.Update(incident);
         await db.SaveChangesAsync(ct);
     }
 

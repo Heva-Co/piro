@@ -1,10 +1,11 @@
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Exceptions;
 
 namespace Piro.Application.Services;
 
-public class EscalationPolicyAppService(IEscalationPolicyRepository repo)
+public class EscalationPolicyAppService(IEscalationPolicyRepository repo, IOnCallScheduleRepository scheduleRepo)
 {
     public async Task<EscalationPolicyDto?> GetAsync(CancellationToken ct = default)
     {
@@ -14,6 +15,12 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo)
 
     public async Task<EscalationPolicyDto> UpsertAsync(UpsertEscalationPolicyRequest request, CancellationToken ct = default)
     {
+        foreach (var step in request.Steps)
+        {
+            _ = await scheduleRepo.GetByIdWithLayersAsync(step.ScheduleId, ct)
+                ?? throw new NotFoundException(nameof(OnCallSchedule), step.ScheduleId.ToString());
+        }
+
         var policy = new EscalationPolicy
         {
             Name = request.Name,
@@ -31,9 +38,6 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo)
         var result = await repo.UpsertAsync(policy, ct);
         return ToDto(result);
     }
-
-    public Task DeleteAsync(int id, CancellationToken ct = default) =>
-        repo.DeleteAsync(id, ct);
 
     private static EscalationPolicyDto ToDto(EscalationPolicy p) => new(
         p.Id, p.Name, p.Description,

@@ -34,6 +34,20 @@ public record OnCallLayerUserDto(
     int Position
 );
 
+/// <summary>Lightweight schedule summary — name plus its unique roster, without rotation/RRULE detail.</summary>
+public record OnCallScheduleMembersDto(
+    int Id,
+    string Name,
+    List<OnCallMemberDto> Members
+);
+
+public record OnCallMemberDto(
+    int UserId,
+    string UserName,
+    string UserInitials,
+    string UserColor
+);
+
 public record OnCallOverrideDto(
     int Id,
     int ScheduleId,

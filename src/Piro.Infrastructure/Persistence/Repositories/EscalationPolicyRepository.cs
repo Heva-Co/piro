@@ -46,14 +46,4 @@ internal class EscalationPolicyRepository(PiroDbContext db) : IEscalationPolicyR
         await db.SaveChangesAsync(ct);
         return await GetSingleAsync(ct) ?? existing;
     }
-
-    public async Task DeleteAsync(int id, CancellationToken ct = default)
-    {
-        var policy = await db.EscalationPolicies.FindAsync([id], ct);
-        if (policy is not null)
-        {
-            db.EscalationPolicies.Remove(policy);
-            await db.SaveChangesAsync(ct);
-        }
-    }
 }

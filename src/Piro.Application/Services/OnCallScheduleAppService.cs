@@ -15,6 +15,9 @@ public class OnCallScheduleAppService(
         return schedules.Select(ToDto).ToList();
     }
 
+    public Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default) =>
+        scheduleRepo.GetAllWithMembersAsync(ct);
+
     public async Task<OnCallScheduleDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var schedule = await scheduleRepo.GetByIdWithLayersAsync(id, ct)

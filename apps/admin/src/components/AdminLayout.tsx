@@ -53,7 +53,7 @@ const mainNavItems: NavItem[] = [
   { label: "Maintenances", to: ROUTES.MAINTENANCES.LIST, icon: <ClockAlert size={18} /> },
   { label: "Notification Channels", to: ROUTES.CHANNELS.LIST, icon: <Bell size={18} /> },
   { label: "On-Call", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
-  { label: "Escalation", to: ROUTES.ESCALATION, icon: <Siren size={18} /> },
+  { label: "Escalation Policy", to: ROUTES.ESCALATION, icon: <Siren size={18} /> },
   { label: "Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} /> },
 ];
 

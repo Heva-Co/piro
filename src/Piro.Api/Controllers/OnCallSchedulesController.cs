@@ -16,6 +16,12 @@ public class OnCallSchedulesController(OnCallScheduleAppService scheduleService)
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await scheduleService.GetAllAsync(ct));
 
+    /// <summary>Lightweight schedule list — name and unique roster only, for pickers that don't need rotation detail.</summary>
+    [HttpGet("members")]
+    [ProducesResponseType<List<OnCallScheduleMembersDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllWithMembers(CancellationToken ct) =>
+        Ok(await scheduleService.GetAllWithMembersAsync(ct));
+
     [HttpGet("{id:int}")]
     [ProducesResponseType<OnCallScheduleDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

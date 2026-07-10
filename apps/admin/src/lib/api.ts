@@ -907,8 +907,15 @@ export interface UserNotificationPreference {
   priority: number;
 }
 
+export interface OnCallScheduleMembers {
+  id: number;
+  name: string;
+  members: { userId: number; userName: string; userInitials: string; userColor: string }[];
+}
+
 export const onCallApi = {
   list: () => api.get<OnCallSchedule[]>(ENDPOINTS.ONCALL_SCHEDULES).then((r) => r.data),
+  listMembers: () => api.get<OnCallScheduleMembers[]>(ENDPOINTS.ONCALL_SCHEDULES_MEMBERS).then((r) => r.data),
   get: (id: number | string) => api.get<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id)).then((r) => r.data),
   create: (data: { name: string; description?: string; timeZone?: string; notifyOnShiftStart?: boolean; startsAtUtc?: string; endsAtUtc?: string }) =>
     api.post<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULES, data).then((r) => r.data),
@@ -991,5 +998,4 @@ export const escalationApi = {
       .catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e))),
   upsert: (data: UpsertEscalationPolicyRequest) =>
     api.put<EscalationPolicy>("/api/v1/escalation-policy", data).then((r) => r.data),
-  delete: () => api.delete("/api/v1/escalation-policy"),
 };
