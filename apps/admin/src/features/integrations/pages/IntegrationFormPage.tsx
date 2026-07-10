@@ -84,7 +84,13 @@ export default function IntegrationFormPage() {
     try {
       const c = JSON.parse(existing.configJson);
       switch (existing.type) {
-        case "GoogleCloud": base.serviceAccountJson = c.serviceAccountJson ? JSON.stringify(JSON.parse(c.serviceAccountJson), null, 2) : ""; break;
+        case "GoogleCloud":
+          if (!c.serviceAccountJson) base.serviceAccountJson = "";
+          else {
+            try { base.serviceAccountJson = JSON.stringify(JSON.parse(c.serviceAccountJson), null, 2); }
+            catch { base.serviceAccountJson = c.serviceAccountJson; } // masked sentinel isn't valid JSON — keep it verbatim so an unedited submit preserves the stored key
+          }
+          break;
         case "Jira": base.jiraBaseUrl = c.baseUrl ?? ""; base.jiraEmail = c.email ?? ""; base.jiraApiToken = c.apiToken ?? ""; base.jiraProjectKey = c.projectKey ?? ""; base.jiraIssueType = c.issueType ?? ""; break;
         case "Slack": base.slackBotToken = c.botToken ?? ""; break;
         case "PagerDuty": base.pdRoutingKey = c.routingKey ?? ""; break;

@@ -16,7 +16,7 @@ export function NtfyConfig() {
       </div>
       <div className="flex flex-col gap-1.5">
         <label className={lbl}>Access Token</label>
-        <Input {...register("ntfyToken")} placeholder="Optional — required for protected topics" className={inp} />
+        <Input type="password" {...register("ntfyToken")} placeholder="Optional — required for protected topics" className={inp} />
       </div>
     </>
   );

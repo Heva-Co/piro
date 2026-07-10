@@ -10,7 +10,7 @@ export function MSTeamsConfig() {
   return (
     <div className="flex flex-col gap-1.5">
       <label className={lbl}>Incoming Webhook URL <span className="text-destructive">*</span></label>
-      <Input type="url" {...register("teamsWebhookUrl", { required: "Required" })} placeholder="https://outlook.office.com/webhook/…" className={inp} />
+      <Input type="password" {...register("teamsWebhookUrl", { required: "Required" })} placeholder="https://outlook.office.com/webhook/…" className={inp} />
       {errors.teamsWebhookUrl && <p className="text-xs text-destructive">{errors.teamsWebhookUrl.message}</p>}
     </div>
   );

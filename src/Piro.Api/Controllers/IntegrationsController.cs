@@ -8,7 +8,7 @@ using Piro.Domain.Exceptions;
 
 namespace Piro.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Owner,Admin")]
 [ApiController]
 [Route("api/v1/integrations")]
 [Produces("application/json")]
