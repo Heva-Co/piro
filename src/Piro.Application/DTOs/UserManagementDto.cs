@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Piro.Application.DTOs;
 
 public record UserListDto(
@@ -12,7 +14,7 @@ public record UserListDto(
 
 public record RoleDto(int Id, string Name);
 
-public record InviteUserRequest(string Email, int RoleId);
+public record InviteUserRequest([property: EmailAddress] string Email, int RoleId);
 
 public record AcceptInviteRequest(string Token, string Name, string Password);
 

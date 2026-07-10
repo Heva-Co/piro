@@ -445,6 +445,9 @@ export interface User {
   name: string;
   email: string;
   roles: string[];
+  isActive: boolean;
+  isPending: boolean;
+  createdAt: string;
 }
 
 export const usersApi = {

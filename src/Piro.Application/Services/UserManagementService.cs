@@ -24,21 +24,30 @@ public class UserManagementService(
         var result = new List<UserListDto>(users.Count);
 
         foreach (var user in users.OrderBy(u => u.CreatedAt))
-        {
-            var roles = await userManager.GetRolesAsync(user);
-            // A user is "pending" if they have no password hash set (invited but not accepted yet)
-            var isPending = string.IsNullOrEmpty(user.PasswordHash);
-            result.Add(new UserListDto(
-                user.Id,
-                user.Email!,
-                user.Name,
-                user.IsActive,
-                isPending,
-                roles.ToArray(),
-                user.CreatedAt));
-        }
+            result.Add(await MapUserAsync(user));
 
         return result;
+    }
+
+    public async Task<UserListDto?> GetByIdAsync(int userId, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        return user is null ? null : await MapUserAsync(user);
+    }
+
+    private async Task<UserListDto> MapUserAsync(AppUser user)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+        // A user is "pending" if they have no password hash set (invited but not accepted yet)
+        var isPending = string.IsNullOrEmpty(user.PasswordHash);
+        return new UserListDto(
+            user.Id,
+            user.Email!,
+            user.Name,
+            user.IsActive,
+            isPending,
+            roles.ToArray(),
+            user.CreatedAt);
     }
 
     public async Task InviteAsync(string email, int roleId, CancellationToken ct = default)
@@ -138,12 +147,25 @@ public class UserManagementService(
             ?? throw new InvalidOperationException($"Role {newRoleId} not found.");
 
         var currentRoles = await userManager.GetRolesAsync(user);
+
+        // Prevent removing Owner from the last remaining Owner — same lockout shape as the
+        // SSO-only guard: there would be no account left able to grant Owner access again.
+        if (currentRoles.Contains("Owner") && newRole.Name != "Owner")
+        {
+            var owners = await userManager.GetUsersInRoleAsync("Owner");
+            if (owners.Count <= 1)
+                throw new InvalidOperationException("Cannot change the role of the last remaining Owner.");
+        }
+
         await userManager.RemoveFromRolesAsync(user, currentRoles);
         await userManager.AddToRoleAsync(user, newRole.Name!);
     }
 
-    public async Task DeleteAsync(int userId, CancellationToken ct = default)
+    public async Task DeleteAsync(int userId, int currentUserId, CancellationToken ct = default)
     {
+        if (userId == currentUserId)
+            throw new InvalidOperationException("You cannot delete your own account.");
+
         var user = await userManager.FindByIdAsync(userId.ToString())
             ?? throw new InvalidOperationException($"User {userId} not found.");
 
