@@ -4,6 +4,7 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ConfirmDialogProvider } from "@/providers/ConfirmDialogProvider";
 import { AuthGuard } from "@/components/AuthGuard";
+import { AdminLayout } from "@/components/AdminLayout";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
 
@@ -42,6 +43,7 @@ import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
 import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
+import JobsPage from "@/features/configuration/pages/JobsPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 import EscalationPolicyPage from "@/features/escalation/pages/EscalationPolicyPage";
@@ -61,7 +63,9 @@ function ProtectedLayout() {
   return (
     <AuthGuard>
       <ErrorBoundary fallback={<ErrorFallback />}>
-        <Outlet />
+        <AdminLayout>
+          <Outlet />
+        </AdminLayout>
       </ErrorBoundary>
     </AuthGuard>
   );
@@ -131,6 +135,7 @@ export default function App() {
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
               <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
               <Route path={ROUTES.CONFIG.INCIDENTS} element={<IncidentsConfigPage />} />
+              <Route path={ROUTES.CONFIG.JOBS} element={<JobsPage />} />
 
               {/* On-Call */}
               <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />

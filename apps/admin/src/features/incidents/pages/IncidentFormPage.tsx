@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save, ChevronRight } from "lucide-react";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Switch } from "@/components/ui/switch";
-import { AdminLayout } from "@/components/AdminLayout";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { incidentsApi, servicesApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
@@ -71,7 +70,7 @@ export default function IncidentFormPage() {
 
 
   return (
-    <AdminLayout title="New Incident">
+    <>
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
         <button onClick={() => navigate(ROUTES.INCIDENTS.LIST)} className="hover:text-gray-700">Incidents</button>
@@ -182,6 +181,6 @@ export default function IncidentFormPage() {
           </form>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

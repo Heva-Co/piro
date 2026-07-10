@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, ChevronDown } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { maintenancesApi, type Maintenance, type MaintenanceDisplayStatus } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -64,7 +63,7 @@ export default function MaintenancesPage() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <AdminLayout title="Maintenances">
+    <>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           {/* Filter dropdown */}
@@ -169,6 +168,6 @@ export default function MaintenancesPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Save } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { escalationApi, onCallApi } from "@/lib/api";
 import type { UpsertEscalationPolicyRequest } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
@@ -101,14 +100,14 @@ export default function EscalationPolicyPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Escalation">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Escalation">
+    <>
       <div className="max-w-4xl space-y-4">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Escalation Policy</h1>
@@ -269,6 +268,6 @@ export default function EscalationPolicyPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

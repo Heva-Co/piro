@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { AlertTriangle, ClipboardList, Settings } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { StatusPill } from "@/components/StatusBadge";
 import { useService, useDeleteService } from "@/hooks/useServices";
 import { useChecks } from "@/hooks/useChecks";
@@ -26,22 +25,22 @@ export default function ServiceDetailPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Service">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   if (!service) {
     return (
-      <AdminLayout title="Service">
+      <>
         <div className="text-sm text-destructive">Service not found.</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title={service.name}>
+    <>
       <div>
         <PageHeader
           breadcrumbs={[
@@ -83,6 +82,6 @@ export default function ServiceDetailPage() {
           <DangerZone objectName="service" objectId={slug!} onDelete={handleDeleteService} />
         </SectionAccordion>
       </div>
-    </AdminLayout>
+    </>
   );
 }

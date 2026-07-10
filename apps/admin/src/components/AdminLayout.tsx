@@ -28,6 +28,7 @@ import {
   CalendarClock,
   Siren,
   User,
+  Clock,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,6 +66,7 @@ const configNavItems: NavItem[] = [
   { label: "Site", to: ROUTES.CONFIG.SITE, icon: <Globe size={18} /> },
   { label: "Email", to: ROUTES.CONFIG.EMAIL, icon: <Mail size={18} /> },
   { label: "Incidents", to: ROUTES.CONFIG.INCIDENTS, icon: <CloudAlert size={18} /> },
+  { label: "Jobs", to: ROUTES.CONFIG.JOBS, icon: <Clock size={18} /> },
 ];
 
 interface SidebarProps {
@@ -222,10 +224,9 @@ function Sidebar({ onClose }: SidebarProps) {
 
 interface AdminLayoutProps {
   children: ReactNode;
-  title?: string;
 }
 
-export function AdminLayout({ children, title }: AdminLayoutProps) {
+export function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
@@ -280,8 +281,6 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
           </button>
 
           <div className="h-4 w-px bg-border mx-1" />
-
-          {title && <h1 className="text-sm font-semibold">{title}</h1>}
 
           <div className="flex-1" />
 

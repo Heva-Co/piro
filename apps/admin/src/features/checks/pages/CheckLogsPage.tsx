@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Settings, ChevronLeft } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
@@ -67,7 +66,7 @@ export default function CheckLogsPage() {
   }
 
   return (
-    <AdminLayout title="Logs">
+    <>
       <div className="flex flex-col gap-6">
         {/* Breadcrumb */}
         <div className="flex items-center justify-between">
@@ -267,6 +266,6 @@ export default function CheckLogsPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

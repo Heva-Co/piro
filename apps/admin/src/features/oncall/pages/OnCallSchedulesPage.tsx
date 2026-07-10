@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, CalendarClock, X, Trash2 } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { onCallApi, type OnCallLayer } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -111,7 +110,7 @@ export default function OnCallSchedulesPage() {
   }
 
   return (
-    <AdminLayout title="On-Call Schedules">
+    <>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
@@ -239,6 +238,6 @@ export default function OnCallSchedulesPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   );
 }

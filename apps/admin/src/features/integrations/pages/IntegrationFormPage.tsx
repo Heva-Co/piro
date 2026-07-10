@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Icon } from "@iconify/react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
@@ -123,7 +122,7 @@ export default function IntegrationFormPage() {
   const typeMeta = INTEGRATION_TYPE_MAP[type as keyof typeof INTEGRATION_TYPE_MAP] as IntegrationTypeMeta | undefined;
 
   return (
-    <AdminLayout title={pageTitle}>
+    <>
       <FormProvider {...methods}>
         <div className="flex flex-col gap-6">
           <nav className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -269,6 +268,6 @@ export default function IntegrationFormPage() {
           )}
         </div>
       </FormProvider>
-    </AdminLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Copy, AlertCircle } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { authApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -86,7 +85,7 @@ export default function ApiKeysPage() {
   }
 
   return (
-    <AdminLayout title="API Keys">
+    <>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -216,6 +215,6 @@ export default function ApiKeysPage() {
           </div>
         </Modal>
       )}
-    </AdminLayout>
+    </>
   );
 }

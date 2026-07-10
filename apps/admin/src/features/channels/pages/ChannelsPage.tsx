@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { channelsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -29,7 +28,7 @@ export default function ChannelsPage() {
   });
 
   return (
-    <AdminLayout title="Notification Channels">
+    <>
       <div className="flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -143,6 +142,6 @@ export default function ChannelsPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

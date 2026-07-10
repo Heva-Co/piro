@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, ExternalLink, Play, RefreshCw, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { AdminLayout } from "@/components/AdminLayout";
 import {
   useCheck,
   useUpdateCheck,
@@ -299,22 +298,22 @@ export default function CheckDetailPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Check">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   if (!check) {
     return (
-      <AdminLayout title="Check">
+      <>
         <div className="text-sm text-destructive">Check not found.</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title={check.name}>
+    <>
       <PageHeader
         breadcrumbs={[
           { label: "Services", onClick: () => navigate(ROUTES.SERVICES.LIST) },
@@ -387,6 +386,6 @@ export default function CheckDetailPage() {
       >
         <DangerZone objectName="check" objectId={checkSlug!} onDelete={handleDelete} />
       </SectionAccordion>
-    </AdminLayout>
+    </>
   );
 }

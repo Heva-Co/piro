@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload, Save } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { siteApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -80,14 +79,14 @@ export default function SiteConfigPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Site">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Site">
+    <>
       <div className="max-w-4xl space-y-4">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Site</h1>
@@ -126,7 +125,8 @@ export default function SiteConfigPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {infoError && <p className="text-xs text-destructive">{infoError}</p>}
             <button
               onClick={() => infoMutation.mutate()}
               disabled={infoSaving}
@@ -281,7 +281,8 @@ export default function SiteConfigPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {seoError && <p className="text-xs text-destructive">{seoError}</p>}
             <button
               onClick={() => seoMutation.mutate()}
               disabled={seoSaving}
@@ -293,6 +294,6 @@ export default function SiteConfigPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

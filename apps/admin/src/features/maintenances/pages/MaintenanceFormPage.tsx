@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Calendar, RefreshCw, ChevronRight } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,7 +70,7 @@ export default function MaintenanceFormPage() {
   }
 
   return (
-    <AdminLayout title="New Maintenance">
+    <>
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
         <button onClick={() => navigate(ROUTES.MAINTENANCES.LIST)} className="hover:text-gray-700">Maintenances</button>
@@ -224,6 +223,6 @@ export default function MaintenanceFormPage() {
           </form>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

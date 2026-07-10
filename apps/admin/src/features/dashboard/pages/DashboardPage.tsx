@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { servicesApi, incidentsApi, maintenancesApi, workersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
-import { AdminLayout } from "@/components/AdminLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertCircle } from "lucide-react";
 
@@ -61,7 +60,7 @@ export default function DashboardPage() {
   const noLocalExecution = !workersQuery.isLoading && !workers.some(w => w.isConnected);
 
   return (
-    <AdminLayout title="Overview">
+    <>
       {noLocalExecution && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3 mb-6">
           <AlertCircle size={16} className="text-amber-600 shrink-0" />
@@ -166,6 +165,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

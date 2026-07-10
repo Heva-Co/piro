@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Copy, Pencil, Plus, Shield } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { oidcApi, type OidcProviderConfig, type UpsertOidcProvider } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -328,7 +327,7 @@ export default function SsoPage() {
   }
 
   return (
-    <AdminLayout title="Single Sign-On">
+    <>
       <div className="max-w-4xl">
         {formState ? (
           <ProviderForm
@@ -457,6 +456,6 @@ export default function SsoPage() {
           </>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

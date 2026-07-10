@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +56,7 @@ export default function ServiceFormPage() {
   }
 
   return (
-    <AdminLayout title="New Service">
+    <>
       <PageHeader
         breadcrumbs={[
           { label: "Services", onClick: () => navigate(ROUTES.SERVICES.LIST) },
@@ -152,6 +151,6 @@ export default function ServiceFormPage() {
           </div>
         </form>
       </div>
-    </AdminLayout>
+    </>
   );
 }

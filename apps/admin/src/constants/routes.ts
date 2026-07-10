@@ -67,6 +67,7 @@ export const ROUTES = {
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
     INCIDENTS: "/admin/configuration/incidents",
+    JOBS: "/admin/configuration/jobs",
   },
 
   // On-call schedules

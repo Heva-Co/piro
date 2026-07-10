@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Pencil, ChevronDown } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { incidentsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -48,7 +47,7 @@ export default function IncidentsPage() {
   const paged = incidents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <AdminLayout title="Incidents">
+    <>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           {/* Filter dropdown */}
@@ -151,6 +150,6 @@ export default function IncidentsPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

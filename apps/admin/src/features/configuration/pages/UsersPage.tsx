@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, User as UserIcon, AlertCircle } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { usersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -91,7 +90,7 @@ export default function UsersPage() {
   }
 
   return (
-    <AdminLayout title="Users">
+    <>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -224,6 +223,6 @@ export default function UsersPage() {
           </div>
         </Modal>
       )}
-    </AdminLayout>
+    </>
   );
 }

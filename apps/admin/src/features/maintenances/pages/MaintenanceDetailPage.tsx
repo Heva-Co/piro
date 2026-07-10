@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, Settings } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone";
@@ -47,17 +46,17 @@ export default function MaintenanceDetailPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Maintenance">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   if (!maintenance) {
     return (
-      <AdminLayout title="Maintenance">
+      <>
         <div className="text-sm text-destructive">Maintenance not found.</div>
-      </AdminLayout>
+      </>
     );
   }
 
@@ -65,7 +64,7 @@ export default function MaintenanceDetailPage() {
   const isCancelled = maintenance.displayStatus === "Cancelled";
 
   return (
-    <AdminLayout title={maintenance.title}>
+    <>
       <PageHeader
         breadcrumbs={[
           { label: "Maintenances", onClick: () => navigate(ROUTES.MAINTENANCES.LIST) },
@@ -120,6 +119,6 @@ export default function MaintenanceDetailPage() {
           />
         </div>
       </SectionAccordion>
-    </AdminLayout>
+    </>
   );
 }
