@@ -2,9 +2,35 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Clock, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { jobsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+
+const CHECK_EXECUTION_SOURCE = "Piro.Infrastructure.Jobs.CheckExecutionJob";
+
+const JOB_SOURCE_CONTEXT: Record<string, string> = {
+  "piro:escalation-check": "Piro.Infrastructure.Jobs.EscalationCheckJob",
+  "piro:maintenance-scheduler": "Piro.Infrastructure.Jobs.MaintenanceSchedulerJob",
+  "incident-publish": "Piro.Infrastructure.Jobs.PublishIncidentJob",
+};
+
+function logsUrlFor(job: { jobGroup: string; jobName: string; check?: { id: number } | null }) {
+  if (job.check) {
+    return `${ROUTES.LOGS}?source=${encodeURIComponent(CHECK_EXECUTION_SOURCE)}&checkId=${job.check.id}`;
+  }
+  const source =
+    JOB_SOURCE_CONTEXT[`${job.jobGroup}:${job.jobName}`] ?? JOB_SOURCE_CONTEXT[job.jobGroup];
+  return source ? `${ROUTES.LOGS}?source=${encodeURIComponent(source)}` : ROUTES.LOGS;
+}
 
 const STATE_STYLES: Record<string, string> = {
   Normal: "bg-green-500/15 text-green-600 dark:text-green-400",
@@ -39,71 +65,70 @@ export default function JobsPage() {
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading && (
-          <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
+          <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
         )}
         {!isLoading && jobs.length === 0 && (
           <div className="py-14 flex flex-col items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-              <Clock size={20} className="text-gray-400" />
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Clock size={20} className="text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium text-gray-700">No scheduled jobs found</p>
+            <p className="text-sm font-medium">No scheduled jobs found</p>
           </div>
         )}
         {!isLoading && jobs.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-500 uppercase">
-                <th className="px-5 py-3">Job</th>
-                <th className="px-5 py-3">Check</th>
-                <th className="px-5 py-3">State</th>
-                <th className="px-5 py-3">Previous Run</th>
-                <th className="px-5 py-3">Next Run</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((j, i) => (
-                <tr key={`${j.jobGroup}.${j.jobName}.${j.triggerName}`}
-                  className={i > 0 ? "border-t border-gray-100" : ""}>
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-gray-900">{j.jobName}</p>
-                    <p className="text-xs text-gray-400 font-mono">{j.jobGroup}</p>
-                  </td>
-                  <td className="px-5 py-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Job</TableHead>
+                <TableHead>Check</TableHead>
+                <TableHead>State</TableHead>
+                <TableHead>Previous Run</TableHead>
+                <TableHead>Next Run</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {jobs.map((j) => (
+                <TableRow key={`${j.jobGroup}.${j.jobName}.${j.triggerName}`}>
+                  <TableCell className="whitespace-normal">
+                    <p className="font-medium">{j.jobName}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{j.jobGroup}</p>
+                  </TableCell>
+                  <TableCell className="whitespace-normal">
                     {j.check ? (
                       <button
                         onClick={() => navigate(ROUTES.CHECKS.DETAIL(j.check!.serviceSlug, j.check!.slug))}
                         className="text-left hover:underline"
                       >
-                        <p className="font-medium text-gray-900">{j.check.name}</p>
-                        <p className="text-xs text-gray-400 font-mono">{j.check.serviceSlug}/{j.check.slug}</p>
+                        <p className="font-medium">{j.check.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{j.check.serviceSlug}/{j.check.slug}</p>
                       </button>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-muted-foreground/50">—</span>
                     )}
-                  </td>
-                  <td className="px-5 py-4">
+                  </TableCell>
+                  <TableCell>
                     <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${STATE_STYLES[j.state] ?? STATE_STYLES.None}`}>
                       {j.state}
                     </span>
-                  </td>
-                  <td className="px-5 py-4 text-gray-600">{formatDate(j.previousFireTimeUtc)}</td>
-                  <td className="px-5 py-4 text-gray-600">{formatDate(j.nextFireTimeUtc)}</td>
-                  <td className="px-5 py-4">
-                    {j.check && (
-                      <button
-                        onClick={() => navigate(ROUTES.CHECKS.LOGS(j.check!.serviceSlug, j.check!.slug))}
-                        title="View logs"
-                        className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 transition-colors"
-                      >
-                        <ScrollText size={15} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(j.previousFireTimeUtc)}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(j.nextFireTimeUtc)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(logsUrlFor(j))}
+                      title="View logs"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ScrollText size={15} />
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </>

@@ -751,7 +751,14 @@ export const logsApi = {
     source?: string;
     from?: string;
     to?: string;
-  }) => api.get<{ items: LogEntry[]; totalCount: number }>(ENDPOINTS.LOGS, { params }).then((r) => r.data),
+    checkId?: number;
+  }) => {
+    // The API filters by "search" (substring over Message/SourceContext/Exception) —
+    // there is no dedicated "source" query param, so map it here.
+    const { source, ...rest } = params ?? {};
+    const apiParams = source ? { ...rest, search: source } : rest;
+    return api.get<{ items: LogEntry[]; totalCount: number }>(ENDPOINTS.LOGS, { params: apiParams }).then((r) => r.data);
+  },
 };
 
 // ─── Config import ────────────────────────────────────────────────────────────
