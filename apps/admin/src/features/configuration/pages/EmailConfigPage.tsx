@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { FlaskConical, AlertCircle, CheckCircle, Save } from "lucide-react";
+import { AlertCircle, CheckCircle, Save } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { TestButton } from "@/components/TestButton";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -259,15 +260,13 @@ export default function EmailConfigPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
+            <TestButton
               onClick={() => testMutation.mutate()}
-              disabled={testMutation.isPending || saveMutation.isPending}
-            >
-              <FlaskConical size={16} />
-              {testMutation.isPending ? "Sending…" : "Send Test Email"}
-            </Button>
+              loading={testMutation.isPending}
+              disabled={saveMutation.isPending}
+              label="Send Test Email"
+              loadingLabel="Sending…"
+            />
             <Button
               type="button"
               onClick={() => saveMutation.mutate()}

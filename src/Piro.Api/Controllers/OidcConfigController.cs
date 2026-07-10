@@ -44,13 +44,25 @@ public class OidcConfigController(IOidcService oidcService) : ControllerBase
     /// <summary>Enables or disables SSO-only mode (disables password sign-in).</summary>
     [HttpPut("sso-mode")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SetSsoMode([FromBody] SetSsoModeRequest request, CancellationToken ct)
     {
-        await oidcService.SetSsoOnlyModeAsync(request.SsoOnly, ct);
-        return NoContent();
+        try
+        {
+            await oidcService.SetSsoOnlyModeAsync(request.SsoOnly, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
     }
 
-    /// <summary>Tests an OIDC provider by fetching its discovery document.</summary>
+    /// <summary>
+    /// Tests OIDC connectivity by fetching a discovery document. Pass <c>authority</c> to test
+    /// an authority URL directly (e.g. while creating a new provider, before it's saved);
+    /// pass <c>providerId</c> to test an already-saved provider's configured authority.
+    /// </summary>
     [HttpPost("test")]
     [ProducesResponseType<object>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -58,7 +70,11 @@ public class OidcConfigController(IOidcService oidcService) : ControllerBase
     {
         try
         {
-            var ok = await oidcService.TestProviderAsync(request.ProviderId, ct);
+            var ok = !string.IsNullOrWhiteSpace(request.Authority)
+                ? await oidcService.TestAuthorityAsync(request.Authority, ct)
+                : await oidcService.TestProviderAsync(
+                    request.ProviderId ?? throw new InvalidOperationException("Either authority or providerId is required."),
+                    ct);
             return Ok(new { success = ok, message = ok ? "Provider is reachable." : "Provider check failed." });
         }
         catch (Exception ex)
@@ -68,5 +84,5 @@ public class OidcConfigController(IOidcService oidcService) : ControllerBase
     }
 }
 
-public record TestOidcRequest(string ProviderId);
+public record TestOidcRequest(string? ProviderId, string? Authority);
 public record SetSsoModeRequest(bool SsoOnly);

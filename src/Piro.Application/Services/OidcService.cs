@@ -141,8 +141,12 @@ public class OidcService(
         // Domain restriction
         if (!string.IsNullOrWhiteSpace(config.AllowedDomains))
         {
+            var emailParts = userInfo.Email.Split('@');
+            if (emailParts.Length != 2 || string.IsNullOrWhiteSpace(emailParts[0]) || string.IsNullOrWhiteSpace(emailParts[1]))
+                throw new InvalidOperationException($"OIDC userinfo returned a malformed email address: '{userInfo.Email}'.");
+
             var allowed = config.AllowedDomains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var domain = userInfo.Email.Split('@').LastOrDefault() ?? "";
+            var domain = emailParts[1];
             if (!allowed.Any(d => d.Equals(domain, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException($"Email domain '@{domain}' is not allowed for this SSO provider.");
         }
@@ -155,8 +159,22 @@ public class OidcService(
     {
         var config = await configRepo.GetByIdAsync(providerId, ct)
             ?? throw new InvalidOperationException($"Provider '{providerId}' not found.");
-        var discovery = await GetDiscoveryDocumentAsync(config.Authority, ct);
-        return discovery.AuthorizationEndpoint is not null;
+        return await TestAuthorityAsync(config.Authority, ct);
+    }
+
+    public async Task<bool> TestAuthorityAsync(string authority, CancellationToken ct = default)
+    {
+        var discovery = await GetDiscoveryDocumentAsync(authority, ct);
+
+        if (string.IsNullOrWhiteSpace(discovery.AuthorizationEndpoint)
+            || string.IsNullOrWhiteSpace(discovery.TokenEndpoint)
+            || string.IsNullOrWhiteSpace(discovery.UserInfoEndpoint))
+        {
+            throw new InvalidOperationException(
+                "Discovery document is missing authorization_endpoint, token_endpoint, or userinfo_endpoint.");
+        }
+
+        return true;
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -317,8 +335,18 @@ public class OidcService(
     public Task<bool> GetSsoOnlyModeAsync(CancellationToken ct = default) =>
         configRepo.GetSsoOnlyAsync(ct);
 
-    public Task SetSsoOnlyModeAsync(bool value, CancellationToken ct = default) =>
-        configRepo.SetSsoOnlyAsync(value, ct);
+    public async Task SetSsoOnlyModeAsync(bool value, CancellationToken ct = default)
+    {
+        if (value)
+        {
+            var enabled = await configRepo.GetEnabledAsync(ct);
+            if (enabled.Count == 0)
+                throw new InvalidOperationException(
+                    "Cannot enable SSO-only mode: at least one enabled SSO provider is required.");
+        }
+
+        await configRepo.SetSsoOnlyAsync(value, ct);
+    }
 
     private static string Base64UrlEncode(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');

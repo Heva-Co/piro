@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Piro.Application.DTOs;
 
 /// <summary>Safe provider info exposed to the sign-in page (no secrets).</summary>
@@ -20,12 +22,12 @@ public record OidcProviderConfigDto(
 public record UpsertOidcProviderRequest(
     string Id,
     string DisplayName,
-    string Authority,
+    [property: Url] string Authority,
     string ClientId,
     /// <summary>Null or empty means "keep existing secret".</summary>
     string? ClientSecret,
     /// <summary>Null or empty means auto-derive from site:url config.</summary>
-    string? RedirectUri,
+    [property: Url] string? RedirectUri,
     string Scopes,
     string? AllowedDomains,
     string DefaultRole,

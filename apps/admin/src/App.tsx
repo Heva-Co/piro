@@ -39,6 +39,7 @@ import EmailConfigPage from "@/features/configuration/pages/EmailConfigPage";
 import UsersPage from "@/features/configuration/pages/UsersPage";
 import UserDetailPage from "@/features/configuration/pages/UserDetailPage";
 import SsoPage from "@/features/configuration/pages/SsoPage";
+import SsoProviderFormPage from "@/features/configuration/pages/SsoProviderFormPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
@@ -129,6 +130,8 @@ export default function App() {
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
               <Route path={ROUTES.CONFIG.EMAIL} element={<EmailConfigPage />} />
               <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
+              <Route path={ROUTES.CONFIG.SSO_NEW} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_DETAIL(":id")} element={<SsoProviderFormPage />} />
               <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />
               <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
               <Route path={ROUTES.CONFIG.USER_DETAIL(":id")} element={<UserDetailPage />} />

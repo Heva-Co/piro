@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 
@@ -11,7 +10,7 @@ namespace Piro.Api.Controllers;
 [Route("api/v1/auth/oidc")]
 [Produces("application/json")]
 [AllowAnonymous]
-public class OidcController(IOidcService oidcService, IConfiguration configuration, ISiteConfigRepository siteConfigRepo) : ControllerBase
+public class OidcController(IOidcService oidcService) : ControllerBase
 {
     /// <summary>Returns OIDC providers enabled for the sign-in page.</summary>
     [HttpGet("providers")]
@@ -65,41 +64,6 @@ public class OidcController(IOidcService oidcService, IConfiguration configurati
         catch (Exception ex)
         {
             return BadRequest(new { title = ex.Message, status = 400 });
-        }
-    }
-
-    /// <summary>
-    /// Legacy GET callback — redirects browser to frontend (kept for backward compatibility).
-    /// </summary>
-    [HttpGet("callback")]
-    [ProducesResponseType(StatusCodes.Status302Found)]
-    public async Task<IActionResult> Callback(
-        [FromQuery] string? code,
-        [FromQuery] string? state,
-        [FromQuery] string? error,
-        CancellationToken ct)
-    {
-        var siteConfig = await siteConfigRepo.GetAsync(ct);
-        var frontendUrl = (siteConfig.Url?.TrimEnd('/'))
-            ?? configuration["App:BaseUrl"]?.TrimEnd('/')
-            ?? "http://localhost:5173";
-        var errorRedirect = $"{frontendUrl}/auth/sign-in?oidc_error=1";
-
-        if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
-            return Redirect(errorRedirect);
-
-        try
-        {
-            var response = await oidcService.HandleCallbackAsync(code, state, ct);
-            var callbackUrl = $"{frontendUrl}/auth/oidc/complete" +
-                $"?token={Uri.EscapeDataString(response.AccessToken)}" +
-                $"&refresh={Uri.EscapeDataString(response.RefreshToken)}" +
-                $"&expires={response.ExpiresIn}";
-            return Redirect(callbackUrl);
-        }
-        catch (Exception)
-        {
-            return Redirect(errorRedirect);
         }
     }
 }
