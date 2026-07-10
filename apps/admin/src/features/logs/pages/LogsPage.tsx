@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
@@ -15,13 +16,17 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export default function LogsPage() {
+  const [searchParams] = useSearchParams();
   const [level, setLevel] = useState("");
-  const [source, setSource] = useState("");
+  const [source, setSource] = useState(searchParams.get("source") ?? "");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  const checkIdParam = searchParams.get("checkId");
+  const checkId = checkIdParam ? Number(checkIdParam) : undefined;
 
   const params = {
     page,
@@ -30,6 +35,7 @@ export default function LogsPage() {
     ...(source ? { source } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
+    ...(checkId ? { checkId } : {}),
   };
 
   const { data, isLoading, refetch } = useQuery({

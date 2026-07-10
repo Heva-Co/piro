@@ -24,6 +24,12 @@ internal class LogRepository(PiroDbContext db) : ILogRepository
         if (query.To.HasValue)
             q = q.Where(l => l.Timestamp <= query.To.Value);
 
+        if (query.CheckId.HasValue)
+        {
+            var checkIdMarker = $"\"CheckId\": \"{query.CheckId.Value}\"";
+            q = q.Where(l => l.Properties != null && l.Properties.Contains(checkIdMarker));
+        }
+
         var total = await q.CountAsync(ct);
         var pageSize = Math.Clamp(query.PageSize, 10, 200);
         var page = Math.Max(1, query.Page);
