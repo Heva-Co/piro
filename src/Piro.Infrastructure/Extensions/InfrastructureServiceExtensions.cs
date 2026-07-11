@@ -139,6 +139,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 s.UseProperties = true;
                 s.UseNewtonsoftJsonSerializer();
                 s.UsePostgres(pg => pg.ConnectionString = connectionString);
+                // Enables safe horizontal scaling: without clustering, multiple API replicas
+                // sharing this Postgres store would each run every trigger independently,
+                // duplicating job execution instead of coordinating via the shared store.
+                s.UseClustering();
             });
 
             // Maintenance event status transitions — every 15 minutes
@@ -219,7 +223,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
             new LocalCheckJobDispatcher(
                 sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                workerRegion));
+                sp.GetRequiredService<ICheckDataPointRepository>(),
+                workerRegion,
+                sp.GetRequiredService<ILogger<LocalCheckJobDispatcher>>()));
 
         // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
         // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it
