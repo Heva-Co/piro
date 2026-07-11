@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 
@@ -35,7 +36,7 @@ public class OidcService(
 
     public async Task<List<OidcProviderConfigDto>> GetAllConfigsAsync(CancellationToken ct = default) =>
         (await configRepo.GetAllAsync(ct))
-            .Select(ToDto)
+            .Select(p => p.ToDto())
             .ToList();
 
     public async Task UpsertConfigAsync(UpsertOidcProviderRequest request, CancellationToken ct = default)
@@ -366,9 +367,6 @@ public class OidcService(
             expiresIn,
             new UserDto(user.Id, user.Email!, user.Name, roles));
     }
-
-    private static OidcProviderConfigDto ToDto(OidcProviderConfig p) =>
-        new(p.Id, p.DisplayName, p.Authority, p.ClientId, !string.IsNullOrEmpty(p.ClientSecret), p.RedirectUri, p.Scopes, p.AllowedDomains, p.DefaultRole, p.IsEnabled);
 
     private static string? GetStringClaim(JsonElement json, string key) =>
         json.TryGetProperty(key, out var prop) ? prop.GetString() : null;

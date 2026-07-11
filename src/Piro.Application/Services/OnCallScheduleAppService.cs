@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
@@ -12,7 +13,7 @@ public class OnCallScheduleAppService(
     public async Task<List<OnCallScheduleDto>> GetAllAsync(CancellationToken ct = default)
     {
         var schedules = await scheduleRepo.GetAllAsync(ct);
-        return schedules.Select(ToDto).ToList();
+        return schedules.Select(s => s.ToDto()).ToList();
     }
 
     public Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default) =>
@@ -22,7 +23,7 @@ public class OnCallScheduleAppService(
     {
         var schedule = await scheduleRepo.GetByIdWithLayersAsync(id, ct)
             ?? throw new NotFoundException(nameof(OnCallSchedule), id.ToString());
-        return ToDto(schedule);
+        return schedule.ToDto();
     }
 
     public async Task<OnCallScheduleDto> CreateAsync(CreateOnCallScheduleRequest request, CancellationToken ct = default)
@@ -37,7 +38,7 @@ public class OnCallScheduleAppService(
             EndsAtUtc = request.EndsAtUtc,
         };
         var created = await scheduleRepo.CreateAsync(schedule, ct);
-        return ToDto(created);
+        return created.ToDto();
     }
 
     public async Task<OnCallScheduleDto> UpdateAsync(int id, UpdateOnCallScheduleRequest request, CancellationToken ct = default)
@@ -53,7 +54,7 @@ public class OnCallScheduleAppService(
         if (request.EndsAtUtc.HasValue) schedule.EndsAtUtc = request.EndsAtUtc;
 
         await scheduleRepo.UpdateAsync(schedule, ct);
-        return ToDto(schedule);
+        return schedule.ToDto();
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -94,7 +95,7 @@ public class OnCallScheduleAppService(
         };
 
         var created = await scheduleRepo.CreateLayerAsync(layer, ct);
-        return LayerToDto(created);
+        return created.ToDto();
     }
 
     public async Task<OnCallLayerDto> UpdateLayerAsync(int scheduleId, int layerId, UpdateOnCallLayerRequest request, CancellationToken ct = default)
@@ -118,7 +119,7 @@ public class OnCallScheduleAppService(
         }).ToList();
 
         var updated = await scheduleRepo.UpdateLayerAsync(layer, ct);
-        return LayerToDto(updated);
+        return updated.ToDto();
     }
 
     public async Task DeleteLayerAsync(int scheduleId, int layerId, CancellationToken ct = default)
@@ -145,12 +146,7 @@ public class OnCallScheduleAppService(
             Reason = request.Reason,
         };
         var saved = await scheduleRepo.CreateOverrideAsync(ov, ct);
-        return new OnCallOverrideDto(
-            saved.Id, saved.ScheduleId, saved.UserId,
-            saved.User?.Name ?? string.Empty,
-            saved.User?.Color ?? "#6366f1",
-            saved.ReplacesUserId, saved.ReplacesUser?.Name,
-            saved.StartsAtUtc, saved.EndsAtUtc, saved.Reason);
+        return saved.ToDto();
     }
 
     public async Task DeleteOverrideAsync(int scheduleId, int overrideId, CancellationToken ct = default)
@@ -168,39 +164,5 @@ public class OnCallScheduleAppService(
             throw new DomainValidationException("Layer's first occurrence end must be after its start.");
         if (userIds.Count == 0)
             throw new DomainValidationException("A rotation layer must have at least one user.");
-    }
-
-    private static OnCallScheduleDto ToDto(OnCallSchedule s) => new(
-        s.Id, s.Name, s.Description, s.TimeZone, s.NotifyOnShiftStart,
-        s.StartsAtUtc, s.EndsAtUtc, s.CreatedAt, s.UpdatedAt,
-        s.Layers.OrderBy(l => l.Order).Select(LayerToDto).ToList());
-
-    private static bool IsAllDay(DateTimeOffset start, DateTimeOffset end)
-    {
-        var s = start.ToUniversalTime();
-        var e = end.ToUniversalTime();
-        return s.TimeOfDay == TimeSpan.Zero
-            && (e.TimeOfDay == new TimeSpan(23, 59, 59) || e.TimeOfDay == new TimeSpan(23, 59, 0));
-    }
-
-    private static OnCallLayerDto LayerToDto(OnCallLayer l) => new(
-        l.Id, l.ScheduleId, l.Name, l.Order, l.RecurrenceRule,
-        l.FirstOccurrenceStartsAt, l.FirstOccurrenceEndsAt,
-        IsAllDay(l.FirstOccurrenceStartsAt, l.FirstOccurrenceEndsAt),
-        l.Users.OrderBy(u => u.Position).Select(u => new OnCallLayerUserDto(
-            u.Id, u.UserId, u.User?.Name ?? string.Empty,
-            GetInitials(u.User?.Name ?? string.Empty),
-            u.User?.Color ?? "#6366f1",
-            u.Position)).ToList());
-
-    private static string GetInitials(string name)
-    {
-        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length switch
-        {
-            0 => "?",
-            1 => parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant(),
-            _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant()
-        };
     }
 }

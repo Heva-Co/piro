@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCheck, Save, Eye, EyeOff, Globe, Lock, MessageSquare, Blend, AlertTriangle, Plus, PlusCircle, MinusCircle, FlagTriangleRight, ArrowRightLeft } from "lucide-react";
 import { marked } from "marked";
@@ -61,9 +61,10 @@ const SYSTEM_EVENT_ICON: Record<string, React.ReactNode> = {
   MergedFrom: <Blend />,
   Published: <Eye />,
   Unpublished: <EyeOff />,
+  AlertFired: <AlertTriangle />,
 };
 
-function describeSystemEvent(e: IncidentTimelineEvent): string {
+function describeSystemEvent(e: IncidentTimelineEvent): React.ReactNode {
   switch (e.type) {
     case "Created":
       return "Incident created";
@@ -76,13 +77,38 @@ function describeSystemEvent(e: IncidentTimelineEvent): string {
     case "ServiceRemoved":
       return "Service removed";
     case "MergedTo":
-      return `Merged into incident #${e.relatedIncidentId}`;
+      return (
+        <>
+          Merged into incident{" "}
+          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
+            #{e.relatedIncidentId}
+          </Link>
+        </>
+      );
     case "MergedFrom":
-      return `Absorbed incident #${e.relatedIncidentId}`;
+      return (
+        <>
+          Absorbed incident{" "}
+          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
+            #{e.relatedIncidentId}
+          </Link>
+        </>
+      );
     case "Published":
       return "Published to status page";
     case "Unpublished":
       return "Unpublished from status page";
+    case "AlertFired":
+      return e.alertId != null ? (
+        <>
+          Alert fired{" "}
+          <Link to={ROUTES.ALERTS.DETAIL(e.alertId)} className="font-semibold underline hover:no-underline">
+            #{e.alertId}
+          </Link>
+        </>
+      ) : (
+        "Alert fired"
+      );
     default:
       return e.type;
   }
@@ -97,6 +123,15 @@ export default function IncidentDetailPage() {
   const { data: incident, isLoading } = useQuery({
     queryKey: incidentKey,
     queryFn: () => incidentsApi.get(id!),
+  });
+
+  // Timeline is fetched independently from the incident itself — GET /incidents/{id} never
+  // embeds it, so this summary view (first 10 events) is its own query/cache entry.
+  const timelineKey = [...incidentKey, "timeline", 1, 10] as const;
+  const { data: timelinePage } = useQuery({
+    queryKey: timelineKey,
+    queryFn: () => incidentsApi.getTimeline(id!, 1, 10),
+    enabled: !!id,
   });
 
   const { data: allServices = [] } = useQuery({
@@ -114,11 +149,9 @@ export default function IncidentDetailPage() {
   const hasTitleChanged = titleInit && incident ? title !== incident.title : false;
 
   // ── Impact state ──────────────────────────────────────────────────
-  const [isGlobal, setIsGlobal] = useState(false);
   const [serviceImpacts, setServiceImpacts] = useState<ServiceImpact[]>([]);
   const [impactInit, setImpactInit] = useState(false);
   if (incident && !impactInit) {
-    setIsGlobal(incident.isGlobal);
     setServiceImpacts(
       incident.services?.map((s) => ({ slug: s.serviceSlug, impact: s.impact })) ?? []
     );
@@ -127,8 +160,7 @@ export default function IncidentDetailPage() {
   const [impactError, setImpactError] = useState("");
 
   const hasImpactChanged = impactInit && incident
-    ? isGlobal !== incident.isGlobal ||
-      JSON.stringify([...serviceImpacts].sort((a, b) => a.slug.localeCompare(b.slug))) !==
+    ? JSON.stringify([...serviceImpacts].sort((a, b) => a.slug.localeCompare(b.slug))) !==
       JSON.stringify(
         [...(incident.services?.map((s) => ({ slug: s.serviceSlug, impact: s.impact })) ?? [])]
           .sort((a, b) => a.slug.localeCompare(b.slug))
@@ -198,7 +230,6 @@ export default function IncidentDetailPage() {
 
   const saveImpactMutation = useMutation({
     mutationFn: async () => {
-      await incidentsApi.update(id!, { isGlobal });
       await incidentsApi.setServices(
         id!,
         serviceImpacts.map((s) => ({ serviceSlug: s.slug, impact: s.impact }))
@@ -249,9 +280,9 @@ export default function IncidentDetailPage() {
   }
 
   // Backend already returns events most-recent-first.
-  const timeline = incident.timeline ?? [];
-  const recentTimeline = timeline.slice(0, 10);
-  const hiddenTimelineCount = timeline.length - recentTimeline.length;
+  const recentTimeline = timelinePage?.items ?? [];
+  const timelineTotalCount = timelinePage?.totalCount ?? 0;
+  const hiddenTimelineCount = timelineTotalCount - recentTimeline.length;
   const isMerged = !!incident.mergedIntoIncidentId;
   // Merged is a final state just like Resolved — the incident's timeline lives on in the target
   // incident from here on, so no further acks/updates/impact changes make sense on this one.
@@ -333,7 +364,7 @@ export default function IncidentDetailPage() {
 
       {/* ── Timeline ── */}
       <SectionAccordion
-        title={`Timeline (${timeline.length})`}
+        title={`Timeline (${timelineTotalCount})`}
         description="Status updates and lifecycle events"
         icon={<MessageSquare size={16} className="text-muted-foreground" />}
         defaultOpen
@@ -351,7 +382,7 @@ export default function IncidentDetailPage() {
         }
       >
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {timeline.length === 0 ? (
+          {recentTimeline.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-muted-foreground">No events yet.</p>
           ) : (
             <div>
@@ -490,71 +521,55 @@ export default function IncidentDetailPage() {
 
       {/* ── Impact ── */}
       <SectionAccordion
-        title={`Impact (${incident.isGlobal ? "Global" : (incident.services?.length ?? 0)})`}
+        title={`Impact (${incident.services?.length ?? 0})`}
         description="Scope of services affected by this incident"
         icon={<Blend size={16} className="text-muted-foreground" />}
       >
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold">Global Incident</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Enable this if the incident affects the entire platform, regardless of individual services.
-              </p>
-            </div>
-            <Switch checked={isGlobal} onCheckedChange={setIsGlobal} disabled={isResolved} />
-          </div>
-
-          {isGlobal ? (
-            <p className="px-5 py-8 text-center text-sm text-muted-foreground italic">
-              All services are affected — no individual selection needed.
-            </p>
-          ) : (
-            <div className="divide-y divide-border">
-              {allServices.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-muted-foreground">No services found.</p>
-              ) : (
-                allServices.map((svc) => {
-                  const selected = isServiceSelected(svc.slug);
-                  const impact = serviceImpacts.find((s) => s.slug === svc.slug)?.impact ?? "DEGRADED";
-                  const triggeringCheckSlug = incident.services?.find((s) => s.serviceSlug === svc.slug)?.triggeringCheckSlug;
-                  return (
-                    <div key={svc.slug} className="flex items-center gap-4 px-5 py-3">
-                      <input
-                        type="checkbox"
-                        id={`svc-${svc.slug}`}
-                        checked={selected}
-                        onChange={() => toggleService(svc.slug)}
-                        disabled={isResolved}
-                        className="size-4 rounded border-border accent-foreground cursor-pointer"
-                      />
-                      <label htmlFor={`svc-${svc.slug}`} className="flex-1 text-sm font-medium cursor-pointer select-none">
-                        {svc.name}
-                        <span className="ml-2 text-xs text-muted-foreground font-normal">{svc.slug}</span>
-                        {triggeringCheckSlug && (
-                          <span className="ml-2 text-xs text-muted-foreground font-normal">
-                            · triggered by <span className="font-mono">{triggeringCheckSlug}</span>
-                          </span>
-                        )}
-                      </label>
-                      {selected && (
-                        <Select value={impact} onValueChange={(v) => v && setImpact(svc.slug, v)} disabled={isResolved}>
-                          <SelectTrigger className="w-40 h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {IMPACT_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+          <div className="divide-y divide-border">
+            {allServices.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">No services found.</p>
+            ) : (
+              allServices.map((svc) => {
+                const selected = isServiceSelected(svc.slug);
+                const impact = serviceImpacts.find((s) => s.slug === svc.slug)?.impact ?? "DEGRADED";
+                const triggeringCheckSlug = incident.services?.find((s) => s.serviceSlug === svc.slug)?.triggeringCheckSlug;
+                return (
+                  <div key={svc.slug} className="flex items-center gap-4 px-5 py-3">
+                    <input
+                      type="checkbox"
+                      id={`svc-${svc.slug}`}
+                      checked={selected}
+                      onChange={() => toggleService(svc.slug)}
+                      disabled={isResolved}
+                      className="size-4 rounded border-border accent-foreground cursor-pointer"
+                    />
+                    <label htmlFor={`svc-${svc.slug}`} className="flex-1 text-sm font-medium cursor-pointer select-none">
+                      {svc.name}
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">{svc.slug}</span>
+                      {triggeringCheckSlug && (
+                        <span className="ml-2 text-xs text-muted-foreground font-normal">
+                          · triggered by <span className="font-mono">{triggeringCheckSlug}</span>
+                        </span>
                       )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+                    </label>
+                    {selected && (
+                      <Select value={impact} onValueChange={(v) => v && setImpact(svc.slug, v)} disabled={isResolved}>
+                        <SelectTrigger className="w-40 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {IMPACT_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
 
           {!isResolved && (
             <div className="flex items-center justify-between gap-4 px-5 py-3 border-t border-border bg-muted/30">

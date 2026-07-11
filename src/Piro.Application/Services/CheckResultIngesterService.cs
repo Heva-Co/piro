@@ -64,7 +64,6 @@ public class CheckResultIngesterService(
         if (aggregatedResult.Status != ServiceStatus.FAILURE)
         {
             await alertEvaluationService.EvaluateAsync(check.Id, ct);
-            await alertEvaluationService.EvaluateIncidentPolicyAsync(check.Id, previousStatus, aggregatedResult.Status, ct);
         }
     }
 }

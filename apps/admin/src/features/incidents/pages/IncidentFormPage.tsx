@@ -27,7 +27,6 @@ export default function IncidentFormPage() {
 
   const [title, setTitle] = useState("");
   const [startDateTime, setStartDateTime] = useState(toLocalDT(new Date()));
-  const [isGlobal, setIsGlobal] = useState(false);
   const [status] = useState("INVESTIGATING");
   const [initialComment, setInitialComment] = useState("");
   const [acknowledge, setAcknowledge] = useState(false);
@@ -45,7 +44,6 @@ export default function IncidentFormPage() {
         title,
         status,
         startDateTime: Math.floor(new Date(startDateTime).getTime() / 1000),
-        isGlobal,
       });
       for (const [slug] of Object.entries(selectedServices)) {
         try { await incidentsApi.addService(incident.id, slug, ""); } catch { /* best effort */ }
@@ -115,15 +113,6 @@ export default function IncidentFormPage() {
                 <p className="text-xs text-muted-foreground">Enter time in your local timezone. It will be stored as UTC.</p>
               </div>
 
-              {/* Global incident toggle */}
-              <div className="rounded-xl border border-border p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Global Incident</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">When enabled, this incident will be visible on all status pages</p>
-                </div>
-                <Switch checked={isGlobal} onCheckedChange={setIsGlobal} />
-              </div>
-
               {/* Acknowledge */}
               <div className="rounded-xl border border-border p-4 flex items-center justify-between">
                 <div>
@@ -134,7 +123,7 @@ export default function IncidentFormPage() {
               </div>
 
               {/* Affected Services */}
-              {!isGlobal && services.length > 0 && (
+              {services.length > 0 && (
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-foreground">Affected Services</label>
                   <div className="rounded-xl border border-border divide-y divide-border">

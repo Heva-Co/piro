@@ -26,6 +26,10 @@ public class AlertConfig
     /// <summary>When true, a new <see cref="Incident"/> is automatically created when the alert fires.</summary>
     public bool CreateIncident { get; set; }
 
+    /// <summary>How many consecutive occurrences of the same Alert (see <see cref="Alert.OccurrenceCount"/>)
+    /// are required before it is hooked to an Incident. Default 1 = hook on first fire.</summary>
+    public int IncidentThresholdOccurrences { get; set; } = 1;
+
     public bool IsActive { get; set; } = true;
     public AlertSeverity Severity { get; set; } = AlertSeverity.Warning;
 
@@ -36,5 +40,4 @@ public class AlertConfig
     public DateTime UpdatedAt { get; set; }
 
     public Check Check { get; set; } = null!;
-    public ICollection<AlertConfigNotificationChannel> AlertConfigNotificationChannels { get; set; } = [];
 }

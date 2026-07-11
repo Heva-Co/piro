@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
@@ -16,7 +17,7 @@ public class ServiceAppService(IServiceRepository repository)
     {
         var services = await repository.GetAllAsync(ct);
         var counts = await repository.GetCheckCountsAsync(ct);
-        return services.Select(s => ToDto(s, counts.GetValueOrDefault(s.Id, 0)));
+        return services.Select(s => s.ToDto(counts.GetValueOrDefault(s.Id, 0)));
     }
 
     public async Task<ServiceDto> GetBySlugAsync(string slug, CancellationToken ct = default)
@@ -24,7 +25,7 @@ public class ServiceAppService(IServiceRepository repository)
         var service = await repository.GetBySlugAsync(slug, ct)
             ?? throw new NotFoundException(nameof(Service), slug);
         var checkCount = await repository.GetCheckCountAsync(service.Id, ct);
-        return ToDto(service, checkCount);
+        return service.ToDto(checkCount);
     }
 
     public async Task<ServiceDto> CreateAsync(CreateServiceRequest request, CancellationToken ct = default)
@@ -45,7 +46,7 @@ public class ServiceAppService(IServiceRepository repository)
         };
 
         var created = await repository.CreateAsync(service, ct);
-        return ToDto(created);
+        return created.ToDto();
     }
 
     public async Task<ServiceDto> UpdateAsync(string slug, UpdateServiceRequest request, CancellationToken ct = default)
@@ -63,7 +64,7 @@ public class ServiceAppService(IServiceRepository repository)
         if (request.HistoryDaysMobile is not null) service.HistoryDaysMobile = request.HistoryDaysMobile.Value;
 
         var updated = await repository.UpdateAsync(service, ct);
-        return ToDto(updated);
+        return updated.ToDto();
     }
 
     public async Task DeleteAsync(string slug, CancellationToken ct = default)
@@ -72,11 +73,4 @@ public class ServiceAppService(IServiceRepository repository)
             ?? throw new NotFoundException(nameof(Service), slug);
         await repository.DeleteAsync(service, ct);
     }
-
-    private static ServiceDto ToDto(Service s, int checkCount = 0) => new(
-        s.Id, s.Slug, s.Name, s.Description, s.ImageUrl,
-        s.CurrentStatus, s.DefaultStatus, s.IsHidden, s.DisplayOrder,
-        s.HistoryDaysDesktop, s.HistoryDaysMobile,
-        s.CreatedAt, s.UpdatedAt, checkCount
-    );
 }

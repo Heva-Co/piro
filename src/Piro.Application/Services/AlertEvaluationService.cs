@@ -7,8 +7,11 @@ using Piro.Domain.Enums;
 namespace Piro.Application.Services;
 
 /// <summary>
-/// Evaluates alert thresholds after a check executes and dispatches notifications
-/// via registered <see cref="INotificationDispatcher"/> implementations.
+/// Evaluates alert thresholds after a check executes. Each firing AlertConfig produces/updates
+/// an <see cref="Alert"/> row (see <see cref="AlertLifecycleService"/>), independent of whether
+/// it is ever hooked to an Incident. An Alert is hooked to an Incident once it crosses either
+/// its own <see cref="AlertConfig.IncidentThresholdOccurrences"/>, or once enough services are
+/// concurrently alerting (see <see cref="IncidentCorrelationMode"/>).
 /// </summary>
 public class AlertEvaluationService(
     IAlertConfigRepository alertConfigRepository,
@@ -16,17 +19,16 @@ public class AlertEvaluationService(
     ICheckRepository checkRepository,
     IServiceRepository serviceRepository,
     IIncidentRepository incidentRepository,
+    IAlertRepository alertRepository,
     ISiteConfigRepository siteConfigRepository,
-    IEnumerable<INotificationDispatcher> dispatchers,
     ILogger<AlertEvaluationService> logger,
-    IncidentAppService incidentAppService)
+    IncidentAppService incidentAppService,
+    AlertLifecycleService alertLifecycleService)
 {
-    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
-        dispatchers.ToDictionary(d => d.Type);
-
     /// <summary>
-    /// Called after every check execution. Evaluates all active alert configs for
-    /// the given check and fires or resolves notifications as appropriate.
+    /// Called after every check execution. Evaluates all active alert configs for the given check —
+    /// records/updates an Alert on firing, resolves it on recovery, and evaluates whether the
+    /// resulting Alert should be hooked to an Incident.
     /// </summary>
     public async Task EvaluateAsync(int checkId, CancellationToken ct = default)
     {
@@ -52,29 +54,6 @@ public class AlertEvaluationService(
         }
     }
 
-    /// <summary>
-    /// Evaluates auto-incident creation/closure based solely on the check's new status.
-    /// Called from the ingester on every status change — independent of alert configs.
-    /// Creates an incident when the check transitions to DOWN/DEGRADED and
-    /// <see cref="Check.AutomaticallyCreateIncident"/> is true; closes it on recovery
-    /// when <see cref="Check.AutomaticallyCloseIncident"/> is true.
-    /// </summary>
-    public async Task EvaluateIncidentPolicyAsync(int checkId, ServiceStatus previousStatus, ServiceStatus newStatus, CancellationToken ct = default)
-    {
-        if (previousStatus == newStatus) return;
-
-        var check = await checkRepository.GetByIdAsync(checkId, ct);
-        if (check is null) return;
-
-        var service = await serviceRepository.GetByIdAsync(check.ServiceId, ct);
-        if (service is null) return;
-
-        bool isFailure = newStatus is ServiceStatus.DOWN or ServiceStatus.DEGRADED;
-
-        if (check.AutomaticallyCreateIncident && isFailure)
-            await HandleAutoCreateIncidentAsync(check, service, ct);
-    }
-
     private async Task EvaluateConfigAsync(
         AlertConfig config,
         Check check,
@@ -89,92 +68,83 @@ public class AlertEvaluationService(
         int consecutiveSuccesses = CountConsecutive(recentPoints, dp => !conditionMet(dp));
 
         bool shouldFire = !config.IsAlerting && consecutiveFailures >= config.FailureThreshold;
+        // Condition is still met on a later evaluation while already alerting — not a new
+        // transition, but the failure is ongoing and must still be recorded (OccurrenceCount,
+        // incident-threshold check) or it freezes at 1 for the entire duration of the outage.
+        bool stillFailing = config.IsAlerting && recentPoints.Count > 0 && conditionMet(recentPoints[0]);
         bool shouldRecover = config.IsAlerting && consecutiveSuccesses >= config.SuccessThreshold;
 
-        if (!shouldFire && !shouldRecover) return;
+        if (!shouldFire && !stillFailing && !shouldRecover) return;
 
-        if (shouldFire)
-            logger.LogWarning("Alert fired for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Failures} consecutive failure(s).",
-                check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveFailures);
-        else if (logger.IsEnabled(LogLevel.Information))
-            logger.LogInformation("Alert recovered for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Successes} consecutive success(es).",
-                check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveSuccesses);
-
-        var context = new AlertNotificationContext(
-            ServiceName: service.Name,
-            CheckName: check.Name,
-            CurrentStatus: check.CurrentStatus,
-            AlertDescription: config.Description,
-            Severity: config.Severity,
-            IsRecovery: shouldRecover,
-            FiredAt: DateTime.UtcNow,
-            CheckId: check.Id,
-            AlertValue: config.AlertValue,
-            FailureThreshold: config.FailureThreshold,
-            SuccessThreshold: config.SuccessThreshold
-        );
-
-        // Dispatch to each linked notification channel
-        foreach (var alertConfigChannel in config.AlertConfigNotificationChannels)
+        if (shouldFire || stillFailing)
         {
-            var channel = alertConfigChannel.NotificationChannel;
-            if (channel.IsInactive) continue;
-            if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher))
+            if (shouldFire)
             {
-                logger.LogWarning("No dispatcher registered for notification channel type {Type}.", channel.Type);
-                continue;
+                logger.LogWarning("Alert fired for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Failures} consecutive failure(s).",
+                    check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveFailures);
+
+                config.IsAlerting = true;
+                await alertConfigRepository.UpdateAsync(config, ct);
             }
 
-            try
-            {
-                await dispatcher.DispatchAsync(channel, context, ct);
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation("Notification channel {ChannelName} ({ChannelType}) dispatched for check {CheckName} — {Event}.",
-                        channel.Name, channel.Type, check.Name, shouldRecover ? "recovery" : "alert");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Dispatcher {Type} failed for notification channel {ChannelId}.", channel.Type, channel.Id);
-            }
+            var message = BuildMessage(config, recentPoints);
+            var alert = await alertLifecycleService.RecordOccurrenceAsync(config, check, service, message, ct);
+
+            if (config.CreateIncident && alert.IncidentId is null)
+                await EvaluateIncidentHookAsync(alert, config, check, service, ct);
         }
+        else if (shouldRecover)
+        {
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Alert recovered for check {CheckId} ({CheckName}): {AlertFor} = {AlertValue} after {Successes} consecutive success(es).",
+                    check.Id, check.Name, config.AlertFor, config.AlertValue, consecutiveSuccesses);
 
-        config.IsAlerting = shouldFire;
-        await alertConfigRepository.UpdateAsync(config, ct);
+            config.IsAlerting = false;
+            await alertConfigRepository.UpdateAsync(config, ct);
+            await alertLifecycleService.ResolveActiveAlertAsync(config.Id, ct);
+        }
     }
 
     /// <summary>
-    /// Entry point for auto-incident creation. Reads system settings to determine
-    /// correlation mode and incident impact, then delegates to the appropriate handler.
+    /// Decides whether the given Alert should be hooked to an Incident — either because it
+    /// individually crossed its own occurrence threshold, or because enough services are
+    /// concurrently alerting to warrant a merge — then delegates to the correlation mode
+    /// currently configured.
     /// </summary>
-    private async Task HandleAutoCreateIncidentAsync(Check check, Service service, CancellationToken ct)
+    private async Task EvaluateIncidentHookAsync(Alert alert, AlertConfig config, Check check, Service service, CancellationToken ct)
     {
         var settings = await siteConfigRepository.GetAsync(ct);
-        var impact = check.Criticality == CheckCriticality.Critical ? ServiceStatus.DOWN : ServiceStatus.DEGRADED;
+
+        bool byOccurrence = alert.OccurrenceCount >= config.IncidentThresholdOccurrences;
+        bool byConcurrentCount = await alertRepository.CountConcurrentActiveAlertingServicesAsync(ct) >= settings.MergeThreshold;
+
+        if (!byOccurrence && !byConcurrentCount) return;
+
         var now = DateTimeOffset.UtcNow;
-
-        switch (settings.IncidentCorrelationMode)
+        var incident = settings.IncidentCorrelationMode switch
         {
-            case IncidentCorrelationMode.PerService:
-                await EnsurePerServiceIncidentAsync(check, service, impact, now, ct);
-                break;
+            IncidentCorrelationMode.PerService => await EnsurePerServiceIncidentAsync(alert, check, service, alert.ImpactAtFireTime, now, ct),
+            IncidentCorrelationMode.Merge or _ => await HandleMergeCorrelationAsync(alert, check, service, alert.ImpactAtFireTime, settings, now, ct),
+        };
 
-            case IncidentCorrelationMode.Global:
-                await HandleGlobalCorrelationAsync(check, service, impact, settings, now, ct);
-                break;
-
-            case IncidentCorrelationMode.Hybrid:
-            default:
-                await HandleHybridCorrelationAsync(check, service, impact, settings, now, ct);
-                break;
-        }
+        alert.IncidentId = incident.Id;
+        await alertRepository.UpdateAsync(alert, ct);
+        await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = incident.Id,
+            Type = TimelineEventType.AlertFired,
+            OccurredAt = now,
+            AlertId = alert.Id,
+            Visibility = EventVisibility.Private,
+        }, ct);
     }
 
     /// <summary>
     /// PerService mode: finds an existing open ALERT incident for the service and attaches to it,
     /// or creates a new per-service incident. Publishing is always a separate, manual action.
     /// </summary>
-    private async Task EnsurePerServiceIncidentAsync(
-        Check check, Service service, ServiceStatus impact, DateTimeOffset now, CancellationToken ct)
+    private async Task<Incident> EnsurePerServiceIncidentAsync(
+        Alert alert, Check check, Service service, ServiceStatus impact, DateTimeOffset now, CancellationToken ct)
     {
         var existing = await incidentRepository.GetOpenAlertIncidentForServiceAsync(service.Id, ct);
         if (existing is not null)
@@ -189,10 +159,10 @@ public class AlertEvaluationService(
                 await incidentRepository.UpdateAsync(existing, ct);
                 await RecordImpactIfChangedAsync(existing, ct);
             }
-            return;
+            return existing;
         }
 
-        var incident = await incidentAppService.CreateAlertIncidentAsync(IncidentTitleFactory.Build(check.Type), isGlobal: false, ct);
+        var incident = await incidentAppService.CreateAlertIncidentAsync(IncidentTitleFactory.Build(check.Type), ct);
         incident.IncidentServices.Add(new IncidentService
         {
             ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
@@ -200,158 +170,92 @@ public class AlertEvaluationService(
         var created = await incidentRepository.CreateAsync(incident, ct);
         await EmitCreatedAsync(created, now, ct);
         await RecordImpactIfChangedAsync(created, ct);
+        return created;
     }
 
     /// <summary>
-    /// Global mode: counts Critical services alerting within the correlation window.
-    /// Does NOT create any incident until the threshold is reached — risk is that isolated failures produce no incident.
-    /// Once threshold is met, creates or attaches to a single global incident.
+    /// Merge mode (default): guarantees an incident is always created immediately (per-service),
+    /// and merges recent per-service incidents into a single incident — reflecting exactly their
+    /// combined services, never "all services" — once the threshold of simultaneously failing
+    /// services is reached within the correlation window. Existing per-service incidents are
+    /// merged in via <see cref="IncidentMerge"/> records.
     /// </summary>
-    private async Task HandleGlobalCorrelationAsync(
-        Check check, Service service, ServiceStatus impact,
+    private async Task<Incident> HandleMergeCorrelationAsync(
+        Alert alert, Check check, Service service, ServiceStatus impact,
         SiteConfig settings, DateTimeOffset now, CancellationToken ct)
     {
-        var window = now.AddMinutes(-settings.GlobalIncidentCorrelationWindowMinutes);
-        var recentAlerts = await incidentRepository.GetRecentAlertIncidentsAsync(window, ct);
-        var criticalServiceCount = recentAlerts.Select(i => i.IncidentServices.Select(s => s.ServiceId)).SelectMany(x => x).Distinct().Count() + 1;
-
-        if (criticalServiceCount < settings.GlobalIncidentThreshold)
-        {
-            // Threshold not reached — do not create any incident yet
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Global correlation: {Count}/{Threshold} critical services — no incident created yet.", criticalServiceCount, settings.GlobalIncidentThreshold);
-            return;
-        }
-
-        var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
-        if (globalIncident is null)
-        {
-            globalIncident = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isGlobal: true, ct);
-            foreach (var i in recentAlerts)
-                foreach (var s in i.IncidentServices)
-                    globalIncident.IncidentServices.Add(new IncidentService
-                    {
-                        ServiceId = s.ServiceId, Impact = s.Impact, TriggeringCheckId = s.TriggeringCheckId
-                    });
-            globalIncident = await incidentRepository.CreateAsync(globalIncident, ct);
-            await EmitCreatedAsync(globalIncident, now, ct);
-            await RecordImpactIfChangedAsync(globalIncident, ct);
-        }
-
-        if (!globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
-        {
-            globalIncident.IncidentServices.Add(new IncidentService
-            {
-                ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
-            });
-            await incidentRepository.UpdateAsync(globalIncident, ct);
-            await RecordImpactIfChangedAsync(globalIncident, ct);
-        }
-    }
-
-    /// <summary>
-    /// Hybrid mode (default): guarantees an incident is always created immediately (per-service),
-    /// and elevates to a global incident when the threshold of simultaneously failing services is reached.
-    /// Existing per-service incidents within the correlation window are merged into the global via <see cref="IncidentMerge"/> records.
-    /// </summary>
-    private async Task HandleHybridCorrelationAsync(
-        Check check, Service service, ServiceStatus impact,
-        SiteConfig settings, DateTimeOffset now, CancellationToken ct)
-    {
-        // If a global incident is already open, attach directly to it
-        var globalIncident = await incidentRepository.GetOpenGlobalAlertIncidentAsync(ct);
-        if (globalIncident is not null)
-        {
-            if (!globalIncident.IncidentServices.Any(s => s.ServiceId == service.Id))
-            {
-                globalIncident.IncidentServices.Add(new IncidentService
-                {
-                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
-                });
-                await incidentRepository.UpdateAsync(globalIncident, ct);
-                await RecordImpactIfChangedAsync(globalIncident, ct);
-            }
-            return;
-        }
-
-        var window = now.AddMinutes(-settings.GlobalIncidentCorrelationWindowMinutes);
+        var window = now.AddMinutes(-settings.MergeCorrelationWindowMinutes);
         var recentPerServiceIncidents = await incidentRepository.GetRecentAlertIncidentsAsync(window, ct);
         var affectedServiceCount = recentPerServiceIncidents
             .SelectMany(i => i.IncidentServices.Select(s => s.ServiceId))
             .Distinct().Count() + 1; // +1 for the current service
 
-        if (affectedServiceCount >= settings.GlobalIncidentThreshold)
+        if (affectedServiceCount < settings.MergeThreshold)
+            return await EnsurePerServiceIncidentAsync(alert, check, service, impact, now, ct);
+
+        // Merge: create a new incident that aggregates EXACTLY the correlated services — never "all".
+        var merged = await incidentAppService.CreateAlertIncidentAsync("Multiple correlated services affected", ct);
+        merged = await incidentRepository.CreateAsync(merged, ct);
+        await EmitCreatedAsync(merged, now, ct);
+
+        foreach (var perService in recentPerServiceIncidents)
         {
-            // Elevate: create global incident and merge existing per-service incidents into it
-            var newGlobal = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isGlobal: true, ct);
-            newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
-            await EmitCreatedAsync(newGlobal, now, ct);
-
-            foreach (var perService in recentPerServiceIncidents)
+            foreach (var link in perService.IncidentServices)
             {
-                // Move service links to global incident
-                foreach (var link in perService.IncidentServices)
+                merged.IncidentServices.Add(new IncidentService
                 {
-                    newGlobal.IncidentServices.Add(new IncidentService
-                    {
-                        ServiceId = link.ServiceId, Impact = link.Impact, TriggeringCheckId = link.TriggeringCheckId
-                    });
-                }
-
-                // Record the merge
-                await incidentRepository.AddMergeAsync(new IncidentMerge
-                {
-                    SourceIncidentId = perService.Id,
-                    TargetIncidentId = newGlobal.Id,
-                    MergedAt = now,
-                    Reason = "Automatic correlation"
-                }, ct);
-
-                // Hide per-service incidents from status page and mark them as absorbed —
-                // a final state, same as Resolved: no further acks/updates/impact changes apply.
-                perService.Visibility = IncidentVisibility.Private;
-                perService.Status = IncidentStatus.Merged;
-                perService.EndDateTime ??= now.ToUnixTimeSeconds();
-                await incidentRepository.UpdateAsync(perService, ct);
-
-                // Record symmetric timeline events on both sides of the merge
-                await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
-                {
-                    IncidentId = perService.Id,
-                    Type = TimelineEventType.MergedTo,
-                    OccurredAt = now,
-                    RelatedIncidentId = newGlobal.Id,
-                    Visibility = EventVisibility.Private,
-                }, ct);
-                await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
-                {
-                    IncidentId = newGlobal.Id,
-                    Type = TimelineEventType.MergedFrom,
-                    OccurredAt = now,
-                    RelatedIncidentId = perService.Id,
-                    Visibility = EventVisibility.Private,
-                }, ct);
-            }
-
-            // Attach current triggering service
-            if (!newGlobal.IncidentServices.Any(s => s.ServiceId == service.Id))
-            {
-                newGlobal.IncidentServices.Add(new IncidentService
-                {
-                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+                    ServiceId = link.ServiceId, Impact = link.Impact, TriggeringCheckId = link.TriggeringCheckId
                 });
             }
 
-            await incidentRepository.UpdateAsync(newGlobal, ct);
-            await RecordImpactIfChangedAsync(newGlobal, ct);
-            logger.LogWarning("Hybrid correlation: elevated {Count} per-service incidents into global incident #{GlobalId}.",
-                recentPerServiceIncidents.Count, newGlobal.Id);
+            await incidentRepository.AddMergeAsync(new IncidentMerge
+            {
+                SourceIncidentId = perService.Id,
+                TargetIncidentId = merged.Id,
+                MergedAt = now,
+                Reason = "Automatic correlation"
+            }, ct);
+
+            // Hide per-service incidents from status page and mark them as absorbed —
+            // a final state, same as Resolved: no further acks/updates/impact changes apply.
+            perService.Visibility = IncidentVisibility.Private;
+            perService.Status = IncidentStatus.Merged;
+            perService.EndDateTime ??= now.ToUnixTimeSeconds();
+            await incidentRepository.UpdateAsync(perService, ct);
+
+            // Record symmetric timeline events on both sides of the merge
+            await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = perService.Id,
+                Type = TimelineEventType.MergedTo,
+                OccurredAt = now,
+                RelatedIncidentId = merged.Id,
+                Visibility = EventVisibility.Private,
+            }, ct);
+            await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = merged.Id,
+                Type = TimelineEventType.MergedFrom,
+                OccurredAt = now,
+                RelatedIncidentId = perService.Id,
+                Visibility = EventVisibility.Private,
+            }, ct);
         }
-        else
+
+        // Attach current triggering service
+        if (!merged.IncidentServices.Any(s => s.ServiceId == service.Id))
         {
-            // Below threshold — create or attach to per-service incident
-            await EnsurePerServiceIncidentAsync(check, service, impact, now, ct);
+            merged.IncidentServices.Add(new IncidentService
+            {
+                ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+            });
         }
+
+        await incidentRepository.UpdateAsync(merged, ct);
+        await RecordImpactIfChangedAsync(merged, ct);
+        logger.LogWarning("Merge correlation: merged {Count} per-service incidents into incident #{MergedId}.",
+            recentPerServiceIncidents.Count, merged.Id);
+        return merged;
     }
 
     /// <summary>
@@ -410,4 +314,8 @@ public class AlertEvaluationService(
         }
         return count;
     }
+
+    /// <summary>Builds the frozen Alert message from the most recent data point's error, falling back to the config description.</summary>
+    private static string? BuildMessage(AlertConfig config, List<CheckDataPoint> recentPoints) =>
+        recentPoints.FirstOrDefault()?.ErrorMessage ?? config.Description;
 }

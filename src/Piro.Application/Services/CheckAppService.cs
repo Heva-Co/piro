@@ -94,8 +94,6 @@ public class CheckAppService(
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
-        if (request.Criticality is not null) check.Criticality = request.Criticality.Value;
-        if (request.AutomaticallyCreateIncident is not null) check.AutomaticallyCreateIncident = request.AutomaticallyCreateIncident.Value;
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);

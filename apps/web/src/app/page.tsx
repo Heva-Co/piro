@@ -36,7 +36,6 @@ export default async function StatusPage() {
 
   const activeIncidents = incidents.filter((i) => i.status !== "Resolved");
   const hasActiveIncident = activeIncidents.length > 0;
-  const hasGlobalIncident = activeIncidents.some((i) => i.isGlobal);
 
   // Each service's currentStatus is already computed server-side (ServiceStatusService),
   // factoring in checks + active incidents + maintenance windows — never re-derive it
@@ -57,9 +56,7 @@ export default async function StatusPage() {
           : "NO_DATA";
 
   let statusText: string;
-  if (hasGlobalIncident) {
-    statusText = "Major incident in progress";
-  } else if (downCount >= majorThreshold) {
+  if (downCount >= majorThreshold) {
     statusText = "Major system outage";
   } else if (downCount > 1) {
     statusText = "Multiple services disrupted";

@@ -23,6 +23,8 @@ import ChecksPage from "@/features/checks/pages/ChecksPage";
 import CheckFormPage from "@/features/checks/pages/CheckFormPage";
 import CheckDetailPage from "@/features/checks/pages/CheckDetailPage";
 import CheckLogsPage from "@/features/checks/pages/CheckLogsPage";
+import AlertsPage from "@/features/alerts/pages/AlertsPage";
+import AlertDetailPage from "@/features/alerts/pages/AlertDetailPage";
 import IncidentsPage from "@/features/incidents/pages/IncidentsPage";
 import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
@@ -103,6 +105,10 @@ export default function App() {
               <Route path="/admin/services/:slug/checks/new" element={<CheckFormPage />} />
               <Route path="/admin/services/:slug/checks/:checkSlug" element={<CheckDetailPage />} />
               <Route path="/admin/services/:slug/checks/:checkSlug/logs" element={<CheckLogsPage />} />
+
+              {/* Alerts */}
+              <Route path={ROUTES.ALERTS.LIST} element={<AlertsPage />} />
+              <Route path="/admin/alerts/:id" element={<AlertDetailPage />} />
 
               {/* Incidents */}
               <Route path={ROUTES.INCIDENTS.LIST} element={<IncidentsPage />} />

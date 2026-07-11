@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { checksApi, alertConfigsApi } from "@/lib/api";
+import { checksApi, alertConfigsApi, alertsApi } from "@/lib/api";
 import type { Check, CreateCheck, AlertConfig } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -8,6 +8,22 @@ export function useAllChecks() {
     queryKey: QUERY_KEYS.CHECKS,
     queryFn: () => checksApi.listAll(),
     refetchInterval: 60_000,
+  });
+}
+
+export function useAllAlerts(params?: { page?: number; pageSize?: number; from?: string; to?: string }) {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.ALERTS, params],
+    queryFn: () => alertsApi.list(params),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useAlert(id: number | string | undefined) {
+  return useQuery({
+    queryKey: QUERY_KEYS.ALERT(id ?? ""),
+    queryFn: () => alertsApi.get(id!),
+    enabled: id != null,
   });
 }
 
@@ -97,6 +113,19 @@ export function useCreateAlertConfig(serviceSlug: string, checkSlug: string) {
   return useMutation({
     mutationFn: (data: Omit<AlertConfig, "id">) =>
       alertConfigsApi.create(serviceSlug, checkSlug, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.ALERT_CONFIGS(serviceSlug, checkSlug),
+      });
+    },
+  });
+}
+
+export function useUpdateAlertConfig(serviceSlug: string, checkSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number | string; data: Partial<Omit<AlertConfig, "id">> }) =>
+      alertConfigsApi.update(serviceSlug, checkSlug, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.ALERT_CONFIGS(serviceSlug, checkSlug),

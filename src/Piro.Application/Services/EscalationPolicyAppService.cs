@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
@@ -10,7 +11,7 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo, IOnCal
     public async Task<EscalationPolicyDto?> GetAsync(CancellationToken ct = default)
     {
         var policy = await repo.GetSingleAsync(ct);
-        return policy is null ? null : ToDto(policy);
+        return policy?.ToDto();
     }
 
     public async Task<EscalationPolicyDto> UpsertAsync(UpsertEscalationPolicyRequest request, CancellationToken ct = default)
@@ -36,15 +37,6 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo, IOnCal
         };
 
         var result = await repo.UpsertAsync(policy, ct);
-        return ToDto(result);
+        return result.ToDto();
     }
-
-    private static EscalationPolicyDto ToDto(EscalationPolicy p) => new(
-        p.Id, p.Name, p.Description,
-        p.ReEscalateAfterAckMinutes,
-        p.ReEscalateAfterInactivityMinutes,
-        p.Steps.OrderBy(s => s.Order)
-            .Select(s => new EscalationStepDto(s.Id, s.Order, s.DelayMinutes, s.ScheduleId, s.Schedule?.Name ?? ""))
-            .ToList()
-    );
 }

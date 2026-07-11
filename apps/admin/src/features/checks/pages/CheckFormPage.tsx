@@ -76,8 +76,6 @@ export default function CheckFormPage() {
       showCustomCron: false,
       isActive: true,
       isMultiRegion: false,
-      criticality: "High",
-      autoCreate: false,
     },
   });
 
@@ -107,8 +105,6 @@ export default function CheckFormPage() {
         typeDataJson: JSON.stringify(buildConfig(type, typeConfig)),
         isActive: values.isActive,
         isMultiRegion: values.isMultiRegion,
-        criticality: values.criticality,
-        automaticallyCreateIncident: values.autoCreate,
         integrationId,
       });
       navigate(ROUTES.CHECKS.DETAIL(serviceSlug!, check.slug));

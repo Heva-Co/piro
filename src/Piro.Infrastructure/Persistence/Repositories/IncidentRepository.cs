@@ -37,9 +37,11 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         return await query.OrderByDescending(i => i.StartDateTime).ToListAsync(ct);
     }
 
+    // Note: the timeline is intentionally never Included here — it's fetched independently
+    // via GetTimelinePagedAsync (GET /incidents/{id}/timeline) so this aggregate stays cheap
+    // regardless of how many events an incident has accumulated.
     private IQueryable<Incident> IncidentBaseQuery() =>
         db.Incidents
-            .Include(i => i.TimelineEvents.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -50,7 +52,6 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
-            .Include(i => i.TimelineEvents.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -62,7 +63,6 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     /// <summary>Returns the incident only if it is publicly visible — used for anonymous/public access.</summary>
     public async Task<Incident?> GetPublicByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
-            .Include(i => i.TimelineEvents.Where(e => e.Visibility == EventVisibility.Public).OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -70,6 +70,25 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Include(i => i.MergesAsSource)
             .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .FirstOrDefaultAsync(i => i.Id == id && i.Visibility == IncidentVisibility.Public, ct);
+
+    public async Task<(IEnumerable<IncidentTimelineEvent> Items, int TotalCount)> GetTimelinePagedAsync(
+        int incidentId, int page, int pageSize, bool publicOnly, CancellationToken ct = default)
+    {
+        var q = db.IncidentTimelineEvents.Where(e => e.IncidentId == incidentId);
+        if (publicOnly) q = q.Where(e => e.Visibility == EventVisibility.Public);
+
+        var total = await q.CountAsync(ct);
+        var clampedPageSize = Math.Clamp(pageSize, 10, 100);
+        var clampedPage = Math.Max(1, page);
+
+        var items = await q
+            .OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id)
+            .Skip((clampedPage - 1) * clampedPageSize)
+            .Take(clampedPageSize)
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
 
     public async Task<IncidentVisibility?> GetVisibilityAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
@@ -160,7 +179,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<ServiceStatus?> GetActiveImpactForServiceAsync(int serviceId, CancellationToken ct = default)
     {
-        // Direct link impact — only Public incidents may affect the publicly-shown status
+        // Only Public incidents may affect the publicly-shown status
         var directImpacts = await db.IncidentServices
             .Where(s => s.ServiceId == serviceId
                      && s.Incident.Status != IncidentStatus.Resolved
@@ -168,18 +187,11 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Select(s => s.Impact)
             .ToListAsync(ct);
 
-        // Global incidents (affect every service) — use DEGRADED as minimum impact
-        var hasGlobal = await db.Incidents
-            .AnyAsync(i => i.Status != IncidentStatus.Resolved && i.IsGlobal && i.Visibility == IncidentVisibility.Public, ct);
-
-        if (!directImpacts.Any() && !hasGlobal) return null;
+        if (!directImpacts.Any()) return null;
 
         var worst = ServiceStatus.NO_DATA;
         foreach (var impact in directImpacts)
             worst = Worst(worst, impact);
-
-        if (hasGlobal)
-            worst = Worst(worst, ServiceStatus.DEGRADED);
 
         return worst;
     }
@@ -190,7 +202,6 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .FirstOrDefaultAsync(i =>
                 i.Source == "ALERT" &&
                 i.Status != IncidentStatus.Resolved &&
-                !i.IsGlobal &&
                 i.IncidentServices.Any(s => s.ServiceId == serviceId), ct);
 
     public async Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default)
@@ -201,18 +212,9 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Where(i =>
                 i.Source == "ALERT" &&
                 i.Status != IncidentStatus.Resolved &&
-                !i.IsGlobal &&
                 i.StartDateTime >= sinceUnix)
             .ToListAsync(ct);
     }
-
-    public async Task<Incident?> GetOpenGlobalAlertIncidentAsync(CancellationToken ct = default) =>
-        await db.Incidents
-            .Include(i => i.IncidentServices)
-            .FirstOrDefaultAsync(i =>
-                i.Source == "ALERT" &&
-                i.Status != IncidentStatus.Resolved &&
-                i.IsGlobal, ct);
 
     public async Task PublishAsync(int incidentId, CancellationToken ct = default)
     {

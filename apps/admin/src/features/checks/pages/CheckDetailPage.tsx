@@ -11,9 +11,10 @@ import {
   useCheckLogs,
   useAlertConfigs,
   useCreateAlertConfig,
+  useUpdateAlertConfig,
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
-import { channelsApi, integrationsApi } from "@/lib/api";
+import { integrationsApi } from "@/lib/api";
 import { useForm, FormProvider } from "react-hook-form";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -26,6 +27,9 @@ import RecentLogsSection from "../components/RecentLogsSection";
 import DangerZone from "@/components/DangerZone";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RecentLogsActions from "../components/RecentLogsActions";
 
 // ── General Settings ──────────────────────────────────────────────────────────
@@ -44,8 +48,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       showCustomCron: false,
       isActive: true,
       isMultiRegion: false,
-      criticality: "High",
-      autoCreate: false,
     },
   });
 
@@ -59,8 +61,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       showCustomCron: !isPreset,
       isActive: check.isActive,
       isMultiRegion: check.isMultiRegion,
-      criticality: (check.criticality as CheckGeneralFormValues["criticality"]) ?? "High",
-      autoCreate: check.automaticallyCreateIncident ?? false,
     });
   }, [check, methods]);
 
@@ -73,8 +73,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         cron: values.cron,
         isActive: values.isActive,
         isMultiRegion: values.isMultiRegion,
-        criticality: values.criticality,
-        automaticallyCreateIncident: values.autoCreate,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -191,93 +189,181 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
 }
 
 
+const ALERT_FOR_OPTIONS = [
+  { value: "Status", label: "Status" },
+  { value: "Latency", label: "Latency" },
+  { value: "Uptime", label: "Uptime" },
+] as const;
+
+// Restricted to one AlertConfig per Check for now — the backend enforces this with a unique
+// index on CheckId. The form below edits that single config in place (creating it on first
+// save) instead of listing/adding multiple rules.
 function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: alertConfigs, isLoading } = useAlertConfigs(serviceSlug, checkSlug);
-  const { data: channels } = useQuery({ queryKey: QUERY_KEYS.CHANNELS, queryFn: channelsApi.list });
   const createAlertConfig = useCreateAlertConfig(serviceSlug, checkSlug);
+  const updateAlertConfig = useUpdateAlertConfig(serviceSlug, checkSlug);
   const deleteAlertConfig = useDeleteAlertConfig(serviceSlug, checkSlug);
 
-  const [channelId, setChannelId] = useState<number | "">("");
-  const [onDown, setOnDown] = useState(true);
-  const [onRecovery, setOnRecovery] = useState(true);
-  const [addError, setAddError] = useState("");
+  const existing = alertConfigs?.[0];
 
-  async function handleAdd(e: React.FormEvent) {
+  const [alertFor, setAlertFor] = useState<"Status" | "Latency" | "Uptime">("Status");
+  const [alertValue, setAlertValue] = useState("DOWN");
+  const [failureThreshold, setFailureThreshold] = useState(1);
+  const [successThreshold, setSuccessThreshold] = useState(1);
+  const [severity, setSeverity] = useState<"Warning" | "Critical">("Critical");
+  const [createIncident, setCreateIncident] = useState(false);
+  const [incidentThresholdOccurrences, setIncidentThresholdOccurrences] = useState(1);
+  const [isActive, setIsActive] = useState(true);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!existing) return;
+    setAlertFor(existing.alertFor);
+    setAlertValue(existing.alertValue);
+    setFailureThreshold(existing.failureThreshold);
+    setSuccessThreshold(existing.successThreshold);
+    setSeverity(existing.severity);
+    setCreateIncident(existing.createIncident);
+    setIncidentThresholdOccurrences(existing.incidentThresholdOccurrences);
+    setIsActive(existing.isActive);
+  }, [existing]);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!channelId) return;
-    setAddError("");
+    setError("");
+    const data = {
+      alertFor,
+      alertValue,
+      failureThreshold,
+      successThreshold,
+      severity,
+      createIncident,
+      incidentThresholdOccurrences,
+      isActive,
+    };
     try {
-      await createAlertConfig.mutateAsync({ channelId: channelId as number, onDown, onRecovery });
-      setChannelId("");
+      if (existing) {
+        await updateAlertConfig.mutateAsync({ id: existing.id, data });
+      } else {
+        await createAlertConfig.mutateAsync(data);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch {
-      setAddError("Failed to add alert configuration.");
+      setError("Failed to save alert configuration.");
     }
   }
 
-  function channelName(id: number) {
-    return channels?.find((c) => c.id === id)?.name ?? String(id);
+  const isPending = createAlertConfig.isPending || updateAlertConfig.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border bg-card overflow-hidden px-5 py-6 text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
   }
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      {isLoading ? (
-        <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
-      ) : !alertConfigs || alertConfigs.length === 0 ? (
-        <div className="px-5 py-8 text-sm text-muted-foreground text-center">No alert configurations yet.</div>
-      ) : (
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40">
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Channel</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">On Down</th>
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">On Recovery</th>
-              <th className="px-5 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {alertConfigs.map((ac) => (
-              <tr key={ac.id} className="hover:bg-muted/30 transition-colors">
-                <td className="px-5 py-3 font-medium">{channelName(ac.channelId)}</td>
-                <td className="px-5 py-3 text-muted-foreground">{ac.onDown ? "Yes" : "No"}</td>
-                <td className="px-5 py-3 text-muted-foreground">{ac.onRecovery ? "Yes" : "No"}</td>
-                <td className="px-5 py-3 text-right">
-                  <button onClick={() => deleteAlertConfig.mutate(ac.id)}
-                    className="text-sm text-destructive hover:opacity-70 font-medium">
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <form onSubmit={handleSave} className="flex flex-col">
+        {error && <p className="text-sm text-destructive px-5 pt-5">{error}</p>}
 
-      <div className="border-t px-5 py-4">
-        <h4 className="text-sm font-semibold mb-3">Add Alert Configuration</h4>
-        {addError && <p className="text-sm text-destructive mb-2">{addError}</p>}
-        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Channel</label>
-            <select required value={channelId} onChange={(e) => setChannelId(Number(e.target.value))}
-              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Select channel</option>
-              {channels?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+        {/* Trigger condition */}
+        <div className="p-5 flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold">Trigger Condition</p>
+            <p className="text-xs text-muted-foreground mt-0.5">What this check must do to be considered alerting</p>
           </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer pb-2">
-            <input type="checkbox" checked={onDown} onChange={(e) => setOnDown(e.target.checked)} className="size-4 rounded" />
-            On Down
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer pb-2">
-            <input type="checkbox" checked={onRecovery} onChange={(e) => setOnRecovery(e.target.checked)} className="size-4 rounded" />
-            On Recovery
-          </label>
-          <button type="submit" disabled={createAlertConfig.isPending}
-            className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity mb-0">
-            {createAlertConfig.isPending ? "Adding…" : "Add"}
-          </button>
-        </form>
-      </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Alert For</label>
+              <Select value={alertFor} onValueChange={(v) => v && setAlertFor(v as typeof alertFor)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALERT_FOR_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Value</label>
+              <Input required value={alertValue} onChange={(e) => setAlertValue(e.target.value)}
+                placeholder={alertFor === "Status" ? "DOWN" : alertFor === "Latency" ? "5000" : "99.9"} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Failure threshold</label>
+              <Input type="number" min={1} value={failureThreshold}
+                onChange={(e) => setFailureThreshold(Number(e.target.value))} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Success threshold</label>
+              <Input type="number" min={1} value={successThreshold}
+                onChange={(e) => setSuccessThreshold(Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Severity</label>
+              <Select value={severity} onValueChange={(v) => v && setSeverity(v as typeof severity)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Warning">Warning</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-muted-foreground">Active</label>
+              <div className="flex items-center gap-2.5 h-9">
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
+                <span className="text-sm text-muted-foreground">{isActive ? "Enabled" : "Disabled"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Incident escalation */}
+        <div className="border-t p-5 flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold">Incident Escalation</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Whether a firing alert should also create/attach an incident</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-muted-foreground">Creates incident</label>
+              <div className="flex items-center gap-2.5 h-9">
+                <Switch checked={createIncident} onCheckedChange={setCreateIncident} />
+                <span className="text-sm text-muted-foreground">{createIncident ? "Enabled" : "Disabled"}</span>
+              </div>
+            </div>
+            {createIncident && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">After N occurrences</label>
+                <Input type="number" min={1} value={incidentThresholdOccurrences}
+                  onChange={(e) => setIncidentThresholdOccurrences(Number(e.target.value))} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="border-t p-5 flex items-center gap-3">
+          <Button type="submit" disabled={isPending}>
+            {saved ? "Saved!" : isPending ? "Saving…" : "Save"}
+          </Button>
+          {existing && (
+            <Button type="button" variant="ghost" onClick={() => deleteAlertConfig.mutate(existing.id)}
+              className="text-destructive hover:text-destructive">
+              Remove configuration
+            </Button>
+          )}
+        </div>
+      </form>
     </div>
   );
 }

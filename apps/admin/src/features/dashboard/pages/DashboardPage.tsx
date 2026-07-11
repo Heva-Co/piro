@@ -4,21 +4,48 @@ import { incidentsApi } from "@/lib/actions/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertCircle } from "lucide-react";
+import { MetricsSection } from "@/features/dashboard/components/MetricsSection";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function StatCard({
   label,
   value,
   color,
+  isLoading,
 }: {
   label: string;
   value: number;
   color: string;
+  isLoading?: boolean;
 }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
       <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
+      {isLoading ? (
+        <Skeleton className="h-9 w-12" />
+      ) : (
+        <p className={`text-3xl font-bold ${color}`}>{value}</p>
+      )}
     </div>
+  );
+}
+
+function ListItemSkeleton() {
+  return (
+    <div className="px-5 py-3 flex flex-col gap-2">
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/3" />
+    </div>
+  );
+}
+
+function TableRowSkeleton() {
+  return (
+    <tr>
+      <td className="px-5 py-3"><Skeleton className="h-4 w-32" /></td>
+      <td className="px-5 py-3"><Skeleton className="h-4 w-24" /></td>
+      <td className="px-5 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+    </tr>
   );
 }
 
@@ -72,11 +99,13 @@ export default function DashboardPage() {
       )}
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Services" value={totalServices} color="text-gray-900" />
-        <StatCard label="Operational" value={operational} color="text-green-600" />
-        <StatCard label="With Issues" value={withIssues} color="text-red-600" />
-        <StatCard label="Active Incidents" value={activeIncidents} color="text-amber-600" />
+        <StatCard label="Total Services" value={totalServices} color="text-gray-900" isLoading={servicesQuery.isLoading} />
+        <StatCard label="Operational" value={operational} color="text-green-600" isLoading={servicesQuery.isLoading} />
+        <StatCard label="With Issues" value={withIssues} color="text-red-600" isLoading={servicesQuery.isLoading} />
+        <StatCard label="Active Incidents" value={activeIncidents} color="text-amber-600" isLoading={incidentsQuery.isLoading} />
       </div>
+
+      <MetricsSection />
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Services table */}
@@ -84,11 +113,9 @@ export default function DashboardPage() {
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">Services</h2>
           </div>
-          {servicesQuery.isLoading ? (
-            <div className="p-6 text-sm text-gray-500">Loading...</div>
-          ) : servicesQuery.isError ? (
+          {servicesQuery.isError ? (
             <div className="p-6 text-sm text-red-500">Failed to load services.</div>
-          ) : services.length === 0 ? (
+          ) : !servicesQuery.isLoading && services.length === 0 ? (
             <div className="p-6 text-sm text-gray-500">No services found.</div>
           ) : (
             <table className="min-w-full divide-y divide-gray-100 text-sm">
@@ -100,7 +127,9 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {services.map((service) => (
+                {servicesQuery.isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} />)
+                  : services.map((service) => (
                   <tr key={service.slug} className="hover:bg-muted">
                     <td className="px-5 py-3 font-medium text-gray-900">{service.name}</td>
                     <td className="px-5 py-3 text-gray-500">{service.slug}</td>
@@ -122,7 +151,9 @@ export default function DashboardPage() {
               <h2 className="font-semibold text-gray-900">Active Incidents</h2>
             </div>
             {incidentsQuery.isLoading ? (
-              <div className="p-4 text-sm text-gray-500">Loading...</div>
+              <div className="divide-y divide-gray-100">
+                {Array.from({ length: 2 }).map((_, i) => <ListItemSkeleton key={i} />)}
+              </div>
             ) : activeIncidents === 0 ? (
               <div className="p-4 text-sm text-gray-500">No active incidents.</div>
             ) : (
@@ -150,7 +181,9 @@ export default function DashboardPage() {
               <h2 className="font-semibold text-gray-900">Active Maintenances</h2>
             </div>
             {maintenancesQuery.isLoading ? (
-              <div className="p-4 text-sm text-gray-500">Loading...</div>
+              <div className="divide-y divide-gray-100">
+                {Array.from({ length: 2 }).map((_, i) => <ListItemSkeleton key={i} />)}
+              </div>
             ) : activeMaintenances.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">No active maintenances.</div>
             ) : (

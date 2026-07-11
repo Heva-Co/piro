@@ -51,8 +51,8 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
         var cfg = await siteConfig.GetAsync(ct);
         return Ok(new IncidentsConfigResponse(
             cfg.IncidentCorrelationMode.ToString(),
-            cfg.GlobalIncidentThreshold,
-            cfg.GlobalIncidentCorrelationWindowMinutes));
+            cfg.MergeThreshold,
+            cfg.MergeCorrelationWindowMinutes));
     }
 
     /// <summary>Updates incident automation settings.</summary>
@@ -65,8 +65,8 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
         await siteConfig.SetManyAsync(new Dictionary<string, string?>
         {
             [SiteDataKeys.IncidentCorrelationMode] = request.CorrelationMode,
-            [SiteDataKeys.IncidentGlobalThreshold] = request.GlobalThreshold?.ToString(),
-            [SiteDataKeys.IncidentGlobalCorrelationWindowMinutes] = request.GlobalCorrelationWindowMinutes?.ToString(),
+            [SiteDataKeys.IncidentMergeThreshold] = request.MergeThreshold?.ToString(),
+            [SiteDataKeys.IncidentMergeCorrelationWindowMinutes] = request.MergeCorrelationWindowMinutes?.ToString(),
         }, ct);
         return NoContent();
     }
@@ -144,7 +144,7 @@ public class UpdateSiteConfigRequest
 
 public record IncidentsConfigResponse(
     string CorrelationMode,
-    int GlobalThreshold, int GlobalCorrelationWindowMinutes);
+    int MergeThreshold, int MergeCorrelationWindowMinutes);
 
 public class UpdateIncidentsConfigRequest
 {
@@ -152,10 +152,10 @@ public class UpdateIncidentsConfigRequest
     public string? CorrelationMode { get; init; }
 
     [Range(1, int.MaxValue)]
-    public int? GlobalThreshold { get; init; }
+    public int? MergeThreshold { get; init; }
 
     [Range(1, int.MaxValue)]
-    public int? GlobalCorrelationWindowMinutes { get; init; }
+    public int? MergeCorrelationWindowMinutes { get; init; }
 }
 
 public record UploadResponse(string Url);

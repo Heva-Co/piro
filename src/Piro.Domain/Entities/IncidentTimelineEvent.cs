@@ -42,5 +42,8 @@ public class IncidentTimelineEvent
     /// <summary>The other incident involved in the merge. Only set for <see cref="TimelineEventType.MergedTo"/>/<see cref="TimelineEventType.MergedFrom"/>.</summary>
     public int? RelatedIncidentId { get; set; }
 
+    /// <summary>The Alert that was hooked to the incident. Only set for <see cref="TimelineEventType.AlertFired"/>.</summary>
+    public int? AlertId { get; set; }
+
     public Incident Incident { get; set; } = null!;
 }

@@ -14,8 +14,8 @@ public static class SiteDataKeys
     public const string WorkerBuiltinDisabled = "worker:builtin_disabled";
 
     public const string IncidentCorrelationMode = "incidents:correlation_mode";
-    public const string IncidentGlobalThreshold = "incidents:global_threshold";
-    public const string IncidentGlobalCorrelationWindowMinutes = "incidents:global_correlation_window_minutes";
+    public const string IncidentMergeThreshold = "incidents:merge_threshold";
+    public const string IncidentMergeCorrelationWindowMinutes = "incidents:merge_correlation_window_minutes";
 
     public static readonly string[] All =
     [
@@ -28,7 +28,7 @@ public static class SiteDataKeys
          SiteOgImageUrl,
         WorkerBuiltinDisabled,
         IncidentCorrelationMode,
-        IncidentGlobalThreshold,
-        IncidentGlobalCorrelationWindowMinutes,
+        IncidentMergeThreshold,
+        IncidentMergeCorrelationWindowMinutes,
     ];
 }
