@@ -77,9 +77,20 @@ public sealed class ApiWorkerHostedService(
         var cts = _heartbeatCts;
         _ = Task.Run(async () =>
         {
-            using var timer = new PeriodicTimer(HeartbeatInterval);
-            while (await timer.WaitForNextTickAsync(cts.Token).ConfigureAwait(false))
-                registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
+            try
+            {
+                using var timer = new PeriodicTimer(HeartbeatInterval);
+                while (await timer.WaitForNextTickAsync(cts.Token).ConfigureAwait(false))
+                    registry.UpdateHeartbeat(ApiWorkerConnectionId, ApiVersion);
+            }
+            catch (OperationCanceledException)
+            {
+                // expected on shutdown/Disable()
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "API built-in worker heartbeat loop crashed (region={Region}).", workerRegion);
+            }
         }, cts.Token);
     }
 

@@ -14,37 +14,36 @@ public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger) : INotific
 {
     public IntegrationType Type => IntegrationType.TwilioSms;
 
-    public Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task DispatchAsync(NotificationChannel channel, AlertNotificationContext context, CancellationToken ct = default)
     {
         var meta = JsonUtils.DeserializeAndValidate<TwilioChannelMeta>(channel.MetaJson);
         var creds = ResolveCredentials(channel);
 
         TwilioClient.Init(creds.AccountSid, creds.AuthToken);
-        var message = MessageResource.Create(
+        var message = await MessageResource.CreateAsync(
             to: new Twilio.Types.PhoneNumber(meta.ToNumber),
             from: new Twilio.Types.PhoneNumber(creds.FromNumber),
             body: BuildMessage(context));
 
         logger.LogInformation("Twilio SMS sent (SID: {Sid}) to {To} for {Service}/{Check}.",
             message.Sid, meta.ToNumber, context.ServiceName, context.CheckName);
-        return Task.CompletedTask;
     }
 
-    public Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task<bool> DispatchPersonalAsync(Integration integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(handle)) return Task.FromResult(false);
+        if (string.IsNullOrWhiteSpace(handle)) return false;
         TwilioIntegrationConfig config;
         try { config = JsonUtils.DeserializeAndValidate<TwilioIntegrationConfig>(integration.ConfigJson); }
-        catch { return Task.FromResult(false); }
+        catch { return false; }
 
         TwilioClient.Init(config.AccountSid, config.AuthToken);
-        var message = MessageResource.Create(
+        var message = await MessageResource.CreateAsync(
             to: new Twilio.Types.PhoneNumber(handle),
             from: new Twilio.Types.PhoneNumber(config.FromNumber),
             body: BuildMessage(context));
 
         logger.LogInformation("Twilio SMS personal alert sent (SID: {Sid}) to {To}.", message.Sid, handle);
-        return Task.FromResult(true);
+        return true;
     }
 
     private static TwilioIntegrationConfig ResolveCredentials(NotificationChannel channel)
