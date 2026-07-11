@@ -72,6 +72,13 @@ public interface IIncidentRepository
     /// </summary>
     Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns an already-open merge-target incident (Source=ALERT, more than one linked service)
+    /// created within the given window, if one exists. Used so a newly-correlated failure attaches
+    /// to the existing merge incident instead of spawning a duplicate one.
+    /// </summary>
+    Task<Incident?> GetOpenMergeIncidentAsync(DateTimeOffset since, CancellationToken ct = default);
+
     /// <summary>Publishes an incident by setting its <see cref="Incident.Visibility"/> to Public.</summary>
     Task PublishAsync(int incidentId, CancellationToken ct = default);
 
