@@ -8,6 +8,17 @@ export interface IncidentService {
   triggeringCheckSlug?: string | null;
 }
 
+export interface IncidentAlert {
+  id: number;
+  checkSlug: string;
+  alertConfigDescription?: string | null;
+  message?: string | null;
+  impactAtFireTime: string;
+  firedAt: string;
+  resolvedAt?: string | null;
+  occurrenceCount: number;
+}
+
 export interface Incident {
   id: number;
   title: string;
@@ -15,12 +26,11 @@ export interface Incident {
   isResolved: boolean;
   startDateTime: number;
   endDateTime?: number | null;
-  isGlobal: boolean;
   source?: string | null;
   visibility: IncidentVisibilityKey;
   mergedIntoIncidentId?: number | null;
   services: IncidentService[];
-  timeline: IncidentTimelineEvent[];
+  alerts: IncidentAlert[];
   createdAt: string;
   updatedAt: string;
   acknowledgedAt?: number;
@@ -39,6 +49,14 @@ export interface IncidentTimelineEvent {
   newStatus?: string | null;
   visibility: IncidentVisibilityKey;
   relatedIncidentId?: number | null;
+  alertId?: number | null;
+}
+
+export interface IncidentTimelinePage {
+  items: IncidentTimelineEvent[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export const incidentsApi = {
@@ -48,7 +66,12 @@ export const incidentsApi = {
   get: (id: number | string) =>
     api.get<Incident>(ENDPOINTS.INCIDENT(id)).then((r) => r.data),
 
-  create: (data: { title: string; startDateTime: number; status: string; isGlobal: boolean }) =>
+  getTimeline: (id: number | string, page = 1, pageSize = 20) =>
+    api
+      .get<IncidentTimelinePage>(ENDPOINTS.INCIDENT_TIMELINE(id), { params: { page, pageSize } })
+      .then((r) => r.data),
+
+  create: (data: { title: string; startDateTime: number; status: string }) =>
     api.post<Incident>(ENDPOINTS.INCIDENTS, data).then((r) => r.data),
 
   update: (id: number | string, data: Partial<Omit<Incident, "id">>) =>

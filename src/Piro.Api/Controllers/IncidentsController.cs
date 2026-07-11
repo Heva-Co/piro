@@ -25,36 +25,25 @@ public class IncidentsController(IncidentAppService incidentService) : Controlle
     public async Task<IActionResult> GetAll([FromQuery] string filter = "active", CancellationToken ct = default) =>
         Ok(await incidentService.GetAllAsync(filter, ct));
 
-    /// <summary>
-    /// Returns published, non-merged incidents for the public status page.
-    /// Pass <c>includeResolved=true</c> to include incident history.
-    /// </summary>
-    [HttpGet("public")]
-    [AllowAnonymous]
-    [ProducesResponseType<IEnumerable<PublicIncidentDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPublic([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
-        Ok(await incidentService.GetAllPublicAsync(includeResolved, ct));
-
-    /// <summary>
-    /// Returns a single incident by ID. Authenticated team members get the full admin view;
-    /// anonymous callers only get the incident if it's published, with internal fields stripped.
-    /// </summary>
+    /// <summary>Returns a single incident by ID with the full admin view (internal fields included).</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     [ProducesResponseType<IncidentDto>(StatusCodes.Status200OK)]
-    [ProducesResponseType<PublicIncidentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken ct)
-    {
-        // [AllowAnonymous] disables the class-level [Authorize(Roles=...)] for this action,
-        // so the admin branch must check the role explicitly rather than just IsAuthenticated —
-        // otherwise any authenticated principal without one of these roles (e.g. a future
-        // "Viewer" role, or an API key without a role claim) would get the full admin DTO.
-        if (User.IsInRole("Owner") || User.IsInRole("Admin") || User.IsInRole("Member"))
-            return Ok(await incidentService.GetByIdAsync(id, ct));
+    public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
+        Ok(await incidentService.GetByIdAsync(id, ct));
 
-        return Ok(await incidentService.GetPublicByIdAsync(id, ct));
-    }
+    /// <summary>
+    /// Returns a paginated page of an incident's full timeline (all events, any visibility), most
+    /// recent first — used for the admin "view full timeline" infinite-scroll flow.
+    /// </summary>
+    [HttpGet("{id:int}/timeline")]
+    [ProducesResponseType<IncidentTimelinePageDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTimeline(
+        int id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default) =>
+        Ok(await incidentService.GetTimelineAsync(id, page, pageSize, publicOnly: false, ct));
 
     /// <summary>Creates a new incident and optionally links affected services.</summary>
     [HttpPost]

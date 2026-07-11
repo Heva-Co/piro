@@ -18,14 +18,20 @@ public record SiteConfig(
     string? MetaDescription,
     string? OgImageUrl,
     bool BuiltinWorkerDisabled = false,
-    IncidentCorrelationMode IncidentCorrelationMode = IncidentCorrelationMode.Hybrid,
-    int GlobalIncidentThreshold = 3,
-    int GlobalIncidentCorrelationWindowMinutes = 5
+    IncidentCorrelationMode IncidentCorrelationMode = IncidentCorrelationMode.Merge,
+    int MergeThreshold = 3,
+    int MergeCorrelationWindowMinutes = 5
 );
 
+/// <summary>How Alerts are grouped into Incidents. Incidents never affect "all services" — they always
+/// reflect exactly the set of services/checks/Alerts that are correlated.</summary>
 public enum IncidentCorrelationMode
 {
+    /// <summary>Each service gets its own incident based on its own Alerts.</summary>
     PerService,
-    Global,
-    Hybrid
+
+    /// <summary>Guarantees an incident always exists per-service, and merges recent per-service incidents
+    /// into a single incident (reflecting exactly their combined services) once enough services are
+    /// affected within the correlation window.</summary>
+    Merge
 }

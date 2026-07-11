@@ -36,10 +36,7 @@ interface Props {
 
 export function IncidentCard({ incident }: Props) {
   const endForDuration = incident.endDateTime ?? Math.floor(Date.now() / 1000);
-  const lastUpdated =
-    incident.comments.length > 0
-      ? incident.comments[incident.comments.length - 1].commentedAt
-      : incident.startDateTime;
+  const lastUpdated = incident.endDateTime ?? incident.startDateTime;
 
   return (
     <div className="rounded-3xl border p-4 flex flex-col gap-2">
@@ -86,11 +83,7 @@ export function IncidentCard({ incident }: Props) {
           href={`/incidents/${incident.id}`}
           className="bg-secondary flex items-center justify-between rounded-full border px-4 py-2 text-muted-foreground hover:bg-muted transition-colors"
         >
-          <span>
-            {incident.comments.length > 0
-              ? `${incident.comments.length} Update${incident.comments.length !== 1 ? "s" : ""}`
-              : "No Updates"}
-          </span>
+          <span>View updates</span>
           <ChevronDown className="size-3.5 -rotate-90" />
         </Link>
       </div>

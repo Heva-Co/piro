@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Globe, Server } from "lucide-react";
+import { ArrowLeft, RefreshCw, Globe } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Timeline } from "@/src/components/ui/timeline";
-import type { publicApi } from "@/src/lib/api";
+import { publicApi } from "@/src/lib/api";
+import type { IncidentTimelineEvent } from "@/src/lib/api";
 
 type Incident = Awaited<ReturnType<typeof publicApi.incident>>;
 
@@ -38,6 +39,7 @@ interface Props {
 
 export function IncidentDetailClient({ id, initial }: Props) {
   const [incident, setIncident] = useState(initial);
+  const [comments, setComments] = useState<IncidentTimelineEvent[]>([]);
   const [lastFetched, setLastFetched] = useState(new Date());
   const [fetching, setFetching] = useState(false);
 
@@ -54,14 +56,23 @@ export function IncidentDetailClient({ id, initial }: Props) {
     finally { setFetching(false); }
   }
 
+  async function fetchTimeline() {
+    try {
+      const page = await publicApi.incidentTimeline(id, 1, 50);
+      setComments(page.items.filter((e) => e.type === "CommentPosted"));
+    } catch { /* silent */ }
+  }
+
   useEffect(() => {
-    const interval = setInterval(fetchIncident, 60_000);
+    fetchTimeline();
+    const interval = setInterval(() => {
+      fetchIncident();
+      fetchTimeline();
+    }, 60_000);
     return () => clearInterval(interval);
   }, [id]);
 
-  const latestStatus = incident.comments.length > 0
-    ? incident.comments[incident.comments.length - 1].status
-    : incident.status;
+  const latestStatus = comments.length > 0 ? comments[0].newStatus ?? incident.status : incident.status;
 
   const badgeClass = statusColor[latestStatus] ?? "bg-gray-100 text-gray-600";
 
@@ -113,11 +124,11 @@ export function IncidentDetailClient({ id, initial }: Props) {
           <h2 className="text-lg font-semibold mb-4">Timeline</h2>
 
           <Timeline
-            items={[...incident.comments].reverse().map((c) => ({
+            items={[...comments].reverse().map((c) => ({
               id: c.id,
-              status: c.status,
-              timestamp: c.commentedAt,
-              body: <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0"><ReactMarkdown>{c.comment}</ReactMarkdown></div>,
+              status: c.newStatus ?? incident.status,
+              timestamp: Math.floor(new Date(c.occurredAt).getTime() / 1000),
+              body: <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0"><ReactMarkdown>{c.comment ?? ""}</ReactMarkdown></div>,
             }))}
           />
         </div>
@@ -131,12 +142,7 @@ export function IncidentDetailClient({ id, initial }: Props) {
               </span>
             </div>
 
-            {incident.isGlobal ? (
-              <p className="text-sm text-muted-foreground italic flex items-center gap-1.5">
-                <Server size={14} className="opacity-50 shrink-0" />
-                All services affected
-              </p>
-            ) : incident.services.length === 0 ? (
+            {incident.services.length === 0 ? (
               <p className="text-sm text-muted-foreground">No services listed.</p>
             ) : (
               <div className="flex flex-wrap gap-2">

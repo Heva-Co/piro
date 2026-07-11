@@ -8,22 +8,15 @@ namespace Piro.Infrastructure.Persistence.Repositories;
 internal class AlertConfigRepository(PiroDbContext db) : IAlertConfigRepository
 {
     public async Task<IEnumerable<AlertConfig>> GetAllAsync(CancellationToken ct = default) =>
-        await db.AlertConfigs
-            .Include(a => a.AlertConfigNotificationChannels)
-            .ToListAsync(ct);
+        await db.AlertConfigs.ToListAsync(ct);
 
     public async Task<IEnumerable<AlertConfig>> GetByCheckIdAsync(int checkId, CancellationToken ct = default) =>
         await db.AlertConfigs
-            .Include(a => a.AlertConfigNotificationChannels)
-                .ThenInclude(ac => ac.NotificationChannel)
             .Where(a => a.CheckId == checkId)
             .ToListAsync(ct);
 
     public async Task<AlertConfig?> GetByIdAsync(int id, CancellationToken ct = default) =>
-        await db.AlertConfigs
-            .Include(a => a.AlertConfigNotificationChannels)
-                .ThenInclude(ac => ac.NotificationChannel)
-            .FirstOrDefaultAsync(a => a.Id == id, ct);
+        await db.AlertConfigs.FirstOrDefaultAsync(a => a.Id == id, ct);
 
     public async Task<AlertConfig> CreateAsync(AlertConfig config, CancellationToken ct = default)
     {

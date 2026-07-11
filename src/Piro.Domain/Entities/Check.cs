@@ -53,12 +53,6 @@ public class Check
     /// <summary>Optional reference to a shared Integration (e.g. Google Cloud service account).</summary>
     public int? IntegrationId { get; set; }
 
-    /// <summary>How critical this check is to the parent service. Determines incident impact when auto-creating incidents.</summary>
-    public CheckCriticality Criticality { get; set; } = CheckCriticality.High;
-
-    /// <summary>When true, a draft incident is automatically created when this check transitions to alerting.</summary>
-    public bool AutomaticallyCreateIncident { get; set; }
-
     public Service Service { get; set; } = null!;
     public Integration? Integration { get; set; }
     public ICollection<CheckDataPoint> DataPoints { get; set; } = [];

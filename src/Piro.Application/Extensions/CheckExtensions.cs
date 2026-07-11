@@ -12,7 +12,6 @@ public static class CheckExtensions
         c.CurrentStatus, c.IsActive, c.IsMultiRegion,
         c.FailureThreshold, c.RecoveryThreshold,
         c.HistoryDaysDesktop, c.HistoryDaysMobile,
-        c.CreatedAt, c.UpdatedAt, c.IntegrationId,
-        c.Criticality, c.AutomaticallyCreateIncident
+        c.CreatedAt, c.UpdatedAt, c.IntegrationId
     );
 }

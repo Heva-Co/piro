@@ -60,17 +60,42 @@ export interface ServiceOverviewDto {
   dailyData: DailyStatsDto[];
 }
 
-export interface IncidentComment {
+export type TimelineEventType =
+  | "Created"
+  | "StatusChanged"
+  | "CommentPosted"
+  | "Acknowledged"
+  | "ServiceAdded"
+  | "ServiceRemoved"
+  | "MergedTo"
+  | "MergedFrom"
+  | "Published"
+  | "Unpublished"
+  | "AlertFired";
+
+/** A single Public timeline event — only CommentPosted carries user-facing text/status. */
+export interface IncidentTimelineEvent {
   id: number;
-  comment: string;
-  commentedAt: number;
-  status: IncidentStatus;
+  type: TimelineEventType;
+  occurredAt: string;
+  actorName: string | null;
+  comment: string | null;
+  oldStatus: IncidentStatus | null;
+  newStatus: IncidentStatus | null;
+  relatedIncidentId: number | null;
 }
 
+export interface IncidentTimelinePage {
+  items: IncidentTimelineEvent[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Service affected by an incident — no impact level or triggering check exposed publicly. */
 export interface IncidentService {
   serviceSlug: string;
-  serviceName: string;
-  impact: ServiceStatus;
+  serviceName: string | null;
 }
 
 export interface IncidentImpactChange {
@@ -86,8 +111,6 @@ export interface Incident {
   endDateTime: number | null;
   status: IncidentStatus;
   isResolved: boolean;
-  isGlobal: boolean;
-  comments: IncidentComment[];
   services: IncidentService[];
   currentImpact: ServiceStatus;
   impactChanges: IncidentImpactChange[];
@@ -136,9 +159,12 @@ export const publicApi = {
     get<ServiceOverviewDto>(`/public/services/${slug}/overview?days=${days}`),
 
   incidents: (includeResolved = false) =>
-    get<Incident[]>(`/incidents/public?includeResolved=${includeResolved}`),
+    get<Incident[]>(`/public/incidents?includeResolved=${includeResolved}`),
 
-  incident: (id: number | string) => get<Incident>(`/incidents/${id}`, 0),
+  incident: (id: number | string) => get<Incident>(`/public/incidents/${id}`, 0),
+
+  incidentTimeline: (id: number | string, page = 1, pageSize = 20) =>
+    get<IncidentTimelinePage>(`/public/incidents/${id}/timeline?page=${page}&pageSize=${pageSize}`, 0),
 
   maintenances: () => get<Maintenance[]>("/public/maintenances"),
 };

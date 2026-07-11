@@ -13,6 +13,7 @@ namespace Piro.Application.Services;
 public class EscalationCheckerService(
     IEscalationPolicyRepository policyRepo,
     IIncidentRepository incidentRepo,
+    IAlertConfigRepository alertConfigRepo,
     ICheckRepository checkRepo,
     AlertEvaluationService alertEvaluationService,
     OnCallService onCallService,
@@ -25,32 +26,29 @@ public class EscalationCheckerService(
         dispatchers.ToDictionary(d => d.Type);
 
     /// <summary>
-    /// Safety net for checks left in a failing state with no open incident — this can happen if
-    /// the process was interrupted between persisting a check's new status and creating its
-    /// incident (see <see cref="AlertEvaluationService.EvaluateIncidentPolicyAsync"/>, which only
-    /// fires on a status transition and never retries once both reads agree the check is DOWN).
-    /// Re-evaluates each orphaned check as if it just transitioned from UP, which is a no-op if an
-    /// incident already exists for its service (see EnsurePerServiceIncidentAsync and friends).
+    /// Safety net for active Alerts that crossed their incident threshold but were never hooked
+    /// to an Incident — this can happen if the process was interrupted between recording the
+    /// Alert occurrence and evaluating the incident hook. Re-runs the evaluation for each such
+    /// Alert's check, which is a no-op if it still doesn't cross the threshold.
     /// </summary>
     public async Task ReconcileOrphanedChecksAsync(CancellationToken ct = default)
     {
-        var checks = await checkRepo.GetAllActiveAsync(ct);
-        var failingAutoCreate = checks
-            .Where(c => c.AutomaticallyCreateIncident
-                     && c.CurrentStatus is ServiceStatus.DOWN or ServiceStatus.DEGRADED)
+        var configs = (await alertConfigRepo.GetAllAsync(ct))
+            .Where(c => c.IsActive && c.CreateIncident)
             .ToList();
 
-        foreach (var check in failingAutoCreate)
+        foreach (var config in configs)
         {
             try
             {
-                await alertEvaluationService.EvaluateIncidentPolicyAsync(
-                    check.Id, previousStatus: ServiceStatus.UP, newStatus: check.CurrentStatus, ct);
+                var check = await checkRepo.GetByIdAsync(config.CheckId, ct);
+                if (check is null) continue;
+                await alertEvaluationService.EvaluateAsync(check.Id, ct);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Incident reconciliation failed for check {CheckId} \"{CheckName}\".",
-                    check.Id, check.Name);
+                logger.LogError(ex, "Incident reconciliation failed for alert config {AlertConfigId} (check {CheckId}).",
+                    config.Id, config.CheckId);
             }
         }
     }

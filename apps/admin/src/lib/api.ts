@@ -100,11 +100,7 @@ export interface Check {
   isActive: boolean;
   isMultiRegion: boolean;
   integrationId?: number | null;
-  criticality: CheckCriticality;
-  automaticallyCreateIncident: boolean;
 }
-
-export type CheckCriticality = "Critical" | "High" | "Medium" | "Low";
 
 export interface CreateCheck {
   slug: string;
@@ -115,8 +111,6 @@ export interface CreateCheck {
   typeDataJson: string;
   isActive?: boolean;
   isMultiRegion?: boolean;
-  criticality?: CheckCriticality;
-  automaticallyCreateIncident?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
   integrationId?: number;
@@ -191,6 +185,97 @@ export const checksApi = {
     api.get<CheckDailyStats[]>(ENDPOINTS.SERVICE_CHECK_HISTORY(serviceSlug, checkSlug), { params: { days } }).then((r) => r.data),
 };
 
+// ─── Alerts ──────────────────────────────────────────────────────────────────
+
+export interface AlertSummary {
+  id: number;
+  checkSlug: string;
+  checkName: string;
+  serviceSlug: string;
+  serviceName: string;
+  alertConfigDescription?: string;
+  message?: string;
+  impactAtFireTime: string;
+  firedAt: string;
+  resolvedAt?: string;
+  occurrenceCount: number;
+  incidentId?: number;
+}
+
+export interface AlertDetail {
+  id: number;
+  checkSlug: string;
+  checkName: string;
+  serviceSlug: string;
+  serviceName: string;
+  alertConfigId: number;
+  alertFor: string;
+  alertValue: string;
+  failureThreshold: number;
+  successThreshold: number;
+  alertConfigDescription?: string;
+  message?: string;
+  impactAtFireTime: string;
+  severity: string;
+  firedAt: string;
+  resolvedAt?: string;
+  occurrenceCount: number;
+  incidentId?: number;
+  incidentTitle?: string;
+}
+
+export const alertsApi = {
+  list: (params?: { page?: number; pageSize?: number; from?: string; to?: string }) =>
+    api
+      .get<{ items: AlertSummary[]; totalCount: number; page: number; pageSize: number }>(
+        ENDPOINTS.ALERTS,
+        { params }
+      )
+      .then((r) => r.data),
+
+  get: (id: number | string) =>
+    api.get<AlertDetail>(ENDPOINTS.ALERT(id)).then((r) => r.data),
+};
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface DailyIncidentCount {
+  date: string;
+  count: number;
+}
+
+export interface ServiceIncidentCount {
+  serviceSlug: string;
+  serviceName: string;
+  count: number;
+}
+
+export interface SeverityIncidentCount {
+  severity: string;
+  count: number;
+}
+
+export interface DashboardMetrics {
+  from: string;
+  to: string;
+  mttaSeconds: number | null;
+  mttrSeconds: number | null;
+  mttdSeconds: number | null;
+  alertNoiseRatio: number | null;
+  incidentCount: number;
+  alertCount: number;
+  dailyIncidentCounts: DailyIncidentCount[];
+  incidentsByService: ServiceIncidentCount[];
+  alertsBySeverity: SeverityIncidentCount[];
+}
+
+export const dashboardApi = {
+  metrics: (from?: string, to?: string) =>
+    api
+      .get<DashboardMetrics>(ENDPOINTS.DASHBOARD_METRICS, { params: { from, to } })
+      .then((r) => r.data),
+};
+
 // ─── Incidents ───────────────────────────────────────────────────────────────
 // Moved to @/lib/actions/incidents — re-exported here only for `updateCheck`,
 // which lives on the same object despite belonging to Checks, not Incidents.
@@ -199,10 +284,6 @@ import { incidentsApi as incidentsApiBase } from "@/lib/actions/incidents";
 
 export const incidentsApi = {
   ...incidentsApiBase,
-  updateCheck: (serviceSlug: string, checkSlug: string, data: Partial<{
-    criticality: string;
-    automaticallyCreateIncident: boolean;
-  }>) => api.put(`/api/v1/services/${serviceSlug}/checks/${checkSlug}`, data).then((r) => r.data),
 };
 
 // ─── Notification channels ───────────────────────────────────────────────────
@@ -218,7 +299,6 @@ export interface NotificationChannel {
   isLocked: boolean;
   createdAt: string;
   updatedAt: string;
-  alertConfigCount: number;
   integrationId?: number;
   integrationName?: string;
 }
@@ -229,10 +309,10 @@ export const channelsApi = {
   get: (id: number | string) =>
     api.get<NotificationChannel>(ENDPOINTS.CHANNEL(id)).then((r) => r.data),
 
-  create: (data: Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">) =>
+  create: (data: Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "integrationName">) =>
     api.post<NotificationChannel>(ENDPOINTS.CHANNELS, data).then((r) => r.data),
 
-  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">>) =>
+  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "integrationName">>) =>
     api.put<NotificationChannel>(ENDPOINTS.CHANNEL(id), data).then((r) => r.data),
 
   delete: (id: number | string) => api.delete(ENDPOINTS.CHANNEL(id)),
@@ -246,11 +326,36 @@ export const channelsApi = {
 
 // ─── Alert configs ────────────────────────────────────────────────────────────
 
+export type AlertFor = "Status" | "Latency" | "Uptime";
+export type AlertSeverity = "Warning" | "Critical";
+
 export interface AlertConfig {
   id: number;
-  channelId: number;
-  onDown: boolean;
-  onRecovery: boolean;
+  checkId: number;
+  alertFor: AlertFor;
+  alertValue: string;
+  failureThreshold: number;
+  successThreshold: number;
+  description?: string;
+  createIncident: boolean;
+  incidentThresholdOccurrences: number;
+  isActive: boolean;
+  isAlerting: boolean;
+  severity: AlertSeverity;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAlertConfig {
+  alertFor: AlertFor;
+  alertValue: string;
+  failureThreshold?: number;
+  successThreshold?: number;
+  description?: string;
+  createIncident?: boolean;
+  incidentThresholdOccurrences?: number;
+  isActive?: boolean;
+  severity?: AlertSeverity;
 }
 
 export const alertConfigsApi = {
@@ -259,7 +364,7 @@ export const alertConfigsApi = {
       .get<AlertConfig[]>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug))
       .then((r) => r.data),
 
-  create: (serviceSlug: string, checkSlug: string, data: Omit<AlertConfig, "id">) =>
+  create: (serviceSlug: string, checkSlug: string, data: CreateAlertConfig) =>
     api
       .post<AlertConfig>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug), data)
       .then((r) => r.data),
@@ -268,7 +373,7 @@ export const alertConfigsApi = {
     serviceSlug: string,
     checkSlug: string,
     id: number | string,
-    data: Partial<Omit<AlertConfig, "id">>
+    data: Partial<CreateAlertConfig>
   ) =>
     api
       .put<AlertConfig>(ENDPOINTS.ALERT_CONFIG(serviceSlug, checkSlug, id), data)
@@ -451,8 +556,8 @@ export interface SiteConfig {
 
 export interface IncidentsConfig {
   correlationMode: import("@/constants/incidents").IncidentCorrelationModeKey;
-  globalThreshold: number;
-  globalCorrelationWindowMinutes: number;
+  mergeThreshold: number;
+  mergeCorrelationWindowMinutes: number;
 }
 
 export const siteApi = {

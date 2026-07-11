@@ -24,10 +24,10 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
             BuiltinWorkerDisabled: rows.TryGetValue(SiteDataKeys.WorkerBuiltinDisabled, out var flag) &&
                                    string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase),
             IncidentCorrelationMode: rows.TryGetValue(SiteDataKeys.IncidentCorrelationMode, out var mode) &&
-                Enum.TryParse<IncidentCorrelationMode>(mode, out var modeVal) ? modeVal : IncidentCorrelationMode.Hybrid,
-            GlobalIncidentThreshold: rows.TryGetValue(SiteDataKeys.IncidentGlobalThreshold, out var threshold) &&
+                Enum.TryParse<IncidentCorrelationMode>(mode, out var modeVal) ? modeVal : IncidentCorrelationMode.Merge,
+            MergeThreshold: rows.TryGetValue(SiteDataKeys.IncidentMergeThreshold, out var threshold) &&
                 int.TryParse(threshold, out var thresholdVal) ? thresholdVal : 3,
-            GlobalIncidentCorrelationWindowMinutes: rows.TryGetValue(SiteDataKeys.IncidentGlobalCorrelationWindowMinutes, out var window) &&
+            MergeCorrelationWindowMinutes: rows.TryGetValue(SiteDataKeys.IncidentMergeCorrelationWindowMinutes, out var window) &&
                 int.TryParse(window, out var windowVal) ? windowVal : 5
         );
     }

@@ -1,5 +1,6 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import {
   CheckCheck,
   MessageSquareText,
@@ -12,6 +13,7 @@ import {
   EyeOff,
   FlagTriangleRight,
   ArrowRightLeft,
+  AlertTriangle,
 } from "lucide-react";
 import { marked } from "marked";
 import { PageHeader } from "@/components/PageHeader";
@@ -48,9 +50,10 @@ const SYSTEM_EVENT_ICON: Record<string, React.ReactNode> = {
   MergedFrom: <Blend />,
   Published: <Eye />,
   Unpublished: <EyeOff />,
+  AlertFired: <AlertTriangle />,
 };
 
-function describeSystemEvent(e: IncidentTimelineEvent, onNavigateToIncident: (id: number) => void): React.ReactNode {
+function describeSystemEvent(e: IncidentTimelineEvent): React.ReactNode {
   switch (e.type) {
     case "Created":
       return "Incident created";
@@ -74,30 +77,35 @@ function describeSystemEvent(e: IncidentTimelineEvent, onNavigateToIncident: (id
       return (
         <>
           Merged into incident{" "}
-          <button
-            onClick={() => e.relatedIncidentId && onNavigateToIncident(e.relatedIncidentId)}
-            className="font-semibold underline hover:no-underline"
-          >
+          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
             #{e.relatedIncidentId}
-          </button>
+          </Link>
         </>
       );
     case "MergedFrom":
       return (
         <>
           Absorbed incident{" "}
-          <button
-            onClick={() => e.relatedIncidentId && onNavigateToIncident(e.relatedIncidentId)}
-            className="font-semibold underline hover:no-underline"
-          >
+          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
             #{e.relatedIncidentId}
-          </button>
+          </Link>
         </>
       );
     case "Published":
       return "Published to status page";
     case "Unpublished":
       return "Unpublished from status page";
+    case "AlertFired":
+      return e.alertId != null ? (
+        <>
+          Alert fired{" "}
+          <Link to={ROUTES.ALERTS.DETAIL(e.alertId)} className="font-semibold underline hover:no-underline">
+            #{e.alertId}
+          </Link>
+        </>
+      ) : (
+        "Alert fired"
+      );
     default:
       return e.type;
   }
@@ -106,6 +114,8 @@ function describeSystemEvent(e: IncidentTimelineEvent, onNavigateToIncident: (id
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString();
 }
+
+const TIMELINE_PAGE_SIZE = 20;
 
 export default function IncidentTimelinePage() {
   const { id } = useParams<{ id: string }>();
@@ -116,6 +126,38 @@ export default function IncidentTimelinePage() {
     queryFn: () => incidentsApi.get(id!),
   });
 
+  const {
+    data: timelinePages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: [...QUERY_KEYS.INCIDENT(id!), "timeline"],
+    queryFn: ({ pageParam }) => incidentsApi.getTimeline(id!, pageParam, TIMELINE_PAGE_SIZE),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.pageSize < lastPage.totalCount ? lastPage.page + 1 : undefined,
+    enabled: !!id,
+  });
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading…</div>;
   }
@@ -123,8 +165,8 @@ export default function IncidentTimelinePage() {
     return <div className="text-sm text-destructive">Incident not found.</div>;
   }
 
-  // Backend already returns events most-recent-first.
-  const timeline = incident.timeline ?? [];
+  // Backend already returns events most-recent-first, one page at a time.
+  const timeline = timelinePages?.pages.flatMap((p) => p.items) ?? [];
   const isPublic = incident.visibility === "Public";
   const isResolved = incident.status === "Resolved" || incident.isResolved;
 
@@ -180,7 +222,10 @@ export default function IncidentTimelinePage() {
       </div>
 
       <div className="rounded-xl border border-border bg-card">
-        <ScrollArea className="h-[calc(100vh-14rem)]">
+        {/* `<main>` in AdminLayout is already the page's own scroll container (overflow-y-auto),
+            so this height is a fixed cap relative to the viewport, not 100vh minus chrome —
+            using 100vh here would exceed the space <main> actually has, causing double scrollbars. */}
+        <ScrollArea className="h-[70vh]">
           <div className="flex flex-col gap-4 p-6">
             {timeline.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No events yet.</p>
@@ -219,12 +264,17 @@ export default function IncidentTimelinePage() {
                   <Marker key={e.id} variant="separator" className={tightSpacing ? "-mt-1" : undefined}>
                     <MarkerContent className="flex items-center gap-1.5">
                       <MarkerIcon>{SYSTEM_EVENT_ICON[e.type] ?? <FlagTriangleRight />}</MarkerIcon>
-                      {describeSystemEvent(e, (relatedId) => navigate(ROUTES.INCIDENTS.TIMELINE(relatedId)))}
+                      {describeSystemEvent(e)}
                       <span className="text-muted-foreground/70">· {formatDateTime(e.occurredAt)}</span>
                     </MarkerContent>
                   </Marker>
                 );
               })
+            )}
+            {/* Infinite scroll sentinel — fetches the next page once it enters the viewport. */}
+            <div ref={sentinelRef} className="h-px" />
+            {isFetchingNextPage && (
+              <p className="py-2 text-center text-xs text-muted-foreground">Loading more…</p>
             )}
           </div>
         </ScrollArea>

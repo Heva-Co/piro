@@ -2,7 +2,10 @@ using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
 
-/// <summary>Outbound representation of an incident (admin-facing — includes internal fields).</summary>
+/// <summary>
+/// Outbound representation of an incident (admin-facing — includes internal fields).
+/// Deliberately excludes the timeline — fetch it independently via GET /incidents/{id}/timeline.
+/// </summary>
 public record IncidentDto(
     int Id,
     string Title,
@@ -10,11 +13,10 @@ public record IncidentDto(
     long? EndDateTime,
     IncidentStatus Status,
     bool IsResolved,
-    bool IsGlobal,
     string? Source,
     IncidentVisibility Visibility,
-    IEnumerable<IncidentTimelineEventDto> Timeline,
     IEnumerable<IncidentServiceDto> Services,
+    IEnumerable<AlertDto> Alerts,
     int? MergedIntoIncidentId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
@@ -27,6 +29,26 @@ public record IncidentDto(
     DateTimeOffset? EscalationStepStartedAt,
     int? EscalationTotalSteps,
     DateTimeOffset? NextEscalationAt
+);
+
+/// <summary>A page of timeline events plus the total matching count.</summary>
+public record IncidentTimelinePageDto(
+    IEnumerable<IncidentTimelineEventDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize
+);
+
+/// <summary>Alert history entry attached to an incident — purely informational.</summary>
+public record AlertDto(
+    int Id,
+    string CheckSlug,
+    string? AlertConfigDescription,
+    string? Message,
+    ServiceStatus ImpactAtFireTime,
+    DateTimeOffset FiredAt,
+    DateTimeOffset? ResolvedAt,
+    int OccurrenceCount
 );
 
 /// <summary>Point-in-time severity change recorded on an incident.</summary>
@@ -42,7 +64,8 @@ public record IncidentTimelineEventDto(
     IncidentStatus? OldStatus,
     IncidentStatus? NewStatus,
     EventVisibility Visibility,
-    int? RelatedIncidentId
+    int? RelatedIncidentId,
+    int? AlertId
 );
 
 /// <summary>
@@ -57,8 +80,6 @@ public record PublicIncidentDto(
     long? EndDateTime,
     IncidentStatus Status,
     bool IsResolved,
-    bool IsGlobal,
-    IEnumerable<IncidentTimelineEventDto> Timeline,
     IEnumerable<PublicIncidentServiceDto> Services,
     ServiceStatus CurrentImpact,
     IEnumerable<IncidentImpactChangeDto> ImpactChanges
@@ -75,7 +96,6 @@ public record CreateIncidentRequest(
     string Title,
     long StartDateTime,
     IncidentStatus Status,
-    bool IsGlobal,
     IEnumerable<IncidentServiceImpact>? AffectedServices
 );
 
@@ -84,8 +104,7 @@ public record UpdateIncidentRequest(
     string? Title,
     long? StartDateTime,
     long? EndDateTime,
-    IncidentStatus? Status,
-    bool? IsGlobal
+    IncidentStatus? Status
 );
 
 /// <summary>

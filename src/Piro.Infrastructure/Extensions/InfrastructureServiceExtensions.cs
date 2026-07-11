@@ -180,7 +180,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
+        services.AddScoped<IAlertRepository, AlertRepository>();
         services.AddScoped<INotificationChannelRepository, NotificationChannelRepository>();
+
+        // Dashboard metrics
+        services.AddScoped<IMetricsRepository, MetricsRepository>();
 
         // Log repository
         services.AddScoped<ILogRepository, LogRepository>();

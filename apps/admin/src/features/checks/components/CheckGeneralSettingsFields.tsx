@@ -2,7 +2,7 @@ import { useFormContext, Controller } from "react-hook-form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { CRON_PRESETS, CHECK_CRITICALITY_MAP, type CheckCriticalityKey } from "@/constants/checks";
+import { CRON_PRESETS } from "@/constants/checks";
 
 export interface CheckGeneralFormValues {
   name: string;
@@ -11,8 +11,6 @@ export interface CheckGeneralFormValues {
   showCustomCron: boolean;
   isActive: boolean;
   isMultiRegion: boolean;
-  criticality: CheckCriticalityKey;
-  autoCreate: boolean;
 }
 
 interface Props {
@@ -28,7 +26,6 @@ export function CheckGeneralSettingsFields({ typeNode, slugNode }: Props) {
   const cron = watch("cron");
   const isActive = watch("isActive");
   const isMultiRegion = watch("isMultiRegion");
-  const autoCreate = watch("autoCreate");
 
   return (
     <div className="flex flex-col gap-5">
@@ -97,42 +94,6 @@ export function CheckGeneralSettingsFields({ typeNode, slugNode }: Props) {
           <div className="flex items-center gap-2.5">
             <Switch checked={isMultiRegion} onCheckedChange={(v) => setValue("isMultiRegion", v)} />
             <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Incident Automation */}
-      <div className="border-t pt-5 flex flex-col gap-4">
-        <div>
-          <p className="text-sm font-semibold">Incident Automation</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Configure how this check interacts with incident management</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold">Criticality</label>
-            <Controller name="criticality" control={control} render={({ field }) => (
-              <Select value={field.value} onValueChange={(v) => v && field.onChange(v as CheckCriticalityKey)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(CHECK_CRITICALITY_MAP) as [CheckCriticalityKey, { label: string; description: string }][]).map(([key, meta]) => (
-                    <SelectItem key={key} value={key}>
-                      {meta.label} — {meta.description}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )} />
-            <p className="text-xs text-muted-foreground">Determines incident impact when auto-created</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold">Auto-create incident</label>
-            <div className="flex items-center gap-2.5">
-              <Switch checked={autoCreate} onCheckedChange={(v) => setValue("autoCreate", v)} />
-              <span className="text-sm text-muted-foreground">{autoCreate ? "Enabled" : "Disabled"}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Creates an internal incident when this check starts alerting</p>
           </div>
         </div>
       </div>

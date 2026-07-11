@@ -27,6 +27,4 @@ public class NotificationChannel
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-
-    public ICollection<AlertConfigNotificationChannel> AlertConfigNotificationChannels { get; set; } = [];
 }

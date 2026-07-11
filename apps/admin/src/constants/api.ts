@@ -39,6 +39,11 @@ export const ENDPOINTS = {
 
   // Checks
   CHECKS: `${API_BASE}/checks`,
+  ALERTS: `${API_BASE}/alerts`,
+  ALERT: (id: number | string) => `${API_BASE}/alerts/${id}`,
+
+  // Dashboard
+  DASHBOARD_METRICS: `${API_BASE}/dashboard/metrics`,
   SERVICE_CHECKS: (serviceSlug: string) => `${API_BASE}/services/${serviceSlug}/checks`,
   SERVICE_CHECK: (serviceSlug: string, checkSlug: string) =>
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}`,
@@ -52,6 +57,7 @@ export const ENDPOINTS = {
   // Incidents
   INCIDENTS: `${API_BASE}/incidents`,
   INCIDENT: (id: number | string) => `${API_BASE}/incidents/${id}`,
+  INCIDENT_TIMELINE: (id: number | string) => `${API_BASE}/incidents/${id}/timeline`,
   INCIDENT_UPDATES: (id: number | string) => `${API_BASE}/incidents/${id}/updates`,
   INCIDENT_UPDATE: (id: number | string, eventId: number | string) =>
     `${API_BASE}/incidents/${id}/updates/${eventId}`,
@@ -139,6 +145,9 @@ export const QUERY_KEYS = {
   SERVICES: ["services"] as const,
   SERVICE: (slug: string) => ["services", slug] as const,
   CHECKS: ["checks"] as const,
+  ALERTS: ["alerts"] as const,
+  ALERT: (id: number | string) => ["alerts", id] as const,
+  DASHBOARD_METRICS: (from: string, to: string) => ["dashboard-metrics", from, to] as const,
   SERVICE_CHECKS: (serviceSlug: string) => ["checks", serviceSlug] as const,
   SERVICE_CHECK: (serviceSlug: string, checkSlug: string) =>
     ["checks", serviceSlug, checkSlug] as const,

@@ -15,9 +15,9 @@ export default function IncidentsConfigPage() {
     queryFn: siteApi.getIncidentsConfig,
   });
 
-  const [correlationMode, setCorrelationMode] = useState<IncidentCorrelationModeKey>("Hybrid");
-  const [globalThreshold, setGlobalThreshold] = useState(3);
-  const [globalCorrelationWindowMinutes, setGlobalCorrelationWindowMinutes] = useState(5);
+  const [correlationMode, setCorrelationMode] = useState<IncidentCorrelationModeKey>("Merge");
+  const [mergeThreshold, setMergeThreshold] = useState(3);
+  const [mergeCorrelationWindowMinutes, setMergeCorrelationWindowMinutes] = useState(5);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -25,16 +25,16 @@ export default function IncidentsConfigPage() {
   useEffect(() => {
     if (!data) return;
     setCorrelationMode(data.correlationMode as IncidentCorrelationModeKey);
-    setGlobalThreshold(data.globalThreshold);
-    setGlobalCorrelationWindowMinutes(data.globalCorrelationWindowMinutes);
+    setMergeThreshold(data.mergeThreshold);
+    setMergeCorrelationWindowMinutes(data.mergeCorrelationWindowMinutes);
   }, [data]);
 
   const mutation = useMutation({
     mutationFn: () =>
       siteApi.updateIncidentsConfig({
         correlationMode,
-        globalThreshold,
-        globalCorrelationWindowMinutes,
+        mergeThreshold,
+        mergeCorrelationWindowMinutes,
       }),
     onMutate: () => { setSaving(true); setError(""); },
     onSuccess: () => {
@@ -69,7 +69,7 @@ export default function IncidentsConfigPage() {
     );
   }
 
-  const showGlobalOptions = correlationMode === "Global" || correlationMode === "Hybrid";
+  const showMergeOptions = correlationMode === "Merge";
 
   return (
     <>
@@ -121,19 +121,19 @@ export default function IncidentsConfigPage() {
               </Select>
             </div>
 
-            {showGlobalOptions && (
+            {showMergeOptions && (
               <div className="grid grid-cols-2 gap-4 max-w-lg">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium">Global threshold</label>
+                  <label className="text-sm font-medium">Merge threshold</label>
                   <input
                     type="number"
                     min={1}
-                    value={globalThreshold}
-                    onChange={(e) => setGlobalThreshold(Number(e.target.value))}
+                    value={mergeThreshold}
+                    onChange={(e) => setMergeThreshold(Number(e.target.value))}
                     className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Number of services affected before escalating to a global incident.
+                    Number of services affected before their per-service incidents are merged into one.
                   </p>
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -141,12 +141,12 @@ export default function IncidentsConfigPage() {
                   <input
                     type="number"
                     min={1}
-                    value={globalCorrelationWindowMinutes}
-                    onChange={(e) => setGlobalCorrelationWindowMinutes(Number(e.target.value))}
+                    value={mergeCorrelationWindowMinutes}
+                    onChange={(e) => setMergeCorrelationWindowMinutes(Number(e.target.value))}
                     className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Time window in which failures are considered related for global correlation.
+                    Time window in which failures are considered related for merge correlation.
                   </p>
                 </div>
               </div>

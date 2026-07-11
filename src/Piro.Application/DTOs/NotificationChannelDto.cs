@@ -13,7 +13,6 @@ public record NotificationChannelDto(
     bool IsLocked,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    int AlertConfigCount = 0,
     int? IntegrationId = null,
     string? IntegrationName = null
 );

@@ -20,9 +20,6 @@ public class Incident
     /// or <see cref="IncidentStatus.Merged"/> — and no further updates/acks/impact changes apply.</summary>
     public bool IsResolved => Status is IncidentStatus.Resolved or IncidentStatus.Merged;
 
-    /// <summary>When true, the incident affects all services regardless of <see cref="IncidentServices"/>.</summary>
-    public bool IsGlobal { get; set; }
-
     /// <summary>Origin of the incident: MANUAL, WEBHOOK, or ALERT.</summary>
     public string? Source { get; set; }
 
@@ -52,6 +49,7 @@ public class Incident
     public ICollection<IncidentMerge> MergesAsSource { get; set; } = [];
     public ICollection<IncidentMerge> MergesAsTarget { get; set; } = [];
     public ICollection<IncidentImpactChange> ImpactChanges { get; set; } = [];
+    public ICollection<Alert> Alerts { get; set; } = [];
 
     // Escalation
     public int? EscalationPolicyId { get; set; }

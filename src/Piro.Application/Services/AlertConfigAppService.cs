@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
@@ -9,15 +10,14 @@ namespace Piro.Application.Services;
 public class AlertConfigAppService(
     IAlertConfigRepository alertConfigRepository,
     ICheckRepository checkRepository,
-    IServiceRepository serviceRepository,
-    INotificationChannelRepository channelRepository)
+    IServiceRepository serviceRepository)
 {
     public async Task<IEnumerable<AlertConfigDto>> GetByCheckAsync(
         string serviceSlug, string checkSlug, CancellationToken ct = default)
     {
         var check = await ResolveCheckAsync(serviceSlug, checkSlug, ct);
         var configs = await alertConfigRepository.GetByCheckIdAsync(check.Id, ct);
-        return configs.Select(ToDto);
+        return configs.Select(c => c.ToDto());
     }
 
     public async Task<AlertConfigDto> GetByIdAsync(
@@ -27,13 +27,19 @@ public class AlertConfigAppService(
         var config = await alertConfigRepository.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(AlertConfig), id.ToString());
         if (config.CheckId != check.Id) throw new NotFoundException(nameof(AlertConfig), id.ToString());
-        return ToDto(config);
+        return config.ToDto();
     }
 
     public async Task<AlertConfigDto> CreateAsync(
         string serviceSlug, string checkSlug, CreateAlertConfigRequest request, CancellationToken ct = default)
     {
         var check = await ResolveCheckAsync(serviceSlug, checkSlug, ct);
+
+        // Restricted to one AlertConfig per Check for now — multi-config evaluation
+        // (combining/prioritizing several rules on the same check) is deferred.
+        var existing = await alertConfigRepository.GetByCheckIdAsync(check.Id, ct);
+        if (existing.Any())
+            throw new DomainValidationException("This check already has an alert configuration. Update it instead of creating a new one.");
 
         var config = new AlertConfig
         {
@@ -44,21 +50,13 @@ public class AlertConfigAppService(
             SuccessThreshold = request.SuccessThreshold,
             Description = request.Description,
             CreateIncident = request.CreateIncident,
+            IncidentThresholdOccurrences = request.IncidentThresholdOccurrences,
             IsActive = request.IsActive,
             Severity = request.Severity
         };
 
         var created = await alertConfigRepository.CreateAsync(config, ct);
-
-        // Merge requested channels with all global channels
-        var globalChannels = await channelRepository.GetGlobalAsync(ct);
-        var mergedIds = (request.NotificationChannelIds ?? [])
-            .Union(globalChannels.Select(c => c.Id))
-            .ToList();
-        await SyncChannelsAsync(created, mergedIds, ct);
-
-        var dto = ToDto(await alertConfigRepository.GetByIdAsync(created.Id, ct) ?? created);
-        return dto;
+        return created.ToDto();
     }
 
     public async Task<AlertConfigDto> UpdateAsync(
@@ -75,15 +73,12 @@ public class AlertConfigAppService(
         if (request.SuccessThreshold is not null) config.SuccessThreshold = request.SuccessThreshold.Value;
         if (request.Description is not null) config.Description = request.Description;
         if (request.CreateIncident is not null) config.CreateIncident = request.CreateIncident.Value;
+        if (request.IncidentThresholdOccurrences is not null) config.IncidentThresholdOccurrences = request.IncidentThresholdOccurrences.Value;
         if (request.IsActive is not null) config.IsActive = request.IsActive.Value;
         if (request.Severity is not null) config.Severity = request.Severity.Value;
 
-        await alertConfigRepository.UpdateAsync(config, ct);
-
-        if (request.NotificationChannelIds is not null)
-            await SyncChannelsAsync(config, request.NotificationChannelIds, ct);
-
-        return ToDto(await alertConfigRepository.GetByIdAsync(id, ct) ?? config);
+        var updated = await alertConfigRepository.UpdateAsync(config, ct);
+        return updated.ToDto();
     }
 
     public async Task DeleteAsync(
@@ -105,42 +100,4 @@ public class AlertConfigAppService(
         return await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
             ?? throw new NotFoundException(nameof(Check), checkSlug);
     }
-
-    /// <summary>Replaces the notification channel associations on an alert config.</summary>
-    private async Task SyncChannelsAsync(AlertConfig config, List<int> channelIds, CancellationToken ct)
-    {
-        var existing = config.AlertConfigNotificationChannels.ToList();
-        var existingIds = existing.Select(ac => ac.NotificationChannelId).ToHashSet();
-        var requestedIds = channelIds.ToHashSet();
-
-        // Remove channels no longer in the list — skip locked ones
-        foreach (var ac in existing.Where(ac => !requestedIds.Contains(ac.NotificationChannelId)))
-        {
-            if (ac.NotificationChannel?.IsLocked == true) continue;
-            config.AlertConfigNotificationChannels.Remove(ac);
-        }
-
-        // Add new channels
-        foreach (var channelId in requestedIds.Where(id => !existingIds.Contains(id)))
-        {
-            var channel = await channelRepository.GetByIdAsync(channelId, ct)
-                ?? throw new NotFoundException(nameof(NotificationChannel), channelId.ToString());
-            config.AlertConfigNotificationChannels.Add(new AlertConfigNotificationChannel
-            {
-                AlertConfigId = config.Id,
-                NotificationChannelId = channel.Id
-            });
-        }
-
-        await alertConfigRepository.UpdateAsync(config, ct);
-    }
-
-    private static AlertConfigDto ToDto(AlertConfig a) => new(
-        a.Id, a.CheckId, a.AlertFor, a.AlertValue,
-        a.FailureThreshold, a.SuccessThreshold,
-        a.Description, a.CreateIncident, a.IsActive, a.IsAlerting,
-        a.Severity,
-        a.AlertConfigNotificationChannels.Select(ac => ac.NotificationChannelId).ToList(),
-        a.CreatedAt, a.UpdatedAt
-    );
 }

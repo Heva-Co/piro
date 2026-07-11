@@ -32,6 +32,12 @@ export const ROUTES = {
       `/admin/services/${serviceSlug}/checks/${checkSlug}/logs`,
   },
 
+  // Alerts
+  ALERTS: {
+    LIST: "/admin/alerts",
+    DETAIL: (id: number | string) => `/admin/alerts/${id}`,
+  },
+
   // Incidents
   INCIDENTS: {
     LIST: "/admin/incidents",

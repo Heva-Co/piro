@@ -12,5 +12,6 @@ public enum TimelineEventType
     MergedTo,
     MergedFrom,
     Published,
-    Unpublished
+    Unpublished,
+    AlertFired
 }
