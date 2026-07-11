@@ -20,7 +20,7 @@ export interface Incident {
   visibility: IncidentVisibilityKey;
   mergedIntoIncidentId?: number | null;
   services: IncidentService[];
-  comments: IncidentComment[];
+  timeline: IncidentTimelineEvent[];
   createdAt: string;
   updatedAt: string;
   acknowledgedAt?: number;
@@ -29,13 +29,16 @@ export interface Incident {
   impactChanges: { timestamp: number; impact: string }[];
 }
 
-export interface IncidentComment {
+export interface IncidentTimelineEvent {
   id: number;
-  comment: string;
-  commentedAt: number;
-  status: string;
+  type: string;
+  occurredAt: string;
+  actorName?: string | null;
+  comment?: string | null;
+  oldStatus?: string | null;
+  newStatus?: string | null;
   visibility: IncidentVisibilityKey;
-  createdAt: string;
+  relatedIncidentId?: number | null;
 }
 
 export const incidentsApi = {
@@ -53,21 +56,18 @@ export const incidentsApi = {
 
   delete: (id: number | string) => api.delete(ENDPOINTS.INCIDENT(id)),
 
-  comments: (id: number | string) =>
-    api.get<IncidentComment[]>(ENDPOINTS.INCIDENT_COMMENTS(id)).then((r) => r.data),
-
-  addComment: (id: number | string, comment: string, status: string, visibility: IncidentVisibilityKey = "Private") =>
+  addTimelineComment: (id: number | string, comment: string, status: string | null, visibility: IncidentVisibilityKey = "Private") =>
     api
-      .post<IncidentComment>(ENDPOINTS.INCIDENT_COMMENTS(id), { comment, status, visibility })
+      .post<IncidentTimelineEvent>(ENDPOINTS.INCIDENT_UPDATES(id), { comment, status, visibility })
       .then((r) => r.data),
 
-  updateComment: (id: number | string, commentId: number | string, comment: string, status: string, visibility: IncidentVisibilityKey) =>
+  updateTimelineComment: (id: number | string, eventId: number | string, comment: string, visibility: IncidentVisibilityKey) =>
     api
-      .put<IncidentComment>(ENDPOINTS.INCIDENT_COMMENT(id, commentId), { comment, status, visibility })
+      .put<IncidentTimelineEvent>(ENDPOINTS.INCIDENT_UPDATE(id, eventId), { comment, visibility })
       .then((r) => r.data),
 
-  deleteComment: (id: number | string, commentId: number | string) =>
-    api.delete(ENDPOINTS.INCIDENT_COMMENT(id, commentId)),
+  deleteTimelineComment: (id: number | string, eventId: number | string) =>
+    api.delete(ENDPOINTS.INCIDENT_UPDATE(id, eventId)),
 
   addService: (id: number | string, slug: string, impact: string) =>
     api.post(ENDPOINTS.INCIDENT_SERVICES(id), { serviceSlug: slug, impact }),

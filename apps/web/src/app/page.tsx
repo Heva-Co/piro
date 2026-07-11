@@ -115,7 +115,7 @@ export default async function StatusPage() {
             Upcoming Maintenance
           </h2>
           {upcomingMaintenances.map((m) => (
-            <MaintenanceCard key={m.id} maintenance={m} upcoming />
+            <MaintenanceCard key={m.id} maintenance={m} />
           ))}
         </section>
       )}

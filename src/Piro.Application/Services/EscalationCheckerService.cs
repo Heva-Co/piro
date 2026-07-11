@@ -13,6 +13,8 @@ namespace Piro.Application.Services;
 public class EscalationCheckerService(
     IEscalationPolicyRepository policyRepo,
     IIncidentRepository incidentRepo,
+    ICheckRepository checkRepo,
+    AlertEvaluationService alertEvaluationService,
     OnCallService onCallService,
     IEnumerable<INotificationDispatcher> dispatchers,
     INotificationChannelRepository channelRepo,
@@ -21,6 +23,37 @@ public class EscalationCheckerService(
 {
     private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
+
+    /// <summary>
+    /// Safety net for checks left in a failing state with no open incident — this can happen if
+    /// the process was interrupted between persisting a check's new status and creating its
+    /// incident (see <see cref="AlertEvaluationService.EvaluateIncidentPolicyAsync"/>, which only
+    /// fires on a status transition and never retries once both reads agree the check is DOWN).
+    /// Re-evaluates each orphaned check as if it just transitioned from UP, which is a no-op if an
+    /// incident already exists for its service (see EnsurePerServiceIncidentAsync and friends).
+    /// </summary>
+    public async Task ReconcileOrphanedChecksAsync(CancellationToken ct = default)
+    {
+        var checks = await checkRepo.GetAllActiveAsync(ct);
+        var failingAutoCreate = checks
+            .Where(c => c.AutomaticallyCreateIncident
+                     && c.CurrentStatus is ServiceStatus.DOWN or ServiceStatus.DEGRADED)
+            .ToList();
+
+        foreach (var check in failingAutoCreate)
+        {
+            try
+            {
+                await alertEvaluationService.EvaluateIncidentPolicyAsync(
+                    check.Id, previousStatus: ServiceStatus.UP, newStatus: check.CurrentStatus, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Incident reconciliation failed for check {CheckId} \"{CheckName}\".",
+                    check.Id, check.Name);
+            }
+        }
+    }
 
     public async Task ProcessAsync(CancellationToken ct = default)
     {

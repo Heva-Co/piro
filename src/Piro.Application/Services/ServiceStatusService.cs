@@ -26,9 +26,18 @@ public class ServiceStatusService(
         var service = await serviceRepo.GetByIdAsync(serviceId, ct);
         if (service is null) return [];
 
+        var hasMaintenanceWindow = await maintenanceRepo.HasActiveWindowAsync(serviceId, ct);
+        var incidentImpact = await incidentRepo.GetActiveImpactForServiceAsync(serviceId, ct);
+
+        // Public status: defaults to UP, only ever worsened by maintenance or a Public incident's
+        // declared impact. Raw check failures never surface here on their own.
+        var publicStatus = hasMaintenanceWindow ? ServiceStatus.MAINTENANCE : ServiceStatus.UP;
+        if (incidentImpact.HasValue)
+            publicStatus = Worst(publicStatus, incidentImpact.Value);
+
         // 1. Maintenance overrides everything — short-circuit
-        if (await maintenanceRepo.HasActiveWindowAsync(serviceId, ct))
-            return await PersistAndCascadeAsync(service, ServiceStatus.MAINTENANCE, [], ct);
+        if (hasMaintenanceWindow)
+            return await PersistAndCascadeAsync(service, ServiceStatus.MAINTENANCE, publicStatus, [], ct);
 
         // 2. Raw status from own checks
         var checks = await checkRepo.GetByServiceIdAsync(serviceId, ct);
@@ -38,7 +47,6 @@ public class ServiceStatusService(
             .Aggregate(ServiceStatus.NO_DATA, Worst);
 
         // 3. Active incident impact overrides check status
-        var incidentImpact = await incidentRepo.GetActiveImpactForServiceAsync(serviceId, ct);
         if (incidentImpact.HasValue)
             rawStatus = Worst(rawStatus, incidentImpact.Value);
 
@@ -61,7 +69,7 @@ public class ServiceStatusService(
             propagationSources.Add(dep.DependsOnService.Slug);
         }
 
-        return await PersistAndCascadeAsync(service, rawStatus, propagationSources, ct);
+        return await PersistAndCascadeAsync(service, rawStatus, publicStatus, propagationSources, ct);
     }
 
     /// <summary>
@@ -113,11 +121,13 @@ public class ServiceStatusService(
     private async Task<IReadOnlyList<int>> PersistAndCascadeAsync(
         Service service,
         ServiceStatus newStatus,
+        ServiceStatus newPublicStatus,
         IReadOnlyList<string> propagationSources,
         CancellationToken ct)
     {
         var changed = service.CurrentStatus != newStatus;
         service.CurrentStatus = newStatus;
+        service.PublicStatus = newPublicStatus;
         await serviceRepo.UpdateAsync(service, ct);
 
         if (!changed) return [];

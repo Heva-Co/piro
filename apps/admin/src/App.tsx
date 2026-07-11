@@ -26,6 +26,7 @@ import CheckLogsPage from "@/features/checks/pages/CheckLogsPage";
 import IncidentsPage from "@/features/incidents/pages/IncidentsPage";
 import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
+import IncidentTimelinePage from "@/features/incidents/pages/IncidentTimelinePage";
 import ChannelsPage from "@/features/channels/pages/ChannelsPage";
 import ChannelFormPage from "@/features/channels/pages/ChannelFormPage";
 import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
@@ -107,6 +108,7 @@ export default function App() {
               <Route path={ROUTES.INCIDENTS.LIST} element={<IncidentsPage />} />
               <Route path={ROUTES.INCIDENTS.NEW} element={<IncidentFormPage />} />
               <Route path="/admin/incidents/:id" element={<IncidentDetailPage />} />
+              <Route path="/admin/incidents/:id/timeline" element={<IncidentTimelinePage />} />
 
               {/* Channels */}
               <Route path={ROUTES.CHANNELS.LIST} element={<ChannelsPage />} />

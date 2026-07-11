@@ -70,7 +70,7 @@ public class MaintenanceSchedulerJob(
         foreach (var m in activeMaint)
         {
             var latestEvent = db.MaintenanceEvents
-                .Where(e => e.MaintenanceId == m.Id && e.Status == MaintenanceEventStatus.Scheduled)
+                .Where(e => e.MaintenanceId == m.Id)
                 .OrderByDescending(e => e.StartDateTime)
                 .FirstOrDefault();
 

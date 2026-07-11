@@ -2,9 +2,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, ChevronDown } from "lucide-react";
-import { maintenancesApi, type Maintenance, type MaintenanceDisplayStatus } from "@/lib/api";
+import { maintenancesApi, type MaintenanceListItem, type MaintenanceDisplayStatus } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { formatTimestamp } from "@/utils/date";
+
+const NEXT_EVENT_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short", day: "numeric", year: "numeric",
+  hour: "numeric", minute: "2-digit",
+};
 
 const STATUS_BADGE: Record<MaintenanceDisplayStatus, string> = {
   Active:    "bg-green-500/15 text-green-600 dark:text-green-400",
@@ -27,13 +33,9 @@ function isOneTime(rRule: string) {
   return rRule.includes("COUNT=1");
 }
 
-function formatNextEvent(m: Maintenance) {
-  const next = m.upcomingEvents[0];
-  if (!next) return "—";
-  return new Date(next.startDateTime * 1000).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit",
-  });
+function formatNextEvent(m: MaintenanceListItem) {
+  if (m.nextEventAt == null) return "—";
+  return formatTimestamp(m.nextEventAt, NEXT_EVENT_FORMAT);
 }
 
 const FILTER_OPTIONS: { label: string; value: "all" | MaintenanceDisplayStatus }[] = [

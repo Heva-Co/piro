@@ -14,14 +14,12 @@ public class MaintenancesController(MaintenanceAppService maintenanceService) : 
 {
     /// <summary>Returns all maintenance windows.</summary>
     [HttpGet]
-    [AllowAnonymous]
-    [ProducesResponseType<IEnumerable<MaintenanceDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IEnumerable<MaintenanceListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await maintenanceService.GetAllAsync(ct));
 
     /// <summary>Returns a single maintenance window by ID.</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     [ProducesResponseType<MaintenanceDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct) =>

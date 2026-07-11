@@ -52,9 +52,9 @@ export const ENDPOINTS = {
   // Incidents
   INCIDENTS: `${API_BASE}/incidents`,
   INCIDENT: (id: number | string) => `${API_BASE}/incidents/${id}`,
-  INCIDENT_COMMENTS: (id: number | string) => `${API_BASE}/incidents/${id}/comments`,
-  INCIDENT_COMMENT: (id: number | string, commentId: number | string) =>
-    `${API_BASE}/incidents/${id}/comments/${commentId}`,
+  INCIDENT_UPDATES: (id: number | string) => `${API_BASE}/incidents/${id}/updates`,
+  INCIDENT_UPDATE: (id: number | string, eventId: number | string) =>
+    `${API_BASE}/incidents/${id}/updates/${eventId}`,
   INCIDENT_SERVICES: (id: number | string) => `${API_BASE}/incidents/${id}/services`,
   INCIDENT_SERVICE: (id: number | string, slug: string) =>
     `${API_BASE}/incidents/${id}/services/${slug}`,

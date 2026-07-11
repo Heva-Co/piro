@@ -29,6 +29,7 @@ const STATUS_BADGE: Record<string, string> = {
   IDENTIFIED:    "bg-orange-500/15 text-orange-600 dark:text-orange-400",
   MONITORING:    "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   RESOLVED:      "bg-green-500/15 text-green-600 dark:text-green-400",
+  MERGED:        "bg-violet-500/15 text-violet-600 dark:text-violet-400",
 };
 
 const PAGE_SIZE = 10;

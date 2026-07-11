@@ -2,7 +2,6 @@ import type { Maintenance } from "@/src/lib/api";
 
 interface Props {
   maintenance: Maintenance;
-  upcoming?: boolean;
 }
 
 function fmtTs(ts: number): string {
@@ -25,10 +24,25 @@ function fmtDuration(seconds: number): string {
   return `${hrs}h ${remMins}m`;
 }
 
-export function MaintenanceCard({ maintenance, upcoming = false }: Props) {
+const STATUS_LABEL: Record<string, string> = {
+  Scheduled: "SCHEDULED",
+  Ongoing: "ONGOING",
+  Completed: "COMPLETED",
+  Cancelled: "CANCELLED",
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  Scheduled: "text-blue-500",
+  Ongoing: "text-blue-600",
+  Completed: "text-muted-foreground",
+  Cancelled: "text-muted-foreground",
+};
+
+export function MaintenanceCard({ maintenance }: Props) {
   const nextEvent = maintenance.upcomingEvents[0];
-  const statusColor = upcoming ? "text-blue-500" : "text-blue-600";
-  const statusLabel = upcoming ? "SCHEDULED" : "ONGOING";
+  const eventStatus = nextEvent?.status ?? "Scheduled";
+  const statusColor = STATUS_COLOR[eventStatus];
+  const statusLabel = STATUS_LABEL[eventStatus];
 
   return (
     <div className="rounded-3xl border p-5 flex flex-col gap-3">

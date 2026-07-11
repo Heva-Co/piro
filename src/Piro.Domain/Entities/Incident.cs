@@ -16,8 +16,9 @@ public class Incident
 
     public IncidentStatus Status { get; set; } = IncidentStatus.Investigating;
 
-    /// <summary>True when <see cref="Status"/> is <see cref="IncidentStatus.Resolved"/>.</summary>
-    public bool IsResolved => Status == IncidentStatus.Resolved;
+    /// <summary>True when the incident has reached a final state — <see cref="IncidentStatus.Resolved"/>
+    /// or <see cref="IncidentStatus.Merged"/> — and no further updates/acks/impact changes apply.</summary>
+    public bool IsResolved => Status is IncidentStatus.Resolved or IncidentStatus.Merged;
 
     /// <summary>When true, the incident affects all services regardless of <see cref="IncidentServices"/>.</summary>
     public bool IsGlobal { get; set; }
@@ -46,7 +47,7 @@ public class Incident
     /// </summary>
     public ServiceStatus CurrentImpact { get; set; } = ServiceStatus.DOWN;
 
-    public ICollection<IncidentComment> Comments { get; set; } = [];
+    public ICollection<IncidentTimelineEvent> TimelineEvents { get; set; } = [];
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
     public ICollection<IncidentMerge> MergesAsSource { get; set; } = [];
     public ICollection<IncidentMerge> MergesAsTarget { get; set; } = [];

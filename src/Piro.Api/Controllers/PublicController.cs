@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Enums;
 
@@ -16,8 +17,19 @@ namespace Piro.Api.Controllers;
 public class PublicController(
     IServiceRepository serviceRepo,
     ICheckDataPointRepository dataPointRepo,
-    IIncidentRepository incidentRepo) : ControllerBase
+    IIncidentRepository incidentRepo,
+    IMaintenanceRepository maintenanceRepo) : ControllerBase
 {
+    /// <summary>Returns all maintenance windows with their upcoming events, for the public status page.</summary>
+    [HttpGet("maintenances")]
+    [ProducesResponseType<IEnumerable<MaintenanceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMaintenances(CancellationToken ct)
+    {
+        var maintenances = await maintenanceRepo.GetAllForPublicAsync(ct);
+        return Ok(maintenances.Select(m => m.ToPublicDto()));
+    }
+
+
     /// <summary>Returns all visible services with their current computed status.</summary>
     [HttpGet("services")]
     [ProducesResponseType<IEnumerable<PublicServiceDto>>(StatusCodes.Status200OK)]
@@ -28,7 +40,7 @@ public class PublicController(
             .Where(s => !s.IsHidden)
             .Select(s => new PublicServiceDto(
                 s.Slug, s.Name, s.Description, s.ImageUrl,
-                s.CurrentStatus, s.DisplayOrder,
+                s.PublicStatus, s.DisplayOrder,
                 s.HistoryDaysDesktop, s.HistoryDaysMobile));
         return Ok(result);
     }
@@ -45,7 +57,7 @@ public class PublicController(
 
         return Ok(new PublicServiceDto(
             service.Slug, service.Name, service.Description, service.ImageUrl,
-            service.CurrentStatus, service.DisplayOrder,
+            service.PublicStatus, service.DisplayOrder,
             service.HistoryDaysDesktop, service.HistoryDaysMobile));
     }
 
@@ -212,7 +224,7 @@ public class PublicController(
 
         return Ok(new ServiceOverviewDto(
             service.Slug, service.Name, service.Description, service.ImageUrl,
-            service.CurrentStatus,
+            service.PublicStatus,
             latest?.Timestamp ?? now,
             latest?.LatencyMs,
             uptimePercent,

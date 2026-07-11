@@ -1,8 +1,10 @@
 /**
  * Formats a Unix timestamp (seconds) as a localized date/time string.
  */
-export function formatTimestamp(unixSeconds: number): string {
-  return new Date(unixSeconds * 1000).toLocaleString();
+export function formatTimestamp(unixSeconds: number, options?: Intl.DateTimeFormatOptions): string {
+  return options
+    ? new Date(unixSeconds * 1000).toLocaleString("en-US", options)
+    : new Date(unixSeconds * 1000).toLocaleString();
 }
 
 /**

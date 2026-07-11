@@ -5,7 +5,8 @@ namespace Piro.Application.DTOs;
 /// <summary>Public status summary for a service, safe to expose without authentication.</summary>
 /// <remarks>
 /// Never includes check details, propagation sources, or internal identifiers.
-/// Status is the computed value from checks + dependency cascades.
+/// Status defaults to UP and is only worsened by an active maintenance window or a
+/// Public incident's declared impact — raw check failures never surface here on their own.
 /// </remarks>
 public record PublicServiceDto(
     string Slug,
