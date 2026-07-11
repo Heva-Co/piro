@@ -202,6 +202,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .FirstOrDefaultAsync(i =>
                 i.Source == "ALERT" &&
                 i.Status != IncidentStatus.Resolved &&
+                i.Status != IncidentStatus.Merged &&
                 i.IncidentServices.Any(s => s.ServiceId == serviceId), ct);
 
     public async Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default)
@@ -212,8 +213,22 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .Where(i =>
                 i.Source == "ALERT" &&
                 i.Status != IncidentStatus.Resolved &&
+                i.Status != IncidentStatus.Merged &&
                 i.StartDateTime >= sinceUnix)
             .ToListAsync(ct);
+    }
+
+    public async Task<Incident?> GetOpenMergeIncidentAsync(DateTimeOffset since, CancellationToken ct = default)
+    {
+        var sinceUnix = since.ToUnixTimeSeconds();
+        return await db.Incidents
+            .Include(i => i.IncidentServices)
+            .FirstOrDefaultAsync(i =>
+                i.Source == "ALERT" &&
+                i.Status != IncidentStatus.Resolved &&
+                i.Status != IncidentStatus.Merged &&
+                i.StartDateTime >= sinceUnix &&
+                i.IncidentServices.Count > 1, ct);
     }
 
     public async Task PublishAsync(int incidentId, CancellationToken ct = default)

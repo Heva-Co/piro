@@ -185,6 +185,24 @@ public class AlertEvaluationService(
         SiteConfig settings, DateTimeOffset now, CancellationToken ct)
     {
         var window = now.AddMinutes(-settings.MergeCorrelationWindowMinutes);
+
+        // If a merge incident is already open within the window, attach this service to it
+        // directly instead of re-running threshold detection — it has already been crossed.
+        var openMerge = await incidentRepository.GetOpenMergeIncidentAsync(window, ct);
+        if (openMerge is not null)
+        {
+            if (!openMerge.IncidentServices.Any(s => s.ServiceId == service.Id))
+            {
+                openMerge.IncidentServices.Add(new IncidentService
+                {
+                    ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
+                });
+                await incidentRepository.UpdateAsync(openMerge, ct);
+                await RecordImpactIfChangedAsync(openMerge, ct);
+            }
+            return openMerge;
+        }
+
         var recentPerServiceIncidents = await incidentRepository.GetRecentAlertIncidentsAsync(window, ct);
         var affectedServiceCount = recentPerServiceIncidents
             .SelectMany(i => i.IncidentServices.Select(s => s.ServiceId))
