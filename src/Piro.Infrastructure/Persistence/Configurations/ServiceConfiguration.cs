@@ -18,6 +18,7 @@ internal class ServiceConfiguration : IEntityTypeConfiguration<Service>
         builder.Property(s => s.ImageUrl).HasMaxLength(500);
         builder.Property(s => s.CurrentStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
         builder.Property(s => s.DefaultStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
+        builder.Property(s => s.PublicStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.UP);
 
         builder.HasMany(s => s.DependsOn)
             .WithOne(d => d.Service)

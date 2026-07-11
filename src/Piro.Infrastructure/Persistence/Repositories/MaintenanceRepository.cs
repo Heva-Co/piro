@@ -15,6 +15,13 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
             .OrderByDescending(m => m.StartDateTime)
             .ToListAsync(ct);
 
+    public async Task<IEnumerable<Maintenance>> GetAllForPublicAsync(CancellationToken ct = default) =>
+        await db.Maintenances
+            .Include(m => m.Events.OrderBy(e => e.StartDateTime))
+            .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
+            .OrderByDescending(m => m.StartDateTime)
+            .ToListAsync(ct);
+
     public async Task<Maintenance?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Maintenances
             .Include(m => m.Events.OrderBy(e => e.StartDateTime))
@@ -48,7 +55,20 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
 
     public async Task AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
     {
-        db.MaintenanceEvents.AddRange(events);
+        var eventList = events.ToList();
+        if (eventList.Count == 0) return;
+
+        var maintenanceId = eventList[0].MaintenanceId;
+        var existingStarts = await db.MaintenanceEvents
+            .Where(e => e.MaintenanceId == maintenanceId)
+            .Select(e => e.StartDateTime)
+            .ToListAsync(ct);
+        var existingStartsSet = existingStarts.ToHashSet();
+
+        var newEvents = eventList.Where(e => !existingStartsSet.Contains(e.StartDateTime)).ToList();
+        if (newEvents.Count == 0) return;
+
+        db.MaintenanceEvents.AddRange(newEvents);
         await db.SaveChangesAsync(ct);
     }
 

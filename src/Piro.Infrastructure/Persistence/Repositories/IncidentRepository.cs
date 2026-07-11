@@ -39,7 +39,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     private IQueryable<Incident> IncidentBaseQuery() =>
         db.Incidents
-            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
+            .Include(i => i.TimelineEvents.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -50,7 +50,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
-            .Include(i => i.Comments.OrderBy(c => c.CommentedAt))
+            .Include(i => i.TimelineEvents.OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -62,7 +62,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     /// <summary>Returns the incident only if it is publicly visible — used for anonymous/public access.</summary>
     public async Task<Incident?> GetPublicByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
-            .Include(i => i.Comments.Where(c => c.Visibility == CommentVisibility.Public).OrderBy(c => c.CommentedAt))
+            .Include(i => i.TimelineEvents.Where(e => e.Visibility == EventVisibility.Public).OrderByDescending(e => e.OccurredAt).ThenByDescending(e => e.Id))
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
@@ -86,6 +86,13 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<Incident> UpdateAsync(Incident incident, CancellationToken ct = default)
     {
+        // The row may have been deleted (or resolved-and-merged) by another request between when
+        // this incident was loaded and now — e.g. a background job holding a stale copy across a
+        // multi-second dispatch loop while someone deletes/merges it concurrently. Check first
+        // rather than catching DbUpdateConcurrencyException: no point writing if it's already gone.
+        if (!await db.Incidents.AnyAsync(i => i.Id == incident.Id, ct))
+            return incident;
+
         // `incident` is already tracked by `db` (loaded via GetByIdAsync/GetOpenWithEscalationAsync
         // in this same scope) — no explicit Update() call, so SaveChanges only persists the
         // properties actually modified by the caller instead of overwriting the whole row and
@@ -94,37 +101,36 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         return incident;
     }
 
-    public async Task AddCommentAsync(Incident incident, IncidentComment comment, CancellationToken ct = default)
+    public async Task AddTimelineEventAsync(IncidentTimelineEvent evt, CancellationToken ct = default)
     {
-        db.IncidentComments.Add(comment);
+        db.IncidentTimelineEvents.Add(evt);
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IncidentComment?> GetCommentByIdAsync(int incidentId, int commentId, CancellationToken ct = default) =>
-        await db.IncidentComments.FirstOrDefaultAsync(c => c.Id == commentId && c.IncidentId == incidentId, ct);
+    public async Task<IncidentTimelineEvent?> GetTimelineEventByIdAsync(int incidentId, int eventId, CancellationToken ct = default) =>
+        await db.IncidentTimelineEvents.FirstOrDefaultAsync(e => e.Id == eventId && e.IncidentId == incidentId, ct);
 
-    public async Task<int> UpdateCommentAsync(
-        int incidentId, int commentId, string text, IncidentStatus status, CommentVisibility requestedVisibility, CancellationToken ct = default)
+    public async Task<int> UpdateTimelineEventAsync(
+        int incidentId, int eventId, string text, EventVisibility requestedVisibility, CancellationToken ct = default)
     {
         // Single atomic statement: the requested visibility is only honored if the parent
         // incident is Public *at the moment this UPDATE executes*, closing the TOCTOU window
         // that existed when visibility was read separately before the write.
-        return await db.IncidentComments
-            .Where(c => c.Id == commentId && c.IncidentId == incidentId)
+        return await db.IncidentTimelineEvents
+            .Where(e => e.Id == eventId && e.IncidentId == incidentId)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(c => c.Comment, text)
-                .SetProperty(c => c.Status, status)
-                .SetProperty(c => c.Visibility, c =>
-                    requestedVisibility == CommentVisibility.Public
+                .SetProperty(e => e.Comment, text)
+                .SetProperty(e => e.Visibility, e =>
+                    requestedVisibility == EventVisibility.Public
                     && db.Incidents.Any(i => i.Id == incidentId && i.Visibility == IncidentVisibility.Public)
-                        ? CommentVisibility.Public
-                        : CommentVisibility.Private),
+                        ? EventVisibility.Public
+                        : EventVisibility.Private),
                 ct);
     }
 
-    public async Task DeleteCommentAsync(IncidentComment comment, CancellationToken ct = default)
+    public async Task DeleteTimelineEventAsync(IncidentTimelineEvent evt, CancellationToken ct = default)
     {
-        db.IncidentComments.Remove(comment);
+        db.IncidentTimelineEvents.Remove(evt);
         await db.SaveChangesAsync(ct);
     }
 
@@ -154,15 +160,17 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
 
     public async Task<ServiceStatus?> GetActiveImpactForServiceAsync(int serviceId, CancellationToken ct = default)
     {
-        // Direct link impact
+        // Direct link impact — only Public incidents may affect the publicly-shown status
         var directImpacts = await db.IncidentServices
-            .Where(s => s.ServiceId == serviceId && s.Incident.Status != IncidentStatus.Resolved)
+            .Where(s => s.ServiceId == serviceId
+                     && s.Incident.Status != IncidentStatus.Resolved
+                     && s.Incident.Visibility == IncidentVisibility.Public)
             .Select(s => s.Impact)
             .ToListAsync(ct);
 
         // Global incidents (affect every service) — use DEGRADED as minimum impact
         var hasGlobal = await db.Incidents
-            .AnyAsync(i => i.Status != IncidentStatus.Resolved && i.IsGlobal, ct);
+            .AnyAsync(i => i.Status != IncidentStatus.Resolved && i.IsGlobal && i.Visibility == IncidentVisibility.Public, ct);
 
         if (!directImpacts.Any() && !hasGlobal) return null;
 
@@ -220,11 +228,11 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Visibility, IncidentVisibility.Private), ct);
     }
 
-    public async Task MakeAllCommentsPrivateAsync(int incidentId, CancellationToken ct = default)
+    public async Task MakeAllTimelineEventsPrivateAsync(int incidentId, CancellationToken ct = default)
     {
-        await db.IncidentComments
-            .Where(c => c.IncidentId == incidentId && c.Visibility == CommentVisibility.Public)
-            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Visibility, CommentVisibility.Private), ct);
+        await db.IncidentTimelineEvents
+            .Where(e => e.IncidentId == incidentId && e.Visibility == EventVisibility.Public)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.Visibility, EventVisibility.Private), ct);
     }
 
     public async Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default)

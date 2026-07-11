@@ -37,6 +37,7 @@ export const ROUTES = {
     LIST: "/admin/incidents",
     NEW: "/admin/incidents/new",
     DETAIL: (id: number | string) => `/admin/incidents/${id}`,
+    TIMELINE: (id: number | string) => `/admin/incidents/${id}/timeline`,
   },
 
   // Notification channels

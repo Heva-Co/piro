@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCheck, Save, Eye, EyeOff, Globe, Lock, MessageSquare, Blend, AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCheck, Save, Eye, EyeOff, Globe, Lock, MessageSquare, Blend, AlertTriangle, Plus, PlusCircle, MinusCircle, FlagTriangleRight, ArrowRightLeft } from "lucide-react";
 import { marked } from "marked";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
@@ -9,9 +9,19 @@ import DangerZone from "@/components/DangerZone/DangerZone";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
 import { servicesApi } from "@/lib/api";
 import { incidentsApi } from "@/lib/actions/incidents";
+import type { IncidentTimelineEvent } from "@/lib/actions/incidents";
 import type { IncidentVisibilityKey } from "@/constants/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -23,11 +33,59 @@ const STATUS_BADGE: Record<string, string> = {
   IDENTIFIED:    "bg-orange-500/15 text-orange-600 dark:text-orange-400",
   MONITORING:    "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   RESOLVED:      "bg-green-500/15 text-green-600 dark:text-green-400",
+  MERGED:        "bg-violet-500/15 text-violet-600 dark:text-violet-400",
 };
+
+const STATUS_SELECT_LABEL: Record<string, string> = {
+  __NO_CHANGE__: "No status change",
+  INVESTIGATING: "Investigating",
+  IDENTIFIED: "Identified",
+  MONITORING: "Monitoring",
+  RESOLVED: "Resolved",
+};
+
+const STATUS_FLOW_ORDER = ["INVESTIGATING", "IDENTIFIED", "MONITORING", "RESOLVED"];
 
 interface ServiceImpact {
   slug: string;
   impact: string;
+}
+
+const SYSTEM_EVENT_ICON: Record<string, React.ReactNode> = {
+  Created: <FlagTriangleRight />,
+  StatusChanged: <ArrowRightLeft />,
+  Acknowledged: <CheckCheck />,
+  ServiceAdded: <PlusCircle />,
+  ServiceRemoved: <MinusCircle />,
+  MergedTo: <Blend />,
+  MergedFrom: <Blend />,
+  Published: <Eye />,
+  Unpublished: <EyeOff />,
+};
+
+function describeSystemEvent(e: IncidentTimelineEvent): string {
+  switch (e.type) {
+    case "Created":
+      return "Incident created";
+    case "StatusChanged":
+      return `Status changed from ${e.oldStatus} to ${e.newStatus}`;
+    case "Acknowledged":
+      return `Acknowledged by ${e.actorName}`;
+    case "ServiceAdded":
+      return "Service added";
+    case "ServiceRemoved":
+      return "Service removed";
+    case "MergedTo":
+      return `Merged into incident #${e.relatedIncidentId}`;
+    case "MergedFrom":
+      return `Absorbed incident #${e.relatedIncidentId}`;
+    case "Published":
+      return "Published to status page";
+    case "Unpublished":
+      return "Unpublished from status page";
+    default:
+      return e.type;
+  }
 }
 
 export default function IncidentDetailPage() {
@@ -96,25 +154,35 @@ export default function IncidentDetailPage() {
   }
 
   // ── Comment form ────────────────────────────────────────────────────────────
+  const NO_STATUS_CHANGE = "__NO_CHANGE__";
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [commentBody, setCommentBody] = useState("");
-  const [commentStatus, setCommentStatus] = useState("INVESTIGATING");
+  const [commentStatus, setCommentStatus] = useState(NO_STATUS_CHANGE);
   const [commentVisibility, setCommentVisibility] = useState<IncidentVisibilityKey>("Private");
   const [commentError, setCommentError] = useState("");
 
   // ── Mutations ───────────────────────────────────────────────────────────────
   const addCommentMutation = useMutation({
-    mutationFn: () => incidentsApi.addComment(id!, commentBody, commentStatus, commentVisibility),
+    mutationFn: () =>
+      incidentsApi.addTimelineComment(
+        id!,
+        commentBody,
+        commentStatus === NO_STATUS_CHANGE ? null : commentStatus,
+        commentVisibility
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: incidentKey });
       setCommentBody("");
+      setCommentStatus(NO_STATUS_CHANGE);
       setCommentVisibility("Private");
       setCommentError("");
+      setPostDialogOpen(false);
     },
     onError: () => setCommentError("Failed to add update."),
   });
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (commentId: number) => incidentsApi.deleteComment(id!, commentId),
+    mutationFn: (eventId: number) => incidentsApi.deleteTimelineComment(id!, eventId),
     onSuccess: () => qc.invalidateQueries({ queryKey: incidentKey }),
   });
 
@@ -180,8 +248,20 @@ export default function IncidentDetailPage() {
     );
   }
 
-  const comments = incident.comments ?? [];
-  const isResolved = incident.status === "Resolved" || incident.isResolved;
+  // Backend already returns events most-recent-first.
+  const timeline = incident.timeline ?? [];
+  const recentTimeline = timeline.slice(0, 10);
+  const hiddenTimelineCount = timeline.length - recentTimeline.length;
+  const isMerged = !!incident.mergedIntoIncidentId;
+  // Merged is a final state just like Resolved — the incident's timeline lives on in the target
+  // incident from here on, so no further acks/updates/impact changes make sense on this one.
+  // Publish/Unpublish stays available for Resolved (not merged): retroactively publishing a
+  // closed incident, e.g. for a post-mortem, is a legitimate action.
+  const isResolved = incident.status === "Resolved" || incident.isResolved || isMerged;
+  const currentStatusUpper = incident.status?.toUpperCase() ?? "";
+  const isBackwardStatusChange =
+    commentStatus !== NO_STATUS_CHANGE &&
+    STATUS_FLOW_ORDER.indexOf(commentStatus) < STATUS_FLOW_ORDER.indexOf(currentStatusUpper);
 
   return (
     <>
@@ -251,104 +331,162 @@ export default function IncidentDetailPage() {
         )}
       </div>
 
-      {/* ── Updates ── */}
+      {/* ── Timeline ── */}
       <SectionAccordion
-        title={`Updates (${comments.length})`}
-        description="Status updates and internal notes"
+        title={`Timeline (${timeline.length})`}
+        description="Status updates and lifecycle events"
         icon={<MessageSquare size={16} className="text-muted-foreground" />}
         defaultOpen
+        actions={
+          <>
+            {!isResolved && (
+              <Button size="sm" onClick={() => setPostDialogOpen(true)}>
+                <Plus size={14} /> Post Update
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.INCIDENTS.TIMELINE(incident.id))}>
+              View full timeline
+            </Button>
+          </>
+        }
       >
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {!isResolved && (
-            <div className="px-5 py-4 border-b border-border flex flex-col gap-3 bg-muted/30">
-              <h3 className="text-sm font-semibold">Post Update</h3>
-              {commentError && (
-                <div className="flex items-center gap-2 text-sm text-destructive">
-                  <AlertCircle size={14} /> {commentError}
-                </div>
-              )}
-              <Select value={commentStatus} onValueChange={(v) => v && setCommentStatus(v)}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INVESTIGATING">Investigating</SelectItem>
-                  <SelectItem value="IDENTIFIED">Identified</SelectItem>
-                  <SelectItem value="MONITORING">Monitoring</SelectItem>
-                  <SelectItem value="RESOLVED">Resolved</SelectItem>
-                </SelectContent>
-              </Select>
-              <MarkdownEditor
-                value={commentBody}
-                onChange={setCommentBody}
-                placeholder="Describe the current situation…"
-              />
-              <div className="flex items-center justify-between gap-3">
-                {isPublic ? (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                    <Switch
-                      checked={commentVisibility === "Public"}
-                      onCheckedChange={(checked) => setCommentVisibility(checked ? "Public" : "Private")}
-                    />
-                    {commentVisibility === "Public" ? (
-                      <span className="flex items-center gap-1 text-foreground font-medium"><Globe size={12} /> Visible on status page</span>
-                    ) : (
-                      <span className="flex items-center gap-1"><Lock size={12} /> Internal only</span>
-                    )}
-                  </label>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Lock size={12} /> This incident is private — updates stay internal until published.
-                  </span>
-                )}
-                <Button onClick={() => addCommentMutation.mutate()} disabled={!commentBody.trim() || addCommentMutation.isPending} className="shrink-0">
-                  {addCommentMutation.isPending ? "Posting…" : "Post Update"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {comments.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted-foreground">No updates yet.</p>
+          {timeline.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">No events yet.</p>
           ) : (
-            <div className="divide-y divide-border">
-              {[...comments].reverse().map((c) => (
-                <div key={c.id} className="px-5 py-4 flex gap-3">
-                  <div className="flex-1 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[c.status?.toUpperCase()] ?? "bg-muted text-muted-foreground"}`}>
-                        {c.status}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{formatTimestamp(c.commentedAt)}</span>
-                      {c.visibility === "Public" ? (
-                        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <Globe size={11} /> Public
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Lock size={11} /> Internal
-                        </span>
+            <div>
+              {recentTimeline.map((e, i) => {
+                const prev = recentTimeline[i - 1];
+                const needsTopBorder = i > 0 && prev.type === "CommentPosted" && e.type === "CommentPosted";
+
+                if (e.type === "CommentPosted") {
+                  return (
+                    <div
+                      key={e.id}
+                      className={`px-5 py-4 flex gap-3 ${needsTopBorder ? "border-t border-border" : ""}`}
+                    >
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{formatTimestamp(new Date(e.occurredAt).getTime() / 1000)}</span>
+                          {e.visibility === "Public" && (
+                            <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                              <Globe size={11} /> Public
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          className="text-sm prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: marked(e.comment ?? "", { async: false }) as string }}
+                        />
+                      </div>
+                      {!isResolved && (
+                        <button
+                          onClick={() => { if (confirm("Delete this update?")) deleteCommentMutation.mutate(e.id); }}
+                          className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          ×
+                        </button>
                       )}
                     </div>
-                    <div
-                      className="text-sm prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: marked(c.comment ?? "", { async: false }) as string }}
-                    />
+                  );
+                }
+
+                return (
+                  <div key={e.id} className="px-5 py-3">
+                    <Marker variant="separator">
+                      <MarkerContent className="flex items-center gap-1.5">
+                        <MarkerIcon>{SYSTEM_EVENT_ICON[e.type] ?? <FlagTriangleRight />}</MarkerIcon>
+                        {describeSystemEvent(e)}
+                        <span className="text-muted-foreground/70">· {formatTimestamp(new Date(e.occurredAt).getTime() / 1000)}</span>
+                      </MarkerContent>
+                    </Marker>
                   </div>
-                  {!isResolved && (
-                    <button
-                      onClick={() => { if (confirm("Delete this update?")) deleteCommentMutation.mutate(c.id); }}
-                      className="shrink-0 rounded p-1 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
+          )}
+          {hiddenTimelineCount > 0 && (
+            <button
+              onClick={() => navigate(ROUTES.INCIDENTS.TIMELINE(incident.id))}
+              className="w-full px-5 py-3 text-center text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t border-border"
+            >
+              +{hiddenTimelineCount} more event{hiddenTimelineCount === 1 ? "" : "s"} — view full timeline
+            </button>
           )}
         </div>
       </SectionAccordion>
+
+      <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Post Update</DialogTitle>
+            <DialogDescription>Add a status update to this incident's timeline.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            {commentError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle size={14} /> {commentError}
+              </div>
+            )}
+            <Select value={commentStatus} onValueChange={(v) => v && setCommentStatus(v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue>{(value: string | null) => STATUS_SELECT_LABEL[value ?? ""] ?? value}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_STATUS_CHANGE}>No status change</SelectItem>
+                {STATUS_FLOW_ORDER.map((s) => (
+                  <SelectItem key={s} value={s} disabled={s === currentStatusUpper}>
+                    {STATUS_SELECT_LABEL[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isBackwardStatusChange && (
+              <div className="flex items-center gap-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-500">
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>
+                  This moves the incident backward, from <strong>{STATUS_SELECT_LABEL[currentStatusUpper]}</strong> to{" "}
+                  <strong>{STATUS_SELECT_LABEL[commentStatus]}</strong>.
+                </span>
+              </div>
+            )}
+            <MarkdownEditor
+              value={commentBody}
+              onChange={setCommentBody}
+              placeholder="Describe the current situation… (optional — you can post a status change alone)"
+            />
+            {isPublic ? (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <Switch
+                  checked={commentVisibility === "Public"}
+                  onCheckedChange={(checked) => setCommentVisibility(checked ? "Public" : "Private")}
+                />
+                {commentVisibility === "Public" ? (
+                  <span className="flex items-center gap-1 text-foreground font-medium"><Globe size={12} /> Visible on status page</span>
+                ) : (
+                  <span className="flex items-center gap-1"><Lock size={12} /> Internal only</span>
+                )}
+              </label>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Lock size={12} /> This incident is private — updates stay internal until published.
+              </span>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => addCommentMutation.mutate()}
+              disabled={
+                addCommentMutation.isPending ||
+                (!commentBody.trim() &&
+                  (commentStatus === NO_STATUS_CHANGE || commentStatus === incident.status?.toUpperCase()))
+              }
+            >
+              {addCommentMutation.isPending ? "Posting…" : "Post Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Impact ── */}
       <SectionAccordion
@@ -379,6 +517,7 @@ export default function IncidentDetailPage() {
                 allServices.map((svc) => {
                   const selected = isServiceSelected(svc.slug);
                   const impact = serviceImpacts.find((s) => s.slug === svc.slug)?.impact ?? "DEGRADED";
+                  const triggeringCheckSlug = incident.services?.find((s) => s.serviceSlug === svc.slug)?.triggeringCheckSlug;
                   return (
                     <div key={svc.slug} className="flex items-center gap-4 px-5 py-3">
                       <input
@@ -392,6 +531,11 @@ export default function IncidentDetailPage() {
                       <label htmlFor={`svc-${svc.slug}`} className="flex-1 text-sm font-medium cursor-pointer select-none">
                         {svc.name}
                         <span className="ml-2 text-xs text-muted-foreground font-normal">{svc.slug}</span>
+                        {triggeringCheckSlug && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">
+                            · triggered by <span className="font-mono">{triggeringCheckSlug}</span>
+                          </span>
+                        )}
                       </label>
                       {selected && (
                         <Select value={impact} onValueChange={(v) => v && setImpact(svc.slug, v)} disabled={isResolved}>
@@ -439,20 +583,24 @@ export default function IncidentDetailPage() {
         {!isPublic ? (
           <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 flex items-center justify-between gap-3">
             <p className="text-xs text-yellow-700 dark:text-yellow-500">This incident is private. Publish it to make it (and any Public updates) visible on the status page.</p>
-            <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-              <Eye size={12} /> {publishMutation.isPending ? "Publishing…" : "Publish Now"}
-            </Button>
+            {!isMerged && (
+              <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+                <Eye size={12} /> {publishMutation.isPending ? "Publishing…" : "Publish Now"}
+              </Button>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-5 flex items-center justify-between gap-3">
             <p className="text-xs text-green-700 dark:text-green-500">This incident and its public updates are visible on the status page.</p>
-            <Button
-              variant="outline"
-              onClick={() => { if (confirm("Unpublish this incident? It will be hidden from the status page and all its public updates will become internal.")) unpublishMutation.mutate(); }}
-              disabled={unpublishMutation.isPending}
-            >
-              <EyeOff size={12} /> {unpublishMutation.isPending ? "Unpublishing…" : "Unpublish"}
-            </Button>
+            {!isMerged && (
+              <Button
+                variant="outline"
+                onClick={() => { if (confirm("Unpublish this incident? It will be hidden from the status page and all its public updates will become internal.")) unpublishMutation.mutate(); }}
+                disabled={unpublishMutation.isPending}
+              >
+                <EyeOff size={12} /> {unpublishMutation.isPending ? "Unpublishing…" : "Unpublish"}
+              </Button>
+            )}
           </div>
         )}
       </SectionAccordion>

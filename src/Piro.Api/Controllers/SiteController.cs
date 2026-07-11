@@ -131,19 +131,31 @@ public record SiteConfigResponse(
     string? Name, string? Url, string? LogoUrl, string? FaviconUrl,
     string? MetaTitle, string? MetaDescription, string? OgImageUrl);
 
-public record UpdateSiteConfigRequest(
-    string? Name,
-    [property: Url] string? Url,
-    string? MetaTitle,
-    string? MetaDescription);
+public class UpdateSiteConfigRequest
+{
+    public string? Name { get; init; }
+
+    [Url]
+    public string? Url { get; init; }
+
+    public string? MetaTitle { get; init; }
+    public string? MetaDescription { get; init; }
+}
 
 public record IncidentsConfigResponse(
     string CorrelationMode,
     int GlobalThreshold, int GlobalCorrelationWindowMinutes);
 
-public record UpdateIncidentsConfigRequest(
-    [property: EnumDataType(typeof(Piro.Application.Interfaces.IncidentCorrelationMode))] string? CorrelationMode,
-    [property: Range(1, int.MaxValue)] int? GlobalThreshold,
-    [property: Range(1, int.MaxValue)] int? GlobalCorrelationWindowMinutes);
+public class UpdateIncidentsConfigRequest
+{
+    [EnumDataType(typeof(Piro.Application.Interfaces.IncidentCorrelationMode))]
+    public string? CorrelationMode { get; init; }
+
+    [Range(1, int.MaxValue)]
+    public int? GlobalThreshold { get; init; }
+
+    [Range(1, int.MaxValue)]
+    public int? GlobalCorrelationWindowMinutes { get; init; }
+}
 
 public record UploadResponse(string Url);

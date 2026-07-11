@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -18,17 +19,17 @@ public class MaintenanceAppService(
     /// <summary>Number of future days to materialize maintenance events on create/update.</summary>
     private const int MaterializeHorizonDays = 90;
 
-    public async Task<IEnumerable<MaintenanceDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<MaintenanceListItemDto>> GetAllAsync(CancellationToken ct = default)
     {
         var list = await maintenanceRepo.GetAllAsync(ct);
-        return list.Select(Map);
+        return list.Select(m => m.ToListItemDto());
     }
 
     public async Task<MaintenanceDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var m = await maintenanceRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Maintenance), id.ToString());
-        return Map(m);
+        return m.ToDto();
     }
 
     public async Task<MaintenanceDto> CreateAsync(CreateMaintenanceRequest request, CancellationToken ct = default)
@@ -56,7 +57,7 @@ public class MaintenanceAppService(
 
         var created = await maintenanceRepo.CreateAsync(maintenance, ct);
         await MaterializeEventsAsync(created, ct);
-        return Map(created);
+        return created.ToDto();
     }
 
     public async Task<MaintenanceDto> UpdateAsync(int id, UpdateMaintenanceRequest request, CancellationToken ct = default)
@@ -85,7 +86,7 @@ public class MaintenanceAppService(
         }
 
         var updated = await maintenanceRepo.UpdateAsync(maintenance, ct);
-        return Map(updated);
+        return updated.ToDto();
     }
 
     public async Task CancelAsync(int id, CancellationToken ct = default)
@@ -93,9 +94,18 @@ public class MaintenanceAppService(
         var maintenance = await maintenanceRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Maintenance), id.ToString());
 
+        var hadOngoingEvent = maintenance.Events.Any(e => e.Status == MaintenanceEventStatus.Ongoing);
+
         maintenance.Status = MaintenanceStatus.Cancelled;
         await maintenanceRepo.UpdateAsync(maintenance, ct);
         await maintenanceRepo.DeleteFutureEventsAsync(id, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), ct);
+
+        if (hadOngoingEvent)
+        {
+            var affectedServiceIds = await maintenanceRepo.GetAffectedServiceIdsAsync(id, ct);
+            foreach (var serviceId in affectedServiceIds)
+                statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
+        }
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -142,42 +152,30 @@ public class MaintenanceAppService(
         var windowStart = dtStart < DateTime.UtcNow ? dtStart : DateTime.UtcNow;
         var occurrences = rruleExpander.GetOccurrences(dtStart, maintenance.RRule, windowStart, DateTime.UtcNow.AddDays(MaterializeHorizonDays));
 
-        var events = occurrences.Select(start => new MaintenanceEvent
+        var events = occurrences.Select(start =>
         {
-            MaintenanceId = maintenance.Id,
-            StartDateTime = new DateTimeOffset(start, TimeSpan.Zero).ToUnixTimeSeconds(),
-            EndDateTime = new DateTimeOffset(start.AddSeconds(maintenance.DurationSeconds), TimeSpan.Zero).ToUnixTimeSeconds(),
-            Status = start <= DateTime.UtcNow ? MaintenanceEventStatus.Ongoing : MaintenanceEventStatus.Scheduled
+            var end = start.AddSeconds(maintenance.DurationSeconds);
+            return new MaintenanceEvent
+            {
+                MaintenanceId = maintenance.Id,
+                StartDateTime = new DateTimeOffset(start, TimeSpan.Zero).ToUnixTimeSeconds(),
+                EndDateTime = new DateTimeOffset(end, TimeSpan.Zero).ToUnixTimeSeconds(),
+                Status = end <= DateTime.UtcNow ? MaintenanceEventStatus.Completed
+                    : start <= DateTime.UtcNow ? MaintenanceEventStatus.Ongoing
+                    : MaintenanceEventStatus.Scheduled
+            };
         }).ToList();
 
         await maintenanceRepo.AddEventsAsync(events, ct);
-    }
 
-    // ── Mapping ──────────────────────────────────────────────────────────────
-
-    private static MaintenanceDto Map(Maintenance m) => new(
-        m.Id, m.Title, m.Description, m.StartDateTime, m.RRule,
-        m.DurationSeconds, m.Status, DeriveDisplayStatus(m), m.IsGlobal,
-        m.Events
-            .Where(e => e.Status != MaintenanceEventStatus.Completed)
-            .OrderBy(e => e.StartDateTime)
-            .Take(10)
-            .Select(e => new MaintenanceEventDto(e.Id, e.StartDateTime, e.EndDateTime, e.Status)),
-        m.MaintenanceServices.Select(ms => ms.Service?.Slug ?? ms.ServiceId.ToString()),
-        m.CreatedAt, m.UpdatedAt);
-
-    /// <summary>Combines <see cref="Maintenance.Status"/> with event states into a single user-facing lifecycle status.</summary>
-    private static MaintenanceDisplayStatus DeriveDisplayStatus(Maintenance m)
-    {
-        if (m.Status == MaintenanceStatus.Cancelled)
-            return MaintenanceDisplayStatus.Cancelled;
-
-        if (m.Events.Any(e => e.Status == MaintenanceEventStatus.Ongoing))
-            return MaintenanceDisplayStatus.Active;
-
-        if (m.Events.Any(e => e.Status == MaintenanceEventStatus.Scheduled))
-            return MaintenanceDisplayStatus.Scheduled;
-
-        return MaintenanceDisplayStatus.Completed;
+        if (events.Any(e => e.Status == MaintenanceEventStatus.Ongoing))
+        {
+            // Enqueue through the shared channel rather than calling ServiceStatusService
+            // directly — StatusDrainHostedService serializes all recomputation for a
+            // given service, avoiding concurrent read-modify-write races.
+            var affectedServiceIds = await maintenanceRepo.GetAffectedServiceIdsAsync(maintenance.Id, ct);
+            foreach (var serviceId in affectedServiceIds)
+                statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
+        }
     }
 }

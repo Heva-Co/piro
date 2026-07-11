@@ -194,7 +194,7 @@ export const checksApi = {
 // ─── Incidents ───────────────────────────────────────────────────────────────
 // Moved to @/lib/actions/incidents — re-exported here only for `updateCheck`,
 // which lives on the same object despite belonging to Checks, not Incidents.
-export type { Incident, IncidentComment, IncidentService } from "@/lib/actions/incidents";
+export type { Incident, IncidentTimelineEvent, IncidentService } from "@/lib/actions/incidents";
 import { incidentsApi as incidentsApiBase } from "@/lib/actions/incidents";
 
 export const incidentsApi = {
@@ -312,6 +312,18 @@ export interface Maintenance {
   updatedAt: string;
 }
 
+/// Lightweight row for the maintenance list view — no per-event data, just the next scheduled occurrence (if any).
+export interface MaintenanceListItem {
+  id: number;
+  title: string;
+  rRule: string;
+  durationSeconds: number;
+  displayStatus: MaintenanceDisplayStatus;
+  isGlobal: boolean;
+  nextEventAt: number | null;
+  serviceSlugs: string[];
+}
+
 export interface CreateMaintenanceRequest {
   title: string;
   description?: string;
@@ -332,7 +344,7 @@ export interface UpdateMaintenanceRequest {
 }
 
 export const maintenancesApi = {
-  list: () => api.get<Maintenance[]>(ENDPOINTS.MAINTENANCES).then((r) => r.data),
+  list: () => api.get<MaintenanceListItem[]>(ENDPOINTS.MAINTENANCES).then((r) => r.data),
 
   get: (id: number | string) =>
     api.get<Maintenance>(ENDPOINTS.MAINTENANCE(id)).then((r) => r.data),

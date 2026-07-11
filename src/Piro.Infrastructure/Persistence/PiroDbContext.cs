@@ -22,7 +22,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
 public DbSet<Page> Pages => Set<Page>();
     public DbSet<PageService> PageServices => Set<PageService>();
     public DbSet<Incident> Incidents => Set<Incident>();
-    public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
+    public DbSet<IncidentTimelineEvent> IncidentTimelineEvents => Set<IncidentTimelineEvent>();
     public DbSet<IncidentService> IncidentServices => Set<IncidentService>();
     public DbSet<IncidentMerge> IncidentMerges => Set<IncidentMerge>();
     public DbSet<IncidentImpactChange> IncidentImpactChanges => Set<IncidentImpactChange>();

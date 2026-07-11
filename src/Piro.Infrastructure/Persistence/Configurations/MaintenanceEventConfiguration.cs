@@ -11,6 +11,7 @@ internal class MaintenanceEventConfiguration : IEntityTypeConfiguration<Maintena
     public void Configure(EntityTypeBuilder<MaintenanceEvent> builder)
     {
         builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.MaintenanceId, e.StartDateTime }).IsUnique();
         builder.HasIndex(e => e.MaintenanceId);
         builder.HasIndex(e => e.StartDateTime);
         builder.HasIndex(e => e.EndDateTime);

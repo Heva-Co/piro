@@ -72,33 +72,33 @@ public class IncidentsController(IncidentAppService incidentService) : Controlle
     public async Task<IActionResult> Update(int id, [FromBody] UpdateIncidentRequest request, CancellationToken ct) =>
         Ok(await incidentService.UpdateAsync(id, request, ct));
 
-    /// <summary>Posts a status update comment on an incident and optionally advances its state.</summary>
-    [HttpPost("{id:int}/comments")]
+    /// <summary>Posts an update on an incident and optionally advances its status.</summary>
+    [HttpPost("{id:int}/updates")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AddComment(int id, [FromBody] AddCommentRequest request, CancellationToken ct)
+    public async Task<IActionResult> AddTimelineComment(int id, [FromBody] AddTimelineCommentRequest request, CancellationToken ct)
     {
-        await incidentService.AddCommentAsync(id, request, ct);
+        await incidentService.AddTimelineCommentAsync(id, request, ct);
         return NoContent();
     }
 
-    /// <summary>Updates the text or state of an existing comment.</summary>
-    [HttpPut("{id:int}/comments/{commentId:int}")]
+    /// <summary>Updates the text or visibility of an existing update.</summary>
+    [HttpPut("{id:int}/updates/{eventId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateComment(int id, int commentId, [FromBody] UpdateCommentRequest request, CancellationToken ct)
+    public async Task<IActionResult> UpdateTimelineComment(int id, int eventId, [FromBody] UpdateTimelineCommentRequest request, CancellationToken ct)
     {
-        await incidentService.UpdateCommentAsync(id, commentId, request, ct);
+        await incidentService.UpdateTimelineCommentAsync(id, eventId, request, ct);
         return NoContent();
     }
 
-    /// <summary>Deletes a single comment from an incident.</summary>
-    [HttpDelete("{id:int}/comments/{commentId:int}")]
+    /// <summary>Deletes a single update from an incident's timeline.</summary>
+    [HttpDelete("{id:int}/updates/{eventId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteComment(int id, int commentId, CancellationToken ct)
+    public async Task<IActionResult> DeleteTimelineComment(int id, int eventId, CancellationToken ct)
     {
-        await incidentService.DeleteCommentAsync(id, commentId, ct);
+        await incidentService.DeleteTimelineCommentAsync(id, eventId, ct);
         return NoContent();
     }
 
@@ -133,7 +133,7 @@ public class IncidentsController(IncidentAppService incidentService) : Controlle
     public async Task<IActionResult> RemoveService(int id, string serviceSlug, CancellationToken ct) =>
         Ok(await incidentService.RemoveServiceAsync(id, serviceSlug, ct));
 
-    /// <summary>Deletes an incident and all its comments.</summary>
+    /// <summary>Deletes an incident and all its timeline events.</summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

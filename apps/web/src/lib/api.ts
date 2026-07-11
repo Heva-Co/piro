@@ -140,5 +140,5 @@ export const publicApi = {
 
   incident: (id: number | string) => get<Incident>(`/incidents/${id}`, 0),
 
-  maintenances: () => get<Maintenance[]>("/maintenances"),
+  maintenances: () => get<Maintenance[]>("/public/maintenances"),
 };

@@ -13,7 +13,7 @@ public record IncidentDto(
     bool IsGlobal,
     string? Source,
     IncidentVisibility Visibility,
-    IEnumerable<IncidentCommentDto> Comments,
+    IEnumerable<IncidentTimelineEventDto> Timeline,
     IEnumerable<IncidentServiceDto> Services,
     int? MergedIntoIncidentId,
     DateTime CreatedAt,
@@ -32,20 +32,23 @@ public record IncidentDto(
 /// <summary>Point-in-time severity change recorded on an incident.</summary>
 public record IncidentImpactChangeDto(long Timestamp, string Impact);
 
-/// <summary>Outbound representation of a single incident status update (admin-facing).</summary>
-public record IncidentCommentDto(
+/// <summary>Outbound representation of a single timeline event (admin-facing).</summary>
+public record IncidentTimelineEventDto(
     int Id,
-    string Comment,
-    long CommentedAt,
-    IncidentStatus Status,
-    CommentVisibility Visibility,
-    DateTime CreatedAt
+    string Type,
+    DateTimeOffset OccurredAt,
+    string? ActorName,
+    string? Comment,
+    IncidentStatus? OldStatus,
+    IncidentStatus? NewStatus,
+    EventVisibility Visibility,
+    int? RelatedIncidentId
 );
 
 /// <summary>
 /// Outbound representation of an incident for the public status page.
 /// Deliberately omits internal-only fields (Source, AcknowledgedBy, escalation state)
-/// and only includes Public comments / non-hidden services.
+/// and only includes Public timeline events / non-hidden services.
 /// </summary>
 public record PublicIncidentDto(
     int Id,
@@ -55,19 +58,10 @@ public record PublicIncidentDto(
     IncidentStatus Status,
     bool IsResolved,
     bool IsGlobal,
-    IEnumerable<PublicIncidentCommentDto> Comments,
+    IEnumerable<IncidentTimelineEventDto> Timeline,
     IEnumerable<PublicIncidentServiceDto> Services,
     ServiceStatus CurrentImpact,
     IEnumerable<IncidentImpactChangeDto> ImpactChanges
-);
-
-/// <summary>Public-facing status update.</summary>
-public record PublicIncidentCommentDto(
-    int Id,
-    string Comment,
-    long CommentedAt,
-    IncidentStatus Status,
-    DateTime CreatedAt
 );
 
 /// <summary>Service affected by an incident, public view — no triggering check exposed.</summary>
@@ -94,15 +88,19 @@ public record UpdateIncidentRequest(
     bool? IsGlobal
 );
 
-/// <summary>Payload for posting a comment / status update on an incident. Defaults to Private — must be explicitly made Public.</summary>
-public record AddCommentRequest(
+/// <summary>
+/// Payload for posting a comment on an incident, optionally advancing its status.
+/// Defaults to Private — must be explicitly made Public. A comment and a status change
+/// are independent: <see cref="Status"/> may be omitted to post a plain comment.
+/// </summary>
+public record AddTimelineCommentRequest(
     string Comment,
-    IncidentStatus Status,
-    CommentVisibility Visibility = CommentVisibility.Private
+    IncidentStatus? Status,
+    EventVisibility Visibility = EventVisibility.Private
 );
 
-/// <summary>Payload for updating an existing comment.</summary>
-public record UpdateCommentRequest(string Comment, IncidentStatus Status, CommentVisibility Visibility);
+/// <summary>Payload for updating an existing comment event's text/visibility.</summary>
+public record UpdateTimelineCommentRequest(string Comment, EventVisibility Visibility);
 
 /// <summary>Payload for adding a service to an existing incident.</summary>
 public record AddIncidentServiceRequest(string ServiceSlug, ServiceStatus Impact);

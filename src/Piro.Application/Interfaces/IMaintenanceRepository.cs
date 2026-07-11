@@ -6,6 +6,10 @@ namespace Piro.Application.Interfaces;
 public interface IMaintenanceRepository
 {
     Task<IEnumerable<Maintenance>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Same as <see cref="GetAllAsync"/> but loads every event regardless of status — the
+    /// public status page needs the real current/most-recent event even if already Completed.</summary>
+    Task<IEnumerable<Maintenance>> GetAllForPublicAsync(CancellationToken ct = default);
     Task<Maintenance?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<IEnumerable<Maintenance>> GetActiveAsync(CancellationToken ct = default);
     Task<Maintenance> CreateAsync(Maintenance maintenance, CancellationToken ct = default);

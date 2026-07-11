@@ -155,7 +155,7 @@ public class AlertEvaluationService(
         switch (settings.IncidentCorrelationMode)
         {
             case IncidentCorrelationMode.PerService:
-                await EnsurePerServiceIncidentAsync(check, service, impact, ct);
+                await EnsurePerServiceIncidentAsync(check, service, impact, now, ct);
                 break;
 
             case IncidentCorrelationMode.Global:
@@ -174,7 +174,7 @@ public class AlertEvaluationService(
     /// or creates a new per-service incident. Publishing is always a separate, manual action.
     /// </summary>
     private async Task EnsurePerServiceIncidentAsync(
-        Check check, Service service, ServiceStatus impact, CancellationToken ct)
+        Check check, Service service, ServiceStatus impact, DateTimeOffset now, CancellationToken ct)
     {
         var existing = await incidentRepository.GetOpenAlertIncidentForServiceAsync(service.Id, ct);
         if (existing is not null)
@@ -198,6 +198,7 @@ public class AlertEvaluationService(
             ServiceId = service.Id, Impact = impact, TriggeringCheckId = check.Id
         });
         var created = await incidentRepository.CreateAsync(incident, ct);
+        await EmitCreatedAsync(created, now, ct);
         await RecordImpactIfChangedAsync(created, ct);
     }
 
@@ -233,6 +234,7 @@ public class AlertEvaluationService(
                         ServiceId = s.ServiceId, Impact = s.Impact, TriggeringCheckId = s.TriggeringCheckId
                     });
             globalIncident = await incidentRepository.CreateAsync(globalIncident, ct);
+            await EmitCreatedAsync(globalIncident, now, ct);
             await RecordImpactIfChangedAsync(globalIncident, ct);
         }
 
@@ -283,6 +285,7 @@ public class AlertEvaluationService(
             // Elevate: create global incident and merge existing per-service incidents into it
             var newGlobal = await incidentAppService.CreateAlertIncidentAsync("Multiple services affected", isGlobal: true, ct);
             newGlobal = await incidentRepository.CreateAsync(newGlobal, ct);
+            await EmitCreatedAsync(newGlobal, now, ct);
 
             foreach (var perService in recentPerServiceIncidents)
             {
@@ -304,9 +307,30 @@ public class AlertEvaluationService(
                     Reason = "Automatic correlation"
                 }, ct);
 
-                // Hide per-service incidents from status page
+                // Hide per-service incidents from status page and mark them as absorbed —
+                // a final state, same as Resolved: no further acks/updates/impact changes apply.
                 perService.Visibility = IncidentVisibility.Private;
+                perService.Status = IncidentStatus.Merged;
+                perService.EndDateTime ??= now.ToUnixTimeSeconds();
                 await incidentRepository.UpdateAsync(perService, ct);
+
+                // Record symmetric timeline events on both sides of the merge
+                await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+                {
+                    IncidentId = perService.Id,
+                    Type = TimelineEventType.MergedTo,
+                    OccurredAt = now,
+                    RelatedIncidentId = newGlobal.Id,
+                    Visibility = EventVisibility.Private,
+                }, ct);
+                await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+                {
+                    IncidentId = newGlobal.Id,
+                    Type = TimelineEventType.MergedFrom,
+                    OccurredAt = now,
+                    RelatedIncidentId = perService.Id,
+                    Visibility = EventVisibility.Private,
+                }, ct);
             }
 
             // Attach current triggering service
@@ -326,7 +350,7 @@ public class AlertEvaluationService(
         else
         {
             // Below threshold — create or attach to per-service incident
-            await EnsurePerServiceIncidentAsync(check, service, impact, ct);
+            await EnsurePerServiceIncidentAsync(check, service, impact, now, ct);
         }
     }
 
@@ -350,6 +374,16 @@ public class AlertEvaluationService(
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
         }, ct);
     }
+
+    /// <summary>Records the Created timeline event for an incident just persisted via <see cref="IIncidentRepository.CreateAsync"/>.</summary>
+    private Task EmitCreatedAsync(Incident incident, DateTimeOffset now, CancellationToken ct) =>
+        incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = incident.Id,
+            Type = TimelineEventType.Created,
+            OccurredAt = now,
+            Visibility = EventVisibility.Private,
+        }, ct);
 
     /// <summary>Returns true when a data point's metric meets the alert threshold condition.</summary>
     private static bool IsThresholdConditionMet(AlertConfig config, CheckDataPoint dp)

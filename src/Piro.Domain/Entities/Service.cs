@@ -22,6 +22,13 @@ public class Service
     /// <summary>Derived status computed from checks and dependency propagation. Never set directly.</summary>
     public ServiceStatus CurrentStatus { get; set; } = ServiceStatus.NO_DATA;
 
+    /// <summary>
+    /// Status shown on the public status page. Defaults to UP — raw check failures never affect
+    /// it. Only degraded/worsened by an active maintenance window or a Public incident's declared
+    /// impact. Never set directly.
+    /// </summary>
+    public ServiceStatus PublicStatus { get; set; } = ServiceStatus.UP;
+
     /// <summary>Status to use when no check data is available yet.</summary>
     public ServiceStatus DefaultStatus { get; set; } = ServiceStatus.NO_DATA;
 
