@@ -19,16 +19,12 @@ export const INTEGRATION_TYPE_MAP = {
   AWS:         { label: "Amazon AWS",      icon: "logos:aws",                 category: "thirdparty", upcoming: true },
   Azure:       { label: "Azure",           icon: "logos:microsoft-azure",     category: "thirdparty", upcoming: true },
   GitHub:      { label: "GitHub",          icon: "simple-icons:github",       category: "thirdparty", iconClass: "dark:invert", upcoming: true },
-  // Notification — channel-only types (Email, Webhook, Discord, GoogleChat) need no global integration
-  Email:       { label: "Email",           icon: "lucide:mail",               category: "notification" },
-  Webhook:     { label: "Webhook",         icon: "lucide:webhook",            category: "notification" },
-  Slack:       { label: "Slack",           icon: "logos:slack-icon",          category: "notification" },
+  // Notification — Email is deliberately absent: it uses the platform SMTP/Resend config
+  // (Configuration > Email), never a per-integration credential, so it's not creatable here.
   PagerDuty:   { label: "PagerDuty",       icon: "logos:pagerduty",           category: "notification", alpha: true },
   MSTeams:     { label: "Microsoft Teams", icon: "logos:microsoft-teams",     category: "notification", alpha: true },
   Telegram:    { label: "Telegram",        icon: "logos:telegram",            category: "notification" },
-  TwilioSms:   { label: "Twilio SMS",      icon: "logos:twilio-icon",         category: "notification", alpha: true },
-  GoogleChat:  { label: "Google Chat",     icon: "simple-icons:googlechat",   category: "notification" },
-  Discord:     { label: "Discord",         icon: "logos:discord-icon",        category: "notification" },
+  Twilio:      { label: "Twilio",          icon: "logos:twilio-icon",         category: "notification", alpha: true },
   Opsgenie:    { label: "Opsgenie",        icon: "simple-icons:opsgenie",     category: "notification", iconClass: "dark:invert", alpha: true },
   Pushover:    { label: "Pushover",        icon: "tabler:brand-pushover",            category: "notification", alpha: true },
   Ntfy:        { label: "Ntfy",            icon: "simple-icons:ntfy",         category: "notification", iconClass: "dark:invert" },

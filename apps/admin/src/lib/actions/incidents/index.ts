@@ -28,7 +28,6 @@ export interface Incident {
   endDateTime?: number | null;
   source?: string | null;
   visibility: IncidentVisibilityKey;
-  mergedIntoIncidentId?: number | null;
   services: IncidentService[];
   alerts: IncidentAlert[];
   createdAt: string;

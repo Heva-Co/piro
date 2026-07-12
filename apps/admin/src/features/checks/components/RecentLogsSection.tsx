@@ -1,9 +1,10 @@
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheckLogs } from "@/hooks/useChecks";
-import { formatTimestamp } from "@/utils/date";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
     const { data: logs, isLoading } = useCheckLogs(serviceSlug, checkSlug);
+    const { formatTimestamp } = useFormattedDate();
 
     if (isLoading) return <div className="text-sm text-muted-foreground py-2">Loading…</div>;
 

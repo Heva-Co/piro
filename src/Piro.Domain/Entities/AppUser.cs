@@ -26,6 +26,9 @@ public class AppUser : IdentityUser<int>
     /// <summary>Hex color for UI display (e.g. on-call Gantt blocks). Assigned at creation.</summary>
     public string Color { get; set; } = "#6366f1";
 
+    /// <summary>IANA time zone (e.g. "America/Bogota"), used for notification scheduling and display.</summary>
+    public string TimeZone { get; set; } = "UTC";
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

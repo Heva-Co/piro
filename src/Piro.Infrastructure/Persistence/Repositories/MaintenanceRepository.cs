@@ -10,6 +10,7 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
 {
     public async Task<IEnumerable<Maintenance>> GetAllAsync(CancellationToken ct = default) =>
         await db.Maintenances
+            .AsSplitQuery()
             .Include(m => m.Events.Where(e => e.Status != MaintenanceEventStatus.Completed).OrderBy(e => e.StartDateTime))
             .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
             .OrderByDescending(m => m.StartDateTime)
@@ -17,6 +18,7 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
 
     public async Task<IEnumerable<Maintenance>> GetAllForPublicAsync(CancellationToken ct = default) =>
         await db.Maintenances
+            .AsSplitQuery()
             .Include(m => m.Events.OrderBy(e => e.StartDateTime))
             .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
             .OrderByDescending(m => m.StartDateTime)
@@ -24,6 +26,7 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
 
     public async Task<Maintenance?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Maintenances
+            .AsSplitQuery()
             .Include(m => m.Events.OrderBy(e => e.StartDateTime))
             .Include(m => m.MaintenanceServices).ThenInclude(ms => ms.Service)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
@@ -53,10 +56,11 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
+    /// <returns>The number of events actually inserted (existing StartDateTime matches are skipped).</returns>
+    public async Task<int> AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
     {
         var eventList = events.ToList();
-        if (eventList.Count == 0) return;
+        if (eventList.Count == 0) return 0;
 
         var maintenanceId = eventList[0].MaintenanceId;
         var existingStarts = await db.MaintenanceEvents
@@ -66,10 +70,11 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
         var existingStartsSet = existingStarts.ToHashSet();
 
         var newEvents = eventList.Where(e => !existingStartsSet.Contains(e.StartDateTime)).ToList();
-        if (newEvents.Count == 0) return;
+        if (newEvents.Count == 0) return 0;
 
         db.MaintenanceEvents.AddRange(newEvents);
         await db.SaveChangesAsync(ct);
+        return newEvents.Count;
     }
 
     public async Task DeleteFutureEventsAsync(int maintenanceId, long fromTimestamp, CancellationToken ct = default)
@@ -112,6 +117,21 @@ public class MaintenanceRepository(PiroDbContext db) : IMaintenanceRepository
             return await db.Services.Select(s => s.Id).ToListAsync(ct);
 
         return maintenance.MaintenanceServices.Select(ms => ms.ServiceId).ToList();
+    }
+
+    public async Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(IReadOnlyCollection<int> maintenanceIds, CancellationToken ct = default)
+    {
+        var maintenances = await db.Maintenances
+            .Include(m => m.MaintenanceServices)
+            .Where(m => maintenanceIds.Contains(m.Id))
+            .ToListAsync(ct);
+
+        if (maintenances.Count == 0) return [];
+
+        if (maintenances.Any(m => m.IsGlobal))
+            return await db.Services.Select(s => s.Id).ToListAsync(ct);
+
+        return maintenances.SelectMany(m => m.MaintenanceServices.Select(ms => ms.ServiceId)).Distinct().ToList();
     }
 
     public async Task<MaintenanceEvent?> GetEventByIdAsync(int maintenanceId, int eventId, CancellationToken ct = default)

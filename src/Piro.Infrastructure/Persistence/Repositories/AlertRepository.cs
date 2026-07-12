@@ -11,12 +11,23 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
     public async Task<Alert?> GetActiveForConfigAsync(int alertConfigId, CancellationToken ct = default) =>
         await db.Alerts.FirstOrDefaultAsync(a => a.AlertConfigId == alertConfigId && a.ResolvedAt == null, ct);
 
-    public async Task<int> CountConcurrentActiveAlertingServicesAsync(CancellationToken ct = default) =>
+    public async Task<Alert?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Alerts
-            .Where(a => a.ResolvedAt == null && a.AlertConfig.CreateIncident)
-            .Select(a => a.ServiceId)
-            .Distinct()
-            .CountAsync(ct);
+            .Include(a => a.Check)
+            .Include(a => a.Service)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+    public async Task<List<Alert>> GetActiveWithServiceEscalationAsync(CancellationToken ct = default) =>
+        await db.Alerts
+            .Include(a => a.Check)
+            .Include(a => a.AlertConfig)
+            .Include(a => a.Service)
+                .ThenInclude(s => s.EscalationPolicy)
+                    .ThenInclude(p => p!.Steps)
+                        .ThenInclude(s => s.Schedule)
+            .Where(a => a.ResolvedAt == null && a.Service.EscalationPolicyId != null)
+            .OrderBy(a => a.Id)
+            .ToListAsync(ct);
 
     public async Task<Alert> CreateAsync(Alert alert, CancellationToken ct = default)
     {
@@ -31,9 +42,23 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
         return alert;
     }
 
-    public async Task<(IEnumerable<AlertSummaryRow> Items, int TotalCount)> GetPagedSummaryAsync(
+    public async Task AddDeliveryLogAsync(EscalationDeliveryLog log, CancellationToken ct = default)
+    {
+        db.EscalationDeliveryLogs.Add(log);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<EscalationDeliveryLog>> GetDeliveryLogsAsync(int alertId, CancellationToken ct = default) =>
+        await db.EscalationDeliveryLogs
+            .Where(l => l.AlertId == alertId)
+            .OrderByDescending(l => l.AttemptedAt)
+            .ToListAsync(ct);
+
+    public async Task<(IEnumerable<AlertSummaryRow> Items, int TotalCount, int AllTimeTotalCount)> GetPagedSummaryAsync(
         AlertQueryParams query, CancellationToken ct = default)
     {
+        var allTimeTotal = await db.Alerts.CountAsync(ct);
+
         var q = db.Alerts.AsQueryable();
 
         if (query.From.HasValue)
@@ -41,6 +66,9 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
 
         if (query.To.HasValue)
             q = q.Where(a => a.FiredAt <= query.To.Value);
+
+        if (query.ActiveOnly)
+            q = q.Where(a => a.ResolvedAt == null);
 
         var total = await q.CountAsync(ct);
         var pageSize = Math.Clamp(query.PageSize, 10, 200);
@@ -64,10 +92,11 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
                 a.FiredAt,
                 a.ResolvedAt,
                 a.OccurrenceCount,
-                a.IncidentId))
+                a.IncidentId,
+                a.Service.EscalationPolicyId != null))
             .ToListAsync(ct);
 
-        return (items, total);
+        return (items, total, allTimeTotal);
     }
 
     public async Task<AlertDetailRow?> GetDetailByIdAsync(int id, CancellationToken ct = default) =>
@@ -92,6 +121,9 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
                 a.ResolvedAt,
                 a.OccurrenceCount,
                 a.IncidentId,
-                a.Incident != null ? a.Incident.Title : null))
+                a.Incident != null ? a.Incident.Title : null,
+                a.EscalationCurrentStep,
+                a.AcknowledgedAt,
+                a.AcknowledgedBy))
             .FirstOrDefaultAsync(ct);
 }

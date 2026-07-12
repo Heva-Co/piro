@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { PageHeader } from "@/components/PageHeader";
-import { servicesApi } from "@/lib/api";
+import { useAllServices } from "@/hooks/useServices";
 import { incidentsApi } from "@/lib/actions/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -33,10 +33,7 @@ export default function IncidentFormPage() {
   const [selectedServices, setSelectedServices] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
-  const { data: services = [] } = useQuery({
-    queryKey: QUERY_KEYS.SERVICES,
-    queryFn: servicesApi.list,
-  });
+  const { data: services = [] } = useAllServices();
 
   const createMutation = useMutation({
     mutationFn: async () => {

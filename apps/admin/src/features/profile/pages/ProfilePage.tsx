@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { profileApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { cn } from "@/lib/utils";
 import { NotificationPreferencesEditor } from "@/components/NotificationPreferencesEditor";
+import { TimezonePicker } from "@/components/TimezonePicker";
+import { MyOnCallCalendarCard } from "@/features/profile/components/MyOnCallCalendarCard";
 
 const COLOR_PALETTE = [
   "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
@@ -22,11 +25,13 @@ export default function ProfilePage() {
   // ── Profile form ─────────────────────────────────────────────────────────
   const [name, setName] = useState("");
   const [color, setColor] = useState("");
+  const [timeZone, setTimeZone] = useState("");
   const [profileDirty, setProfileDirty] = useState(false);
 
   if (profile && !profileDirty && name === "" && color === "") {
     setName(profile.name);
     setColor(profile.color);
+    setTimeZone(profile.timeZone);
   }
 
   const updateProfile = useMutation({
@@ -36,6 +41,14 @@ export default function ProfilePage() {
       setProfileDirty(false);
     },
   });
+
+  function handleSaveProfile() {
+    toast.promise(updateProfile.mutateAsync({ name, color, timeZone }), {
+      loading: "Saving profile…",
+      success: "Profile updated.",
+      error: "Failed to update profile.",
+    });
+  }
 
   if (isLoading) {
     return <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>;
@@ -94,17 +107,28 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Time zone</label>
+            <TimezonePicker
+              value={timeZone}
+              onChange={(tz) => { setTimeZone(tz); setProfileDirty(true); }}
+            />
+          </div>
+
           <div className="flex justify-end pt-1">
             <button
-              onClick={() => updateProfile.mutate({ name, color })}
+              onClick={handleSaveProfile}
               disabled={!profileDirty || updateProfile.isPending}
               className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors"
             >
-              {updateProfile.isPending ? "Saving…" : "Save"}
+              Save
             </button>
           </div>
         </div>
       </div>
+
+      {/* On-call calendar card */}
+      <MyOnCallCalendarCard />
 
       {/* Notification preferences card */}
       {profile && (
@@ -116,7 +140,7 @@ export default function ProfilePage() {
             </p>
           </div>
           <div className="px-6 py-5">
-            <NotificationPreferencesEditor userId={profile.id} fallbackEmail={profile.email} />
+            <NotificationPreferencesEditor userId={profile.id} />
           </div>
         </div>
       )}

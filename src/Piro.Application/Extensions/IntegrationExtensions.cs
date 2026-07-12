@@ -20,7 +20,7 @@ public static class IntegrationExtensions
         [IntegrationType.PagerDuty] = ["routingKey"],
         [IntegrationType.MSTeams] = ["webhookUrl"],
         [IntegrationType.Telegram] = ["botToken"],
-        [IntegrationType.TwilioSms] = ["authToken"],
+        [IntegrationType.Twilio] = ["authToken"],
         [IntegrationType.Opsgenie] = ["apiKey"],
         [IntegrationType.Pushover] = ["appToken"],
         [IntegrationType.Ntfy] = ["token"],

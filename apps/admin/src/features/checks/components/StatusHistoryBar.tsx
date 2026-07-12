@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import type { CheckDailyStats } from "@/lib/api";
+import { formatDate } from "@/utils/date";
+import { useTimezone } from "@/hooks/useTimezone";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +31,7 @@ function noDataColor() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function buildSlots(data: CheckDailyStats[], days: number): DaySlot[] {
+function buildSlots(data: CheckDailyStats[], days: number, timeZone: string): DaySlot[] {
   const now = Math.floor(Date.now() / 1000);
   const todayStart = Math.floor(now / 86400) * 86400;
 
@@ -56,14 +58,14 @@ function buildSlots(data: CheckDailyStats[], days: number): DaySlot[] {
     const ts = todayStart - i * 86400;
     slots.push({
       timestamp: ts,
-      date: new Date(ts * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      date: formatDate(ts * 1000, timeZone, { month: "short", day: "numeric" }),
       stats: byDay.get(ts) ?? null,
     });
   }
   return slots;
 }
 
-function buildRegionSlots(data: CheckDailyStats[], region: string, days: number): DaySlot[] {
+function buildRegionSlots(data: CheckDailyStats[], region: string, days: number, timeZone: string): DaySlot[] {
   const now = Math.floor(Date.now() / 1000);
   const todayStart = Math.floor(now / 86400) * 86400;
   const regionData = data.filter((d) => d.region === region);
@@ -74,7 +76,7 @@ function buildRegionSlots(data: CheckDailyStats[], region: string, days: number)
     const ts = todayStart - i * 86400;
     slots.push({
       timestamp: ts,
-      date: new Date(ts * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      date: formatDate(ts * 1000, timeZone, { month: "short", day: "numeric" }),
       stats: byDay.get(ts) ?? null,
     });
   }
@@ -247,14 +249,15 @@ function UptimeCanvas({
 
 export function StatusHistoryBar({ data, days = 14 }: { data: CheckDailyStats[]; days?: number }) {
   const [hovered, setHovered] = useState<{ day: DaySlot; clientX: number; clientY: number } | null>(null);
+  const { activeTimeZone } = useTimezone();
 
   const regions = useMemo(() => Array.from(new Set(data.map((d) => d.region))).sort(), [data]);
   const isMultiRegion = regions.length > 1;
 
   const rows = useMemo(() => {
-    if (!isMultiRegion) return [{ label: null, slots: buildSlots(data, days) }];
-    return regions.map((r) => ({ label: r, slots: buildRegionSlots(data, r, days) }));
-  }, [data, days, regions, isMultiRegion]);
+    if (!isMultiRegion) return [{ label: null, slots: buildSlots(data, days, activeTimeZone) }];
+    return regions.map((r) => ({ label: r, slots: buildRegionSlots(data, r, days, activeTimeZone) }));
+  }, [data, days, regions, isMultiRegion, activeTimeZone]);
 
   const firstSlots = rows[0]?.slots ?? [];
   const fromLabel = firstSlots[0]?.date ?? "";

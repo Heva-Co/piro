@@ -65,4 +65,7 @@ public class SmtpEmailService(
 
         logger.LogInformation("Email sent via SMTP to {To}: {Subject}.", to, subject);
     }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }

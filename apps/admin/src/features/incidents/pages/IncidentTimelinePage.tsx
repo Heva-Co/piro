@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { marked } from "marked";
 import { PageHeader } from "@/components/PageHeader";
-import { formatTimestamp } from "@/utils/date";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import {
@@ -98,21 +98,17 @@ function describeSystemEvent(e: IncidentTimelineEvent): React.ReactNode {
     case "AlertFired":
       return e.alertId != null ? (
         <>
-          Alert fired{" "}
+          Alert attached{" "}
           <Link to={ROUTES.ALERTS.DETAIL(e.alertId)} className="font-semibold underline hover:no-underline">
             #{e.alertId}
           </Link>
         </>
       ) : (
-        "Alert fired"
+        "Alert attached"
       );
     default:
       return e.type;
   }
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString();
 }
 
 const TIMELINE_PAGE_SIZE = 20;
@@ -120,6 +116,7 @@ const TIMELINE_PAGE_SIZE = 20;
 export default function IncidentTimelinePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { formatTimestamp, formatDateTime } = useFormattedDate();
 
   const { data: incident, isLoading } = useQuery({
     queryKey: QUERY_KEYS.INCIDENT(id!),
@@ -208,17 +205,6 @@ export default function IncidentTimelinePage() {
           <span>Started {formatTimestamp(incident.startDateTime)}</span>
           {incident.endDateTime && <span>· Resolved {formatTimestamp(incident.endDateTime)}</span>}
         </div>
-        {incident.mergedIntoIncidentId && (
-          <div className="mt-3 rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-700 dark:text-purple-400">
-            This incident was merged into{" "}
-            <button
-              onClick={() => navigate(ROUTES.INCIDENTS.DETAIL(incident.mergedIntoIncidentId!))}
-              className="font-semibold underline hover:no-underline"
-            >
-              #{incident.mergedIntoIncidentId}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="rounded-xl border border-border bg-card">

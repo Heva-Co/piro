@@ -1,8 +1,24 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Filter, Plus, Settings } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusBadge";
+import TableSkeleton from "@/components/TableSkeleton";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from "@/components/ui/pagination";
 import { useServices } from "@/hooks/useServices";
 import { ROUTES } from "@/constants/routes";
+
+const PAGE_SIZE = 20;
+
+const columns = ["Service", "Slug", "Status", "Hidden", "Checks"];
 
 function initials(name: string) {
   const words = name.trim().split(/\s+/);
@@ -12,103 +28,146 @@ function initials(name: string) {
 
 export default function ServicesPage() {
   const navigate = useNavigate();
-  const { data: services, isLoading, isError } = useServices();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, isError } = useServices({ page, pageSize: PAGE_SIZE });
+
+  const services = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
-    <>
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Services</h1>
+    <div className="flex flex-col">
+      <PageHeader
+        breadcrumbs={[{ label: "Services" }]}
+        actions={
           <button
             onClick={() => navigate(ROUTES.SERVICES.NEW)}
             className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Plus size={14} /> New Service
           </button>
-        </div>
+        }
+      />
 
-        <div className="flex items-center mb-3">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b flex items-center">
           <button className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
             <Filter size={13} /> Filters
           </button>
         </div>
 
-        <div className="rounded-xl border bg-card overflow-hidden">
-          {isLoading ? (
-            <div className="px-6 py-8 text-sm text-muted-foreground">Loading…</div>
-          ) : isError ? (
-            <div className="px-6 py-8 text-sm text-destructive">Failed to load services.</div>
-          ) : !services || services.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-20">
-              <img src="/piro.svg" alt="Piro" className="h-16 w-16 opacity-20" />
-              <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">No services yet</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Add your first service to start monitoring uptime.
-                </p>
-              </div>
-              <button
-                onClick={() => navigate(ROUTES.SERVICES.NEW)}
-                className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                <Plus size={14} /> New Service
-              </button>
+        {isLoading ? (
+          <TableSkeleton columns={columns} />
+        ) : isError ? (
+          <div className="px-6 py-8 text-sm text-destructive">Failed to load services.</div>
+        ) : services.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <img src="/piro.svg" alt="Piro" className="h-16 w-16 opacity-20" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">No services yet</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add your first service to start monitoring uptime.
+              </p>
             </div>
-          ) : (
-            <>
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Service</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Slug</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Hidden</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Checks</th>
-                    <th className="px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {services.map((service) => (
-                    <tr key={service.slug} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                            {initials(service.name)}
-                          </div>
-                          <span className="font-medium">{service.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <code className="rounded border bg-muted px-2 py-0.5 text-xs font-mono">
-                          {service.slug}
-                        </code>
-                      </td>
-                      <td className="px-5 py-3">
-                        <StatusPill status={service.currentStatus} />
-                      </td>
-                      <td className="px-5 py-3 text-sm text-muted-foreground">
-                        {service.isHidden ? "YES" : "NO"}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-muted-foreground">{service.checkCount ?? '—'}</td>
-                      <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => navigate(ROUTES.SERVICES.DETAIL(service.slug))}
-                          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
-                        >
-                          <Settings size={13} /> Configure
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="px-5 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
-                Showing 1–{services.length} of {services.length} service{services.length !== 1 ? "s" : ""}
-              </div>
-            </>
-          )}
-        </div>
+            <button
+              onClick={() => navigate(ROUTES.SERVICES.NEW)}
+              className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-colors"
+            >
+              <Plus size={14} /> New Service
+            </button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {columns.map((column) => <TableHead key={column}>{column}</TableHead>)}
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {services.map((service) => (
+                <TableRow
+                  key={service.slug}
+                  className="hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => navigate(ROUTES.SERVICES.DETAIL(service.slug))}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                        {initials(service.name)}
+                      </div>
+                      <span className="font-medium">{service.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <code className="rounded border bg-muted px-2 py-0.5 text-xs font-mono">
+                      {service.slug}
+                    </code>
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill status={service.currentStatus} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {service.isHidden ? "YES" : "NO"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{service.checkCount ?? "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(ROUTES.SERVICES.DETAIL(service.slug));
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+                    >
+                      <Settings size={13} /> Configure
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columns.length + 1} className="px-4 py-3">
+                  <div className="flex items-center justify-between text-sm font-normal">
+                    <span className="text-muted-foreground">
+                      Page {page} of {totalPages} · {totalCount} service{totalCount === 1 ? "" : "s"}
+                    </span>
+                    <Pagination className="mx-0 w-auto">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page > 1) setPage((p) => p - 1);
+                            }}
+                            className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        <PaginationItem>
+                          <PaginationLink href="#" isActive size="default" className="pointer-events-none px-3">
+                            {page} / {totalPages}
+                          </PaginationLink>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (page < totalPages) setPage((p) => p + 1);
+                            }}
+                            className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
       </div>
-    </>
+    </div>
   );
 }

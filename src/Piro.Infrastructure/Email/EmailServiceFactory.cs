@@ -31,4 +31,7 @@ public class EmailServiceFactory(
         logger.LogDebug("Dispatching email via provider '{Provider}'.", provider);
         await impl.SendAsync(to, subject, htmlBody, ct, from);
     }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }

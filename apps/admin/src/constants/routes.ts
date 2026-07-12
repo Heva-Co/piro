@@ -46,13 +46,6 @@ export const ROUTES = {
     TIMELINE: (id: number | string) => `/admin/incidents/${id}/timeline`,
   },
 
-  // Notification channels
-  CHANNELS: {
-    LIST: "/admin/channels",
-    NEW: "/admin/channels/new",
-    DETAIL: (id: number | string) => `/admin/channels/${id}`,
-  },
-
   // Maintenances
   MAINTENANCES: {
     LIST: "/admin/maintenances",
@@ -73,7 +66,6 @@ export const ROUTES = {
     WORKERS: "/admin/configuration/workers",
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
-    INCIDENTS: "/admin/configuration/incidents",
     JOBS: "/admin/configuration/jobs",
   },
 
@@ -84,8 +76,11 @@ export const ROUTES = {
     DETAIL: (id: number | string) => `/admin/oncall/${id}`,
   },
 
-  // Escalation policy
-  ESCALATION: "/admin/escalation-policy",
+  // Escalation policies
+  ESCALATION: {
+    LIST: "/admin/escalation-policies",
+    DETAIL: (id: number | string) => `/admin/escalation-policies/${id}`,
+  },
 
   // User profile
   PROFILE: "/admin/profile",

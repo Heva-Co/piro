@@ -3,20 +3,7 @@ namespace Piro.Application.Models;
 /// <summary>Root YAML configuration document.</summary>
 public class PiroYamlConfig
 {
-    public List<TriggerYamlEntry>? Triggers { get; set; }
     public List<ServiceYamlEntry>? Services { get; set; }
-}
-
-public class TriggerYamlEntry
-{
-    public string Name { get; set; } = "";
-    public string Type { get; set; } = "";
-    public string Status { get; set; } = "ACTIVE";
-    public string? Description { get; set; }
-    public bool IsGlobal { get; set; }
-    public bool IsLocked { get; set; }
-    /// <summary>Flexible key-value metadata for the trigger (bot token, webhook URL, etc.).</summary>
-    public Dictionary<object, object>? Meta { get; set; }
 }
 
 public class ServiceYamlEntry

@@ -36,6 +36,26 @@ public class Alert
     /// have been folded into this row since <see cref="FiredAt"/>.</summary>
     public int OccurrenceCount { get; set; } = 1;
 
+    // ── On-call escalation (see EscalationCheckerService) ──────────────────────
+
+    /// <summary>0-based index of the current escalation step. Null = not yet initialized.</summary>
+    public int? EscalationCurrentStep { get; set; }
+
+    /// <summary>When the current step became active. Step 0 uses <see cref="FiredAt"/>; subsequent steps use dispatch time.</summary>
+    public DateTimeOffset? EscalationStepStartedAt { get; set; }
+
+    /// <summary>Unix timestamp (seconds) when a team member acknowledged this alert. Null if not yet acknowledged.</summary>
+    public long? AcknowledgedAt { get; set; }
+
+    /// <summary>Display name of the user who acknowledged the alert.</summary>
+    public string? AcknowledgedBy { get; set; }
+
+    /// <summary>Updated when a human acknowledges or otherwise interacts with the alert. Used for inactivity re-escalation.</summary>
+    public DateTimeOffset? LastUserActivityAt { get; set; }
+
+    /// <summary>Per-attempt delivery history for this alert's on-call escalation — see <see cref="EscalationDeliveryLog"/>.</summary>
+    public ICollection<EscalationDeliveryLog> EscalationDeliveryLogs { get; set; } = [];
+
     public AlertConfig AlertConfig { get; set; } = null!;
     public Check Check { get; set; } = null!;
     public Service Service { get; set; } = null!;

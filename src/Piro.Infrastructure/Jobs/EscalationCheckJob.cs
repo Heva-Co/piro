@@ -16,7 +16,6 @@ public class EscalationCheckJob(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var checker = scope.ServiceProvider.GetRequiredService<EscalationCheckerService>();
-        await checker.ReconcileOrphanedChecksAsync(context.CancellationToken);
         await checker.ProcessAsync(context.CancellationToken);
         logger.LogDebug("Escalation check completed.");
     }

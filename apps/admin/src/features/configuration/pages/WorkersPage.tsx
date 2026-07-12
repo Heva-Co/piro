@@ -14,11 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { workersApi, type Worker } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 type ModalState = "none" | "create" | "token" | "editRegion";
 
 export default function WorkersPage() {
   const qc = useQueryClient();
+  const { formatDate } = useFormattedDate();
   const { data: workers = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.WORKERS,
     queryFn: workersApi.list,
@@ -164,7 +166,7 @@ export default function WorkersPage() {
                 </span>
                 {w.lastHeartbeat && (
                   <span className="text-sm text-muted-foreground">
-                    {new Date(w.lastHeartbeat).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}
+                    {formatDate(w.lastHeartbeat, { month: "numeric", day: "numeric", year: "numeric" })}
                   </span>
                 )}
                 <div className="flex items-center gap-2">

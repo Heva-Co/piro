@@ -42,35 +42,6 @@ public class SiteController(ISiteConfigRepository siteConfig, IWebHostEnvironmen
         return NoContent();
     }
 
-    /// <summary>Returns current incident automation configuration.</summary>
-    [HttpGet("incidents-config")]
-    [Authorize(Roles = "Owner,Admin")]
-    [ProducesResponseType<IncidentsConfigResponse>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetIncidentsConfig(CancellationToken ct)
-    {
-        var cfg = await siteConfig.GetAsync(ct);
-        return Ok(new IncidentsConfigResponse(
-            cfg.IncidentCorrelationMode.ToString(),
-            cfg.MergeThreshold,
-            cfg.MergeCorrelationWindowMinutes));
-    }
-
-    /// <summary>Updates incident automation settings.</summary>
-    [HttpPut("incidents-config")]
-    [Authorize(Roles = "Owner,Admin")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> PutIncidentsConfig([FromBody] UpdateIncidentsConfigRequest request, CancellationToken ct)
-    {
-        await siteConfig.SetManyAsync(new Dictionary<string, string?>
-        {
-            [SiteDataKeys.IncidentCorrelationMode] = request.CorrelationMode,
-            [SiteDataKeys.IncidentMergeThreshold] = request.MergeThreshold?.ToString(),
-            [SiteDataKeys.IncidentMergeCorrelationWindowMinutes] = request.MergeCorrelationWindowMinutes?.ToString(),
-        }, ct);
-        return NoContent();
-    }
-
     /// <summary>Uploads a site asset (logo | favicon | og-image). Stores in wwwroot/uploads/.</summary>
     [HttpPost("upload/{type}")]
     [Authorize(Roles = "Owner,Admin")]
@@ -140,22 +111,6 @@ public class UpdateSiteConfigRequest
 
     public string? MetaTitle { get; init; }
     public string? MetaDescription { get; init; }
-}
-
-public record IncidentsConfigResponse(
-    string CorrelationMode,
-    int MergeThreshold, int MergeCorrelationWindowMinutes);
-
-public class UpdateIncidentsConfigRequest
-{
-    [EnumDataType(typeof(Piro.Application.Interfaces.IncidentCorrelationMode))]
-    public string? CorrelationMode { get; init; }
-
-    [Range(1, int.MaxValue)]
-    public int? MergeThreshold { get; init; }
-
-    [Range(1, int.MaxValue)]
-    public int? MergeCorrelationWindowMinutes { get; init; }
 }
 
 public record UploadResponse(string Url);

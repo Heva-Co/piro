@@ -11,7 +11,7 @@ export function NtfyConfig() {
     <>
       <div className="flex flex-col gap-1.5">
         <label className={lbl}>Server URL <span className="text-destructive">*</span></label>
-        <Input type="url" {...register("ntfyServerUrl", { required: "Required" })} className={inp} />
+        <Input type="url" {...register("ntfyServerUrl")} className={inp} />
         <p className="text-xs text-muted-foreground">Use <code className="font-mono">https://ntfy.sh</code> for the public server or your self-hosted instance URL.</p>
       </div>
       <div className="flex flex-col gap-1.5">

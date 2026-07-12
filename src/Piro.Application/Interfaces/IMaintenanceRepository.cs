@@ -15,7 +15,8 @@ public interface IMaintenanceRepository
     Task<Maintenance> CreateAsync(Maintenance maintenance, CancellationToken ct = default);
     Task<Maintenance> UpdateAsync(Maintenance maintenance, CancellationToken ct = default);
     Task DeleteAsync(Maintenance maintenance, CancellationToken ct = default);
-    Task AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default);
+    /// <returns>The number of events actually inserted (existing StartDateTime matches are skipped).</returns>
+    Task<int> AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default);
     Task DeleteFutureEventsAsync(int maintenanceId, long fromTimestamp, CancellationToken ct = default);
 
     /// <summary>Returns ongoing or upcoming events (for status computation and scheduler).</summary>
@@ -26,6 +27,14 @@ public interface IMaintenanceRepository
 
     /// <summary>Returns the IDs of all services affected by the given maintenance (all services if it is global).</summary>
     Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(int maintenanceId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Batched variant of <see cref="GetAffectedServiceIdsAsync"/> — resolves affected service IDs for
+    /// all given maintenances in a single query instead of one round-trip per maintenance. Use this
+    /// when resolving affected services for a set of maintenances (e.g. the scheduler job reacting to
+    /// several transitioned events per tick).
+    /// </summary>
+    Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(IReadOnlyCollection<int> maintenanceIds, CancellationToken ct = default);
 
     /// <summary>Returns a single materialized event by ID, or null if it doesn't exist or doesn't belong to that maintenance.</summary>
     Task<MaintenanceEvent?> GetEventByIdAsync(int maintenanceId, int eventId, CancellationToken ct = default);

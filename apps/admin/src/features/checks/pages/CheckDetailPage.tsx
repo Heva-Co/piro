@@ -211,8 +211,6 @@ function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; 
   const [failureThreshold, setFailureThreshold] = useState(1);
   const [successThreshold, setSuccessThreshold] = useState(1);
   const [severity, setSeverity] = useState<"Warning" | "Critical">("Critical");
-  const [createIncident, setCreateIncident] = useState(false);
-  const [incidentThresholdOccurrences, setIncidentThresholdOccurrences] = useState(1);
   const [isActive, setIsActive] = useState(true);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -224,8 +222,6 @@ function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; 
     setFailureThreshold(existing.failureThreshold);
     setSuccessThreshold(existing.successThreshold);
     setSeverity(existing.severity);
-    setCreateIncident(existing.createIncident);
-    setIncidentThresholdOccurrences(existing.incidentThresholdOccurrences);
     setIsActive(existing.isActive);
   }, [existing]);
 
@@ -238,8 +234,6 @@ function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; 
       failureThreshold,
       successThreshold,
       severity,
-      createIncident,
-      incidentThresholdOccurrences,
       isActive,
     };
     try {
@@ -324,30 +318,6 @@ function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; 
                 <span className="text-sm text-muted-foreground">{isActive ? "Enabled" : "Disabled"}</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Incident escalation */}
-        <div className="border-t p-5 flex flex-col gap-4">
-          <div>
-            <p className="text-sm font-semibold">Incident Escalation</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Whether a firing alert should also create/attach an incident</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Creates incident</label>
-              <div className="flex items-center gap-2.5 h-9">
-                <Switch checked={createIncident} onCheckedChange={setCreateIncident} />
-                <span className="text-sm text-muted-foreground">{createIncident ? "Enabled" : "Disabled"}</span>
-              </div>
-            </div>
-            {createIncident && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">After N occurrences</label>
-                <Input type="number" min={1} value={incidentThresholdOccurrences}
-                  onChange={(e) => setIncidentThresholdOccurrences(Number(e.target.value))} />
-              </div>
-            )}
           </div>
         </div>
 

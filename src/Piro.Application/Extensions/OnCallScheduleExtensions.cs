@@ -9,7 +9,8 @@ public static class OnCallScheduleExtensions
     public static OnCallScheduleDto ToDto(this OnCallSchedule s) => new(
         s.Id, s.Name, s.Description, s.TimeZone, s.NotifyOnShiftStart,
         s.StartsAtUtc, s.EndsAtUtc, s.CreatedAt, s.UpdatedAt,
-        s.Layers.OrderBy(l => l.Order).Select(l => l.ToDto()).ToList());
+        s.Layers.OrderBy(l => l.Order).Select(l => l.ToDto()).ToList(),
+        s.Overrides.Select(o => o.ToDto()).ToList());
 
     /// <summary>Maps an <see cref="OnCallLayer"/> entity to its outbound DTO representation.</summary>
     public static OnCallLayerDto ToDto(this OnCallLayer l) => new(

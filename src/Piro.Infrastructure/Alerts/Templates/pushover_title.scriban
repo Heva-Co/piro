@@ -1,0 +1,1 @@
+{{~ if is_recovery ~}}{{ severity_emoji }} RECOVERED — {{ service_name }}{{~ else ~}}{{ severity_emoji }} {{ severity }} — {{ service_name }}{{~ end ~}}

@@ -22,16 +22,18 @@ public class MaintenanceAppServiceTests
         public Task<Maintenance> UpdateAsync(Maintenance maintenance, CancellationToken ct = default) => Task.FromResult(maintenance);
         public Task DeleteAsync(Maintenance maintenance, CancellationToken ct = default) => Task.CompletedTask;
 
-        public Task AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
+        public Task<int> AddEventsAsync(IEnumerable<MaintenanceEvent> events, CancellationToken ct = default)
         {
-            AddedEvents.AddRange(events);
-            return Task.CompletedTask;
+            var list = events.ToList();
+            AddedEvents.AddRange(list);
+            return Task.FromResult(list.Count);
         }
 
         public Task DeleteFutureEventsAsync(int maintenanceId, long fromTimestamp, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IEnumerable<MaintenanceEvent>> GetActiveEventsAsync(CancellationToken ct = default) => Task.FromResult(Enumerable.Empty<MaintenanceEvent>());
         public Task<bool> HasActiveWindowAsync(int serviceId, CancellationToken ct = default) => Task.FromResult(false);
         public Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(int maintenanceId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<int>>([]);
+        public Task<IReadOnlyList<int>> GetAffectedServiceIdsAsync(IReadOnlyCollection<int> maintenanceIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<int>>([]);
         public Task<MaintenanceEvent?> GetEventByIdAsync(int maintenanceId, int eventId, CancellationToken ct = default) => Task.FromResult<MaintenanceEvent?>(null);
         public Task CancelEventAsync(MaintenanceEvent maintenanceEvent, CancellationToken ct = default) => Task.CompletedTask;
     }

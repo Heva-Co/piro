@@ -18,17 +18,12 @@ public static class IncidentExtensions
             s.TriggeringCheck?.Slug)),
         i.Alerts.Select(a => new AlertDto(
             a.Id, a.Check?.Slug ?? a.CheckId.ToString(), a.AlertConfig?.Description,
-            a.Message, a.ImpactAtFireTime, a.FiredAt, a.ResolvedAt, a.OccurrenceCount)),
-        MergedIntoIncidentId: i.MergesAsSource.FirstOrDefault()?.TargetIncidentId,
+            a.Message, a.ImpactAtFireTime, a.FiredAt, a.ResolvedAt, a.OccurrenceCount,
+            a.AcknowledgedAt, a.AcknowledgedBy, a.EscalationCurrentStep)),
         i.CreatedAt, i.UpdatedAt,
         i.AcknowledgedAt, i.AcknowledgedBy,
         i.CurrentImpact,
-        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString())),
-        EscalationPolicyId: i.EscalationPolicyId,
-        EscalationCurrentStep: i.EscalationCurrentStep,
-        EscalationStepStartedAt: i.EscalationStepStartedAt,
-        EscalationTotalSteps: null,
-        NextEscalationAt: null
+        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString()))
     );
 
     /// <summary>

@@ -11,7 +11,7 @@ internal class UserNotificationPreferenceConfiguration : IEntityTypeConfiguratio
         builder.ToTable("UserNotificationPreferences");
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Handle).HasMaxLength(500).IsRequired();
-        builder.HasIndex(p => new { p.UserId, p.IntegrationId }).IsUnique();
+        builder.HasIndex(p => new { p.UserId, p.Channel, p.IntegrationId }).IsUnique();
         builder.HasIndex(p => p.UserId);
         builder.HasOne(p => p.User)
             .WithMany(u => u.NotificationPreferences)
@@ -20,6 +20,6 @@ internal class UserNotificationPreferenceConfiguration : IEntityTypeConfiguratio
         builder.HasOne(p => p.Integration)
             .WithMany()
             .HasForeignKey(p => p.IntegrationId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

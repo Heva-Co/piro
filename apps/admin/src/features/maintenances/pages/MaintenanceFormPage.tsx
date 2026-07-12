@@ -6,7 +6,8 @@ import { DateTimePicker } from "@/components/DateTimePicker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RRuleEditor, ONE_TIME_RRULE } from "@/components/RRuleEditor";
-import { maintenancesApi, servicesApi } from "@/lib/api";
+import { maintenancesApi } from "@/lib/api";
+import { useAllServices } from "@/hooks/useServices";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
@@ -30,10 +31,7 @@ export default function MaintenanceFormPage() {
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
-  const { data: services = [] } = useQuery({
-    queryKey: QUERY_KEYS.SERVICES,
-    queryFn: servicesApi.list,
-  });
+  const { data: services = [] } = useAllServices();
 
   const rRule = scheduleType === "one-time" ? ONE_TIME_RRULE : recurringRule;
 

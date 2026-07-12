@@ -30,6 +30,11 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Alerts\Templates\*.scriban" />
+    <EmbeddedResource Include="Email\Templates\*.scriban" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

@@ -46,6 +46,11 @@ public class Service
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>The escalation policy used to notify on-call users when this service's checks alert.
+    /// Many services may share the same policy. Null = no on-call escalation configured.</summary>
+    public int? EscalationPolicyId { get; set; }
+    public EscalationPolicy? EscalationPolicy { get; set; }
+
     public ICollection<Check> Checks { get; set; } = [];
     public ICollection<ServiceDependency> DependsOn { get; set; } = [];
     public ICollection<ServiceDependency> DependedOnBy { get; set; } = [];

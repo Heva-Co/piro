@@ -9,13 +9,29 @@ namespace Piro.Infrastructure.Persistence.Repositories;
 
 internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepository
 {
-    public async Task<List<OnCallSchedule>> GetAllAsync(CancellationToken ct = default) =>
-        await db.OnCallSchedules
+    public async Task<(IEnumerable<OnCallSchedule> Items, int TotalCount)> GetPagedAsync(
+        int page, int pageSize, CancellationToken ct = default)
+    {
+        var total = await db.OnCallSchedules.CountAsync(ct);
+        var clampedPageSize = Math.Clamp(pageSize, 10, 200);
+        var clampedPage = Math.Max(1, page);
+
+        var items = await db.OnCallSchedules
+            .AsSplitQuery()
             .Include(s => s.Layers)
                 .ThenInclude(l => l.Users)
                     .ThenInclude(u => u.User)
+            .Include(s => s.Overrides)
+                .ThenInclude(o => o.User)
+            .Include(s => s.Overrides)
+                .ThenInclude(o => o.ReplacesUser)
             .OrderBy(s => s.Name)
+            .Skip((clampedPage - 1) * clampedPageSize)
+            .Take(clampedPageSize)
             .ToListAsync(ct);
+
+        return (items, total);
+    }
 
     public async Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default)
     {
@@ -52,6 +68,7 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
 
     public async Task<OnCallSchedule?> GetByIdWithLayersAsync(int id, CancellationToken ct = default) =>
         await db.OnCallSchedules
+            .AsSplitQuery()
             .Include(s => s.Layers)
                 .ThenInclude(l => l.Users)
                     .ThenInclude(u => u.User)
@@ -60,6 +77,22 @@ internal class OnCallScheduleRepository(PiroDbContext db) : IOnCallScheduleRepos
             .Include(s => s.Overrides)
                 .ThenInclude(o => o.ReplacesUser)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
+
+    public async Task<List<OnCallSchedule>> GetSchedulesForUserAsync(int userId, CancellationToken ct = default) =>
+        await db.OnCallSchedules
+            .AsSplitQuery()
+            .Where(s =>
+                s.Layers.Any(l => l.Users.Any(u => u.UserId == userId)) ||
+                s.Overrides.Any(o => o.UserId == userId || o.ReplacesUserId == userId))
+            .Include(s => s.Layers)
+                .ThenInclude(l => l.Users)
+                    .ThenInclude(u => u.User)
+            .Include(s => s.Overrides)
+                .ThenInclude(o => o.User)
+            .Include(s => s.Overrides)
+                .ThenInclude(o => o.ReplacesUser)
+            .OrderBy(s => s.Name)
+            .ToListAsync(ct);
 
     public async Task<OnCallSchedule> CreateAsync(OnCallSchedule schedule, CancellationToken ct = default)
     {

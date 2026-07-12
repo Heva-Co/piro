@@ -6,6 +6,7 @@
 import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
 import type { IncidentVisibilityKey } from "@/constants/incidents";
+import type { Incident } from "@/lib/actions/incidents";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -69,17 +70,31 @@ export interface Service {
   isHidden: boolean;
   displayOrder: number;
   checkCount?: number;
+  escalationPolicyId?: number | null;
+  escalationPolicyName?: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export const servicesApi = {
-  list: () => api.get<Service[]>(ENDPOINTS.SERVICES).then((r) => r.data),
+  list: (params?: { page?: number; pageSize?: number; search?: string }) =>
+    api.get<PaginatedResponse<Service>>(ENDPOINTS.SERVICES, { params }).then((r) => r.data),
 
   get: (slug: string) => api.get<Service>(ENDPOINTS.SERVICE(slug)).then((r) => r.data),
 
-  create: (data: Omit<Service, "currentStatus">) =>
+  create: (data: Omit<Service, "currentStatus" | "escalationPolicyName">) =>
     api.post<Service>(ENDPOINTS.SERVICES, data).then((r) => r.data),
 
-  update: (slug: string, data: Partial<Omit<Service, "slug" | "currentStatus">>) =>
+  // escalationPolicyId: omit the key to leave it unchanged, send null explicitly to clear it.
+  update: (
+    slug: string,
+    data: Partial<Omit<Service, "slug" | "currentStatus" | "escalationPolicyName">>
+  ) =>
     api.put<Service>(ENDPOINTS.SERVICE(slug), data).then((r) => r.data),
 
   delete: (slug: string) => api.delete(ENDPOINTS.SERVICE(slug)),
@@ -200,6 +215,7 @@ export interface AlertSummary {
   resolvedAt?: string;
   occurrenceCount: number;
   incidentId?: number;
+  hasEscalationPolicy: boolean;
 }
 
 export interface AlertDetail {
@@ -222,12 +238,15 @@ export interface AlertDetail {
   occurrenceCount: number;
   incidentId?: number;
   incidentTitle?: string;
+  escalationCurrentStep?: number | null;
+  acknowledgedAt?: number | null;
+  acknowledgedBy?: string | null;
 }
 
 export const alertsApi = {
-  list: (params?: { page?: number; pageSize?: number; from?: string; to?: string }) =>
+  list: (params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) =>
     api
-      .get<{ items: AlertSummary[]; totalCount: number; page: number; pageSize: number }>(
+      .get<{ items: AlertSummary[]; totalCount: number; page: number; pageSize: number; allTimeTotalCount: number }>(
         ENDPOINTS.ALERTS,
         { params }
       )
@@ -235,11 +254,37 @@ export const alertsApi = {
 
   get: (id: number | string) =>
     api.get<AlertDetail>(ENDPOINTS.ALERT(id)).then((r) => r.data),
+
+  getOpenIncidents: () =>
+    api.get<Incident[]>(ENDPOINTS.ALERTS_OPEN_INCIDENTS).then((r) => r.data),
+
+  linkToIncident: (id: number | string, incidentId?: number) =>
+    api.post<AlertDetail>(ENDPOINTS.ALERT_INCIDENT(id), { incidentId }).then((r) => r.data),
+
+  acknowledge: (id: number | string) =>
+    api.post<AlertDetail>(ENDPOINTS.ALERT_ACKNOWLEDGE(id)).then((r) => r.data),
+
+  getEscalationLogs: (id: number | string) =>
+    api.get<EscalationDeliveryLog[]>(ENDPOINTS.ALERT_ESCALATION_LOGS(id)).then((r) => r.data),
 };
+
+export interface EscalationDeliveryLog {
+  stepIndex: number;
+  userName: string;
+  channelType: string;
+  succeeded: boolean;
+  errorMessage?: string;
+  attemptedAt: string;
+}
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export interface DailyIncidentCount {
+  date: string;
+  count: number;
+}
+
+export interface DailyAlertCount {
   date: string;
   count: number;
 }
@@ -250,23 +295,41 @@ export interface ServiceIncidentCount {
   count: number;
 }
 
+export interface ServiceAlertCount {
+  serviceSlug: string;
+  serviceName: string;
+  count: number;
+}
+
 export interface SeverityIncidentCount {
   severity: string;
   count: number;
 }
 
+export interface IncidentMetrics {
+  mttaSeconds: number | null;
+  mttrSeconds: number | null;
+  incidentCount: number;
+}
+
+export interface AlertMetrics {
+  mttaSeconds: number | null;
+  mttrSeconds: number | null;
+  meanTimeToIncidentSeconds: number | null;
+  alertToIncidentConversionRate: number | null;
+  alertCount: number;
+  dailyAlertCounts: DailyAlertCount[];
+  alertsByService: ServiceAlertCount[];
+  alertsBySeverity: SeverityIncidentCount[];
+}
+
 export interface DashboardMetrics {
   from: string;
   to: string;
-  mttaSeconds: number | null;
-  mttrSeconds: number | null;
-  mttdSeconds: number | null;
-  alertNoiseRatio: number | null;
-  incidentCount: number;
-  alertCount: number;
+  incidentMetrics: IncidentMetrics;
+  alertMetrics: AlertMetrics;
   dailyIncidentCounts: DailyIncidentCount[];
   incidentsByService: ServiceIncidentCount[];
-  alertsBySeverity: SeverityIncidentCount[];
 }
 
 export const dashboardApi = {
@@ -286,44 +349,6 @@ export const incidentsApi = {
   ...incidentsApiBase,
 };
 
-// ─── Notification channels ───────────────────────────────────────────────────
-
-export interface NotificationChannel {
-  id: number;
-  name: string;
-  type: string;
-  description?: string;
-  isInactive: boolean;
-  metaJson: string;
-  isGlobal: boolean;
-  isLocked: boolean;
-  createdAt: string;
-  updatedAt: string;
-  integrationId?: number;
-  integrationName?: string;
-}
-
-export const channelsApi = {
-  list: () => api.get<NotificationChannel[]>(ENDPOINTS.CHANNELS).then((r) => r.data),
-
-  get: (id: number | string) =>
-    api.get<NotificationChannel>(ENDPOINTS.CHANNEL(id)).then((r) => r.data),
-
-  create: (data: Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "integrationName">) =>
-    api.post<NotificationChannel>(ENDPOINTS.CHANNELS, data).then((r) => r.data),
-
-  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "integrationName">>) =>
-    api.put<NotificationChannel>(ENDPOINTS.CHANNEL(id), data).then((r) => r.data),
-
-  delete: (id: number | string) => api.delete(ENDPOINTS.CHANNEL(id)),
-
-  test: (data: { type: string; metaJson: string; name?: string; integrationId?: number }) =>
-    api.post(ENDPOINTS.CHANNEL_TEST, data),
-
-  testPersonal: (data: { integrationId: number; handle: string }) =>
-    api.post<{ message: string }>(ENDPOINTS.CHANNEL_TEST_PERSONAL, data),
-};
-
 // ─── Alert configs ────────────────────────────────────────────────────────────
 
 export type AlertFor = "Status" | "Latency" | "Uptime";
@@ -337,8 +362,6 @@ export interface AlertConfig {
   failureThreshold: number;
   successThreshold: number;
   description?: string;
-  createIncident: boolean;
-  incidentThresholdOccurrences: number;
   isActive: boolean;
   isAlerting: boolean;
   severity: AlertSeverity;
@@ -352,8 +375,6 @@ export interface CreateAlertConfig {
   failureThreshold?: number;
   successThreshold?: number;
   description?: string;
-  createIncident?: boolean;
-  incidentThresholdOccurrences?: number;
   isActive?: boolean;
   severity?: AlertSeverity;
 }
@@ -506,8 +527,25 @@ export const usersApi = {
   getNotificationPreferences: (userId: number | string) =>
     api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
 
-  setNotificationPreferences: (userId: number | string, preferences: UpsertNotificationPreference[]) =>
-    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+  createNotificationPreference: (userId: number | string, data: UpsertNotificationPreference) =>
+    api.post<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), data).then((r) => r.data),
+
+  updateNotificationPreference: (userId: number | string, preferenceId: number, data: UpsertNotificationPreference) =>
+    api.put<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCE(userId, preferenceId), data).then((r) => r.data),
+
+  reorderNotificationPreferences: (userId: number | string, orderedIds: number[]) =>
+    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES_REORDER(userId), { orderedIds }).then((r) => r.data),
+
+  deleteNotificationPreference: (userId: number | string, preferenceId: number) =>
+    api.delete(ENDPOINTS.USER_NOTIFICATION_PREFERENCE(userId, preferenceId)),
+
+  sendNotificationPreferenceCode: (userId: number | string, preferenceId: number) =>
+    api.post(ENDPOINTS.USER_NOTIFICATION_PREFERENCE_VERIFY_SEND(userId, preferenceId)),
+
+  confirmNotificationPreferenceCode: (userId: number | string, preferenceId: number, code: string) =>
+    api
+      .post<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCE_VERIFY_CONFIRM(userId, preferenceId), { code })
+      .then((r) => r.data),
 };
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
@@ -517,28 +555,41 @@ export interface UserProfile {
   email: string;
   name: string;
   color: string;
+  timeZone: string;
   roles: string[];
   isOidc: boolean;
 }
 
+/** Personal channels a user can pick for on-call notifications. Kept in sync with PersonalNotificationChannel on the backend. */
+export const PERSONAL_NOTIFICATION_CHANNELS = {
+  Email: "Email",
+  Telegram: "Telegram",
+  TwilioSms: "TwilioSms",
+  Ntfy: "Ntfy",
+} as const;
+
+export type PersonalNotificationChannelType = keyof typeof PERSONAL_NOTIFICATION_CHANNELS;
+
 export interface UserNotificationPreference {
   id: number;
-  integrationId: number;
-  integrationName: string;
-  integrationType: string;
+  channel: PersonalNotificationChannelType;
+  integrationId: number | null;
+  integrationName: string | null;
   handle: string;
   priority: number;
+  isVerified: boolean;
+  isAccountFallback: boolean;
 }
 
 export interface UpsertNotificationPreference {
-  integrationId: number;
+  channel: PersonalNotificationChannelType;
+  integrationId: number | null;
   handle: string;
-  priority: number;
 }
 
 export const profileApi = {
   get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
-  update: (data: { name?: string; color?: string }) =>
+  update: (data: { name?: string; color?: string; timeZone?: string }) =>
     api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
 };
 
@@ -552,12 +603,6 @@ export interface SiteConfig {
   metaTitle?: string;
   metaDescription?: string;
   ogImageUrl?: string;
-}
-
-export interface IncidentsConfig {
-  correlationMode: import("@/constants/incidents").IncidentCorrelationModeKey;
-  mergeThreshold: number;
-  mergeCorrelationWindowMinutes: number;
 }
 
 export const siteApi = {
@@ -575,12 +620,6 @@ export const siteApi = {
       })
       .then((r) => r.data);
   },
-
-  getIncidentsConfig: () =>
-    api.get<IncidentsConfig>(ENDPOINTS.SITE.INCIDENTS_CONFIG).then((r) => r.data),
-
-  updateIncidentsConfig: (data: Partial<IncidentsConfig>) =>
-    api.put(ENDPOINTS.SITE.INCIDENTS_CONFIG, data).then((r) => r.data),
 };
 
 // ─── OIDC config ─────────────────────────────────────────────────────────────
@@ -791,6 +830,33 @@ export const logsApi = {
   },
 };
 
+// ─── Global search ──────────────────────────────────────────────────────────────
+
+export type SearchResultType =
+  | "Service"
+  | "Check"
+  | "Alert"
+  | "Incident"
+  | "Maintenance"
+  | "OnCallSchedule"
+  | "EscalationPolicy"
+  | "User"
+  | "ApiKey";
+
+export interface SearchResult {
+  type: SearchResultType;
+  title: string;
+  subtitle?: string;
+  url: string;
+  incidentId?: number;
+  incidentUrl?: string;
+}
+
+export const searchApi = {
+  search: (q: string) =>
+    api.get<SearchResult[]>(ENDPOINTS.SEARCH, { params: { q } }).then((r) => r.data),
+};
+
 // ─── Config import ────────────────────────────────────────────────────────────
 
 export const configApi = {
@@ -809,7 +875,7 @@ export const INTEGRATION_TYPES = {
   PagerDuty: "PagerDuty",
   MSTeams: "MSTeams",
   Telegram: "Telegram",
-  TwilioSms: "TwilioSms",
+  Twilio: "Twilio",
   GoogleChat: "GoogleChat",
   Discord: "Discord",
   Opsgenie: "Opsgenie",
@@ -906,6 +972,7 @@ export interface OnCallSchedule {
   createdAt: string;
   updatedAt: string;
   layers: OnCallLayer[];
+  overrides: OnCallOverride[];
 }
 
 export interface OnCallSlot {
@@ -919,6 +986,10 @@ export interface OnCallSlot {
   endsAt: string;
   isOverride: boolean;
   replacesUserName: string | null;
+  scheduleId?: number;
+  scheduleName?: string;
+  layerOrder: number;
+  isPrimarySchedule: boolean;
 }
 
 export interface OnCallUser {
@@ -928,23 +999,60 @@ export interface OnCallUser {
   color: string;
 }
 
-export interface UserNotificationPreference {
-  id: number;
-  integrationId: number;
-  integrationName: string;
-  integrationType: string;
-  handle: string;
-  priority: number;
-}
-
 export interface OnCallScheduleMembers {
   id: number;
   name: string;
   members: { userId: number; userName: string; userInitials: string; userColor: string }[];
 }
 
+// ─── Rotations batch (draft save) ───────────────────────────────────────────
+
+export interface CreateLayerDraft {
+  name: string;
+  recurrenceRule: string;
+  firstOccurrenceStartsAt: string;
+  firstOccurrenceEndsAt: string;
+  userIds: number[];
+}
+
+export interface UpdateLayerDraft extends CreateLayerDraft {
+  layerId: number;
+}
+
+export interface CreateOverrideDraft {
+  userId: number;
+  replacesUserId?: number;
+  startsAtUtc: string;
+  endsAtUtc: string;
+  reason?: string;
+}
+
+export interface SaveRotationsRequest {
+  layersToCreate: CreateLayerDraft[];
+  layersToUpdate: UpdateLayerDraft[];
+  layerIdsToDelete: number[];
+  overridesToCreate: CreateOverrideDraft[];
+  overrideIdsToDelete: number[];
+}
+
+export interface CoverageGap {
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface RotationsPreview {
+  slots: OnCallSlot[];
+  gaps: CoverageGap[];
+}
+
 export const onCallApi = {
-  list: () => api.get<OnCallSchedule[]>(ENDPOINTS.ONCALL_SCHEDULES).then((r) => r.data),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api
+      .get<{ items: OnCallSchedule[]; totalCount: number; page: number; pageSize: number }>(
+        ENDPOINTS.ONCALL_SCHEDULES,
+        { params }
+      )
+      .then((r) => r.data),
   listMembers: () => api.get<OnCallScheduleMembers[]>(ENDPOINTS.ONCALL_SCHEDULES_MEMBERS).then((r) => r.data),
   get: (id: number | string) => api.get<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id)).then((r) => r.data),
   create: (data: { name: string; description?: string; timeZone?: string; notifyOnShiftStart?: boolean; startsAtUtc?: string; endsAtUtc?: string }) =>
@@ -955,6 +1063,10 @@ export const onCallApi = {
   getCurrent: (id: number | string) => api.get<OnCallUser[]>(ENDPOINTS.ONCALL_SCHEDULE_CURRENT(id)).then((r) => r.data),
   expand: (id: number | string, from: string, to: string, applyOverrides = true) =>
     api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_SCHEDULE_EXPAND(id)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&applyOverrides=${applyOverrides}`).then((r) => r.data),
+  getMySlots: (from: string, to: string) =>
+    api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_MY_SLOTS}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.data),
+  getMyCurrentStatus: () =>
+    api.get<OnCallSlot | null>(ENDPOINTS.ONCALL_MY_CURRENT).then((r) => (r.status === 204 ? null : r.data)),
 
   // Layers
   createLayer: (scheduleId: number | string, data: { name: string; order: number; recurrenceRule: string; firstOccurrenceStartsAt: string; firstOccurrenceEndsAt: string; userIds: number[] }) =>
@@ -963,10 +1075,6 @@ export const onCallApi = {
     api.put<OnCallLayer>(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId), data).then((r) => r.data),
   deleteLayer: (scheduleId: number | string, layerId: number | string) =>
     api.delete(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId)),
-  addLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
-    api.post(ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId), { userId }),
-  removeLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
-    api.delete(`${ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId)}/${userId}`),
 
   // Overrides
   createOverride: (scheduleId: number | string, data: { userId: number; replacesUserId?: number; startsAtUtc: string; endsAtUtc: string; reason?: string }) =>
@@ -974,11 +1082,16 @@ export const onCallApi = {
   deleteOverride: (scheduleId: number | string, overrideId: number | string) =>
     api.delete(ENDPOINTS.ONCALL_SCHEDULE_OVERRIDE(scheduleId, overrideId)),
 
-  // User notification preferences
-  getNotificationPreferences: (userId: number | string) =>
-    api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
-  setNotificationPreferences: (userId: number | string, preferences: { integrationId: number; handle: string; priority: number }[]) =>
-    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+  // Rotations batch (transactional save + gap preview)
+  previewRotations: (scheduleId: number | string, batch: SaveRotationsRequest, from: string, to: string) =>
+    api
+      .post<RotationsPreview>(
+        `${ENDPOINTS.ONCALL_SCHEDULE_ROTATIONS_PREVIEW(scheduleId)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        batch
+      )
+      .then((r) => r.data),
+  saveRotations: (scheduleId: number | string, batch: SaveRotationsRequest) =>
+    api.put<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE_ROTATIONS(scheduleId), batch).then((r) => r.data),
 };
 
 // ─── Escalation ──────────────────────────────────────────────────────────────
@@ -995,7 +1108,6 @@ export interface EscalationPolicy {
   id: number;
   name: string;
   description?: string;
-  reEscalateAfterAckMinutes: number;
   reEscalateAfterInactivityMinutes: number;
   steps: EscalationStep[];
 }
@@ -1003,7 +1115,6 @@ export interface EscalationPolicy {
 export interface UpsertEscalationPolicyRequest {
   name: string;
   description?: string;
-  reEscalateAfterAckMinutes: number;
   reEscalateAfterInactivityMinutes: number;
   steps: { order: number; delayMinutes: number; scheduleId: number }[];
 }
@@ -1022,10 +1133,18 @@ export const utilsApi = {
 };
 
 export const escalationApi = {
-  get: () =>
-    api.get<EscalationPolicy>("/api/v1/escalation-policy")
-      .then((r) => r.data)
-      .catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e))),
-  upsert: (data: UpsertEscalationPolicyRequest) =>
-    api.put<EscalationPolicy>("/api/v1/escalation-policy", data).then((r) => r.data),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api
+      .get<{ items: EscalationPolicy[]; totalCount: number; page: number; pageSize: number }>(
+        ENDPOINTS.ESCALATION_POLICIES,
+        { params }
+      )
+      .then((r) => r.data),
+  get: (id: number | string) =>
+    api.get<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id)).then((r) => r.data),
+  create: (data: UpsertEscalationPolicyRequest) =>
+    api.post<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICIES, data).then((r) => r.data),
+  update: (id: number | string, data: UpsertEscalationPolicyRequest) =>
+    api.put<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id), data).then((r) => r.data),
+  delete: (id: number | string) => api.delete(ENDPOINTS.ESCALATION_POLICY(id)),
 };

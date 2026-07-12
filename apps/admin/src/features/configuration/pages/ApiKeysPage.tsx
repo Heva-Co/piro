@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Copy, AlertCircle, KeyRound } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +18,9 @@ import {
 
 type ModalState = "none" | "create" | "secret";
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
-}
-
 export default function ApiKeysPage() {
   const qc = useQueryClient();
+  const { formatDate } = useFormattedDate();
   const { data: keys = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.API_KEYS,
     queryFn: authApi.apiKeys,
@@ -125,9 +123,9 @@ export default function ApiKeysPage() {
                 {k.status}
               </span>
               <span className="text-sm text-muted-foreground">
-                {k.lastUsedAt ? `Last used ${formatDate(k.lastUsedAt)}` : "Never used"}
+                {k.lastUsedAt ? `Last used ${formatDate(k.lastUsedAt, { month: "numeric", day: "numeric", year: "numeric" })}` : "Never used"}
               </span>
-              <span className="text-sm text-muted-foreground">{formatDate(k.createdAt)}</span>
+              <span className="text-sm text-muted-foreground">{formatDate(k.createdAt, { month: "numeric", day: "numeric", year: "numeric" })}</span>
               <Button
                 variant="ghost"
                 size="icon"

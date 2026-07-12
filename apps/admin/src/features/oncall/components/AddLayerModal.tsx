@@ -1,21 +1,29 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
-import { onCallApi, usersApi } from "@/lib/api";
+import { usersApi } from "@/lib/api";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { DatePicker } from "@/components/DatePicker";
 import { RRuleEditor } from "@/components/RRuleEditor";
 
-import type { OnCallLayer } from "@/lib/api";
+import type { OnCallLayer, OnCallLayerUser } from "@/lib/api";
 
-interface Props {
-  scheduleId: string;
-  initialLayer?: OnCallLayer;
-  onClose: () => void;
-  onSuccess: () => void;
+export interface LayerFormPayload {
+  name: string;
+  recurrenceRule: string;
+  firstOccurrenceStartsAt: string;
+  firstOccurrenceEndsAt: string;
+  userIds: number[];
+  users: OnCallLayerUser[];
 }
 
-export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: Props) {
+interface Props {
+  initialLayer?: OnCallLayer;
+  onClose: () => void;
+  onSave: (payload: LayerFormPayload) => void;
+}
+
+export function AddLayerModal({ initialLayer, onClose, onSave }: Props) {
   const isEdit = !!initialLayer;
   const [name, setName] = useState(initialLayer?.name ?? "");
   const [firstStart, setFirstStart] = useState(initialLayer?.firstOccurrenceStartsAt ?? "");
@@ -41,21 +49,29 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
     return iso.slice(0, 10) + "T23:59:59Z";
   }
 
-  const payload = {
-    name,
-    recurrenceRule: rrule,
-    firstOccurrenceStartsAt: allDay ? toAllDayStart(firstStart) : firstStart,
-    firstOccurrenceEndsAt: allDay ? toAllDayEnd(firstEnd) : firstEnd,
-    userIds,
-  };
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      isEdit
-        ? onCallApi.updateLayer(scheduleId, initialLayer.id, payload)
-        : onCallApi.createLayer(scheduleId, { ...payload, order: 0 }),
-    onSuccess,
-  });
+  function buildPayload(): LayerFormPayload {
+    return {
+      name,
+      recurrenceRule: rrule,
+      firstOccurrenceStartsAt: allDay ? toAllDayStart(firstStart) : firstStart,
+      firstOccurrenceEndsAt: allDay ? toAllDayEnd(firstEnd) : firstEnd,
+      userIds,
+      users: userIds.map((uid, idx) => {
+        const existing = initialLayer?.users.find((u) => u.userId === uid);
+        const user = users.find((u: { id: number; name: string }) => u.id === uid);
+        return (
+          existing ?? {
+            id: 0,
+            userId: uid,
+            userName: user?.name ?? "",
+            userInitials: (user?.name ?? "").split(" ").map((p: string) => p[0]).join("").toUpperCase(),
+            userColor: "#6366f1",
+            position: idx,
+          }
+        );
+      }),
+    };
+  }
 
   const filteredUsers = users.filter(
     (u: { id: number; name: string }) =>
@@ -201,11 +217,11 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
             Cancel
           </button>
           <button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !name || !rrule || !firstStart || !firstEnd || userIds.length === 0}
+            onClick={() => onSave(buildPayload())}
+            disabled={!name || !rrule || !firstStart || !firstEnd || userIds.length === 0}
             className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {mutation.isPending ? (isEdit ? "Saving…" : "Adding…") : (isEdit ? "Save changes" : "Add layer")}
+            {isEdit ? "Save changes" : "Add layer"}
           </button>
         </div>
       </div>

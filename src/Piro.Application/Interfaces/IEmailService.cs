@@ -4,4 +4,10 @@ namespace Piro.Application.Interfaces;
 public interface IEmailService
 {
     Task SendAsync(string to, string subject, string htmlBody, CancellationToken ct = default, string? from = null);
+
+    /// <summary>
+    /// Sends the user-invitation email. The HTML template lives in Infrastructure — Application
+    /// only knows it needs an invitation sent, not how the email is rendered.
+    /// </summary>
+    Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default);
 }

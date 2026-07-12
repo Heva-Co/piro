@@ -6,6 +6,7 @@ import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { logsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 const LEVEL_COLORS: Record<string, string> = {
   DEBUG: "bg-muted text-foreground",
@@ -24,6 +25,7 @@ export default function LogsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const { formatDateTime } = useFormattedDate();
 
   const checkIdParam = searchParams.get("checkId");
   const checkId = checkIdParam ? Number(checkIdParam) : undefined;
@@ -148,7 +150,7 @@ export default function LogsPage() {
                     onClick={() => log.metadata && toggleExpand(log.id)}
                   >
                     <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap font-mono text-xs">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {formatDateTime(log.timestamp)}
                     </td>
                     <td className="px-4 py-2.5">
                       <span

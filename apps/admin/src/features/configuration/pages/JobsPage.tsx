@@ -14,6 +14,7 @@ import {
 import { jobsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 const CHECK_EXECUTION_SOURCE = "Piro.Infrastructure.Jobs.CheckExecutionJob";
 
@@ -40,15 +41,15 @@ const STATE_STYLES: Record<string, string> = {
   None: "bg-muted text-muted-foreground",
 };
 
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-}
-
 export default function JobsPage() {
   const navigate = useNavigate();
+  const { formatDateTime } = useFormattedDate();
+
+  function formatDate(value?: string | null) {
+    if (!value) return "—";
+    return formatDateTime(value, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.JOBS,
     queryFn: jobsApi.list,

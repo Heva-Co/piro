@@ -109,10 +109,61 @@ public class UsersController(IUserManagementService userService) : ControllerBas
     public async Task<IActionResult> GetNotificationPreferences(int id, CancellationToken ct) =>
         Ok(await userService.GetNotificationPreferencesAsync(id, ct));
 
-    /// <summary>Replaces all personal notification preferences for a user.</summary>
-    [HttpPut("{id:int}/notification-preferences")]
+    /// <summary>Creates a new personal notification preference, appended at the lowest priority.</summary>
+    [HttpPost("{id:int}/notification-preferences")]
+    [ProducesResponseType<UserNotificationPreferenceDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateNotificationPreference(
+        int id, [FromBody] UpsertUserNotificationPreferenceRequest request, CancellationToken ct)
+    {
+        var created = await userService.CreateNotificationPreferenceAsync(id, request, ct);
+        return CreatedAtAction(nameof(GetNotificationPreferences), new { id }, created);
+    }
+
+    /// <summary>Edits an existing personal notification preference's channel/integration/handle.</summary>
+    [HttpPut("{id:int}/notification-preferences/{preferenceId:int}")]
+    [ProducesResponseType<UserNotificationPreferenceDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateNotificationPreference(
+        int id, int preferenceId, [FromBody] UpsertUserNotificationPreferenceRequest request, CancellationToken ct) =>
+        Ok(await userService.UpdateNotificationPreferenceAsync(id, preferenceId, request, ct));
+
+    /// <summary>Reorders a user's personal notification preferences.</summary>
+    [HttpPut("{id:int}/notification-preferences/reorder")]
     [ProducesResponseType<List<UserNotificationPreferenceDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> SetNotificationPreferences(
-        int id, [FromBody] SetUserNotificationPreferencesRequest request, CancellationToken ct) =>
-        Ok(await userService.SetNotificationPreferencesAsync(id, request, ct));
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReorderNotificationPreferences(
+        int id, [FromBody] ReorderUserNotificationPreferencesRequest request, CancellationToken ct) =>
+        Ok(await userService.ReorderNotificationPreferencesAsync(id, request, ct));
+
+    /// <summary>Deletes a personal notification preference. Rejects the account-fallback preference.</summary>
+    [HttpDelete("{id:int}/notification-preferences/{preferenceId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteNotificationPreference(int id, int preferenceId, CancellationToken ct)
+    {
+        await userService.DeleteNotificationPreferenceAsync(id, preferenceId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Sends a one-time verification code to an already-saved (pending) preference's handle.</summary>
+    [HttpPost("{id:int}/notification-preferences/{preferenceId:int}/verify/send")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SendNotificationPreferenceCode(int id, int preferenceId, CancellationToken ct)
+    {
+        await userService.SendNotificationPreferenceCodeAsync(id, preferenceId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Confirms the verification code for a pending preference.</summary>
+    [HttpPost("{id:int}/notification-preferences/{preferenceId:int}/verify/confirm")]
+    [ProducesResponseType<UserNotificationPreferenceDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ConfirmNotificationPreferenceCode(
+        int id, int preferenceId, [FromBody] ConfirmNotificationPreferenceCodeRequest request, CancellationToken ct) =>
+        Ok(await userService.ConfirmNotificationPreferenceCodeAsync(id, preferenceId, request.Code, ct));
 }

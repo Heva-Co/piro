@@ -17,18 +17,12 @@ public record IncidentDto(
     IncidentVisibility Visibility,
     IEnumerable<IncidentServiceDto> Services,
     IEnumerable<AlertDto> Alerts,
-    int? MergedIntoIncidentId,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     long? AcknowledgedAt,
     string? AcknowledgedBy,
     ServiceStatus CurrentImpact,
-    IEnumerable<IncidentImpactChangeDto> ImpactChanges,
-    int? EscalationPolicyId,
-    int? EscalationCurrentStep,
-    DateTimeOffset? EscalationStepStartedAt,
-    int? EscalationTotalSteps,
-    DateTimeOffset? NextEscalationAt
+    IEnumerable<IncidentImpactChangeDto> ImpactChanges
 );
 
 /// <summary>A page of timeline events plus the total matching count.</summary>
@@ -48,7 +42,10 @@ public record AlertDto(
     ServiceStatus ImpactAtFireTime,
     DateTimeOffset FiredAt,
     DateTimeOffset? ResolvedAt,
-    int OccurrenceCount
+    int OccurrenceCount,
+    long? AcknowledgedAt,
+    string? AcknowledgedBy,
+    int? EscalationCurrentStep
 );
 
 /// <summary>Point-in-time severity change recorded on an incident.</summary>

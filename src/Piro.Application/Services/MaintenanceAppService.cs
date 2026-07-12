@@ -145,7 +145,8 @@ public class MaintenanceAppService(
     /// Generates <see cref="MaintenanceEvent"/> rows from the RRULE for the next
     /// <see cref="MaterializeHorizonDays"/> days and persists them.
     /// </summary>
-    public async Task MaterializeEventsAsync(Maintenance maintenance, CancellationToken ct = default)
+    /// <returns>The number of newly-materialized events (0 means the RRULE produced nothing new in this window).</returns>
+    public async Task<int> MaterializeEventsAsync(Maintenance maintenance, CancellationToken ct = default)
     {
         var dtStart = DateTimeOffset.FromUnixTimeSeconds(maintenance.StartDateTime).UtcDateTime;
         // Use dtStart (not UtcNow) as the window start so ongoing events (already started) are included
@@ -166,7 +167,7 @@ public class MaintenanceAppService(
             };
         }).ToList();
 
-        await maintenanceRepo.AddEventsAsync(events, ct);
+        var addedCount = await maintenanceRepo.AddEventsAsync(events, ct);
 
         if (events.Any(e => e.Status == MaintenanceEventStatus.Ongoing))
         {
@@ -177,5 +178,7 @@ public class MaintenanceAppService(
             foreach (var serviceId in affectedServiceIds)
                 statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
         }
+
+        return addedCount;
     }
 }
