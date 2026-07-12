@@ -8,7 +8,10 @@ namespace Piro.Application.Services;
 /// Resolves who is on-call at a given moment using RRULE-based layer rotations and overrides.
 /// All times are UTC. Duration per occurrence = FirstOccurrenceEndsAt − FirstOccurrenceStartsAt.
 /// </summary>
-public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpander rruleExpander)
+public class OnCallService(
+    IOnCallScheduleRepository scheduleRepo,
+    IRRuleExpander rruleExpander,
+    IEscalationPolicyRepository escalationPolicyRepo)
 {
     /// <summary>Returns the users currently on-call for the given schedule.</summary>
     public Task<IReadOnlyList<AppUser>> GetCurrentOnCallUsersAsync(int scheduleId, CancellationToken ct = default)
@@ -110,6 +113,71 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
         var schedule = await scheduleRepo.GetByIdWithLayersAsync(scheduleId, ct);
         if (schedule is null) return [];
 
+        return ExpandSchedule(schedule, from, to, applyOverrides);
+    }
+
+    /// <summary>
+    /// Returns one user's on-call slots across every schedule they appear in (as a rotation member
+    /// or override), for the personal on-call calendar in their profile. Slots carry ScheduleName so
+    /// the UI can distinguish which schedule each shift belongs to when a user is in more than one,
+    /// and IsPrimarySchedule so it can flag shifts on a schedule that's only ever a backup/late
+    /// escalation step (never step 0) in every policy that uses it.
+    /// </summary>
+    public async Task<List<OnCallSlotDto>> GetMySlotsAsync(
+        int userId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        var schedules = await scheduleRepo.GetSchedulesForUserAsync(userId, ct);
+
+        var slots = new List<OnCallSlotDto>();
+        foreach (var schedule in schedules)
+        {
+            var isPrimary = await escalationPolicyRepo.IsScheduleFirstStepInAnyPolicyAsync(schedule.Id, ct);
+            var scheduleSlots = ExpandSchedule(schedule, from, to, applyOverrides: true)
+                .Where(s => s.UserId == userId)
+                .Select(s => s with { ScheduleId = schedule.Id, ScheduleName = schedule.Name, IsPrimarySchedule = isPrimary });
+            slots.AddRange(scheduleSlots);
+        }
+
+        return slots.OrderBy(s => s.StartsAt).ToList();
+    }
+
+    /// <summary>
+    /// Returns the schedule the user is currently on-call for right now, if any — for the
+    /// "you're on-call" indicator. Only surfaces schedules that are the first escalation step
+    /// (Order 0) of at least one EscalationPolicy — a schedule used only as a later/backup step
+    /// in every policy that references it isn't expected to act immediately, so surfacing the
+    /// indicator there would just be noise. This is a property of the policy, not of the
+    /// schedule's own layer.Order (the same schedule can be step 0 in one policy and a late step
+    /// in another). A user could technically be on more than one schedule at once; this returns
+    /// the first match, which is enough for a simple status indicator.
+    /// </summary>
+    public async Task<OnCallSlotDto?> GetMyCurrentStatusAsync(int userId, CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var schedules = await scheduleRepo.GetSchedulesForUserAsync(userId, ct);
+
+        foreach (var schedule in schedules)
+        {
+            if (!await escalationPolicyRepo.IsScheduleFirstStepInAnyPolicyAsync(schedule.Id, ct))
+                continue;
+
+            // Look slightly ahead so a shift that just started (occurrence lookback window) is found.
+            var slots = ExpandSchedule(schedule, now.AddMinutes(-1), now.AddMinutes(1), applyOverrides: true);
+            var current = slots.FirstOrDefault(s => s.UserId == userId && s.StartsAt <= now && now < s.EndsAt);
+            if (current is not null) return current with { ScheduleId = schedule.Id, ScheduleName = schedule.Name };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Expands an in-memory (not necessarily persisted) schedule into slots — used both for the
+    /// real Gantt (schedule loaded from the DB) and for previewing a draft's coverage gaps before
+    /// it's saved (schedule built in memory from the pending edits, never touching the DB).
+    /// </summary>
+    public List<OnCallSlotDto> ExpandSchedule(
+        OnCallSchedule schedule, DateTimeOffset from, DateTimeOffset to, bool applyOverrides)
+    {
         var slots = new List<OnCallSlotDto>();
         var overrides = applyOverrides
             ? schedule.Overrides.Where(o => o.EndsAtUtc > from && o.StartsAtUtc < to).ToList()
@@ -219,7 +287,8 @@ public class OnCallService(IOnCallScheduleRepository scheduleRepo, IRRuleExpande
             StartsAt: start,
             EndsAt: end,
             IsOverride: isOverride,
-            ReplacesUserName: replacesUserName));
+            ReplacesUserName: replacesUserName,
+            LayerOrder: layer.Order));
     }
 
     private static string GetInitials(string name)

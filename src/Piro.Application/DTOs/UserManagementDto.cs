@@ -14,7 +14,7 @@ public record UserListDto(
 
 public record RoleDto(int Id, string Name);
 
-public record InviteUserRequest([property: EmailAddress] string Email, int RoleId);
+public record InviteUserRequest([EmailAddress] string Email, int RoleId);
 
 public record AcceptInviteRequest(string Token, string Name, string Password);
 
@@ -25,11 +25,13 @@ public record UserProfileDto(
     string Email,
     string Name,
     string Color,
+    string TimeZone,
     string[] Roles,
     bool IsOidc
 );
 
 public record UpdateProfileRequest(
     string? Name,
-    string? Color
+    string? Color,
+    string? TimeZone
 );

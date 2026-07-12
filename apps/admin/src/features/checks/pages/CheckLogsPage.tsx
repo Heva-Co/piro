@@ -5,6 +5,7 @@ import { Settings, ChevronLeft } from "lucide-react";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { checksApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
 
@@ -23,6 +24,7 @@ export default function CheckLogsPage() {
   const navigate = useNavigate();
 
   const { data: check } = useCheck(serviceSlug!, checkSlug!);
+  const { formatTimestamp } = useFormattedDate();
 
   const [limit, setLimit] = useState(50);
   const [region, setRegion] = useState("");
@@ -205,7 +207,7 @@ export default function CheckLogsPage() {
                 {paginated.map((log, i) => (
                   <tr key={`${log.timestamp}-${i}`} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(log.timestamp * 1000).toLocaleString()}
+                      {formatTimestamp(log.timestamp)}
                     </td>
                     <td className="px-5 py-2.5">
                       <StatusPill status={log.status} dataType={log.dataType} />

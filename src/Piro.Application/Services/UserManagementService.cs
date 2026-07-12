@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
+using Piro.Domain.Exceptions;
 
 namespace Piro.Application.Services;
 
@@ -13,10 +17,15 @@ public class UserManagementService(
     IConfiguration configuration,
     ISiteConfigRepository siteConfigRepo,
     IIntegrationRepository integrationRepo,
-    IUserNotificationPreferenceRepository prefRepo) : IUserManagementService
+    IUserNotificationPreferenceRepository prefRepo,
+    IEnumerable<INotificationDispatcher> dispatchers) : IUserManagementService
 {
     private const string InvitationTokenPurpose = "Invitation";
+    private const string NotificationVerificationPurpose = "NotifyChannelVerify";
     private static readonly TimeSpan InvitationExpiry = TimeSpan.FromHours(48);
+
+    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
+        dispatchers.ToDictionary(d => d.Type);
 
     public async Task<List<UserListDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -88,8 +97,7 @@ public class UserManagementService(
             ?? "http://localhost:5173";
         var inviteUrl = $"{baseUrl}/invite/{Uri.EscapeDataString(token)}?userId={user.Id}";
 
-        var html = BuildInvitationEmail(inviteUrl);
-        await emailService.SendAsync(email, "You've been invited to Piro", html, ct);
+        await emailService.SendInvitationAsync(email, inviteUrl, ct);
     }
 
     public async Task AcceptInviteAsync(string token, string name, string password, CancellationToken ct = default)
@@ -136,6 +144,19 @@ public class UserManagementService(
         await userManager.RemoveAuthenticationTokenAsync(matched, "Piro", "InvitationExpiry");
         // Invalidate the invitation token so it can't be reused
         await userManager.UpdateSecurityStampAsync(matched);
+
+        // Every user gets one auto-created, always-present Email preference mirroring their
+        // account address — already verified (the account itself was just confirmed), reorderable
+        // like any other preference, but never deletable.
+        await prefRepo.CreateAsync(new UserNotificationPreference
+        {
+            UserId = matched.Id,
+            Channel = PersonalNotificationChannel.Email,
+            Handle = matched.Email!,
+            Priority = 0,
+            VerifiedAt = DateTimeOffset.UtcNow,
+            IsAccountFallback = true,
+        }, ct);
     }
 
     public async Task ChangeRoleAsync(int userId, int newRoleId, CancellationToken ct = default)
@@ -195,7 +216,7 @@ public class UserManagementService(
             ?? throw new InvalidOperationException($"User {userId} not found.");
         var roles = await userManager.GetRolesAsync(user);
         var isOidc = user.ExternalProvider is not null;
-        return new UserProfileDto(user.Id, user.Email!, user.Name, user.Color, roles.ToArray(), isOidc);
+        return user.ToDto(roles.ToArray(), isOidc);
     }
 
     public async Task<UserProfileDto> UpdateProfileAsync(int userId, UpdateProfileRequest request, CancellationToken ct = default)
@@ -205,10 +226,16 @@ public class UserManagementService(
 
         if (request.Name is not null) user.Name = request.Name;
         if (request.Color is not null) user.Color = request.Color;
+        if (request.TimeZone is not null)
+        {
+            if (!TimeZoneInfo.TryFindSystemTimeZoneById(request.TimeZone, out _))
+                throw new InvalidOperationException($"Unknown time zone '{request.TimeZone}'.");
+            user.TimeZone = request.TimeZone;
+        }
 
         await userManager.UpdateAsync(user);
         var roles = await userManager.GetRolesAsync(user);
-        return new UserProfileDto(user.Id, user.Email!, user.Name, user.Color, roles.ToArray(), user.ExternalProvider is not null);
+        return user.ToDto(roles.ToArray(), user.ExternalProvider is not null);
     }
 
     public async Task<List<UserNotificationPreferenceDto>> GetNotificationPreferencesAsync(int userId, CancellationToken ct = default)
@@ -217,60 +244,143 @@ public class UserManagementService(
         return prefs.Select(MapPref).ToList();
     }
 
-    public async Task<List<UserNotificationPreferenceDto>> SetNotificationPreferencesAsync(int userId, SetUserNotificationPreferencesRequest request, CancellationToken ct = default)
+    public async Task<UserNotificationPreferenceDto> CreateNotificationPreferenceAsync(int userId, UpsertUserNotificationPreferenceRequest request, CancellationToken ct = default)
     {
-        var newPrefs = request.Preferences.Select(r => new UserNotificationPreference
+        var channel = ParseChannel(request.Channel);
+        if (channel.RequiresIntegration() && request.IntegrationId is null)
+            throw new DomainValidationException($"Channel '{channel}' requires a configured platform integration.");
+
+        var existing = await prefRepo.GetByUserIdAsync(userId, ct);
+        var priority = existing.Count > 0 ? existing.Max(p => p.Priority) + 1 : 0;
+
+        var created = await prefRepo.CreateAsync(new UserNotificationPreference
         {
             UserId = userId,
-            IntegrationId = r.IntegrationId,
-            Handle = r.Handle,
-            Priority = r.Priority,
-        }).ToList();
+            Channel = channel,
+            IntegrationId = channel.RequiresIntegration() ? request.IntegrationId : null,
+            Handle = request.Handle,
+            Priority = priority,
+        }, ct);
 
-        await prefRepo.SetAsync(userId, newPrefs, ct);
+        return MapPref(await prefRepo.GetByIdAsync(created.Id, ct) ?? created);
+    }
+
+    public async Task<UserNotificationPreferenceDto> UpdateNotificationPreferenceAsync(int userId, int preferenceId, UpsertUserNotificationPreferenceRequest request, CancellationToken ct = default)
+    {
+        var pref = await prefRepo.GetByIdAsync(preferenceId, ct);
+        if (pref is null || pref.UserId != userId)
+            throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
+
+        // The account-fallback row can't be re-channeled/re-handled from the client — its
+        // Channel/Handle always mirror the account email, kept in sync elsewhere.
+        if (pref.IsAccountFallback)
+            throw new DomainValidationException("The account fallback preference cannot be edited.");
+
+        var channel = ParseChannel(request.Channel);
+        if (channel.RequiresIntegration() && request.IntegrationId is null)
+            throw new DomainValidationException($"Channel '{channel}' requires a configured platform integration.");
+
+        // A handle or channel change invalidates any prior verification.
+        var handleChanged = pref.Handle != request.Handle || pref.Channel != channel;
+
+        pref.Channel = channel;
+        pref.IntegrationId = channel.RequiresIntegration() ? request.IntegrationId : null;
+        pref.Handle = request.Handle;
+        if (handleChanged) pref.VerifiedAt = null;
+
+        await prefRepo.UpdateAsync(pref, ct);
+        return MapPref(await prefRepo.GetByIdAsync(pref.Id, ct) ?? pref);
+    }
+
+    public async Task<List<UserNotificationPreferenceDto>> ReorderNotificationPreferencesAsync(int userId, ReorderUserNotificationPreferencesRequest request, CancellationToken ct = default)
+    {
+        var existing = await prefRepo.GetByUserIdAsync(userId, ct);
+        var byId = existing.ToDictionary(p => p.Id);
+
+        if (request.OrderedIds.Count != existing.Count || request.OrderedIds.Any(id => !byId.ContainsKey(id)))
+            throw new DomainValidationException("Reorder request must include exactly the user's current preference ids.");
+
+        for (var i = 0; i < request.OrderedIds.Count; i++)
+        {
+            var pref = byId[request.OrderedIds[i]];
+            pref.Priority = i;
+            await prefRepo.UpdateAsync(pref, ct);
+        }
+
         return (await prefRepo.GetByUserIdAsync(userId, ct)).Select(MapPref).ToList();
     }
 
+    public async Task DeleteNotificationPreferenceAsync(int userId, int preferenceId, CancellationToken ct = default)
+    {
+        var pref = await prefRepo.GetByIdAsync(preferenceId, ct);
+        if (pref is null || pref.UserId != userId)
+            throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
+
+        if (pref.IsAccountFallback)
+            throw new DomainValidationException("The account fallback preference cannot be deleted.");
+
+        await prefRepo.DeleteAsync(pref, ct);
+    }
+
+    private static PersonalNotificationChannel ParseChannel(string channel) =>
+        Enum.TryParse<PersonalNotificationChannel>(channel, out var parsed)
+            ? parsed
+            : throw new DomainValidationException($"Unknown notification channel '{channel}'.");
+
+    public async Task SendNotificationPreferenceCodeAsync(int userId, int preferenceId, CancellationToken ct = default)
+    {
+        var pref = await prefRepo.GetByIdAsync(preferenceId, ct);
+        if (pref is null || pref.UserId != userId)
+            throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
+
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+
+        if (!_dispatchers.TryGetValue(pref.Channel.ToIntegrationType(), out var dispatcher))
+            throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
+
+        var code = await userManager.GenerateUserTokenAsync(
+            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle));
+
+        var sent = await dispatcher.SendPersonalMessageAsync(
+            pref.Integration, pref.Handle, $"Your Piro verification code is {code}. It expires shortly.", ct);
+
+        if (!sent)
+            throw new DomainValidationException($"Failed to send a verification code via {pref.Channel} to '{pref.Handle}'.");
+    }
+
+    public async Task<UserNotificationPreferenceDto> ConfirmNotificationPreferenceCodeAsync(int userId, int preferenceId, string code, CancellationToken ct = default)
+    {
+        var pref = await prefRepo.GetByIdAsync(preferenceId, ct);
+        if (pref is null || pref.UserId != userId)
+            throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
+
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+
+        var valid = await userManager.VerifyUserTokenAsync(
+            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle), code);
+        if (!valid)
+            throw new DomainValidationException("Invalid or expired verification code.");
+
+        pref.VerifiedAt = DateTimeOffset.UtcNow;
+        await prefRepo.UpdateAsync(pref, ct);
+        return MapPref(pref);
+    }
+
+    /// <summary>Token purpose scoped to the exact channel+handle pair, so a code sent for one handle can't confirm a different one.</summary>
+    private static string VerificationPurpose(PersonalNotificationChannel channel, string handle) =>
+        $"{NotificationVerificationPurpose}:{channel}:{handle}";
+
     private static UserNotificationPreferenceDto MapPref(UserNotificationPreference p) => new(
         p.Id,
+        p.Channel.ToString(),
         p.IntegrationId,
-        p.Integration?.Name ?? p.IntegrationId.ToString(),
-        p.Integration?.Type.ToString() ?? "",
+        p.Integration?.Name,
         p.Handle,
-        p.Priority
+        p.Priority,
+        p.VerifiedAt.HasValue,
+        p.IsAccountFallback
     );
 
-    private static string BuildInvitationEmail(string inviteUrl) => $"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-        <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-            <tr><td align="center">
-              <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
-                <tr><td style="background:#18181b;padding:24px 32px;">
-                  <span style="color:#fff;font-size:20px;font-weight:700;">Piro</span>
-                </td></tr>
-                <tr><td style="padding:32px;">
-                  <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#18181b;">You've been invited</h1>
-                  <p style="margin:0 0 24px;font-size:15px;color:#52525b;line-height:1.6;">
-                    You have been invited to join a Piro monitoring workspace. Click the button below to set up your account.
-                  </p>
-                  <a href="{inviteUrl}" style="display:inline-block;padding:12px 24px;background:#18181b;color:#fff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:500;">
-                    Accept invitation
-                  </a>
-                  <p style="margin:24px 0 0;font-size:13px;color:#a1a1aa;">
-                    This invitation link expires in 48 hours. If you did not expect this email, you can safely ignore it.
-                  </p>
-                  <hr style="margin:24px 0;border:none;border-top:1px solid #e4e4e7;">
-                  <p style="margin:0;font-size:12px;color:#a1a1aa;">
-                    Or copy this link:<br><span style="color:#52525b;word-break:break-all;">{inviteUrl}</span>
-                  </p>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
-        </body>
-        </html>
-        """;
 }

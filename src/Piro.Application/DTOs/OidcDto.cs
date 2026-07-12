@@ -22,12 +22,12 @@ public record OidcProviderConfigDto(
 public record UpsertOidcProviderRequest(
     string Id,
     string DisplayName,
-    [property: Url] string Authority,
+    [Url] string Authority,
     string ClientId,
     /// <summary>Null or empty means "keep existing secret".</summary>
     string? ClientSecret,
     /// <summary>Null or empty means auto-derive from site:url config.</summary>
-    [property: Url] string? RedirectUri,
+    [Url] string? RedirectUri,
     string Scopes,
     string? AllowedDomains,
     string DefaultRole,

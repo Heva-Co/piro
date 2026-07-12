@@ -11,8 +11,7 @@ namespace Piro.Application.Services;
 public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
-    ServiceStatusService statusService,
-    IEscalationPolicyRepository? escalationPolicyRepo = null)
+    ServiceStatusService statusService)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
@@ -64,29 +63,19 @@ public class IncidentAppService(
     }
 
     /// <summary>
-    /// Creates an ALERT-sourced incident and assigns the global escalation policy if one exists.
+    /// Creates an ALERT-sourced incident (a human explicitly created it from an active Alert).
     /// Always starts Private — publishing is always a manual action.
-    /// Returns the raw entity so <see cref="AlertEvaluationService"/> can attach services before saving.
+    /// Returns the raw entity so the caller can attach services before saving.
     /// </summary>
-    public async Task<Incident> CreateAlertIncidentAsync(string title, CancellationToken ct = default)
-    {
-        var incident = new Incident
+    public Task<Incident> CreateAlertIncidentAsync(string title, CancellationToken ct = default) =>
+        Task.FromResult(new Incident
         {
             Title = title,
             StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             Status = IncidentStatus.Investigating,
             Source = "ALERT",
             Visibility = IncidentVisibility.Private,
-        };
-
-        if (escalationPolicyRepo is not null)
-        {
-            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
-            if (policy is not null) incident.EscalationPolicyId = policy.Id;
-        }
-
-        return incident;
-    }
+        });
 
     public async Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken ct = default)
     {
@@ -111,12 +100,6 @@ public class IncidentAppService(
                     Impact = affected.Impact
                 });
             }
-        }
-
-        if (escalationPolicyRepo is not null)
-        {
-            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
-            if (policy is not null) incident.EscalationPolicyId = policy.Id;
         }
 
         var created = await incidentRepo.CreateAsync(incident, ct);
@@ -220,7 +203,6 @@ public class IncidentAppService(
             }, ct);
         }
 
-        incident.LastUserActivityAt = DateTimeOffset.UtcNow;
         await incidentRepo.UpdateAsync(incident, ct);
         await RecomputeAffectedAsync(incident, ct);
     }

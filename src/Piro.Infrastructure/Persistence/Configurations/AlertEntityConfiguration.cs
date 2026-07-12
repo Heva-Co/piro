@@ -11,7 +11,9 @@ internal class AlertEntityConfiguration : IEntityTypeConfiguration<Alert>
     public void Configure(EntityTypeBuilder<Alert> builder)
     {
         builder.HasKey(a => a.Id);
-        builder.Property(a => a.ImpactAtFireTime).HasConversion<string>().HasDefaultValue(ServiceStatus.DOWN);
+        // Sentinel = NO_DATA (the CLR default for ServiceStatus): without it, EF can't tell "field never
+        // set" from "explicitly set to NO_DATA", so it always uses the DB default on insert regardless.
+        builder.Property(a => a.ImpactAtFireTime).HasConversion<string>().HasSentinel(ServiceStatus.NO_DATA).HasDefaultValue(ServiceStatus.DOWN);
         builder.Property(a => a.MessageFingerprint).HasMaxLength(512).IsRequired();
 
         builder.HasIndex(a => new { a.AlertConfigId, a.ResolvedAt });

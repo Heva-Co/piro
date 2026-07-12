@@ -10,7 +10,7 @@ export function PushoverConfig() {
   return (
     <div className="flex flex-col gap-1.5">
       <label className={lbl}>App Token <span className="text-destructive">*</span></label>
-      <Input type="password" {...register("poAppToken", { required: "Required" })} placeholder="axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className={inp} />
+      <Input type="password" {...register("poAppToken")} placeholder="axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className={inp} />
       {errors.poAppToken && <p className="text-xs text-destructive">{errors.poAppToken.message}</p>}
       <p className="text-xs text-muted-foreground">Each user provides their own User Key when configuring a channel.</p>
     </div>

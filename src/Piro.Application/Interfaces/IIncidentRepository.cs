@@ -60,24 +60,8 @@ public interface IIncidentRepository
     /// </summary>
     Task<ServiceStatus?> GetActiveImpactForServiceAsync(int serviceId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Returns the open ALERT-sourced incident for a service, if one exists.
-    /// Used by auto-create logic to attach new checks to an existing per-service incident.
-    /// </summary>
-    Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns all open ALERT-sourced incidents created within the given window.
-    /// Used by Merge correlation to count and merge simultaneous failures.
-    /// </summary>
-    Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns an already-open merge-target incident (Source=ALERT, more than one linked service)
-    /// created within the given window, if one exists. Used so a newly-correlated failure attaches
-    /// to the existing merge incident instead of spawning a duplicate one.
-    /// </summary>
-    Task<Incident?> GetOpenMergeIncidentAsync(DateTimeOffset since, CancellationToken ct = default);
+    /// <summary>Returns all open (non-resolved) incidents, lightweight — for the "attach alert to incident" picker.</summary>
+    Task<List<Incident>> GetOpenAsync(CancellationToken ct = default);
 
     /// <summary>Publishes an incident by setting its <see cref="Incident.Visibility"/> to Public.</summary>
     Task PublishAsync(int incidentId, CancellationToken ct = default);
@@ -90,12 +74,6 @@ public interface IIncidentRepository
     /// Should only be called when the impact actually changes (caller must check).
     /// </summary>
     Task AddImpactChangeAsync(Incident incident, IncidentImpactChange change, CancellationToken ct = default);
-
-    /// <summary>Records a merge between a per-service incident and a global incident.</summary>
-    Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default);
-
-    /// <summary>Returns all open (non-resolved) incidents that have an escalation policy assigned.</summary>
-    Task<List<Incident>> GetOpenWithEscalationAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Returns a paginated page of an incident's timeline events, most recent first, plus the total

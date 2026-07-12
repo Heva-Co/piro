@@ -11,7 +11,7 @@ export function useAllChecks() {
   });
 }
 
-export function useAllAlerts(params?: { page?: number; pageSize?: number; from?: string; to?: string }) {
+export function useAllAlerts(params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) {
   return useQuery({
     queryKey: [...QUERY_KEYS.ALERTS, params],
     queryFn: () => alertsApi.list(params),

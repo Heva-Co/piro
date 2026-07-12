@@ -16,10 +16,22 @@ public record AlertNotificationContext(
     AlertSeverity Severity,
     /// <summary>True when the alert is recovering (transitioning from alerting → healthy).</summary>
     bool IsRecovery,
-    DateTime FiredAt,
+    DateTimeOffset FiredAt,
     int CheckId = 0,
     string? AlertValue = null,
     int FailureThreshold = 1,
     int SuccessThreshold = 1,
-    string? IncidentUrl = null
+    string? IncidentUrl = null,
+    /// <summary>Absolute admin URL to the service's detail page, if the site URL is configured.</summary>
+    string? ServiceUrl = null,
+    /// <summary>Absolute admin URL to the check's detail page, if the site URL is configured.</summary>
+    string? CheckUrl = null,
+    /// <summary>
+    /// <see cref="FiredAt"/> pre-formatted for display in the recipient's own time zone, with the
+    /// zone name in parentheses (e.g. "2026-07-11 14:32 (America/Bogota)"). Built per-recipient in
+    /// <c>EscalationCheckerService.BuildContext</c> since each on-call user may have a different
+    /// <see cref="Piro.Domain.Entities.AppUser.TimeZone"/> — never derive display time from
+    /// <see cref="FiredAt"/> directly in a dispatcher/template.
+    /// </summary>
+    string? FiredAtDisplay = null
 );

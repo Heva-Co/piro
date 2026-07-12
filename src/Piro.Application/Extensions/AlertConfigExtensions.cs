@@ -9,7 +9,7 @@ public static class AlertConfigExtensions
     public static AlertConfigDto ToDto(this AlertConfig a) => new(
         a.Id, a.CheckId, a.AlertFor, a.AlertValue,
         a.FailureThreshold, a.SuccessThreshold,
-        a.Description, a.CreateIncident, a.IncidentThresholdOccurrences, a.IsActive, a.IsAlerting,
+        a.Description, a.IsActive, a.IsAlerting,
         a.Severity,
         a.CreatedAt, a.UpdatedAt
     );

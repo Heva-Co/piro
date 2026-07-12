@@ -1,0 +1,1 @@
+{{~ if is_recovery ~}}RECOVERED — {{ service_name }} / {{ check_name }}{{~ else ~}}{{ severity }} — {{ service_name }} / {{ check_name }}{{~ end ~}}

@@ -24,12 +24,14 @@ import { usersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { capitalize } from "@/lib/utils";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 interface RoleOption { id: number; name: string; }
 
 export default function UsersPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { formatDate } = useFormattedDate();
   const { data: users = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.USERS,
     queryFn: usersApi.list,
@@ -90,7 +92,7 @@ export default function UsersPage() {
         {users.map((u, i) => {
           const role = u.roles?.[0] ?? "";
           const createdAt = u.createdAt
-            ? new Date(u.createdAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })
+            ? formatDate(u.createdAt, { month: "numeric", day: "numeric", year: "numeric" })
             : null;
 
           return (

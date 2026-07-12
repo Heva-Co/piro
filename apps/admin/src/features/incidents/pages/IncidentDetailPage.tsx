@@ -19,13 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
-import { servicesApi } from "@/lib/api";
+import { useAllServices } from "@/hooks/useServices";
 import { incidentsApi } from "@/lib/actions/incidents";
 import type { IncidentTimelineEvent } from "@/lib/actions/incidents";
 import type { IncidentVisibilityKey } from "@/constants/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { formatTimestamp } from "@/utils/date";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { IMPACT_OPTIONS } from "@/constants/serviceStatus";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -101,13 +101,13 @@ function describeSystemEvent(e: IncidentTimelineEvent): React.ReactNode {
     case "AlertFired":
       return e.alertId != null ? (
         <>
-          Alert fired{" "}
+          Alert attached{" "}
           <Link to={ROUTES.ALERTS.DETAIL(e.alertId)} className="font-semibold underline hover:no-underline">
             #{e.alertId}
           </Link>
         </>
       ) : (
-        "Alert fired"
+        "Alert attached"
       );
     default:
       return e.type;
@@ -118,6 +118,7 @@ export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { formatTimestamp } = useFormattedDate();
   const incidentKey = QUERY_KEYS.INCIDENT(id!);
 
   const { data: incident, isLoading } = useQuery({
@@ -134,10 +135,7 @@ export default function IncidentDetailPage() {
     enabled: !!id,
   });
 
-  const { data: allServices = [] } = useQuery({
-    queryKey: QUERY_KEYS.SERVICES,
-    queryFn: servicesApi.list,
-  });
+  const { data: allServices = [] } = useAllServices();
 
   // ── Title edit state ────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -283,12 +281,8 @@ export default function IncidentDetailPage() {
   const recentTimeline = timelinePage?.items ?? [];
   const timelineTotalCount = timelinePage?.totalCount ?? 0;
   const hiddenTimelineCount = timelineTotalCount - recentTimeline.length;
-  const isMerged = !!incident.mergedIntoIncidentId;
-  // Merged is a final state just like Resolved — the incident's timeline lives on in the target
-  // incident from here on, so no further acks/updates/impact changes make sense on this one.
-  // Publish/Unpublish stays available for Resolved (not merged): retroactively publishing a
-  // closed incident, e.g. for a post-mortem, is a legitimate action.
-  const isResolved = incident.status === "Resolved" || incident.isResolved || isMerged;
+  const isResolved = incident.status === "Resolved" || incident.isResolved;
+  const isMerged = incident.status === "Merged";
   const currentStatusUpper = incident.status?.toUpperCase() ?? "";
   const isBackwardStatusChange =
     commentStatus !== NO_STATUS_CHANGE &&
@@ -349,17 +343,6 @@ export default function IncidentDetailPage() {
           <span>Started {formatTimestamp(incident.startDateTime)}</span>
           {incident.endDateTime && <span>· Resolved {formatTimestamp(incident.endDateTime)}</span>}
         </div>
-        {incident.mergedIntoIncidentId && (
-          <div className="mt-3 rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-700 dark:text-purple-400">
-            This incident was merged into{" "}
-            <button
-              onClick={() => navigate(ROUTES.INCIDENTS.DETAIL(incident.mergedIntoIncidentId!))}
-              className="font-semibold underline hover:no-underline"
-            >
-              #{incident.mergedIntoIncidentId}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── Timeline ── */}

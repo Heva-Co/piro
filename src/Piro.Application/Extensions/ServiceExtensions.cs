@@ -10,6 +10,7 @@ public static class ServiceExtensions
         s.Id, s.Slug, s.Name, s.Description, s.ImageUrl,
         s.CurrentStatus, s.DefaultStatus, s.IsHidden, s.DisplayOrder,
         s.HistoryDaysDesktop, s.HistoryDaysMobile,
-        s.CreatedAt, s.UpdatedAt, checkCount
+        s.CreatedAt, s.UpdatedAt, checkCount,
+        s.EscalationPolicyId, s.EscalationPolicy?.Name
     );
 }

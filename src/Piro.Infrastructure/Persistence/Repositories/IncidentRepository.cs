@@ -29,7 +29,7 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     {
         var query = IncidentBaseQuery()
             .Where(i => i.Visibility == IncidentVisibility.Public)
-            .Where(i => !db.IncidentMerges.Any(m => m.SourceIncidentId == i.Id));
+            .Where(i => i.Status != IncidentStatus.Merged);
 
         if (!includeResolved)
             query = query.Where(i => i.Status != IncidentStatus.Resolved);
@@ -42,32 +42,32 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
     // regardless of how many events an incident has accumulated.
     private IQueryable<Incident> IncidentBaseQuery() =>
         db.Incidents
+            .AsSplitQuery()
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.TriggeringCheck)
-            .Include(i => i.MergesAsSource)
             .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .AsQueryable();
 
     public async Task<Incident?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
+            .AsSplitQuery()
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.TriggeringCheck)
-            .Include(i => i.MergesAsSource)
             .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
     /// <summary>Returns the incident only if it is publicly visible — used for anonymous/public access.</summary>
     public async Task<Incident?> GetPublicByIdAsync(int id, CancellationToken ct = default) =>
         await db.Incidents
+            .AsSplitQuery()
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.Service)
             .Include(i => i.IncidentServices)
                 .ThenInclude(s => s.TriggeringCheck)
-            .Include(i => i.MergesAsSource)
             .Include(i => i.ImpactChanges.OrderBy(c => c.Timestamp))
             .FirstOrDefaultAsync(i => i.Id == id && i.Visibility == IncidentVisibility.Public, ct);
 
@@ -196,40 +196,11 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
         return worst;
     }
 
-    public async Task<Incident?> GetOpenAlertIncidentForServiceAsync(int serviceId, CancellationToken ct = default) =>
+    public async Task<List<Incident>> GetOpenAsync(CancellationToken ct = default) =>
         await db.Incidents
-            .Include(i => i.IncidentServices)
-            .FirstOrDefaultAsync(i =>
-                i.Source == "ALERT" &&
-                i.Status != IncidentStatus.Resolved &&
-                i.Status != IncidentStatus.Merged &&
-                i.IncidentServices.Any(s => s.ServiceId == serviceId), ct);
-
-    public async Task<List<Incident>> GetRecentAlertIncidentsAsync(DateTimeOffset since, CancellationToken ct = default)
-    {
-        var sinceUnix = since.ToUnixTimeSeconds();
-        return await db.Incidents
-            .Include(i => i.IncidentServices)
-            .Where(i =>
-                i.Source == "ALERT" &&
-                i.Status != IncidentStatus.Resolved &&
-                i.Status != IncidentStatus.Merged &&
-                i.StartDateTime >= sinceUnix)
+            .Where(i => i.Status != IncidentStatus.Resolved && i.Status != IncidentStatus.Merged)
+            .OrderByDescending(i => i.StartDateTime)
             .ToListAsync(ct);
-    }
-
-    public async Task<Incident?> GetOpenMergeIncidentAsync(DateTimeOffset since, CancellationToken ct = default)
-    {
-        var sinceUnix = since.ToUnixTimeSeconds();
-        return await db.Incidents
-            .Include(i => i.IncidentServices)
-            .FirstOrDefaultAsync(i =>
-                i.Source == "ALERT" &&
-                i.Status != IncidentStatus.Resolved &&
-                i.Status != IncidentStatus.Merged &&
-                i.StartDateTime >= sinceUnix &&
-                i.IncidentServices.Count > 1, ct);
-    }
 
     public async Task PublishAsync(int incidentId, CancellationToken ct = default)
     {
@@ -252,24 +223,12 @@ public class IncidentRepository(PiroDbContext db) : IIncidentRepository
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Visibility, EventVisibility.Private), ct);
     }
 
-    public async Task AddMergeAsync(IncidentMerge merge, CancellationToken ct = default)
-    {
-        db.IncidentMerges.Add(merge);
-        await db.SaveChangesAsync(ct);
-    }
-
     public async Task AddImpactChangeAsync(Incident incident, IncidentImpactChange change, CancellationToken ct = default)
     {
         incident.CurrentImpact = change.Impact;
         db.IncidentImpactChanges.Add(change);
         await db.SaveChangesAsync(ct);
     }
-
-    public async Task<List<Incident>> GetOpenWithEscalationAsync(CancellationToken ct = default) =>
-        await db.Incidents
-            .Where(i => i.Status != Piro.Domain.Enums.IncidentStatus.Resolved && i.EscalationPolicyId != null)
-            .OrderBy(i => i.Id)
-            .ToListAsync(ct);
 
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>
         (int)a > (int)b ? a : b;

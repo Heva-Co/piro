@@ -14,9 +14,13 @@ public enum IntegrationType
     [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Email,
 
+    /// <summary>Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.</summary>
+    [Obsolete("Not supported for now.")]
     [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Webhook,
 
+    /// <summary>Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.</summary>
+    [Obsolete("Not supported for now.")]
     [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Slack,
 
@@ -30,15 +34,19 @@ public enum IntegrationType
     Telegram,
 
     [IntegrationCategory(IntegrationCategory.Notification)]
-    TwilioSms,
+    Twilio,
 
+    /// <summary>Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.</summary>
+    [Obsolete("Not supported for now.")]
     [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     GoogleChat,
 
+    /// <summary>Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.</summary>
+    [Obsolete("Not supported for now.")]
     [IntegrationCategory(IntegrationCategory.Notification, ChannelOnly = true)]
     Discord,
 
-    [IntegrationCategory(IntegrationCategory.Notification)] 
+    [IntegrationCategory(IntegrationCategory.Notification)]
     Opsgenie,
 
     [IntegrationCategory(IntegrationCategory.Notification)] 

@@ -19,6 +19,7 @@ public class SetupController(
     ISiteConfigRepository siteConfigRepo,
     IEmailConfigRepository emailConfigRepo,
     IWorkerRegistrationRepository workerRepo,
+    IUserNotificationPreferenceRepository prefRepo,
     IUnitOfWork uow) : ControllerBase
 {
     private const string OwnerRole = "Owner";
@@ -70,6 +71,19 @@ public class SetupController(
             }
 
             await userManager.AddToRoleAsync(user, OwnerRole);
+
+            // Every user gets one auto-created, always-present Email preference mirroring their
+            // account address — see UserManagementService.AcceptInviteAsync for the same seeding
+            // on the normal invite path; the Owner created here skips that path entirely.
+            await prefRepo.CreateAsync(new UserNotificationPreference
+            {
+                UserId = user.Id,
+                Channel = PersonalNotificationChannel.Email,
+                Handle = user.Email!,
+                Priority = 0,
+                VerifiedAt = DateTimeOffset.UtcNow,
+                IsAccountFallback = true,
+            }, ct);
 
             // Save site config
             if (!string.IsNullOrWhiteSpace(request.SiteTitle))

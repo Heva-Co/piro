@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
@@ -52,10 +53,8 @@ public class MaintenanceSchedulerJob(
             logger.LogInformation("Updated {Starting} event(s) to Ongoing, {Completed} to Completed.",
                 startingEvents.Count, completedEvents.Count);
 
-            var affectedServiceIds = new HashSet<int>();
-            foreach (var maintenanceId in transitionedEvents.Select(e => e.MaintenanceId).Distinct())
-                foreach (var serviceId in await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceId, context.CancellationToken))
-                    affectedServiceIds.Add(serviceId);
+            var maintenanceIds = transitionedEvents.Select(e => e.MaintenanceId).Distinct().ToList();
+            var affectedServiceIds = await maintenanceRepo.GetAffectedServiceIdsAsync(maintenanceIds, context.CancellationToken);
 
             // Enqueue through the same channel CheckResultIngesterService uses, rather than calling
             // ServiceStatusService directly — StatusDrainHostedService is the single consumer that
@@ -67,18 +66,32 @@ public class MaintenanceSchedulerJob(
         // Extend horizon: materialize more events when nearest future event < 30 days out
         var activeMaint = await maintenanceRepo.GetActiveAsync(context.CancellationToken);
         var horizonThreshold = DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds();
+        var extendedAny = false;
         foreach (var m in activeMaint)
         {
-            var latestEvent = db.MaintenanceEvents
+            var latestEvent = await db.MaintenanceEvents
                 .Where(e => e.MaintenanceId == m.Id)
                 .OrderByDescending(e => e.StartDateTime)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync(context.CancellationToken);
 
             if (latestEvent is null || latestEvent.StartDateTime < horizonThreshold)
             {
-                await maintenanceService.MaterializeEventsAsync(m, context.CancellationToken);
-                logger.LogInformation("Extended materialization horizon for maintenance {Id}.", m.Id);
+                var addedCount = await maintenanceService.MaterializeEventsAsync(m, context.CancellationToken);
+                if (addedCount > 0)
+                {
+                    extendedAny = true;
+                    logger.LogInformation("Extended materialization horizon for maintenance {Id} ({Count} new event(s)).", m.Id, addedCount);
+                }
+                // addedCount == 0 means the RRULE has no more occurrences to give (e.g. a one-time
+                // COUNT=1 maintenance whose single event is already materialized and in the past) —
+                // nothing to log, and this maintenance will keep hitting this branch forever since
+                // its latest event never moves forward. That's a known limitation, not a bug to chase
+                // here: without an "exhausted" flag on Maintenance, we can't skip it on future runs,
+                // but the no-op call itself is cheap (one query, no writes).
             }
         }
+
+        if (transitionedEvents.Count == 0 && !extendedAny)
+            logger.LogInformation("No work to do, skipping.");
     }
 }

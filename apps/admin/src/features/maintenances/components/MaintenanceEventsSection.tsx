@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { maintenancesApi, type Maintenance, type MaintenanceEvent } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 const EVENT_STATUS_BADGE: Record<string, string> = {
   Scheduled: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -11,13 +12,8 @@ const EVENT_STATUS_BADGE: Record<string, string> = {
   Cancelled: "bg-muted text-muted-foreground",
 };
 
-function formatEventRange(event: MaintenanceEvent) {
-  const start = new Date(event.startDateTime * 1000);
-  const end = new Date(event.endDateTime * 1000);
-  const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
-  const timeOpts: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
-  return `${start.toLocaleDateString("en-US", dateOpts)} · ${start.toLocaleTimeString("en-US", timeOpts)} – ${end.toLocaleTimeString("en-US", timeOpts)}`;
-}
+const DATE_OPTS: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+const TIME_OPTS: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
 
 interface Props {
   maintenance: Maintenance;
@@ -26,6 +22,13 @@ interface Props {
 export default function MaintenanceEventsSection({ maintenance }: Props) {
   const qc = useQueryClient();
   const [error, setError] = useState("");
+  const { formatDate, formatTime } = useFormattedDate();
+
+  function formatEventRange(event: MaintenanceEvent) {
+    const startMs = event.startDateTime * 1000;
+    const endMs = event.endDateTime * 1000;
+    return `${formatDate(startMs, DATE_OPTS)} · ${formatTime(startMs, TIME_OPTS)} – ${formatTime(endMs, TIME_OPTS)}`;
+  }
 
   const cancelEventMutation = useMutation({
     mutationFn: (eventId: number) => maintenancesApi.cancelEvent(maintenance.id, eventId),

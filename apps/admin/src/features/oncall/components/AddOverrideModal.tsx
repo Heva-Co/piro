@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { onCallApi, usersApi } from "@/lib/api";
+import { usersApi } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -12,13 +12,23 @@ import {
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { DatePicker } from "@/components/DatePicker";
 
-interface Props {
-  scheduleId: string;
-  onClose: () => void;
-  onSuccess: () => void;
+export interface OverrideFormPayload {
+  userId: number;
+  userName: string;
+  userColor: string;
+  replacesUserId?: number;
+  replacesUserName: string | null;
+  startsAtUtc: string;
+  endsAtUtc: string;
+  reason?: string;
 }
 
-export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
+interface Props {
+  onClose: () => void;
+  onSave: (payload: OverrideFormPayload) => void;
+}
+
+export function AddOverrideModal({ onClose, onSave }: Props) {
   const [userId, setUserId] = useState<string>("");
   const [replacesUserId, setReplacesUserId] = useState<string>("");
   const [startsAt, setStartsAt] = useState("");
@@ -31,17 +41,22 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
     queryFn: () => usersApi.list(),
   });
 
-  const mutation = useMutation({
-    mutationFn: () =>
-      onCallApi.createOverride(scheduleId, {
-        userId: Number(userId),
-        replacesUserId: replacesUserId !== "" ? Number(replacesUserId) : undefined,
-        startsAtUtc: startsAtUtc(),
-        endsAtUtc: endsAtUtc(),
-        reason: reason || undefined,
-      }),
-    onSuccess,
-  });
+  function buildPayload(): OverrideFormPayload {
+    const user = users.find((u: { id: number; name: string }) => String(u.id) === userId);
+    const replacesUser = replacesUserId !== ""
+      ? users.find((u: { id: number; name: string }) => String(u.id) === replacesUserId)
+      : undefined;
+    return {
+      userId: Number(userId),
+      userName: user?.name ?? "",
+      userColor: "#6366f1",
+      replacesUserId: replacesUserId !== "" ? Number(replacesUserId) : undefined,
+      replacesUserName: replacesUser?.name ?? null,
+      startsAtUtc: startsAtUtc(),
+      endsAtUtc: endsAtUtc(),
+      reason: reason || undefined,
+    };
+  }
 
   function handleAllDayToggle(checked: boolean) {
     setAllDay(checked);
@@ -156,11 +171,11 @@ export function AddOverrideModal({ scheduleId, onClose, onSuccess }: Props) {
             Cancel
           </button>
           <button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !userId || !startsAtUtc() || !endsAtUtc()}
+            onClick={() => onSave(buildPayload())}
+            disabled={!userId || !startsAtUtc() || !endsAtUtc()}
             className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {mutation.isPending ? "Adding…" : "Add override"}
+            Add override
           </button>
         </div>
       </div>

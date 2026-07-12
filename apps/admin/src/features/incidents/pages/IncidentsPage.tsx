@@ -119,11 +119,6 @@ export default function IncidentsPage() {
                           Private
                         </span>
                       )}
-                      {inc.mergedIntoIncidentId && (
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                          Merged →#{inc.mergedIntoIncidentId}
-                        </span>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">

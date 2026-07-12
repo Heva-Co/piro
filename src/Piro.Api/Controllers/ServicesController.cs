@@ -17,14 +17,17 @@ public class ServicesController(
     IServiceRepository serviceRepo,
     Channel<CheckStatusChangedEvent> statusChannel) : ControllerBase
 {
-    /// <summary>Returns all services ordered by display_order.</summary>
+    /// <summary>Returns a paginated list of services ordered by display_order, optionally filtered by name/slug search.</summary>
     [HttpGet]
-    [ProducesResponseType<IEnumerable<ServiceDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    [ProducesResponseType<PaginatedResponse<ServiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
     {
-        return Ok(await serviceApp.GetAllAsync(ct));
+        return Ok(await serviceApp.GetPagedAsync(new ServiceQueryParams(page, pageSize, search), ct));
     }
-        
 
     /// <summary>Returns a single service by its slug.</summary>
     [HttpGet("{slug}")]

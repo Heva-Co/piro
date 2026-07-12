@@ -133,11 +133,23 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<long?>("AcknowledgedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasColumnType("text");
+
                     b.Property<int>("AlertConfigId")
                         .HasColumnType("integer");
 
                     b.Property<int>("CheckId")
                         .HasColumnType("integer");
+
+                    b.Property<int?>("EscalationCurrentStep")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("EscalationStepStartedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("FiredAt")
                         .HasColumnType("timestamp with time zone");
@@ -150,6 +162,9 @@ namespace Piro.Infrastructure.Migrations
 
                     b.Property<int?>("IncidentId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastUserActivityAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Message")
                         .HasColumnType("text");
@@ -201,9 +216,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("CheckId")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("CreateIncident")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -211,9 +223,6 @@ namespace Piro.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<int>("FailureThreshold")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("IncidentThresholdOccurrences")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsActive")
@@ -413,6 +422,13 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("UTC");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -556,6 +572,48 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("CheckDataPoints");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationDeliveryLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AlertId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("AttemptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChannelType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<int>("StepIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlertId");
+
+                    b.ToTable("EscalationDeliveryLogs");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
                 {
                     b.Property<int>("Id")
@@ -576,9 +634,6 @@ namespace Piro.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("ReEscalateAfterAckMinutes")
-                        .HasColumnType("integer");
-
                     b.Property<int>("ReEscalateAfterInactivityMinutes")
                         .HasColumnType("integer");
 
@@ -586,6 +641,9 @@ namespace Piro.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("EscalationPolicies", (string)null);
                 });
@@ -646,18 +704,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<long?>("EndDateTime")
                         .HasColumnType("bigint");
 
-                    b.Property<int?>("EscalationCurrentStep")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("EscalationPolicyId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("EscalationStepStartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("LastUserActivityAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Source")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
@@ -686,8 +732,6 @@ namespace Piro.Infrastructure.Migrations
                         .HasDefaultValue("Private");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EscalationPolicyId");
 
                     b.HasIndex("StartDateTime");
 
@@ -719,36 +763,6 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("IncidentId", "Timestamp");
 
                     b.ToTable("IncidentImpactChanges");
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.IncidentMerge", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("MergedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<int>("SourceIncidentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TargetIncidentId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SourceIncidentId");
-
-                    b.HasIndex("TargetIncidentId");
-
-                    b.ToTable("IncidentMerges");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.IncidentService", b =>
@@ -979,65 +993,6 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("MaintenanceServices");
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.NotificationChannel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("IntegrationId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsGlobal")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("IsInactive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("IsLocked")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("MetaJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValue("{}");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Id");
-
-                    b.HasIndex("IntegrationId");
-
-                    b.ToTable("NotificationChannels", (string)null);
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.OidcProviderConfig", b =>
@@ -1428,6 +1383,9 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("EscalationPolicyId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("HistoryDaysDesktop")
                         .HasColumnType("integer");
 
@@ -1461,6 +1419,8 @@ namespace Piro.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EscalationPolicyId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -1538,13 +1498,19 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Handle")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<int>("IntegrationId")
+                    b.Property<int?>("IntegrationId")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsAccountFallback")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Priority")
                         .HasColumnType("integer");
@@ -1552,13 +1518,16 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IntegrationId");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserId", "IntegrationId")
+                    b.HasIndex("UserId", "Channel", "IntegrationId")
                         .IsUnique();
 
                     b.ToTable("UserNotificationPreferences", (string)null);
@@ -1745,6 +1714,17 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Check");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.EscalationDeliveryLog", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Alert", "Alert")
+                        .WithMany("EscalationDeliveryLogs")
+                        .HasForeignKey("AlertId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Alert");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.EscalationStep", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.EscalationPolicy", "Policy")
@@ -1764,16 +1744,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Schedule");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.Incident", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.EscalationPolicy", "EscalationPolicy")
-                        .WithMany()
-                        .HasForeignKey("EscalationPolicyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("EscalationPolicy");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.IncidentImpactChange", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Incident", "Incident")
@@ -1783,25 +1753,6 @@ namespace Piro.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Incident");
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.IncidentMerge", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Incident", "SourceIncident")
-                        .WithMany("MergesAsSource")
-                        .HasForeignKey("SourceIncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Piro.Domain.Entities.Incident", "TargetIncident")
-                        .WithMany("MergesAsTarget")
-                        .HasForeignKey("TargetIncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SourceIncident");
-
-                    b.Navigation("TargetIncident");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.IncidentService", b =>
@@ -1869,16 +1820,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Maintenance");
 
                     b.Navigation("Service");
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.NotificationChannel", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
-                        .WithMany()
-                        .HasForeignKey("IntegrationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Integration");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.OnCallLayer", b =>
@@ -1975,6 +1916,16 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.Service", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.EscalationPolicy", "EscalationPolicy")
+                        .WithMany("Services")
+                        .HasForeignKey("EscalationPolicyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("EscalationPolicy");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.ServiceDependency", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Service", "DependsOnService")
@@ -1999,8 +1950,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasOne("Piro.Domain.Entities.Integration", "Integration")
                         .WithMany()
                         .HasForeignKey("IntegrationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Piro.Domain.Entities.AppUser", "User")
                         .WithMany("NotificationPreferences")
@@ -2011,6 +1961,11 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Integration");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.Alert", b =>
+                {
+                    b.Navigation("EscalationDeliveryLogs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.AppRole", b =>
@@ -2032,6 +1987,8 @@ namespace Piro.Infrastructure.Migrations
 
             modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
                 {
+                    b.Navigation("Services");
+
                     b.Navigation("Steps");
                 });
 
@@ -2042,10 +1999,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("ImpactChanges");
 
                     b.Navigation("IncidentServices");
-
-                    b.Navigation("MergesAsSource");
-
-                    b.Navigation("MergesAsTarget");
 
                     b.Navigation("TimelineEvents");
                 });

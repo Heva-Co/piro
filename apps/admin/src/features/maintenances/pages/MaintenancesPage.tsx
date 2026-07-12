@@ -5,7 +5,7 @@ import { Plus, Pencil, ChevronDown } from "lucide-react";
 import { maintenancesApi, type MaintenanceListItem, type MaintenanceDisplayStatus } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { formatTimestamp } from "@/utils/date";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 const NEXT_EVENT_FORMAT: Intl.DateTimeFormatOptions = {
   month: "short", day: "numeric", year: "numeric",
@@ -33,11 +33,6 @@ function isOneTime(rRule: string) {
   return rRule.includes("COUNT=1");
 }
 
-function formatNextEvent(m: MaintenanceListItem) {
-  if (m.nextEventAt == null) return "—";
-  return formatTimestamp(m.nextEventAt, NEXT_EVENT_FORMAT);
-}
-
 const FILTER_OPTIONS: { label: string; value: "all" | MaintenanceDisplayStatus }[] = [
   { label: "All",       value: "all" },
   { label: "Active",    value: "Active" },
@@ -50,6 +45,12 @@ export default function MaintenancesPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const { formatTimestamp } = useFormattedDate();
+
+  function formatNextEvent(m: MaintenanceListItem) {
+    if (m.nextEventAt == null) return "—";
+    return formatTimestamp(m.nextEventAt, NEXT_EVENT_FORMAT);
+  }
 
   const { data: maintenances = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.MAINTENANCES,

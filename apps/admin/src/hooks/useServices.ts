@@ -3,10 +3,20 @@ import { servicesApi } from "@/lib/api";
 import type { Service } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
-export function useServices() {
+export function useServices(params?: { page?: number; pageSize?: number; search?: string }) {
   return useQuery({
-    queryKey: QUERY_KEYS.SERVICES,
-    queryFn: servicesApi.list,
+    queryKey: [...QUERY_KEYS.SERVICES, params],
+    queryFn: () => servicesApi.list(params),
+  });
+}
+
+// TODO(#149): dropdowns/pickers below request a large page instead of true "all services" —
+// switch to infinite scroll or a dedicated search-as-you-type picker once services can exceed ~1000.
+export function useAllServices() {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.SERVICES, "all"],
+    queryFn: () => servicesApi.list({ pageSize: 1000 }),
+    select: (data) => data.items,
   });
 }
 

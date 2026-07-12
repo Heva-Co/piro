@@ -11,13 +11,14 @@ namespace Piro.Application.Services;
 /// Does not compute status — that is handled by <see cref="ServiceStatusService"/>.
 /// Slug immutability is enforced: slugs cannot be changed after creation.
 /// </remarks>
-public class ServiceAppService(IServiceRepository repository)
+public class ServiceAppService(IServiceRepository repository, IEscalationPolicyRepository escalationPolicyRepository)
 {
-    public async Task<IEnumerable<ServiceDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<PaginatedResponse<ServiceDto>> GetPagedAsync(ServiceQueryParams query, CancellationToken ct = default)
     {
-        var services = await repository.GetAllAsync(ct);
+        var (services, total) = await repository.GetPagedAsync(query, ct);
         var counts = await repository.GetCheckCountsAsync(ct);
-        return services.Select(s => s.ToDto(counts.GetValueOrDefault(s.Id, 0)));
+        var items = services.Select(s => s.ToDto(counts.GetValueOrDefault(s.Id, 0)));
+        return new PaginatedResponse<ServiceDto>(items, total, Math.Max(1, query.Page), Math.Clamp(query.PageSize, 10, 200));
     }
 
     public async Task<ServiceDto> GetBySlugAsync(string slug, CancellationToken ct = default)
@@ -33,6 +34,10 @@ public class ServiceAppService(IServiceRepository repository)
         if (await repository.SlugExistsAsync(request.Slug, ct))
             throw new DomainValidationException($"A service with slug '{request.Slug}' already exists.");
 
+        if (request.EscalationPolicyId is int policyId)
+            _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
+                ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
+
         var service = new Service
         {
             Slug = request.Slug,
@@ -42,7 +47,8 @@ public class ServiceAppService(IServiceRepository repository)
             DefaultStatus = request.DefaultStatus,
             CurrentStatus = request.DefaultStatus,
             IsHidden = request.IsHidden,
-            DisplayOrder = request.DisplayOrder
+            DisplayOrder = request.DisplayOrder,
+            EscalationPolicyId = request.EscalationPolicyId
         };
 
         var created = await repository.CreateAsync(service, ct);
@@ -62,6 +68,20 @@ public class ServiceAppService(IServiceRepository repository)
         if (request.DisplayOrder is not null) service.DisplayOrder = request.DisplayOrder.Value;
         if (request.HistoryDaysDesktop is not null) service.HistoryDaysDesktop = request.HistoryDaysDesktop.Value;
         if (request.HistoryDaysMobile is not null) service.HistoryDaysMobile = request.HistoryDaysMobile.Value;
+
+        if (request.EscalationPolicyId.IsSet)
+        {
+            if (request.EscalationPolicyId.Value is int policyId)
+            {
+                _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
+                    ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
+                service.EscalationPolicyId = policyId;
+            }
+            else
+            {
+                service.EscalationPolicyId = null;
+            }
+        }
 
         var updated = await repository.UpdateAsync(service, ct);
         return updated.ToDto();

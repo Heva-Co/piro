@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   CloudAlert,
   ClockAlert,
-  Bell,
   ScrollText,
   Settings,
   Key,
@@ -30,9 +29,18 @@ import {
   Siren,
   User,
   Clock,
+  TriangleAlert,
+  Search,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { useTimezone } from "@/hooks/useTimezone";
+import { useMyOnCallCurrentStatus } from "@/hooks/useOnCallMe";
+import { useOnCallNowDismissal } from "@/hooks/useOnCallNowDismissal";
+import { TimezoneMismatchBanner } from "@/components/TimezoneMismatchBanner";
+import { OnCallNowBanner } from "@/components/OnCallNowBanner";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import { siteApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
 import { QUERY_KEYS } from "@/constants/api";
@@ -53,9 +61,8 @@ const mainNavItems: NavItem[] = [
   { label: "Alerts", to: ROUTES.ALERTS.LIST, icon: <AlertTriangle size={18} /> },
   { label: "Incidents", to: ROUTES.INCIDENTS.LIST, icon: <CloudAlert size={18} /> },
   { label: "Maintenances", to: ROUTES.MAINTENANCES.LIST, icon: <ClockAlert size={18} /> },
-  { label: "Notification Channels", to: ROUTES.CHANNELS.LIST, icon: <Bell size={18} /> },
-  { label: "On-Call", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
-  { label: "Escalation Policy", to: ROUTES.ESCALATION, icon: <Siren size={18} /> },
+  { label: "On Call Schedules", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
+  { label: "Escalation Policies", to: ROUTES.ESCALATION.LIST, icon: <Siren size={18} /> },
   { label: "Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} /> },
 ];
 
@@ -67,7 +74,6 @@ const configNavItems: NavItem[] = [
   { label: "SSO", to: ROUTES.CONFIG.SSO, icon: <KeyRound size={18} /> },
   { label: "Site", to: ROUTES.CONFIG.SITE, icon: <Globe size={18} /> },
   { label: "Email", to: ROUTES.CONFIG.EMAIL, icon: <Mail size={18} /> },
-  { label: "Incidents", to: ROUTES.CONFIG.INCIDENTS, icon: <CloudAlert size={18} /> },
   { label: "Jobs", to: ROUTES.CONFIG.JOBS, icon: <Clock size={18} /> },
 ];
 
@@ -231,7 +237,12 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
+  const { useBrowserTimeZone, activeTimeZone, profileTimeZone } = useTimezone();
+  const { data: currentOnCallSlot } = useMyOnCallCurrentStatus();
+  const { isDismissed: onCallBannerDismissed } = useOnCallNowDismissal(currentOnCallSlot);
+  const showOnCallIcon = !!currentOnCallSlot && onCallBannerDismissed;
 
   const { data: siteConfig } = useQuery({
     queryKey: QUERY_KEYS.SITE_CONFIG,
@@ -239,6 +250,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     staleTime: 60_000,
   });
   const siteUrl = siteConfig?.url;
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div className="flex h-screen bg-muted/40 overflow-hidden p-2 gap-2">
@@ -284,7 +306,49 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           <div className="h-4 w-px bg-border mx-1" />
 
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted transition-colors w-full max-w-xs"
+          >
+            <Search size={14} className="shrink-0" />
+            <span className="flex-1 text-left truncate">Search...</span>
+            <span className="hidden sm:flex items-center gap-0.5 shrink-0">
+              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium">⌘</kbd>
+              <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium">K</kbd>
+            </span>
+          </button>
+
           <div className="flex-1" />
+
+          {useBrowserTimeZone && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="p-1.5 rounded-md text-amber-600 dark:text-amber-400" />
+                }
+              >
+                <TriangleAlert size={16} />
+              </TooltipTrigger>
+              <TooltipContent>
+                Showing times in {activeTimeZone} for this session only. Your profile timezone is {profileTimeZone}.
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {showOnCallIcon && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="p-1.5 rounded-md text-blue-600 dark:text-blue-400" />
+                }
+              >
+                <Siren size={16} />
+              </TooltipTrigger>
+              <TooltipContent>
+                You're on-call now for {currentOnCallSlot?.scheduleName}.
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <button
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
@@ -306,9 +370,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           )}
         </header>
 
+        <TimezoneMismatchBanner />
+
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

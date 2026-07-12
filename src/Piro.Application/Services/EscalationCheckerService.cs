@@ -1,170 +1,142 @@
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
+using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.Services;
 
 /// <summary>
-/// Fires escalation steps for open incidents that have an assigned escalation policy.
+/// Fires escalation steps for active Alerts whose Service has an escalation policy assigned.
 /// Called every minute by <see cref="Piro.Infrastructure.Jobs.EscalationCheckJob"/>.
+/// The Alert — not any Incident it may later be attached to — owns its own escalation progress,
+/// since notifying on-call users must not depend on whether a human has manually created/linked
+/// an Incident yet.
 /// </summary>
 public class EscalationCheckerService(
-    IEscalationPolicyRepository policyRepo,
-    IIncidentRepository incidentRepo,
-    IAlertConfigRepository alertConfigRepo,
-    ICheckRepository checkRepo,
-    AlertEvaluationService alertEvaluationService,
+    IAlertRepository alertRepo,
     OnCallService onCallService,
     IEnumerable<INotificationDispatcher> dispatchers,
-    INotificationChannelRepository channelRepo,
     IUserNotificationPreferenceRepository prefRepo,
+    ISiteUrlBuilder siteUrlBuilder,
     ILogger<EscalationCheckerService> logger)
 {
     private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
-    /// <summary>
-    /// Safety net for active Alerts that crossed their incident threshold but were never hooked
-    /// to an Incident — this can happen if the process was interrupted between recording the
-    /// Alert occurrence and evaluating the incident hook. Re-runs the evaluation for each such
-    /// Alert's check, which is a no-op if it still doesn't cross the threshold.
-    /// </summary>
-    public async Task ReconcileOrphanedChecksAsync(CancellationToken ct = default)
-    {
-        var configs = (await alertConfigRepo.GetAllAsync(ct))
-            .Where(c => c.IsActive && c.CreateIncident)
-            .ToList();
-
-        foreach (var config in configs)
-        {
-            try
-            {
-                var check = await checkRepo.GetByIdAsync(config.CheckId, ct);
-                if (check is null) continue;
-                await alertEvaluationService.EvaluateAsync(check.Id, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Incident reconciliation failed for alert config {AlertConfigId} (check {CheckId}).",
-                    config.Id, config.CheckId);
-            }
-        }
-    }
-
     public async Task ProcessAsync(CancellationToken ct = default)
     {
-        var policy = await policyRepo.GetSingleAsync(ct);
-        if (policy is null)
+        var alerts = await alertRepo.GetActiveWithServiceEscalationAsync(ct);
+        if (alerts.Count == 0)
         {
-            logger.LogDebug("Escalation check skipped — no policy configured.");
+            logger.LogDebug("Escalation check — no active alerts with a service escalation policy.");
             return;
         }
 
-        var incidents = await incidentRepo.GetOpenWithEscalationAsync(ct);
-        if (incidents.Count == 0)
-        {
-            logger.LogDebug("Escalation check — no open incidents with policy assigned.");
-            return;
-        }
-
-        logger.LogInformation("Escalation check started — policy \"{PolicyName}\", {Count} open incident(s).",
-            policy.Name, incidents.Count);
+        logger.LogDebug("Escalation check started — {Count} active alert(s) with a policy.", alerts.Count);
 
         var now = DateTimeOffset.UtcNow;
-        var globalChannels = (await channelRepo.GetGlobalAsync(ct))
-            .Where(c => !c.IsInactive)
-            .ToList();
-
-        foreach (var incident in incidents)
+        foreach (var alert in alerts)
         {
             try
             {
-                await ProcessIncidentAsync(incident, policy, globalChannels, now, ct);
+                await ProcessAlertAsync(alert, now, ct);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Escalation check failed for incident #{IncidentId} \"{Title}\".",
-                    incident.Id, incident.Title);
+                logger.LogError(ex, "Escalation check failed for alert #{AlertId} (check {CheckId}).",
+                    alert.Id, alert.CheckId);
             }
         }
     }
 
-    private async Task ProcessIncidentAsync(
-        Incident incident,
-        EscalationPolicy policy,
-        List<NotificationChannel> globalChannels,
-        DateTimeOffset now,
-        CancellationToken ct)
+    private async Task ProcessAlertAsync(Alert alert, DateTimeOffset now, CancellationToken ct)
     {
+        var policy = alert.Service.EscalationPolicy!;
         var steps = policy.Steps.OrderBy(s => s.Order).ToList();
         if (steps.Count == 0) return;
 
         // Initialize on first encounter — fall through immediately so step 0 fires in the same tick
-        if (incident.EscalationCurrentStep is null)
+        if (alert.EscalationCurrentStep is null)
         {
-            incident.EscalationCurrentStep = 0;
-            incident.EscalationStepStartedAt = new DateTimeOffset(incident.CreatedAt, TimeSpan.Zero);
+            alert.EscalationCurrentStep = 0;
+            alert.EscalationStepStartedAt = alert.FiredAt;
             logger.LogInformation(
-                "Escalation initialized for incident #{IncidentId} \"{Title}\" — starting at step 1 of {Total}.",
-                incident.Id, incident.Title, steps.Count);
+                "Escalation initialized for alert #{AlertId} ({Service}/{Check}) — starting at step 1 of {Total}.",
+                alert.Id, alert.Service.Name, alert.Check.Name, steps.Count);
         }
 
-        var currentStepIndex = incident.EscalationCurrentStep.Value;
+        var currentStepIndex = alert.EscalationCurrentStep.Value;
 
-        // Re-escalate after inactivity
-        if (policy.ReEscalateAfterInactivityMinutes > 0
-            && incident.LastUserActivityAt.HasValue
-            && (now - incident.LastUserActivityAt.Value).TotalMinutes >= policy.ReEscalateAfterInactivityMinutes)
+        // Case 3: paused by an ACK. Never lets the current step advance — the only way past it is
+        // ReEscalateAfterInactivityMinutes elapsing since the ACK (LastUserActivityAt).
+        if (alert.AcknowledgedAt.HasValue)
         {
+            var inactiveSinceAck = policy.ReEscalateAfterInactivityMinutes > 0
+                && alert.LastUserActivityAt.HasValue
+                && (now - alert.LastUserActivityAt.Value).TotalMinutes >= policy.ReEscalateAfterInactivityMinutes;
+
+            if (!inactiveSinceAck)
+            {
+                logger.LogDebug(
+                    "Escalation paused for alert #{AlertId} — acknowledged{ReescalateNote}.",
+                    alert.Id, policy.ReEscalateAfterInactivityMinutes > 0
+                        ? $", re-escalates after {policy.ReEscalateAfterInactivityMinutes} min of inactivity"
+                        : ", re-escalation disabled");
+                await alertRepo.UpdateAsync(alert, ct);
+                return;
+            }
+
             currentStepIndex = 0;
-            incident.EscalationCurrentStep = 0;
-            incident.EscalationStepStartedAt = now;
+            alert.EscalationCurrentStep = 0;
+            alert.EscalationStepStartedAt = now;
+            alert.AcknowledgedAt = null;
+            alert.AcknowledgedBy = null;
             logger.LogInformation(
-                "Escalation re-started for incident #{IncidentId} \"{Title}\" — no activity for {Minutes} min, resetting to step 1.",
-                incident.Id, incident.Title, policy.ReEscalateAfterInactivityMinutes);
+                "Escalation re-started for alert #{AlertId} — no activity for {Minutes} min since ACK, resetting to step 1.",
+                alert.Id, policy.ReEscalateAfterInactivityMinutes);
         }
-
-        // Re-escalate after ACK
-        if (policy.ReEscalateAfterAckMinutes > 0
-            && incident.AcknowledgedAt.HasValue
-            && (now - DateTimeOffset.FromUnixTimeSeconds(incident.AcknowledgedAt.Value)).TotalMinutes >= policy.ReEscalateAfterAckMinutes)
+        // Case 1: mid-policy, never acknowledged — the normal step/delay mechanism governs, inactivity never interrupts it.
+        else if (currentStepIndex < steps.Count)
         {
+            // fall through to normal step dispatch below
+        }
+        // Case 2: policy exhausted (all steps fired) and never acknowledged. EscalationStepStartedAt
+        // marks when a step last fired — the first tick after exhaustion, that's also "since exhausted".
+        else
+        {
+            var exhaustedSince = alert.EscalationStepStartedAt ?? now;
+            var reEscalate = policy.ReEscalateAfterInactivityMinutes > 0
+                && (now - exhaustedSince).TotalMinutes >= policy.ReEscalateAfterInactivityMinutes;
+
+            if (!reEscalate)
+            {
+                logger.LogDebug(
+                    "Escalation exhausted for alert #{AlertId} — all {Total} step(s) already fired.",
+                    alert.Id, steps.Count);
+                await alertRepo.UpdateAsync(alert, ct);
+                return;
+            }
+
             currentStepIndex = 0;
-            incident.EscalationCurrentStep = 0;
-            incident.EscalationStepStartedAt = now;
+            alert.EscalationCurrentStep = 0;
+            alert.EscalationStepStartedAt = now;
             logger.LogInformation(
-                "Escalation re-started for incident #{IncidentId} \"{Title}\" — ACK timeout ({Minutes} min), resetting to step 1.",
-                incident.Id, incident.Title, policy.ReEscalateAfterAckMinutes);
-        }
-
-        // If ACKed and no re-escalation configured, pause
-        if (incident.AcknowledgedAt.HasValue && policy.ReEscalateAfterAckMinutes == 0)
-        {
-            logger.LogInformation(
-                "Escalation paused for incident #{IncidentId} \"{Title}\" — acknowledged, re-escalation disabled.",
-                incident.Id, incident.Title);
-            return;
-        }
-
-        if (currentStepIndex >= steps.Count)
-        {
-            logger.LogInformation(
-                "Escalation exhausted for incident #{IncidentId} \"{Title}\" — all {Total} step(s) already fired.",
-                incident.Id, incident.Title, steps.Count);
-            return;
+                "Escalation re-started for alert #{AlertId} — exhausted with no activity for {Minutes} min, resetting to step 1.",
+                alert.Id, policy.ReEscalateAfterInactivityMinutes);
         }
 
         var step = steps[currentStepIndex];
-        var stepStart = incident.EscalationStepStartedAt ?? now;
+        var stepStart = alert.EscalationStepStartedAt ?? now;
         var elapsed = (now - stepStart).TotalMinutes;
 
         if (elapsed < step.DelayMinutes)
         {
-            logger.LogInformation(
-                "Escalation waiting for incident #{IncidentId} — step {StepNum}/{Total}, {Elapsed:F1}/{Delay} min elapsed.",
-                incident.Id, currentStepIndex + 1, steps.Count, elapsed, step.DelayMinutes);
+            logger.LogDebug(
+                "Escalation waiting for alert #{AlertId} — step {StepNum}/{Total}, {Elapsed:F1}/{Delay} min elapsed.",
+                alert.Id, currentStepIndex + 1, steps.Count, elapsed, step.DelayMinutes);
+            await alertRepo.UpdateAsync(alert, ct);
             return;
         }
 
@@ -173,30 +145,38 @@ public class EscalationCheckerService(
         if (onCallUsers.Count == 0)
         {
             logger.LogWarning(
-                "Escalation step {StepNum} for incident #{IncidentId} \"{Title}\": no on-call users found in schedule {ScheduleId}.",
-                currentStepIndex + 1, incident.Id, incident.Title, step.ScheduleId);
+                "Escalation step {StepNum} for alert #{AlertId} ({Service}/{Check}): no on-call users found in schedule {ScheduleId}.",
+                currentStepIndex + 1, alert.Id, alert.Service.Name, alert.Check.Name, step.ScheduleId);
         }
         else
         {
             var names = string.Join(", ", onCallUsers.Select(u => u.UserName ?? u.Email));
             logger.LogInformation(
-                "Escalation step {StepNum}/{Total} for incident #{IncidentId} \"{Title}\" — on-call: {OnCallUsers}.",
-                currentStepIndex + 1, steps.Count, incident.Id, incident.Title, names);
+                "Escalation step {StepNum}/{Total} for alert #{AlertId} ({Service}/{Check}) — on-call: {OnCallUsers}.",
+                currentStepIndex + 1, steps.Count, alert.Id, alert.Service.Name, alert.Check.Name, names);
         }
 
-        var context = BuildContext(incident);
-        bool anyPersonalNotified = false;
+        var serviceUrl = await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Service, ct, alert.Service.Slug);
+        var checkUrl = await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Check, ct, alert.Service.Slug, alert.Check.Slug);
 
-        // Notify each on-call user via their personal preferences (ordered by priority)
+        // Notify each on-call user via their personal preferences (ordered by priority). No
+        // fallback to any global channel — if a user has no personal preference configured,
+        // they simply don't get notified.
+        // Batched instead of one GetByUserIdAsync call per user — this runs every minute per
+        // active alert, so an N+1 here scales with (active alerts) x (on-call users per schedule).
+        var prefsByUser = await prefRepo.GetByUserIdsAsync(onCallUsers.Select(u => u.Id).ToList(), ct);
         foreach (var user in onCallUsers)
         {
-            var prefs = await prefRepo.GetByUserIdAsync(user.Id, ct);
-            if (prefs.Count == 0) continue;
+            if (!prefsByUser.TryGetValue(user.Id, out var prefs) || prefs.Count == 0) continue;
+
+            // Built per-user: FiredAtDisplay depends on each on-call user's own time zone.
+            var context = BuildContext(alert, serviceUrl, checkUrl, user.TimeZone);
 
             foreach (var pref in prefs.OrderBy(p => p.Priority))
             {
-                if (pref.Integration is null) continue;
-                var channelType = pref.Integration.Type;
+                if (!pref.VerifiedAt.HasValue) continue; // unverified handle — never dispatch to it
+                if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
+                var channelType = pref.Channel.ToIntegrationType();
                 if (!_dispatchers.TryGetValue(channelType, out var dispatcher)) continue;
 
                 try
@@ -204,43 +184,37 @@ public class EscalationCheckerService(
                     var sent = await dispatcher.DispatchPersonalAsync(pref.Integration, pref.Handle, context, ct);
                     if (!sent) continue; // dispatcher doesn't support personal dispatch; try next
 
-                    anyPersonalNotified = true;
                     logger.LogInformation(
-                        "Escalation personal notification sent to {UserName} via {ChannelType} for incident #{IncidentId}.",
-                        user.UserName ?? user.Email, channelType, incident.Id);
+                        "Escalation personal notification sent to {UserName} via {ChannelType} for alert #{AlertId}.",
+                        user.UserName ?? user.Email, channelType, alert.Id);
+                    await alertRepo.AddDeliveryLogAsync(new EscalationDeliveryLog
+                    {
+                        AlertId = alert.Id,
+                        StepIndex = currentStepIndex,
+                        UserId = user.Id,
+                        UserName = user.UserName ?? user.Email,
+                        ChannelType = channelType,
+                        Succeeded = true,
+                        AttemptedAt = now,
+                    }, ct);
                     break; // Only use first working preference per user
                 }
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex,
-                        "Escalation personal dispatch failed for {UserName} via {ChannelType} for incident #{IncidentId} — trying next preference.",
-                        user.UserName ?? user.Email, channelType, incident.Id);
-                }
-            }
-        }
-
-        // Fall back to global channels if no personal preferences were notified
-        if (!anyPersonalNotified)
-        {
-            logger.LogInformation(
-                "Escalation falling back to global channels for incident #{IncidentId} — no on-call users had personal preferences.",
-                incident.Id);
-
-            foreach (var channel in globalChannels)
-            {
-                if (!_dispatchers.TryGetValue(channel.Type, out var dispatcher)) continue;
-                try
-                {
-                    await dispatcher.DispatchAsync(channel, context, ct);
-                    logger.LogInformation(
-                        "Escalation notification sent via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
-                        channel.Type, channel.Name, incident.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        "Escalation dispatch failed via {ChannelType} channel \"{ChannelName}\" for incident #{IncidentId}.",
-                        channel.Type, channel.Name, incident.Id);
+                        "Escalation personal dispatch failed for {UserName} via {ChannelType} for alert #{AlertId} — trying next preference.",
+                        user.UserName ?? user.Email, channelType, alert.Id);
+                    await alertRepo.AddDeliveryLogAsync(new EscalationDeliveryLog
+                    {
+                        AlertId = alert.Id,
+                        StepIndex = currentStepIndex,
+                        UserId = user.Id,
+                        UserName = user.UserName ?? user.Email,
+                        ChannelType = channelType,
+                        Succeeded = false,
+                        ErrorMessage = ex.Message,
+                        AttemptedAt = now,
+                    }, ct);
                 }
             }
         }
@@ -249,29 +223,42 @@ public class EscalationCheckerService(
         var nextIndex = currentStepIndex + 1;
         if (nextIndex < steps.Count)
         {
-            incident.EscalationCurrentStep = nextIndex;
+            alert.EscalationCurrentStep = nextIndex;
             logger.LogInformation(
-                "Escalation advanced to step {NextStep}/{Total} for incident #{IncidentId} \"{Title}\".",
-                nextIndex + 1, steps.Count, incident.Id, incident.Title);
+                "Escalation advanced to step {NextStep}/{Total} for alert #{AlertId} ({Service}/{Check}).",
+                nextIndex + 1, steps.Count, alert.Id, alert.Service.Name, alert.Check.Name);
         }
         else
         {
             logger.LogInformation(
-                "Escalation completed all {Total} step(s) for incident #{IncidentId} \"{Title}\" — no further steps.",
-                steps.Count, incident.Id, incident.Title);
+                "Escalation completed all {Total} step(s) for alert #{AlertId} ({Service}/{Check}) — no further steps.",
+                steps.Count, alert.Id, alert.Service.Name, alert.Check.Name);
         }
 
-        incident.EscalationStepStartedAt = now;
-        await incidentRepo.UpdateAsync(incident, ct);
+        alert.EscalationStepStartedAt = now;
+        await alertRepo.UpdateAsync(alert, ct);
     }
 
-    private static AlertNotificationContext BuildContext(Incident incident) => new(
-        ServiceName: "Incident",
-        CheckName: incident.Title,
-        CurrentStatus: incident.CurrentImpact,
-        AlertDescription: $"Escalation: incident \"{incident.Title}\" requires attention.",
-        Severity: AlertSeverity.Critical,
+    private static AlertNotificationContext BuildContext(
+        Alert alert, string? serviceUrl, string? checkUrl, string recipientTimeZone) => new(
+        ServiceName: alert.Service.Name,
+        CheckName: alert.Check.Name,
+        CurrentStatus: alert.ImpactAtFireTime,
+        AlertDescription: alert.AlertConfig?.Description ?? alert.Message,
+        Severity: alert.AlertConfig?.Severity ?? AlertSeverity.Critical,
         IsRecovery: false,
-        FiredAt: incident.CreatedAt
+        FiredAt: alert.FiredAt,
+        CheckId: alert.CheckId,
+        ServiceUrl: serviceUrl,
+        CheckUrl: checkUrl,
+        FiredAtDisplay: FormatForTimeZone(alert.FiredAt, recipientTimeZone)
     );
+
+    /// <summary>Formats a timestamp in the given IANA time zone, with the zone name in parentheses. Falls back to UTC if the id is unrecognized.</summary>
+    private static string FormatForTimeZone(DateTimeOffset instant, string timeZoneId)
+    {
+        var tz = TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var found) ? found : TimeZoneInfo.Utc;
+        var local = TimeZoneInfo.ConvertTime(instant, tz);
+        return $"{local:yyyy-MM-dd HH:mm} ({timeZoneId})";
+    }
 }

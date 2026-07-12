@@ -12,6 +12,7 @@ internal class EscalationPolicyConfiguration : IEntityTypeConfiguration<Escalati
         b.HasKey(p => p.Id);
         b.Property(p => p.Name).HasMaxLength(200).IsRequired();
         b.Property(p => p.Description).HasMaxLength(1000);
+        b.HasIndex(p => p.Name).IsUnique();
         b.HasMany(p => p.Steps)
             .WithOne(s => s.Policy)
             .HasForeignKey(s => s.PolicyId)

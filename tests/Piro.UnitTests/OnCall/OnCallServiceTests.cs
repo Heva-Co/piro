@@ -9,13 +9,29 @@ namespace Piro.UnitTests.OnCall;
 
 public class OnCallServiceTests
 {
+    private class FakeEscalationPolicyRepository : IEscalationPolicyRepository
+    {
+        public Task<(IEnumerable<EscalationPolicy> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, CancellationToken ct = default) =>
+            Task.FromResult((Enumerable.Empty<EscalationPolicy>(), 0));
+        public Task<EscalationPolicy?> GetByIdAsync(int id, CancellationToken ct = default) => Task.FromResult<EscalationPolicy?>(null);
+        public Task<EscalationPolicy> CreateAsync(EscalationPolicy policy, CancellationToken ct = default) => Task.FromResult(policy);
+        public Task<EscalationPolicy> UpdateAsync(EscalationPolicy policy, CancellationToken ct = default) => Task.FromResult(policy);
+        public Task<bool> IsInUseAsync(int id, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<bool> IsScheduleFirstStepInAnyPolicyAsync(int scheduleId, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<bool> ExistsByNameAsync(string name, int? excludingId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task DeleteAsync(EscalationPolicy policy, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
     private class FakeScheduleRepository(OnCallSchedule schedule) : IOnCallScheduleRepository
     {
-        public Task<List<OnCallSchedule>> GetAllAsync(CancellationToken ct = default) => Task.FromResult(new List<OnCallSchedule> { schedule });
+        public Task<(IEnumerable<OnCallSchedule> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, CancellationToken ct = default) =>
+            Task.FromResult(((IEnumerable<OnCallSchedule>)new List<OnCallSchedule> { schedule }, 1));
         public Task<List<OnCallScheduleMembersDto>> GetAllWithMembersAsync(CancellationToken ct = default) =>
             Task.FromResult(new List<OnCallScheduleMembersDto>());
         public Task<OnCallSchedule?> GetByIdWithLayersAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(id == schedule.Id ? schedule : null);
+        public Task<List<OnCallSchedule>> GetSchedulesForUserAsync(int userId, CancellationToken ct = default) =>
+            Task.FromResult(new List<OnCallSchedule> { schedule });
         public Task<OnCallSchedule> CreateAsync(OnCallSchedule s, CancellationToken ct = default) => Task.FromResult(s);
         public Task UpdateAsync(OnCallSchedule s, CancellationToken ct = default) => Task.CompletedTask;
         public Task DeleteAsync(int id, CancellationToken ct = default) => Task.CompletedTask;
@@ -67,7 +83,7 @@ public class OnCallServiceTests
             Overrides = [],
         };
 
-        var service = new OnCallService(new FakeScheduleRepository(schedule), new RRuleExpander());
+        var service = new OnCallService(new FakeScheduleRepository(schedule), new RRuleExpander(), new FakeEscalationPolicyRepository());
 
         // 3rd Monday shift (index 2) → carol, per 0-based round robin.
         var thirdShift = firstStart.AddDays(14).AddHours(1); // well inside the 8h window
@@ -104,7 +120,7 @@ public class OnCallServiceTests
         };
 
         var schedule = new OnCallSchedule { Id = 1, Name = "Test", Layers = [layer], Overrides = [] };
-        var service = new OnCallService(new FakeScheduleRepository(schedule), new RRuleExpander());
+        var service = new OnCallService(new FakeScheduleRepository(schedule), new RRuleExpander(), new FakeEscalationPolicyRepository());
 
         var atInstant = firstStart.AddDays(35).AddHours(2); // 5th Monday, inside shift window
 

@@ -46,18 +46,6 @@ public class Incident
 
     public ICollection<IncidentTimelineEvent> TimelineEvents { get; set; } = [];
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
-    public ICollection<IncidentMerge> MergesAsSource { get; set; } = [];
-    public ICollection<IncidentMerge> MergesAsTarget { get; set; } = [];
     public ICollection<IncidentImpactChange> ImpactChanges { get; set; } = [];
     public ICollection<Alert> Alerts { get; set; } = [];
-
-    // Escalation
-    public int? EscalationPolicyId { get; set; }
-    public EscalationPolicy? EscalationPolicy { get; set; }
-    /// <summary>0-based index of the current escalation step. Null = not yet initialized.</summary>
-    public int? EscalationCurrentStep { get; set; }
-    /// <summary>When the current step became active. Step 0 uses incident.CreatedAt; subsequent steps use dispatch time.</summary>
-    public DateTimeOffset? EscalationStepStartedAt { get; set; }
-    /// <summary>Updated when a human adds a comment or manually updates the incident. Used for inactivity re-escalation.</summary>
-    public DateTimeOffset? LastUserActivityAt { get; set; }
 }

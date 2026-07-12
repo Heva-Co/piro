@@ -114,11 +114,11 @@ public record UpdateEmailConfigRequest(
     int?    SmtpPort,
     string? SmtpUsername,
     string? SmtpPassword,
-    [property: RegularExpression(EmailConfigValidation.MailboxPattern, ErrorMessage = "Must be an email address or 'Name <email@domain.com>'.")]
+    [RegularExpression(EmailConfigValidation.MailboxPattern, ErrorMessage = "Must be an email address or 'Name <email@domain.com>'.")]
     string? SmtpFrom,
     bool?   SmtpUseTls,
     string? ResendApiKey,
-    [property: RegularExpression(EmailConfigValidation.MailboxPattern, ErrorMessage = "Must be an email address or 'Name <email@domain.com>'.")]
+    [RegularExpression(EmailConfigValidation.MailboxPattern, ErrorMessage = "Must be an email address or 'Name <email@domain.com>'.")]
     string? ResendFrom);
 
 internal static class EmailConfigValidation
