@@ -7,7 +7,9 @@ import { Icon } from "@iconify/react";
 import { AlertTriangle, Save, Settings } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone/DangerZone";
@@ -63,8 +65,7 @@ export default function IntegrationFormPage() {
     resolver: zodResolver(integrationFormSchema),
     defaultValues: { ...INTEGRATION_FORM_DEFAULTS, type: initialType },
   });
-  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting }, formState } = methods;
-  console.log(formState)
+  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting } } = methods;
 
   const type = watch("type");
   const [saved, setSaved] = useState(false);
@@ -104,7 +105,6 @@ export default function IntegrationFormPage() {
   const saveMutation = useMutation({
     mutationFn: (values: IntegrationFormValues) => {
       const payload = { name: values.name, type: values.type, description: values.description || undefined, configJson: buildConfigJson(values) };
-      debugger
       if (isEdit) return integrationsApi.update(Number(id), payload);
       return integrationsApi.create(payload);
     },
@@ -124,134 +124,144 @@ export default function IntegrationFormPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATIONS }); navigate(ROUTES.INTEGRATIONS.LIST); },
   });
 
+  async function handleDelete() {
+    await deleteMutation.mutateAsync();
+  }
+
   const pageTitle = isEdit ? (existing?.name ?? "Edit Integration") : "New Integration";
   const typeMeta = INTEGRATION_TYPE_MAP[type as keyof typeof INTEGRATION_TYPE_MAP] as IntegrationTypeMeta | undefined;
 
   return (
     <FormProvider {...methods}>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Integrations", onClick: () => navigate(ROUTES.INTEGRATIONS.LIST) },
-          { label: pageTitle },
-        ]}
-        actions={
-          <Button onClick={handleSubmit(async (data) => await saveMutation.mutateAsync(data))} disabled={isSubmitting || (!isEdit && NO_CONFIG_TYPES.has(type))}>
-            <Save size={14} />
-            {isSubmitting ? "Saving…" : saved ? "Saved!" : isEdit ? "Save changes" : "Create Integration"}
-          </Button>
-        }
-      />
+      <form onSubmit={handleSubmit((v) => saveMutation.mutateAsync(v))}>
+        <PageHeader
+          breadcrumbs={[
+            { label: "Integrations", onClick: () => navigate(ROUTES.INTEGRATIONS.LIST) },
+            { label: pageTitle },
+          ]}
+          actions={
+            <Button type="submit" disabled={isSubmitting || (!isEdit && NO_CONFIG_TYPES.has(type))}>
+              <Save size={14} />
+              {isSubmitting ? "Saving…" : saved ? "Saved!" : isEdit ? "Save changes" : "Create Integration"}
+            </Button>
+          }
+        />
 
-      {saveMutation.isError && (
-        <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          Failed to save integration.
-        </div>
-      )}
-
-      <SectionAccordion
-        title="General Settings"
-        description="Provider type and basic information"
-        icon={<Settings size={16} className="text-muted-foreground" />}
-        defaultOpen
-      >
-        <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold">Provider</label>
-            <Controller
-              control={control}
-              name="type"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => v && field.onChange(v)} disabled={isEdit}>
-                  <SelectTrigger className="w-full sm:w-56">
-                    <SelectValue>
-                      <span className="inline-flex items-center gap-2">
-                        {typeMeta?.icon && <Icon icon={typeMeta.icon} className={`size-4 ${typeMeta.iconClass ?? ""}`} />}
-                        {typeMeta?.label ?? field.value}
-                      </span>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Third-party
-                    </div>
-                    {INTEGRATION_TYPES_THIRDPARTY.map((t) => (
-                      <SelectItem key={t.value} value={t.value} disabled={t.upcoming}>
-                        <span className="inline-flex items-center gap-2">
-                          <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""} ${t.upcoming ? "opacity-40" : ""}`} />
-                          <span className={t.upcoming ? "opacity-40" : ""}>{t.label}</span>
-                          {t.upcoming && <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Soon</span>}
-                        </span>
-                      </SelectItem>
-                    ))}
-                    <div className="px-2 py-1 mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-t border-border">
-                      Notification
-                    </div>
-                    {INTEGRATION_TYPES_NOTIFICATION.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        <span className="inline-flex items-center gap-2">
-                          <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""}`} />
-                          {t.label}
-                          {t.alpha && (
-                            <span className="ml-auto rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium">
-                              Alpha
-                            </span>
-                          )}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {isEdit && <p className="text-xs text-muted-foreground">Type cannot be changed after creation.</p>}
+        {saveMutation.isError && (
+          <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            Failed to save integration.
           </div>
+        )}
 
-          {!NO_CONFIG_TYPES.has(type) && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
-                <Input {...register("name")} placeholder="e.g. Production Slack" />
-                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold">Description</label>
-                <Input {...register("description")} placeholder="Optional description" />
-              </div>
-            </>
-          )}
-        </div>
-      </SectionAccordion>
-
-      <SectionAccordion
-        title="Configuration"
-        description={`Credentials for ${typeMeta?.label ?? type}`}
-        icon={<Icon icon={typeMeta?.icon ?? "lucide:plug"} className={`size-4 ${typeMeta?.iconClass ?? ""}`} />}
-        defaultOpen
-      >
-        <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-          {type === "GoogleCloud" && <GoogleCloudConfig />}
-          {type === "Jira" && <JiraConfig />}
-          {type === "PagerDuty" && <PagerDutyConfig />}
-          {type === "MSTeams" && <MSTeamsConfig />}
-          {type === "Telegram" && <TelegramConfig />}
-          {type === "Twilio" && <TwilioConfig />}
-          {type === "Email" && <EmailConfig />}
-          {type === "Opsgenie" && <OpsgenieConfig />}
-          {type === "Pushover" && <PushoverConfig />}
-          {type === "Ntfy" && <NtfyConfig />}
-        </div>
-      </SectionAccordion>
-
-      {isEdit && (
         <SectionAccordion
-          title="Danger Zone"
-          description="Irreversible actions for this integration"
-          icon={<AlertTriangle size={16} className="text-destructive" />}
-          titleClassName="text-destructive"
+          title="General Settings"
+          description="Provider type and basic information"
+          icon={<Settings size={16} className="text-muted-foreground" />}
+          defaultOpen
         >
-          <DangerZone objectName="integration" objectId={existing?.name ?? ""} onDelete={() => deleteMutation.mutateAsync()} />
+          <Card>
+            <CardContent className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <Label>Provider</Label>
+                <Controller
+                  control={control}
+                  name="type"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={(v) => v && field.onChange(v)} disabled={isEdit}>
+                      <SelectTrigger className="w-full sm:w-56">
+                        <SelectValue>
+                          <span className="inline-flex items-center gap-2">
+                            {typeMeta?.icon && <Icon icon={typeMeta.icon} className={`size-4 ${typeMeta.iconClass ?? ""}`} />}
+                            {typeMeta?.label ?? field.value}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Third-party
+                        </div>
+                        {INTEGRATION_TYPES_THIRDPARTY.map((t) => (
+                          <SelectItem key={t.value} value={t.value} disabled={t.upcoming}>
+                            <span className="inline-flex items-center gap-2">
+                              <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""} ${t.upcoming ? "opacity-40" : ""}`} />
+                              <span className={t.upcoming ? "opacity-40" : ""}>{t.label}</span>
+                              {t.upcoming && <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Soon</span>}
+                            </span>
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1 mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-t border-border">
+                          Notification
+                        </div>
+                        {INTEGRATION_TYPES_NOTIFICATION.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            <span className="inline-flex items-center gap-2">
+                              <Icon icon={t.icon} className={`size-4 ${t.iconClass ?? ""}`} />
+                              {t.label}
+                              {t.alpha && (
+                                <span className="ml-auto rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                  Alpha
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {isEdit && <p className="text-xs text-muted-foreground">Type cannot be changed after creation.</p>}
+              </div>
+
+              {!NO_CONFIG_TYPES.has(type) && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Name <span className="text-destructive">*</span></Label>
+                    <Input {...register("name")} placeholder="e.g. Production Slack" />
+                    {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Description</Label>
+                    <Input {...register("description")} placeholder="Optional description" />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </SectionAccordion>
-      )}
+
+        <SectionAccordion
+          title="Configuration"
+          description={`Credentials for ${typeMeta?.label ?? type}`}
+          icon={<Icon icon={typeMeta?.icon ?? "lucide:plug"} className={`size-4 ${typeMeta?.iconClass ?? ""}`} />}
+          defaultOpen
+        >
+          <Card>
+            <CardContent className="flex flex-col gap-5">
+              {type === "GoogleCloud" && <GoogleCloudConfig />}
+              {type === "Jira" && <JiraConfig />}
+              {type === "PagerDuty" && <PagerDutyConfig />}
+              {type === "MSTeams" && <MSTeamsConfig />}
+              {type === "Telegram" && <TelegramConfig />}
+              {type === "Twilio" && <TwilioConfig />}
+              {type === "Email" && <EmailConfig />}
+              {type === "Opsgenie" && <OpsgenieConfig />}
+              {type === "Pushover" && <PushoverConfig />}
+              {type === "Ntfy" && <NtfyConfig />}
+            </CardContent>
+          </Card>
+        </SectionAccordion>
+
+        {isEdit && (
+          <SectionAccordion
+            title="Danger Zone"
+            description="Irreversible actions for this integration"
+            icon={<AlertTriangle size={16} className="text-destructive" />}
+            titleClassName="text-destructive"
+          >
+            <DangerZone objectName="integration" objectId={existing?.name ?? ""} onDelete={handleDelete} />
+          </SectionAccordion>
+        )}
+      </form>
     </FormProvider>
   );
 }

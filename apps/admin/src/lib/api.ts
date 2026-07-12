@@ -5,7 +5,6 @@
 
 import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
-import type { IncidentVisibilityKey } from "@/constants/incidents";
 import type { Incident } from "@/lib/actions/incidents";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────

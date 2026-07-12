@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { checksApi, alertConfigsApi, alertsApi } from "@/lib/api";
-import type { Check, CreateCheck, AlertConfig } from "@/lib/api";
+import type { Check, CreateCheck, AlertConfig, CreateAlertConfig } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
 export function useAllChecks() {
@@ -111,7 +111,7 @@ export function useAlertConfigs(serviceSlug: string, checkSlug: string) {
 export function useCreateAlertConfig(serviceSlug: string, checkSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<AlertConfig, "id">) =>
+    mutationFn: (data: CreateAlertConfig) =>
       alertConfigsApi.create(serviceSlug, checkSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({

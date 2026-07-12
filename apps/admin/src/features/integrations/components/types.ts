@@ -2,36 +2,36 @@ import { z } from "zod";
 
 const baseIntegrationSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  description: z.string().optional().default(""),
+  description: z.string(),
   type: z.string(),
   // GoogleCloud
-  serviceAccountJson: z.string().optional().default(""),
+  serviceAccountJson: z.string(),
   // Jira
-  jiraBaseUrl: z.string().optional().default(""),
-  jiraEmail: z.string().optional().default(""),
-  jiraApiToken: z.string().optional().default(""),
-  jiraProjectKey: z.string().optional().default(""),
-  jiraIssueType: z.string().optional().default(""),
+  jiraBaseUrl: z.string(),
+  jiraEmail: z.string(),
+  jiraApiToken: z.string(),
+  jiraProjectKey: z.string(),
+  jiraIssueType: z.string(),
   // Slack
-  slackBotToken: z.string().optional().default(""),
+  slackBotToken: z.string(),
   // PagerDuty
-  pdRoutingKey: z.string().optional().default(""),
+  pdRoutingKey: z.string(),
   // MSTeams
-  teamsWebhookUrl: z.string().optional().default(""),
+  teamsWebhookUrl: z.string(),
   // Telegram
-  tgBotToken: z.string().optional().default(""),
+  tgBotToken: z.string(),
   // Twilio
-  twAccountSid: z.string().optional().default(""),
-  twAuthToken: z.string().optional().default(""),
-  twFromNumber: z.string().optional().default(""),
+  twAccountSid: z.string(),
+  twAuthToken: z.string(),
+  twFromNumber: z.string(),
   // Opsgenie
-  ogApiKey: z.string().optional().default(""),
-  ogRegion: z.string().optional().default(""),
+  ogApiKey: z.string(),
+  ogRegion: z.string(),
   // Pushover
-  poAppToken: z.string().optional().default(""),
+  poAppToken: z.string(),
   // Ntfy
-  ntfyServerUrl: z.string().optional().default(""),
-  ntfyToken: z.string().optional().default(""),
+  ntfyServerUrl: z.string(),
+  ntfyToken: z.string(),
 });
 
 /**

@@ -297,7 +297,7 @@ export default function AlertDetailPage() {
             {openIncidents.length === 0 ? (
               <p className="text-sm text-muted-foreground">No open incidents.</p>
             ) : (
-              <Select value={selectedIncidentId} onValueChange={setSelectedIncidentId}>
+              <Select value={selectedIncidentId} onValueChange={(v) => setSelectedIncidentId(v ?? "")}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select incident…" />
                 </SelectTrigger>

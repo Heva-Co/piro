@@ -130,9 +130,7 @@ export default function IncidentsPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {inc.isGlobal
-                      ? <span className="text-xs text-indigo-600 font-medium">All</span>
-                      : (inc.services?.length ?? 0)}
+                    {inc.services?.length ?? 0}
                   </TableCell>
                   <TableCell>
                     <Button

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save } from "lucide-react";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Switch } from "@/components/ui/switch";
@@ -46,7 +46,7 @@ export default function IncidentFormPage() {
         try { await incidentsApi.addService(incident.id, slug, ""); } catch { /* best effort */ }
       }
       if (initialComment.trim()) {
-        await incidentsApi.addComment(incident.id, initialComment, status);
+        await incidentsApi.addTimelineComment(incident.id, initialComment, status);
       }
       if (acknowledge) {
         await incidentsApi.acknowledge(incident.id);
