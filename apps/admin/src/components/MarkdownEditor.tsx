@@ -28,7 +28,8 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.storage.markdown.getMarkdown());
+      // tiptap-markdown doesn't ship a Storage type augmentation for the extension it registers.
+      onChange((editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown());
     },
   });
 

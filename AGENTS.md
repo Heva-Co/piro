@@ -107,6 +107,7 @@ dotnet test
 ### Common
 - Use `pnpm` in all scripts and Dockerfiles
 - No SvelteKit — the project was fully migrated to Next.js + Vite
+- **Type-check with `pnpm exec tsc -b`, not `tsc --noEmit`.** Both `apps/web` and `apps/admin` build via `tsc -b && vite build` (project references), and `-b` catches errors that a plain `--noEmit` run can miss or under-report due to incremental/composite project caching. Always run `tsc -b` before considering a frontend change verified — it's what CI actually runs.
 
 ---
 

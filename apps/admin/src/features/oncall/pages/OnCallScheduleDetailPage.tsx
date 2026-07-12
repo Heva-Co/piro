@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import axios from "axios";
-import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Settings, Save, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Settings, Save, Trash2 } from "lucide-react";
 import { onCallApi, type OnCallSlot } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -54,11 +54,6 @@ function fmtRange(from: Date, to: Date, mode: ViewMode): string {
 
 function isoStr(d: Date): string {
   return d.toISOString();
-}
-
-function fmtGapRange(startsAt: string, endsAt: string): string {
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC" };
-  return `${new Date(startsAt).toLocaleString(undefined, opts)} – ${new Date(endsAt).toLocaleString(undefined, opts)}`;
 }
 
 export default function OnCallScheduleDetailPage() {

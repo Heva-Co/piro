@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ExternalLink, Play, RefreshCw, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
+import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import {
   useCheck,
   useUpdateCheck,
   useDeleteCheck,
   useRunCheck,
-  useCheckLogs,
   useAlertConfigs,
   useCreateAlertConfig,
   useUpdateAlertConfig,
