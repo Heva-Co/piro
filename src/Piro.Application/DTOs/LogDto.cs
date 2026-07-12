@@ -15,6 +15,7 @@ public record LogQueryParams(
     string? Search = null,
     DateTime? From = null,
     DateTime? To = null,
+    int? CheckId = null,
     int Page = 1,
     int PageSize = 50
 );

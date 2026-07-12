@@ -5,13 +5,15 @@ using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Configurations;
 
-/// <summary>EF Core mapping for <see cref="AlertConfig"/> and <see cref="AlertConfigNotificationChannel"/>.</summary>
+/// <summary>EF Core mapping for <see cref="AlertConfig"/>.</summary>
 internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
 {
     public void Configure(EntityTypeBuilder<AlertConfig> builder)
     {
         builder.HasKey(a => a.Id);
-        builder.HasIndex(a => a.CheckId);
+
+        // Restricted to one AlertConfig per Check for now — multi-config evaluation is deferred.
+        builder.HasIndex(a => a.CheckId).IsUnique();
 
         builder.Property(a => a.AlertFor).HasConversion<string>();
         builder.Property(a => a.AlertValue).HasMaxLength(255).IsRequired();
@@ -20,25 +22,6 @@ internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
         builder.HasOne(a => a.Check)
             .WithMany(c => c.AlertConfigs)
             .HasForeignKey(a => a.CheckId)
-            .OnDelete(DeleteBehavior.Cascade);
-    }
-}
-
-internal class AlertConfigNotificationChannelConfiguration : IEntityTypeConfiguration<AlertConfigNotificationChannel>
-{
-    public void Configure(EntityTypeBuilder<AlertConfigNotificationChannel> builder)
-    {
-        builder.ToTable("AlertConfigNotificationChannels");
-        builder.HasKey(ac => new { ac.AlertConfigId, ac.NotificationChannelId });
-
-        builder.HasOne(ac => ac.AlertConfig)
-            .WithMany(a => a.AlertConfigNotificationChannels)
-            .HasForeignKey(ac => ac.AlertConfigId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne(ac => ac.NotificationChannel)
-            .WithMany(c => c.AlertConfigNotificationChannels)
-            .HasForeignKey(ac => ac.NotificationChannelId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

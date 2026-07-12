@@ -12,5 +12,6 @@ internal class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.Property(u => u.Name).HasMaxLength(255).IsRequired();
         builder.Property(u => u.ExternalId).HasMaxLength(500);
         builder.Property(u => u.ExternalProvider).HasMaxLength(50);
+        builder.Property(u => u.TimeZone).HasMaxLength(100).HasDefaultValue("UTC");
     }
 }

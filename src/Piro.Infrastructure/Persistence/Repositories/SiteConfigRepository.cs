@@ -22,43 +22,46 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
             rows.GetValueOrDefault(SiteDataKeys.SiteMetaDescription),
             rows.GetValueOrDefault(SiteDataKeys.SiteOgImageUrl),
             BuiltinWorkerDisabled: rows.TryGetValue(SiteDataKeys.WorkerBuiltinDisabled, out var flag) &&
-                                   string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase),
-            IncidentPublishDelayMinutes: rows.TryGetValue(SiteDataKeys.IncidentPublishDelayMinutes, out var delay) &&
-                int.TryParse(delay, out var delayVal) ? delayVal : 0,
-            IncidentCorrelationMode: rows.TryGetValue(SiteDataKeys.IncidentCorrelationMode, out var mode) &&
-                Enum.TryParse<IncidentCorrelationMode>(mode, out var modeVal) ? modeVal : IncidentCorrelationMode.Hybrid,
-            GlobalIncidentThreshold: rows.TryGetValue(SiteDataKeys.IncidentGlobalThreshold, out var threshold) &&
-                int.TryParse(threshold, out var thresholdVal) ? thresholdVal : 3,
-            GlobalIncidentCorrelationWindowMinutes: rows.TryGetValue(SiteDataKeys.IncidentGlobalCorrelationWindowMinutes, out var window) &&
-                int.TryParse(window, out var windowVal) ? windowVal : 5
+                                   string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase)
         );
     }
 
     public async Task SetAsync(string key, string? value, CancellationToken ct = default)
     {
-        var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
+        await SetManyAsync(new Dictionary<string, string?> { [key] = value }, ct);
+    }
 
-        if (value is null)
+    public async Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+        foreach (var (key, value) in values)
         {
-            if (row is not null) db.SiteData.Remove(row);
-        }
-        else if (row is null)
-        {
-            db.SiteData.Add(new SiteData
+            var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
+
+            if (value is null)
             {
-                Key = key,
-                Value = value,
-                DataType = "string",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            });
-        }
-        else
-        {
-            row.Value = value;
-            row.UpdatedAt = DateTime.UtcNow;
+                if (row is not null) db.SiteData.Remove(row);
+            }
+            else if (row is null)
+            {
+                db.SiteData.Add(new SiteData
+                {
+                    Key = key,
+                    Value = value,
+                    DataType = "string",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                });
+            }
+            else
+            {
+                row.Value = value;
+                row.UpdatedAt = DateTime.UtcNow;
+            }
         }
 
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
     }
 }

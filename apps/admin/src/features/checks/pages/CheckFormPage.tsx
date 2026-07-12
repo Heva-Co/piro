@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
 import { Settings, Wrench } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { AdminLayout } from "@/components/AdminLayout";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
 import { checkTypesApi, integrationsApi } from "@/lib/api";
@@ -77,8 +76,6 @@ export default function CheckFormPage() {
       showCustomCron: false,
       isActive: true,
       isMultiRegion: false,
-      criticality: "High",
-      autoCreate: false,
     },
   });
 
@@ -108,8 +105,6 @@ export default function CheckFormPage() {
         typeDataJson: JSON.stringify(buildConfig(type, typeConfig)),
         isActive: values.isActive,
         isMultiRegion: values.isMultiRegion,
-        criticality: values.criticality,
-        automaticallyCreateIncident: values.autoCreate,
         integrationId,
       });
       navigate(ROUTES.CHECKS.DETAIL(serviceSlug!, check.slug));
@@ -148,7 +143,7 @@ export default function CheckFormPage() {
   );
 
   return (
-    <AdminLayout title="New Check">
+    <>
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(handleSubmit)}>
           {/* Breadcrumb */}
@@ -211,6 +206,6 @@ export default function CheckFormPage() {
           </div>
         </form>
       </FormProvider>
-    </AdminLayout>
+    </>
   );
 }

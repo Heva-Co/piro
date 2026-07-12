@@ -13,14 +13,40 @@ internal class UserNotificationPreferenceRepository(PiroDbContext db) : IUserNot
             .OrderBy(p => p.Priority)
             .ToListAsync(ct);
 
-    public async Task SetAsync(int userId, List<UserNotificationPreference> preferences, CancellationToken ct = default)
+    public async Task<Dictionary<int, List<UserNotificationPreference>>> GetByUserIdsAsync(
+        IReadOnlyCollection<int> userIds, CancellationToken ct = default)
     {
-        var existing = await db.UserNotificationPreferences
-            .Where(p => p.UserId == userId)
+        var prefs = await db.UserNotificationPreferences
+            .Include(p => p.Integration)
+            .Where(p => userIds.Contains(p.UserId))
+            .OrderBy(p => p.Priority)
             .ToListAsync(ct);
 
-        db.UserNotificationPreferences.RemoveRange(existing);
-        db.UserNotificationPreferences.AddRange(preferences);
+        return prefs.GroupBy(p => p.UserId).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    public async Task<UserNotificationPreference?> GetByIdAsync(int id, CancellationToken ct = default) =>
+        await db.UserNotificationPreferences
+            .Include(p => p.Integration)
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public async Task<UserNotificationPreference> CreateAsync(UserNotificationPreference preference, CancellationToken ct = default)
+    {
+        db.UserNotificationPreferences.Add(preference);
+        await db.SaveChangesAsync(ct);
+        return preference;
+    }
+
+    public async Task UpdateAsync(UserNotificationPreference preference, CancellationToken ct = default)
+    {
+        db.UserNotificationPreferences.Update(preference);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(UserNotificationPreference preference, CancellationToken ct = default)
+    {
+        db.UserNotificationPreferences.Remove(preference);
         await db.SaveChangesAsync(ct);
     }
 }

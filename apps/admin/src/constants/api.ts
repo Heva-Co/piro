@@ -29,7 +29,6 @@ export const ENDPOINTS = {
   // Site config
   SITE: {
     CONFIG: `${API_BASE}/site/config`,
-    INCIDENTS_CONFIG: `${API_BASE}/site/incidents-config`,
     UPLOAD: (type: string) => `${API_BASE}/site/upload/${type}`,
   },
 
@@ -39,6 +38,15 @@ export const ENDPOINTS = {
 
   // Checks
   CHECKS: `${API_BASE}/checks`,
+  ALERTS: `${API_BASE}/alerts`,
+  ALERT: (id: number | string) => `${API_BASE}/alerts/${id}`,
+  ALERTS_OPEN_INCIDENTS: `${API_BASE}/alerts/open-incidents`,
+  ALERT_INCIDENT: (id: number | string) => `${API_BASE}/alerts/${id}/incident`,
+  ALERT_ACKNOWLEDGE: (id: number | string) => `${API_BASE}/alerts/${id}/acknowledge`,
+  ALERT_ESCALATION_LOGS: (id: number | string) => `${API_BASE}/alerts/${id}/escalation-logs`,
+
+  // Dashboard
+  DASHBOARD_METRICS: `${API_BASE}/dashboard/metrics`,
   SERVICE_CHECKS: (serviceSlug: string) => `${API_BASE}/services/${serviceSlug}/checks`,
   SERVICE_CHECK: (serviceSlug: string, checkSlug: string) =>
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}`,
@@ -46,23 +54,20 @@ export const ENDPOINTS = {
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/run`,
   SERVICE_CHECK_LOGS: (serviceSlug: string, checkSlug: string) =>
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/logs`,
+  SERVICE_CHECK_HISTORY: (serviceSlug: string, checkSlug: string) =>
+    `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/history`,
 
   // Incidents
   INCIDENTS: `${API_BASE}/incidents`,
   INCIDENT: (id: number | string) => `${API_BASE}/incidents/${id}`,
-  INCIDENT_COMMENTS: (id: number | string) => `${API_BASE}/incidents/${id}/comments`,
-  INCIDENT_COMMENT: (id: number | string, commentId: number | string) =>
-    `${API_BASE}/incidents/${id}/comments/${commentId}`,
+  INCIDENT_TIMELINE: (id: number | string) => `${API_BASE}/incidents/${id}/timeline`,
+  INCIDENT_UPDATES: (id: number | string) => `${API_BASE}/incidents/${id}/updates`,
+  INCIDENT_UPDATE: (id: number | string, eventId: number | string) =>
+    `${API_BASE}/incidents/${id}/updates/${eventId}`,
   INCIDENT_SERVICES: (id: number | string) => `${API_BASE}/incidents/${id}/services`,
   INCIDENT_SERVICE: (id: number | string, slug: string) =>
     `${API_BASE}/incidents/${id}/services/${slug}`,
   INCIDENT_ACKNOWLEDGE: (id: number | string) => `${API_BASE}/incidents/${id}/acknowledge`,
-
-  // Notification channels
-  CHANNELS: `${API_BASE}/notification-channels`,
-  CHANNEL: (id: number | string) => `${API_BASE}/notification-channels/${id}`,
-  CHANNEL_TEST: `${API_BASE}/notification-channels/test`,
-  CHANNEL_TEST_PERSONAL: `${API_BASE}/notification-channels/test-personal`,
 
   // Alert configs
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
@@ -74,6 +79,7 @@ export const ENDPOINTS = {
   MAINTENANCES: `${API_BASE}/maintenances`,
   MAINTENANCE: (id: number | string) => `${API_BASE}/maintenances/${id}`,
   MAINTENANCE_CANCEL: (id: number | string) => `${API_BASE}/maintenances/${id}/cancel`,
+  MAINTENANCE_EVENT_CANCEL: (id: number | string, eventId: number) => `${API_BASE}/maintenances/${id}/events/${eventId}/cancel`,
 
   // Users & roles
   USERS: `${API_BASE}/users`,
@@ -96,11 +102,17 @@ export const ENDPOINTS = {
   WORKERS: `${API_BASE}/workers`,
   WORKER: (id: string) => `${API_BASE}/workers/${id}`,
 
+  // Jobs (scheduler status)
+  JOBS: `${API_BASE}/jobs`,
+
   // Config import
   CONFIG_IMPORT: `${API_BASE}/config/import`,
 
   // Logs
   LOGS: `${API_BASE}/logs`,
+
+  // Global search
+  SEARCH: `${API_BASE}/search`,
 
   // Integrations
   INTEGRATIONS: `${API_BASE}/integrations`,
@@ -111,17 +123,33 @@ export const ENDPOINTS = {
 
   // On-call schedules
   ONCALL_SCHEDULES: `${API_BASE}/oncall/schedules`,
+  ONCALL_SCHEDULES_MEMBERS: `${API_BASE}/oncall/schedules/members`,
   ONCALL_SCHEDULE: (id: number | string) => `${API_BASE}/oncall/schedules/${id}`,
   ONCALL_SCHEDULE_CURRENT: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/current`,
   ONCALL_SCHEDULE_EXPAND: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/expand`,
+  ONCALL_SCHEDULE_ROTATIONS: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/rotations`,
+  ONCALL_SCHEDULE_ROTATIONS_PREVIEW: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/rotations/preview`,
   ONCALL_SCHEDULE_LAYERS: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/layers`,
   ONCALL_SCHEDULE_LAYER: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}`,
-  ONCALL_SCHEDULE_LAYER_USERS: (id: number | string, layerId: number | string) => `${API_BASE}/oncall/schedules/${id}/layers/${layerId}/users`,
   ONCALL_SCHEDULE_OVERRIDES: (id: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides`,
   ONCALL_SCHEDULE_OVERRIDE: (id: number | string, overrideId: number | string) => `${API_BASE}/oncall/schedules/${id}/overrides/${overrideId}`,
+  ONCALL_MY_SLOTS: `${API_BASE}/oncall/schedules/me/slots`,
+  ONCALL_MY_CURRENT: `${API_BASE}/oncall/schedules/me/current`,
+
+  // Escalation policies
+  ESCALATION_POLICIES: `${API_BASE}/escalation-policies`,
+  ESCALATION_POLICY: (id: number | string) => `${API_BASE}/escalation-policies/${id}`,
 
   // User notification preferences
   USER_NOTIFICATION_PREFERENCES: (userId: number | string) => `${API_BASE}/users/${userId}/notification-preferences`,
+  USER_NOTIFICATION_PREFERENCE: (userId: number | string, preferenceId: number) =>
+    `${API_BASE}/users/${userId}/notification-preferences/${preferenceId}`,
+  USER_NOTIFICATION_PREFERENCES_REORDER: (userId: number | string) =>
+    `${API_BASE}/users/${userId}/notification-preferences/reorder`,
+  USER_NOTIFICATION_PREFERENCE_VERIFY_SEND: (userId: number | string, preferenceId: number) =>
+    `${API_BASE}/users/${userId}/notification-preferences/${preferenceId}/verify/send`,
+  USER_NOTIFICATION_PREFERENCE_VERIFY_CONFIRM: (userId: number | string, preferenceId: number) =>
+    `${API_BASE}/users/${userId}/notification-preferences/${preferenceId}/verify/confirm`,
 
   // Auth/me
   AUTH_ME: `${API_BASE}/auth/me`,
@@ -132,6 +160,9 @@ export const QUERY_KEYS = {
   SERVICES: ["services"] as const,
   SERVICE: (slug: string) => ["services", slug] as const,
   CHECKS: ["checks"] as const,
+  ALERTS: ["alerts"] as const,
+  ALERT: (id: number | string) => ["alerts", id] as const,
+  DASHBOARD_METRICS: (from: string, to: string) => ["dashboard-metrics", from, to] as const,
   SERVICE_CHECKS: (serviceSlug: string) => ["checks", serviceSlug] as const,
   SERVICE_CHECK: (serviceSlug: string, checkSlug: string) =>
     ["checks", serviceSlug, checkSlug] as const,
@@ -139,18 +170,16 @@ export const QUERY_KEYS = {
     ["check-logs", serviceSlug, checkSlug] as const,
   INCIDENTS: ["incidents"] as const,
   INCIDENT: (id: number | string) => ["incidents", id] as const,
-  CHANNELS: ["channels"] as const,
-  CHANNEL: (id: number | string) => ["channels", id] as const,
   MAINTENANCES: ["maintenances"] as const,
   MAINTENANCE: (id: number | string) => ["maintenances", id] as const,
   USERS: ["users"] as const,
   ROLES: ["roles"] as const,
   API_KEYS: ["api-keys"] as const,
   WORKERS: ["workers"] as const,
+  JOBS: ["jobs"] as const,
   OIDC_CONFIGS: ["oidc-configs"] as const,
   OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,
-  INCIDENTS_CONFIG: ["incidents-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
@@ -159,12 +188,17 @@ export const QUERY_KEYS = {
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
   CHECK_TYPES: ["check-types"] as const,
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
+  ONCALL_SCHEDULES_MEMBERS: ["oncall-schedules", "members"] as const,
   ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,
   ONCALL_SCHEDULE_EXPAND: (id: number | string, from: string, to: string) => ["oncall-schedules", id, "expand", from, to] as const,
-  ESCALATION_POLICY: ["escalation-policy"] as const,
+  ONCALL_MY_SLOTS: (from: string, to: string) => ["oncall-schedules", "me", "slots", from, to] as const,
+  ONCALL_MY_CURRENT: ["oncall-schedules", "me", "current"] as const,
+  ESCALATION_POLICIES: ["escalation-policies"] as const,
+  ESCALATION_POLICY: (id: number | string) => ["escalation-policies", id] as const,
   TIMEZONES: ["timezones"] as const,
   MY_PROFILE: ["my-profile"] as const,
   USER_NOTIFICATION_PREFERENCES: (userId: number | string) => ["user-notification-preferences", userId] as const,
+  SEARCH: (query: string) => ["search", query] as const,
 } as const;
 
 /** Status display constants */
@@ -186,15 +220,11 @@ export const STATUS_COLORS: Record<string, string> = {
 
 
 export const CHANNEL_TYPE_LABELS: Record<string, string> = {
-  Webhook:    "Webhook",
   Email:      "Email",
-  Slack:      "Slack",
   PagerDuty:  "PagerDuty",
   MSTeams:    "Microsoft Teams",
   Telegram:   "Telegram",
-  TwilioSms:  "Twilio SMS",
-  GoogleChat: "Google Chat",
-  Discord:    "Discord",
+  Twilio:     "Twilio",
   Opsgenie:   "Opsgenie",
   Pushover:   "Pushover",
   Ntfy:       "Ntfy",

@@ -14,14 +14,12 @@ public class MaintenancesController(MaintenanceAppService maintenanceService) : 
 {
     /// <summary>Returns all maintenance windows.</summary>
     [HttpGet]
-    [AllowAnonymous]
-    [ProducesResponseType<IEnumerable<MaintenanceDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<IEnumerable<MaintenanceListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await maintenanceService.GetAllAsync(ct));
 
     /// <summary>Returns a single maintenance window by ID.</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     [ProducesResponseType<MaintenanceDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
@@ -65,6 +63,16 @@ public class MaintenancesController(MaintenanceAppService maintenanceService) : 
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await maintenanceService.DeleteAsync(id, ct);
+        return NoContent();
+    }
+
+    /// <summary>Cancels a single occurrence of a recurring maintenance, leaving the maintenance and its other events untouched.</summary>
+    [HttpPost("{id:int}/events/{eventId:int}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelEvent(int id, int eventId, CancellationToken ct)
+    {
+        await maintenanceService.CancelEventAsync(id, eventId, ct);
         return NoContent();
     }
 }

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Application.Services;
 using Piro.Domain.Enums;
 
 namespace Piro.Api.Controllers;
@@ -16,8 +18,47 @@ namespace Piro.Api.Controllers;
 public class PublicController(
     IServiceRepository serviceRepo,
     ICheckDataPointRepository dataPointRepo,
-    IIncidentRepository incidentRepo) : ControllerBase
+    IIncidentRepository incidentRepo,
+    IMaintenanceRepository maintenanceRepo,
+    IncidentAppService incidentService) : ControllerBase
 {
+    /// <summary>Returns all maintenance windows with their upcoming events, for the public status page.</summary>
+    [HttpGet("maintenances")]
+    [ProducesResponseType<IEnumerable<MaintenanceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMaintenances(CancellationToken ct)
+    {
+        var maintenances = await maintenanceRepo.GetAllForPublicAsync(ct);
+        return Ok(maintenances.Select(m => m.ToPublicDto()));
+    }
+
+    /// <summary>
+    /// Returns published, non-merged incidents for the public status page.
+    /// Pass <c>includeResolved=true</c> to include incident history.
+    /// </summary>
+    [HttpGet("incidents")]
+    [ProducesResponseType<IEnumerable<PublicIncidentDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetIncidents([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
+        Ok(await incidentService.GetAllPublicAsync(includeResolved, ct));
+
+    /// <summary>Returns a single incident by ID, only if it's published — internal fields are always stripped.</summary>
+    [HttpGet("incidents/{id:int}")]
+    [ProducesResponseType<PublicIncidentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIncident(int id, CancellationToken ct) =>
+        Ok(await incidentService.GetPublicByIdAsync(id, ct));
+
+    /// <summary>
+    /// Returns a paginated page of a published incident's Public timeline events, most recent first —
+    /// used for the "view full timeline" infinite-scroll flow on the public status page.
+    /// </summary>
+    [HttpGet("incidents/{id:int}/timeline")]
+    [ProducesResponseType<IncidentTimelinePageDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIncidentTimeline(
+        int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
+        Ok(await incidentService.GetTimelineAsync(id, page, pageSize, publicOnly: true, ct));
+
+
     /// <summary>Returns all visible services with their current computed status.</summary>
     [HttpGet("services")]
     [ProducesResponseType<IEnumerable<PublicServiceDto>>(StatusCodes.Status200OK)]
@@ -28,7 +69,7 @@ public class PublicController(
             .Where(s => !s.IsHidden)
             .Select(s => new PublicServiceDto(
                 s.Slug, s.Name, s.Description, s.ImageUrl,
-                s.CurrentStatus, s.DisplayOrder,
+                s.PublicStatus, s.DisplayOrder,
                 s.HistoryDaysDesktop, s.HistoryDaysMobile));
         return Ok(result);
     }
@@ -45,7 +86,7 @@ public class PublicController(
 
         return Ok(new PublicServiceDto(
             service.Slug, service.Name, service.Description, service.ImageUrl,
-            service.CurrentStatus, service.DisplayOrder,
+            service.PublicStatus, service.DisplayOrder,
             service.HistoryDaysDesktop, service.HistoryDaysMobile));
     }
 
@@ -212,7 +253,7 @@ public class PublicController(
 
         return Ok(new ServiceOverviewDto(
             service.Slug, service.Name, service.Description, service.ImageUrl,
-            service.CurrentStatus,
+            service.PublicStatus,
             latest?.Timestamp ?? now,
             latest?.LatencyMs,
             uptimePercent,

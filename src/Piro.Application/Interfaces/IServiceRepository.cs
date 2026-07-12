@@ -1,3 +1,4 @@
+using Piro.Application.DTOs;
 using Piro.Domain.Entities;
 
 namespace Piro.Application.Interfaces;
@@ -6,8 +7,12 @@ namespace Piro.Application.Interfaces;
 public interface IServiceRepository
 {
     Task<IEnumerable<Service>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Returns a page of services ordered by DisplayOrder/Name, optionally filtered by name/slug search.</summary>
+    Task<(IEnumerable<Service> Items, int TotalCount)> GetPagedAsync(ServiceQueryParams query, CancellationToken ct = default);
     /// <summary>Returns a dictionary of service ID → check count for all services.</summary>
     Task<Dictionary<int, int>> GetCheckCountsAsync(CancellationToken ct = default);
+    /// <summary>Returns the number of checks belonging to a single service.</summary>
+    Task<int> GetCheckCountAsync(int serviceId, CancellationToken ct = default);
     Task<Service?> GetBySlugAsync(string slug, CancellationToken ct = default);
     Task<Service?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<bool> SlugExistsAsync(string slug, CancellationToken ct = default);

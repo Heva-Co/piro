@@ -43,4 +43,19 @@ internal class WorkerRegistrationRepository(PiroDbContext db) : IWorkerRegistrat
             .Where(w => w.IsDefault)
             .ExecuteUpdateAsync(s => s.SetProperty(w => w.IsDefault, false), ct);
     }
+
+    public async Task SetAsDefaultAsync(WorkerRegistration worker, CancellationToken ct = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+
+        await db.WorkerRegistrations
+            .Where(w => w.IsDefault && w.Id != worker.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(w => w.IsDefault, false), ct);
+
+        worker.IsDefault = true;
+        db.WorkerRegistrations.Update(worker);
+        await db.SaveChangesAsync(ct);
+
+        await transaction.CommitAsync(ct);
+    }
 }

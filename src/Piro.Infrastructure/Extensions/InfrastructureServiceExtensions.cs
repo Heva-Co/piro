@@ -139,6 +139,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 s.UseProperties = true;
                 s.UseNewtonsoftJsonSerializer();
                 s.UsePostgres(pg => pg.ConnectionString = connectionString);
+                // Clustering intentionally disabled: the API doesn't run multiple replicas today,
+                // and the cluster check-in handshake (lock negotiation over QRTZ_LOCKS) adds real
+                // startup latency against a remote Postgres. Re-enable if horizontal scaling of
+                // the API is ever introduced.
             });
 
             // Maintenance event status transitions — every 15 minutes
@@ -159,7 +163,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
         services.AddScoped<ICheckSchedulerService, CheckSchedulerService>();
-        services.AddScoped<IIncidentPublishScheduler, IncidentPublishScheduler>();
+        services.AddScoped<IJobStatusService, JobStatusService>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
         // Integration repository
@@ -180,23 +184,30 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
-        services.AddScoped<INotificationChannelRepository, NotificationChannelRepository>();
+        services.AddScoped<IAlertRepository, AlertRepository>();
+
+        // Dashboard metrics
+        services.AddScoped<IMetricsRepository, MetricsRepository>();
 
         // Log repository
         services.AddScoped<ILogRepository, LogRepository>();
 
+        // Global search (admin Cmd+K)
+        services.AddScoped<ISearchRepository, SearchRepository>();
+        services.AddScoped<SearchAppService>();
+
         // Site config repository
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
+        services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
-        // Alert dispatchers — registered as IEnumerable<INotificationDispatcher>
+        // Alert dispatchers — registered as IEnumerable<INotificationDispatcher>.
+        // Webhook/Slack/GoogleChat/Discord are not registered: their DispatchPersonalAsync was
+        // never implemented (always returns false) and they're not supported for now — see
+        // IntegrationType for the corresponding commented-out enum values.
         services.AddScoped<INotificationDispatcher, EmailDispatcher>();
-        services.AddScoped<INotificationDispatcher, WebhookDispatcher>();
         services.AddScoped<INotificationDispatcher, TelegramDispatcher>();
-        services.AddScoped<INotificationDispatcher, SlackDispatcher>();
         services.AddScoped<INotificationDispatcher, TwilioSmsDispatcher>();
-        services.AddScoped<INotificationDispatcher, GoogleChatDispatcher>();
         services.AddScoped<INotificationDispatcher, MsTeamsDispatcher>();
-        services.AddScoped<INotificationDispatcher, DiscordDispatcher>();
         services.AddScoped<INotificationDispatcher, OpsgenieDispatcher>();
         services.AddScoped<INotificationDispatcher, PushoverDispatcher>();
         services.AddScoped<INotificationDispatcher, NtfyDispatcher>();
@@ -215,7 +226,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
             new LocalCheckJobDispatcher(
                 sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                workerRegion));
+                sp.GetRequiredService<ICheckDataPointRepository>(),
+                workerRegion,
+                sp.GetRequiredService<ILogger<LocalCheckJobDispatcher>>()));
 
         // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
         // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it

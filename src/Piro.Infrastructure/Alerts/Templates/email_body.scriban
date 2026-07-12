@@ -1,0 +1,11 @@
+{{~
+  service_link = service_url ? ("<a href=\"" + service_url + "\">" + service_name + "</a>") : service_name
+  check_link = check_url ? ("<a href=\"" + check_url + "\">" + check_name + "</a>") : check_name
+~}}
+{{~ if is_recovery ~}}
+<p>✅ <strong>{{ check_link }}</strong> on <strong>{{ service_link }}</strong> has recovered.</p>
+<p>Status: {{ current_status }}<br>Time: {{ fired_at }}</p>
+{{~ else ~}}
+<p>🚨 Alert fired for <strong>{{ check_link }}</strong> on <strong>{{ service_link }}</strong>.</p>
+<p>Status: {{ current_status }}<br>Severity: {{ severity }}{{~ if alert_description ~}}<br>Note: {{ alert_description }}{{~ end ~}}<br>Time: {{ fired_at }}</p>
+{{~ end ~}}

@@ -1,4 +1,5 @@
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -10,54 +11,71 @@ namespace Piro.Application.Services;
 public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
-    ServiceStatusService statusService,
-    IIncidentPublishScheduler publishScheduler,
-    IEscalationPolicyRepository? escalationPolicyRepo = null)
+    ServiceStatusService statusService)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
         var incidents = await incidentRepo.GetAllAsync(filter, ct);
-        return incidents.Select(Map);
+        return incidents.Select(i => i.ToDto());
     }
 
-    public async Task<IEnumerable<IncidentDto>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
+    public async Task<IEnumerable<PublicIncidentDto>> GetAllPublicAsync(bool includeResolved = false, CancellationToken ct = default)
     {
         var incidents = await incidentRepo.GetAllPublicAsync(includeResolved, ct);
-        return incidents.Select(Map);
+        return incidents.Select(i => i.ToPublicDto());
     }
 
     public async Task<IncidentDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var incident = await incidentRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
-        return Map(incident);
+        return incident.ToDto();
+    }
+
+    /// <summary>Returns the incident only if it's publicly visible, with only public comments — for anonymous access.</summary>
+    public async Task<PublicIncidentDto> GetPublicByIdAsync(int id, CancellationToken ct = default)
+    {
+        var incident = await incidentRepo.GetPublicByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        return incident.ToPublicDto();
     }
 
     /// <summary>
-    /// Creates an ALERT-sourced incident and assigns the global escalation policy if one exists.
-    /// Returns the raw entity so <see cref="AlertEvaluationService"/> can attach services before saving.
+    /// Returns a paginated page of an incident's timeline events for the "view full timeline" flow
+    /// (infinite scroll). Admin callers see the full timeline; anonymous callers only Public events,
+    /// and only if the incident itself is publicly visible (mirrors <see cref="GetPublicByIdAsync"/>).
     /// </summary>
-    public async Task<Incident> CreateAlertIncidentAsync(string title, bool isPublic, bool isGlobal, CancellationToken ct = default)
+    public async Task<IncidentTimelinePageDto> GetTimelineAsync(int incidentId, int page, int pageSize, bool publicOnly, CancellationToken ct = default)
     {
-        var incident = new Incident
+        if (publicOnly)
+        {
+            var visibility = await incidentRepo.GetVisibilityAsync(incidentId, ct)
+                ?? throw new NotFoundException(nameof(Incident), incidentId.ToString());
+            if (visibility != IncidentVisibility.Public)
+                throw new NotFoundException(nameof(Incident), incidentId.ToString());
+        }
+
+        var (items, total) = await incidentRepo.GetTimelinePagedAsync(incidentId, page, pageSize, publicOnly, ct);
+        var dtoItems = items.Select(e => new IncidentTimelineEventDto(
+            e.Id, e.Type.ToString(), e.OccurredAt, e.ActorName, e.Comment,
+            e.OldStatus, e.NewStatus, e.Visibility, e.RelatedIncidentId, e.AlertId));
+        return new IncidentTimelinePageDto(dtoItems, total, Math.Max(1, page), Math.Clamp(pageSize, 10, 100));
+    }
+
+    /// <summary>
+    /// Creates an ALERT-sourced incident (a human explicitly created it from an active Alert).
+    /// Always starts Private — publishing is always a manual action.
+    /// Returns the raw entity so the caller can attach services before saving.
+    /// </summary>
+    public Task<Incident> CreateAlertIncidentAsync(string title, CancellationToken ct = default) =>
+        Task.FromResult(new Incident
         {
             Title = title,
             StartDateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            State = IncidentState.Investigating,
-            Status = IncidentStatus.Active,
+            Status = IncidentStatus.Investigating,
             Source = "ALERT",
-            IsGlobal = isGlobal,
-            IsPublic = isPublic,
-        };
-
-        if (escalationPolicyRepo is not null)
-        {
-            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
-            if (policy is not null) incident.EscalationPolicyId = policy.Id;
-        }
-
-        return incident;
-    }
+            Visibility = IncidentVisibility.Private,
+        });
 
     public async Task<IncidentDto> CreateAsync(CreateIncidentRequest request, CancellationToken ct = default)
     {
@@ -65,10 +83,9 @@ public class IncidentAppService(
         {
             Title = request.Title,
             StartDateTime = request.StartDateTime,
-            State = request.State,
-            IsGlobal = request.IsGlobal,
-            Status = IncidentStatus.Active,
-            Source = "MANUAL"
+            Status = request.Status,
+            Source = "MANUAL",
+            Visibility = IncidentVisibility.Private,
         };
 
         if (request.AffectedServices is not null)
@@ -85,15 +102,17 @@ public class IncidentAppService(
             }
         }
 
-        if (escalationPolicyRepo is not null)
-        {
-            var policy = await escalationPolicyRepo.GetSingleAsync(ct);
-            if (policy is not null) incident.EscalationPolicyId = policy.Id;
-        }
-
         var created = await incidentRepo.CreateAsync(incident, ct);
+        await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = created.Id,
+            Type = TimelineEventType.Created,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Visibility = EventVisibility.Private,
+        }, ct);
         await RecomputeAffectedAsync(created, ct);
-        return Map(created);
+        return (await incidentRepo.GetByIdAsync(created.Id, ct)
+            ?? throw new NotFoundException(nameof(Incident), created.Id.ToString())).ToDto();
     }
 
     public async Task<IncidentDto> UpdateAsync(int id, UpdateIncidentRequest request, CancellationToken ct = default)
@@ -104,72 +123,103 @@ public class IncidentAppService(
         if (request.Title is not null) incident.Title = request.Title;
         if (request.StartDateTime.HasValue) incident.StartDateTime = request.StartDateTime.Value;
         if (request.EndDateTime.HasValue) incident.EndDateTime = request.EndDateTime.Value;
-        if (request.IsGlobal.HasValue) incident.IsGlobal = request.IsGlobal.Value;
-        if (request.State.HasValue)
+
+        IncidentStatus? oldStatus = null;
+        if (request.Status.HasValue && request.Status.Value != incident.Status)
         {
-            incident.State = request.State.Value;
-            // Advance to Resolved when state is Resolved
-            if (request.State.Value == IncidentState.Resolved)
-            {
-                incident.Status = IncidentStatus.Resolved;
+            oldStatus = incident.Status;
+            incident.Status = request.Status.Value;
+            if (request.Status.Value == IncidentStatus.Resolved)
                 incident.EndDateTime ??= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                await publishScheduler.CancelAsync(incident.Id, ct);
-            }
         }
 
-        var wasUnresolved = incident.Status != IncidentStatus.Resolved;
         var updated = await incidentRepo.UpdateAsync(incident, ct);
+
+        if (oldStatus.HasValue)
+        {
+            await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = updated.Id,
+                Type = TimelineEventType.StatusChanged,
+                OccurredAt = DateTimeOffset.UtcNow,
+                OldStatus = oldStatus.Value,
+                NewStatus = updated.Status,
+                Visibility = EventVisibility.Private,
+            }, ct);
+        }
+
         await RecomputeAffectedAsync(updated, ct);
 
-        return Map(updated);
+        return (await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString())).ToDto();
     }
 
-    public async Task AddCommentAsync(int id, AddCommentRequest request, CancellationToken ct = default)
+    /// <summary>
+    /// Posts a comment on an incident. A comment and a status change are independent —
+    /// <see cref="AddTimelineCommentRequest.Status"/> is optional; when present and different
+    /// from the current status, a separate <see cref="TimelineEventType.StatusChanged"/> event
+    /// is recorded before the <see cref="TimelineEventType.CommentPosted"/> one, sharing the
+    /// same timestamp, so the status change reads first in the timeline.
+    /// </summary>
+    public async Task AddTimelineCommentAsync(int id, AddTimelineCommentRequest request, CancellationToken ct = default)
     {
         var incident = await incidentRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
 
-        var comment = new IncidentComment
-        {
-            IncidentId = incident.Id,
-            Comment = request.Comment,
-            CommentedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            State = request.State,
-            Status = incident.Status
-        };
+        var isStatusChange = request.Status.HasValue && request.Status.Value != incident.Status;
+        if (!isStatusChange && string.IsNullOrWhiteSpace(request.Comment))
+            throw new DomainValidationException("An update must include either a comment or a status change.");
 
-        // Advance incident state when comment state progresses
-        if (request.State == IncidentState.Resolved)
+        var occurredAt = DateTimeOffset.UtcNow;
+
+        if (isStatusChange)
         {
-            incident.Status = IncidentStatus.Resolved;
-            incident.State = IncidentState.Resolved;
-            incident.EndDateTime ??= comment.CommentedAt;
-            await publishScheduler.CancelAsync(incident.Id, ct);
-        }
-        else
-        {
-            incident.State = request.State;
+            var oldStatus = incident.Status;
+            incident.Status = request.Status.Value;
+            if (request.Status.Value == IncidentStatus.Resolved)
+                incident.EndDateTime ??= occurredAt.ToUnixTimeSeconds();
+
+            await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = incident.Id,
+                Type = TimelineEventType.StatusChanged,
+                OccurredAt = occurredAt,
+                OldStatus = oldStatus,
+                NewStatus = incident.Status,
+                Visibility = EventVisibility.Private,
+            }, ct);
         }
 
-        incident.LastUserActivityAt = DateTimeOffset.UtcNow;
-        await incidentRepo.AddCommentAsync(incident, comment, ct);
+        if (!string.IsNullOrWhiteSpace(request.Comment))
+        {
+            await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = incident.Id,
+                Type = TimelineEventType.CommentPosted,
+                OccurredAt = occurredAt,
+                Comment = request.Comment,
+                // A comment can only be Public if its parent incident is also Public.
+                Visibility = incident.IsPublic ? request.Visibility : EventVisibility.Private,
+            }, ct);
+        }
+
+        await incidentRepo.UpdateAsync(incident, ct);
         await RecomputeAffectedAsync(incident, ct);
     }
 
-    public async Task UpdateCommentAsync(int incidentId, int commentId, UpdateCommentRequest request, CancellationToken ct = default)
+    public async Task UpdateTimelineCommentAsync(int incidentId, int eventId, UpdateTimelineCommentRequest request, CancellationToken ct = default)
     {
-        var comment = await incidentRepo.GetCommentByIdAsync(incidentId, commentId, ct)
-            ?? throw new NotFoundException(nameof(IncidentComment), commentId.ToString());
-        comment.Comment = request.Comment;
-        comment.State = request.State;
-        await incidentRepo.UpdateCommentAsync(comment, ct);
+        var rowsAffected = await incidentRepo.UpdateTimelineEventAsync(
+            incidentId, eventId, request.Comment, request.Visibility, ct);
+        if (rowsAffected == 0)
+            throw new NotFoundException(nameof(IncidentTimelineEvent), eventId.ToString());
     }
 
-    public async Task DeleteCommentAsync(int incidentId, int commentId, CancellationToken ct = default)
+    public async Task DeleteTimelineCommentAsync(int incidentId, int eventId, CancellationToken ct = default)
     {
-        var comment = await incidentRepo.GetCommentByIdAsync(incidentId, commentId, ct)
-            ?? throw new NotFoundException(nameof(IncidentComment), commentId.ToString());
-        await incidentRepo.DeleteCommentAsync(comment, ct);
+        var evt = await incidentRepo.GetTimelineEventByIdAsync(incidentId, eventId, ct)
+            ?? throw new NotFoundException(nameof(IncidentTimelineEvent), eventId.ToString());
+        await incidentRepo.DeleteTimelineEventAsync(evt, ct);
     }
 
     public async Task<IncidentDto> SetServicesAsync(int incidentId, SetIncidentServicesRequest request, CancellationToken ct = default)
@@ -184,7 +234,10 @@ public class IncidentAppService(
             .Where(s => !desired.Any(d => d.ServiceSlug == (s.Service?.Slug ?? "")))
             .ToList();
         foreach (var link in toRemove)
+        {
             await incidentRepo.RemoveServiceAsync(link, ct);
+            await EmitAsync(incident, TimelineEventType.ServiceRemoved, ct);
+        }
 
         // Add or update each desired service
         foreach (var d in desired)
@@ -197,6 +250,7 @@ public class IncidentAppService(
             {
                 var link = new IncidentService { IncidentId = incidentId, ServiceId = service.Id, Impact = d.Impact };
                 await incidentRepo.AddServiceAsync(incident, link, ct);
+                await EmitAsync(incident, TimelineEventType.ServiceAdded, ct);
             }
             else if (existing.Impact != d.Impact)
             {
@@ -206,8 +260,8 @@ public class IncidentAppService(
         }
 
         await RecomputeAffectedAsync(incident, ct);
-        return Map(await incidentRepo.GetByIdAsync(incidentId, ct)
-            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString()));
+        return (await incidentRepo.GetByIdAsync(incidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString())).ToDto();
     }
 
     public async Task<IncidentDto> AddServiceAsync(int incidentId, AddIncidentServiceRequest request, CancellationToken ct = default)
@@ -219,13 +273,14 @@ public class IncidentAppService(
 
         // Avoid duplicates
         if (incident.IncidentServices.Any(s => s.ServiceId == service.Id))
-            return Map(incident);
+            return incident.ToDto();
 
         var link = new IncidentService { IncidentId = incidentId, ServiceId = service.Id, Impact = request.Impact };
         await incidentRepo.AddServiceAsync(incident, link, ct);
+        await EmitAsync(incident, TimelineEventType.ServiceAdded, ct);
         await statusService.ComputeAsync(service.Id, ct);
-        return Map(await incidentRepo.GetByIdAsync(incidentId, ct)
-            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString()));
+        return (await incidentRepo.GetByIdAsync(incidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString())).ToDto();
     }
 
     public async Task<IncidentDto> RemoveServiceAsync(int incidentId, string serviceSlug, CancellationToken ct = default)
@@ -237,9 +292,10 @@ public class IncidentAppService(
         var link = incident.IncidentServices.FirstOrDefault(s => s.ServiceId == service.Id)
             ?? throw new NotFoundException(nameof(IncidentService), serviceSlug);
         await incidentRepo.RemoveServiceAsync(link, ct);
+        await EmitAsync(incident, TimelineEventType.ServiceRemoved, ct);
         await statusService.ComputeAsync(service.Id, ct);
-        return Map(await incidentRepo.GetByIdAsync(incidentId, ct)
-            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString()));
+        return (await incidentRepo.GetByIdAsync(incidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), incidentId.ToString())).ToDto();
     }
 
     public async Task<IncidentDto> AcknowledgeAsync(int id, string acknowledgedBy, CancellationToken ct = default)
@@ -248,22 +304,69 @@ public class IncidentAppService(
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
 
         if (incident.AcknowledgedAt.HasValue)
-            return Map(incident);
+            return incident.ToDto();
 
         incident.AcknowledgedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         incident.AcknowledgedBy = acknowledgedBy;
 
         await incidentRepo.UpdateAsync(incident, ct);
-        return Map(await incidentRepo.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException(nameof(Incident), id.ToString()));
+        await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = incident.Id,
+            Type = TimelineEventType.Acknowledged,
+            OccurredAt = DateTimeOffset.UtcNow,
+            ActorName = acknowledgedBy,
+            Visibility = EventVisibility.Private,
+        }, ct);
+        return (await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString())).ToDto();
     }
 
     public async Task PublishAsync(int id, CancellationToken ct = default)
     {
+        var visibility = await incidentRepo.GetVisibilityAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        if (visibility != IncidentVisibility.Public)
+        {
+            await incidentRepo.PublishAsync(id, ct);
+            await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+            {
+                IncidentId = id,
+                Type = TimelineEventType.Published,
+                OccurredAt = DateTimeOffset.UtcNow,
+                Visibility = EventVisibility.Private,
+            }, ct);
+
+            // Only Public incidents count toward the publicly-shown service status —
+            // publishing can newly surface impact that was previously masked.
+            var incident = await incidentRepo.GetByIdAsync(id, ct)
+                ?? throw new NotFoundException(nameof(Incident), id.ToString());
+            await RecomputeAffectedAsync(incident, ct);
+        }
+    }
+
+    /// <summary>Reverts an incident to Private. Also forces all its timeline events back to Private, since an event can never be Public while its parent incident isn't.</summary>
+    public async Task UnpublishAsync(int id, CancellationToken ct = default)
+    {
+        var visibility = await incidentRepo.GetVisibilityAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+        if (visibility != IncidentVisibility.Public) return;
+
+        await incidentRepo.MakeAllTimelineEventsPrivateAsync(id, ct);
+        await incidentRepo.UnpublishAsync(id, ct);
+        await incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = id,
+            Type = TimelineEventType.Unpublished,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Visibility = EventVisibility.Private,
+        }, ct);
+
+        // Unpublishing hides its impact from the public status page — recompute so
+        // affected services stop reporting DOWN/DEGRADED once the incident goes private.
         var incident = await incidentRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
-        if (!incident.IsPublic)
-            await incidentRepo.PublishAsync(incident, ct);
+        await RecomputeAffectedAsync(incident, ct);
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -271,61 +374,28 @@ public class IncidentAppService(
         var incident = await incidentRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Incident), id.ToString());
         var affectedServiceIds = incident.IncidentServices.Select(s => s.ServiceId).ToList();
-        var wasGlobal = incident.IsGlobal;
         await incidentRepo.DeleteAsync(incident, ct);
-        if (wasGlobal)
-        {
-            var allServices = await serviceRepo.GetAllAsync(ct);
-            foreach (var svc in allServices)
-                await statusService.ComputeAsync(svc.Id, ct);
-        }
-        else
-        {
-            foreach (var sid in affectedServiceIds)
-                await statusService.ComputeAsync(sid, ct);
-        }
+        foreach (var sid in affectedServiceIds)
+            await statusService.ComputeAsync(sid, ct);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /// <summary>Triggers status recomputation for all services linked to the incident (or all services if global).</summary>
+    /// <summary>Records an automatic, non-comment timeline event. Always Private — only CommentPosted can be made Public.</summary>
+    private Task EmitAsync(Incident incident, TimelineEventType type, CancellationToken ct) =>
+        incidentRepo.AddTimelineEventAsync(new IncidentTimelineEvent
+        {
+            IncidentId = incident.Id,
+            Type = type,
+            OccurredAt = DateTimeOffset.UtcNow,
+            Visibility = EventVisibility.Private,
+        }, ct);
+
+    /// <summary>Triggers status recomputation for all services linked to the incident.</summary>
     private async Task RecomputeAffectedAsync(Incident incident, CancellationToken ct)
     {
-        if (incident.IsGlobal)
-        {
-            var allServices = await serviceRepo.GetAllAsync(ct);
-            foreach (var svc in allServices)
-                await statusService.ComputeAsync(svc.Id, ct);
-        }
-        else
-        {
-            foreach (var link in incident.IncidentServices)
-                await statusService.ComputeAsync(link.ServiceId, ct);
-        }
+        foreach (var link in incident.IncidentServices)
+            await statusService.ComputeAsync(link.ServiceId, ct);
     }
 
-    // ── Mapping ──────────────────────────────────────────────────────────────
-
-    private static IncidentDto Map(Incident i) => new(
-        i.Id, i.Title, i.StartDateTime, i.EndDateTime,
-        i.Status, i.State, i.IsResolved, i.IsGlobal, i.Source,
-        i.IsPublic,
-        i.Comments.Select(c => new IncidentCommentDto(
-            c.Id, c.Comment, c.CommentedAt, c.State, c.Status, c.CreatedAt)),
-        i.IncidentServices.Select(s => new IncidentServiceDto(
-            s.Service?.Slug ?? s.ServiceId.ToString(),
-            s.Service?.Name ?? s.Service?.Slug ?? s.ServiceId.ToString(),
-            s.Impact,
-            s.TriggeringCheck?.Slug)),
-        MergedIntoIncidentId: i.MergesAsSource.FirstOrDefault()?.TargetIncidentId,
-        i.CreatedAt, i.UpdatedAt,
-        i.AcknowledgedAt, i.AcknowledgedBy,
-        i.CurrentImpact,
-        i.ImpactChanges.Select(c => new IncidentImpactChangeDto(c.Timestamp, c.Impact.ToString())),
-        EscalationPolicyId: i.EscalationPolicyId,
-        EscalationCurrentStep: i.EscalationCurrentStep,
-        EscalationStepStartedAt: i.EscalationStepStartedAt,
-        EscalationTotalSteps: null,
-        NextEscalationAt: null
-    );
 }

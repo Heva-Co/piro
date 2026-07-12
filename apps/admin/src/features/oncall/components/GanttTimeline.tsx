@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { X, Pencil, Trash2 } from "lucide-react";
 import type { OnCallSlot, OnCallLayer } from "@/lib/api";
 import { getWeekday } from "@/utils/date";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 
 interface OverrideInfo {
   fromInitials: string;
@@ -11,10 +12,15 @@ interface OverrideInfo {
 }
 
 interface GanttRow {
-  label: string;
+  label: ReactNode;
   slots: OnCallSlot[];
   layer?: OnCallLayer;
   overrideInfo?: OverrideInfo;
+}
+
+interface GanttGap {
+  startsAt: string;
+  endsAt: string;
 }
 
 interface GanttTimelineProps {
@@ -25,19 +31,14 @@ interface GanttTimelineProps {
   onDeleteSlot?: (slot: OnCallSlot) => void;
   onEditLayer?: (layer: OnCallLayer) => void;
   onDeleteLayer?: (layerId: number) => void;
+  /** Uncovered windows to highlight as red bands spanning the full track height. */
+  gaps?: GanttGap[];
 }
 
 function fmtDay(date: Date): string {
   return date.toLocaleDateString(undefined, { month: "numeric", day: "numeric", timeZone: "UTC" }).replace(",", "");
 }
 
-
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit",
-  });
-}
 
 function getDayColumns(from: Date, to: Date): Date[] {
   const days: Date[] = [];
@@ -49,8 +50,14 @@ function getDayColumns(from: Date, to: Date): Date[] {
   return days;
 }
 
-export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDeleteLayer }: GanttTimelineProps) {
+const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short", day: "numeric", year: "numeric",
+  hour: "numeric", minute: "2-digit",
+};
+
+export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDeleteLayer, gaps = [] }: GanttTimelineProps) {
   const [modal, setModal] = useState<OnCallSlot | null>(null);
+  const { formatDateTime } = useFormattedDate();
 
   const totalMs = to.getTime() - from.getTime();
   const dayColumns = getDayColumns(from, to);
@@ -70,6 +77,13 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
     const end = Math.min(new Date(slot.endsAt).getTime(), to.getTime() - 1);
     return pct(Math.max(0, end - start));
   }
+
+  const visibleGaps = gaps
+    .map((g) => ({
+      left: Math.max(new Date(g.startsAt).getTime(), from.getTime()),
+      right: Math.min(new Date(g.endsAt).getTime(), to.getTime()),
+    }))
+    .filter((g) => g.left < g.right);
 
   if (rows.length === 0) {
     return <div className="py-4 text-sm text-muted-foreground italic">No rotations configured.</div>;
@@ -102,7 +116,12 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
                     </span>
                   </div>
                 ) : (
-                  <span className="text-xs font-semibold text-foreground truncate flex-1" title={row.label}>{row.label}</span>
+                  <span
+                    className="text-xs font-semibold text-foreground truncate flex-1"
+                    title={typeof row.label === "string" ? row.label : undefined}
+                  >
+                    {row.label}
+                  </span>
                 )}
                 {row.layer && onEditLayer && (
                   <button onClick={() => onEditLayer(row.layer!)} className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0" title="Edit layer">
@@ -126,6 +145,11 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
               )}
             </div>
           ))}
+          {visibleGaps.length > 0 && (
+            <div className="pl-4 pr-2 pt-1 pb-1 flex items-center" style={{ minHeight: "2.25rem" }}>
+              <span className="text-xs font-semibold text-destructive truncate">Coverage gaps</span>
+            </div>
+          )}
         </div>
 
         {/* Scrollable tracks column */}
@@ -138,7 +162,7 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
                 className="absolute top-0 h-full flex flex-col items-center justify-center text-xs text-muted-foreground border-l border-border/50"
                 style={{ left: pct(day.getTime() - from.getTime()), width: pct(86_400_000) }}
               >
-                <span className="font-medium leading-tight">{getWeekday(day)}</span>
+                <span className="font-medium leading-tight">{getWeekday(day, "UTC")}</span>
                 <span className="leading-tight">{fmtDay(day)}</span>
               </div>
             ))}
@@ -180,6 +204,23 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
               </div>
             </div>
           ))}
+          {visibleGaps.length > 0 && (
+            <div className="pt-1 pb-1 pr-4" style={{ minHeight: "2.25rem" }}>
+              <div className="relative h-7 bg-destructive/10 rounded" style={{ minWidth: MIN_TRACK_PX }}>
+                {dayColumns.map((day, i) => (
+                  <div key={i} className="absolute top-0 h-full border-l border-border/30" style={{ left: pct(day.getTime() - from.getTime()) }} />
+                ))}
+                {visibleGaps.map((g, gi) => (
+                  <div
+                    key={gi}
+                    title="No on-call coverage"
+                    className="absolute top-0.5 h-6 rounded bg-destructive/60"
+                    style={{ left: pct(g.left - from.getTime()), width: pct(g.right - g.left) }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -214,11 +255,11 @@ export function GanttTimeline({ rows, from, to, onDeleteSlot, onEditLayer, onDel
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Starts</span>
-                  <span className="text-foreground">{fmtDateTime(modal.startsAt)}</span>
+                  <span className="text-foreground">{formatDateTime(modal.startsAt, DATE_TIME_FORMAT)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Ends</span>
-                  <span className="text-foreground">{fmtDateTime(modal.endsAt)}</span>
+                  <span className="text-foreground">{formatDateTime(modal.endsAt, DATE_TIME_FORMAT)}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5 text-xs">

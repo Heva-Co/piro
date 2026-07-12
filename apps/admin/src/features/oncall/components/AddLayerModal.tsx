@@ -1,97 +1,34 @@
-import { useState, useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
-import { onCallApi, usersApi } from "@/lib/api";
+import { usersApi } from "@/lib/api";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { DatePicker } from "@/components/DatePicker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { RRuleEditor } from "@/components/RRuleEditor";
 
-import type { OnCallLayer } from "@/lib/api";
+import type { OnCallLayer, OnCallLayerUser } from "@/lib/api";
+
+export interface LayerFormPayload {
+  name: string;
+  recurrenceRule: string;
+  firstOccurrenceStartsAt: string;
+  firstOccurrenceEndsAt: string;
+  userIds: number[];
+  users: OnCallLayerUser[];
+}
 
 interface Props {
-  scheduleId: string;
   initialLayer?: OnCallLayer;
   onClose: () => void;
-  onSuccess: () => void;
+  onSave: (payload: LayerFormPayload) => void;
 }
 
-const DAY_NAMES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
-const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
-
-type FreqUnit = "day" | "week" | "month";
-type EndsType = "never" | "on" | "after";
-
-function buildRrule(
-  interval: number,
-  unit: FreqUnit,
-  bydays: string[],
-  ends: EndsType,
-  endsDate: string,
-  endsCount: number,
-): string {
-  const freq = unit === "day" ? "DAILY" : unit === "week" ? "WEEKLY" : "MONTHLY";
-  const parts: string[] = [`FREQ=${freq}`];
-  if (interval > 1) parts.push(`INTERVAL=${interval}`);
-  if (unit === "week" && bydays.length > 0) parts.push(`BYDAY=${bydays.join(",")}`);
-  if (ends === "on" && endsDate) {
-    const d = new Date(endsDate);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const until = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T000000Z`;
-    parts.push(`UNTIL=${until}`);
-  } else if (ends === "after" && endsCount > 0) {
-    parts.push(`COUNT=${endsCount}`);
-  }
-  return parts.join(";");
-}
-
-const CUSTOM_VALUE = "__custom__";
-
-export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: Props) {
+export function AddLayerModal({ initialLayer, onClose, onSave }: Props) {
   const isEdit = !!initialLayer;
   const [name, setName] = useState(initialLayer?.name ?? "");
   const [firstStart, setFirstStart] = useState(initialLayer?.firstOccurrenceStartsAt ?? "");
   const [firstEnd, setFirstEnd] = useState(initialLayer?.firstOccurrenceEndsAt ?? "");
-
-  // Derive the weekday from firstStart for the "Weekly on {dayName}" preset
-  const startDayIndex = useMemo(() => {
-    if (!firstStart) return new Date().getDay();
-    return new Date(firstStart).getDay();
-  }, [firstStart]);
-  const startDayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][startDayIndex];
-  const startDayCode = DAY_NAMES[startDayIndex];
-
-  const PRESET_OPTIONS = useMemo(() => [
-    { label: "Daily", value: "FREQ=DAILY" },
-    { label: `Weekly on ${startDayName}`, value: `FREQ=WEEKLY;BYDAY=${startDayCode}` },
-    { label: "Every weekday (Mon–Fri)", value: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
-    { label: "Bi-weekly", value: "FREQ=WEEKLY;INTERVAL=2" },
-    { label: "Custom…", value: CUSTOM_VALUE },
-  ], [startDayName, startDayCode]);
-
-  // Determine initial selected preset
-  const [selectedPreset, setSelectedPreset] = useState<string>(() => {
-    if (!initialLayer) return PRESET_OPTIONS[0].value;
-    const match = PRESET_OPTIONS.find((p) => p.value !== CUSTOM_VALUE && p.value === initialLayer.recurrenceRule);
-    return match ? match.value : CUSTOM_VALUE;
-  });
-
-  // Custom builder state
-  const [customInterval, setCustomInterval] = useState(1);
-  const [customUnit, setCustomUnit] = useState<FreqUnit>("week");
-  const [customBydays, setCustomBydays] = useState<string[]>([]);
-  const [customEnds, setCustomEnds] = useState<EndsType>("never");
-  const [customEndsDate, setCustomEndsDate] = useState("");
-  const [customEndsCount, setCustomEndsCount] = useState(1);
-
-  const isCustom = selectedPreset === CUSTOM_VALUE;
-  const customRrule = buildRrule(customInterval, customUnit, customBydays, customEnds, customEndsDate, customEndsCount);
-  const rrule = isCustom ? customRrule : selectedPreset;
+  const [rrule, setRrule] = useState(initialLayer?.recurrenceRule ?? "FREQ=DAILY");
   const [allDay, setAllDay] = useState(initialLayer?.isAllDay ?? false);
   const [userIds, setUserIds] = useState<number[]>(() =>
     initialLayer ? initialLayer.users.map((u) => u.userId) : []
@@ -112,21 +49,29 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
     return iso.slice(0, 10) + "T23:59:59Z";
   }
 
-  const payload = {
-    name,
-    recurrenceRule: rrule,
-    firstOccurrenceStartsAt: allDay ? toAllDayStart(firstStart) : firstStart,
-    firstOccurrenceEndsAt: allDay ? toAllDayEnd(firstEnd) : firstEnd,
-    userIds,
-  };
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      isEdit
-        ? onCallApi.updateLayer(scheduleId, initialLayer.id, payload)
-        : onCallApi.createLayer(scheduleId, { ...payload, order: 0 }),
-    onSuccess,
-  });
+  function buildPayload(): LayerFormPayload {
+    return {
+      name,
+      recurrenceRule: rrule,
+      firstOccurrenceStartsAt: allDay ? toAllDayStart(firstStart) : firstStart,
+      firstOccurrenceEndsAt: allDay ? toAllDayEnd(firstEnd) : firstEnd,
+      userIds,
+      users: userIds.map((uid, idx) => {
+        const existing = initialLayer?.users.find((u) => u.userId === uid);
+        const user = users.find((u: { id: number; name: string }) => u.id === uid);
+        return (
+          existing ?? {
+            id: 0,
+            userId: uid,
+            userName: user?.name ?? "",
+            userInitials: (user?.name ?? "").split(" ").map((p: string) => p[0]).join("").toUpperCase(),
+            userColor: "#6366f1",
+            position: idx,
+          }
+        );
+      }),
+    };
+  }
 
   const filteredUsers = users.filter(
     (u: { id: number; name: string }) =>
@@ -159,138 +104,18 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
           {/* Recurrence */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Rotation frequency</label>
-            <Select value={selectedPreset} onValueChange={(v) => v && setSelectedPreset(v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {PRESET_OPTIONS.find((p) => p.value === selectedPreset)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {PRESET_OPTIONS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {isCustom && (
-              <div className="mt-3 rounded-lg border border-border bg-background p-3 space-y-3">
-                {/* Repeat every */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-foreground shrink-0">Repeat every</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={customInterval}
-                    onChange={(e) => setCustomInterval(Math.max(1, Math.min(99, Number(e.target.value))))}
-                    className="w-16 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <Select value={customUnit} onValueChange={(v) => setCustomUnit(v as FreqUnit)}>
-                    <SelectTrigger className="w-28">
-                      <SelectValue>{customUnit}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="day">day</SelectItem>
-                      <SelectItem value="week">week</SelectItem>
-                      <SelectItem value="month">month</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Day-of-week toggles (only when unit = week) */}
-                {customUnit === "week" && (
-                  <div>
-                    <span className="block text-xs text-muted-foreground mb-1.5">Repeat on</span>
-                    <div className="flex gap-1">
-                      {DAY_LABELS.map((label, i) => {
-                        const code = DAY_NAMES[i];
-                        const active = customBydays.includes(code);
-                        return (
-                          <button
-                            key={code}
-                            type="button"
-                            onClick={() =>
-                              setCustomBydays((prev) =>
-                                active ? prev.filter((d) => d !== code) : [...prev, code]
-                              )
-                            }
-                            className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                              active
-                                ? "bg-foreground text-background"
-                                : "border border-border text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Ends */}
-                <div>
-                  <span className="block text-xs text-muted-foreground mb-1.5">Ends</span>
-                  <div className="space-y-1.5">
-                    {/* Never */}
-                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <input
-                        type="radio"
-                        name="ends"
-                        checked={customEnds === "never"}
-                        onChange={() => setCustomEnds("never")}
-                        className="accent-foreground"
-                      />
-                      Never
-                    </label>
-                    {/* On date */}
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                        <input
-                          type="radio"
-                          name="ends"
-                          checked={customEnds === "on"}
-                          onChange={() => setCustomEnds("on")}
-                          className="accent-foreground"
-                        />
-                        On
-                      </label>
-                      <div className={customEnds !== "on" ? "opacity-40 pointer-events-none" : ""}>
-                        <DatePicker
-                          value={customEndsDate}
-                          onChange={(d) => { setCustomEnds("on"); setCustomEndsDate(d); }}
-                          placeholder="Pick end date"
-                        />
-                      </div>
-                    </div>
-                    {/* After N */}
-                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <input
-                        type="radio"
-                        name="ends"
-                        checked={customEnds === "after"}
-                        onChange={() => setCustomEnds("after")}
-                        className="accent-foreground"
-                      />
-                      After
-                      <input
-                        type="number"
-                        min={1}
-                        value={customEndsCount}
-                        onChange={(e) => { setCustomEnds("after"); setCustomEndsCount(Math.max(1, Number(e.target.value))); }}
-                        className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-40"
-                        disabled={customEnds !== "after"}
-                      />
-                      <span className="text-muted-foreground">occurrences</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
+            <RRuleEditor
+              value={rrule}
+              onChange={setRrule}
+              startDate={firstStart ? new Date(firstStart) : undefined}
+            />
           </div>
 
           {/* First occurrence */}
           <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Shift times are interpreted in UTC — the schedule's timezone only affects how times are displayed.
+            </p>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground">First shift</span>
               <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none">
@@ -392,11 +217,11 @@ export function AddLayerModal({ scheduleId, initialLayer, onClose, onSuccess }: 
             Cancel
           </button>
           <button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !name || !rrule || !firstStart || !firstEnd || userIds.length === 0}
+            onClick={() => onSave(buildPayload())}
+            disabled={!name || !rrule || !firstStart || !firstEnd || userIds.length === 0}
             className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {mutation.isPending ? (isEdit ? "Saving…" : "Adding…") : (isEdit ? "Save changes" : "Add layer")}
+            {isEdit ? "Save changes" : "Add layer"}
           </button>
         </div>
       </div>

@@ -6,7 +6,6 @@ export const ROUTES = {
   AUTH: {
     SIGN_IN: "/admin/auth/sign-in",
     OIDC_CALLBACK: "/admin/auth/oidc/callback",
-    OIDC_COMPLETE: "/admin/auth/oidc/complete",
     SIGN_OUT: "/admin/auth/sign-out",
   },
 
@@ -33,18 +32,18 @@ export const ROUTES = {
       `/admin/services/${serviceSlug}/checks/${checkSlug}/logs`,
   },
 
+  // Alerts
+  ALERTS: {
+    LIST: "/admin/alerts",
+    DETAIL: (id: number | string) => `/admin/alerts/${id}`,
+  },
+
   // Incidents
   INCIDENTS: {
     LIST: "/admin/incidents",
     NEW: "/admin/incidents/new",
     DETAIL: (id: number | string) => `/admin/incidents/${id}`,
-  },
-
-  // Notification channels
-  CHANNELS: {
-    LIST: "/admin/channels",
-    NEW: "/admin/channels/new",
-    DETAIL: (id: number | string) => `/admin/channels/${id}`,
+    TIMELINE: (id: number | string) => `/admin/incidents/${id}/timeline`,
   },
 
   // Maintenances
@@ -59,6 +58,7 @@ export const ROUTES = {
     SITE: "/admin/configuration/site",
     EMAIL: "/admin/configuration/email",
     SSO: "/admin/configuration/sso",
+    SSO_NEW: "/admin/configuration/sso/new",
     SSO_DETAIL: (id: string) => `/admin/configuration/sso/${id}`,
     API_KEYS: "/admin/configuration/api-keys",
     USERS: "/admin/configuration/users",
@@ -66,7 +66,7 @@ export const ROUTES = {
     WORKERS: "/admin/configuration/workers",
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
-    INCIDENTS: "/admin/configuration/incidents",
+    JOBS: "/admin/configuration/jobs",
   },
 
   // On-call schedules
@@ -76,8 +76,11 @@ export const ROUTES = {
     DETAIL: (id: number | string) => `/admin/oncall/${id}`,
   },
 
-  // Escalation policy
-  ESCALATION: "/admin/escalation-policy",
+  // Escalation policies
+  ESCALATION: {
+    LIST: "/admin/escalation-policies",
+    DETAIL: (id: number | string) => `/admin/escalation-policies/${id}`,
+  },
 
   // User profile
   PROFILE: "/admin/profile",

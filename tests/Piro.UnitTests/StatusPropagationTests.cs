@@ -14,13 +14,16 @@ public class StatusPropagationTests
     private readonly ICheckRepository _checkRepo = Substitute.For<ICheckRepository>();
     private readonly IServiceDependencyRepository _depRepo = Substitute.For<IServiceDependencyRepository>();
     private readonly IIncidentRepository _incidentRepo = Substitute.For<IIncidentRepository>();
+    private readonly IMaintenanceRepository _maintenanceRepo = Substitute.For<IMaintenanceRepository>();
     private readonly ServiceStatusService _sut;
 
     public StatusPropagationTests()
     {
         _incidentRepo.GetActiveImpactForServiceAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((ServiceStatus?)null);
-        _sut = new ServiceStatusService(_serviceRepo, _checkRepo, _depRepo, _incidentRepo);
+        _maintenanceRepo.HasActiveWindowAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        _sut = new ServiceStatusService(_serviceRepo, _checkRepo, _depRepo, _incidentRepo, _maintenanceRepo);
     }
 
     // ── Single service, no deps ─────────────────────────────────────────────
@@ -228,6 +231,21 @@ public class StatusPropagationTests
         await _sut.ComputeAsync(1);
 
         await _serviceRepo.Received(1).UpdateAsync(Arg.Is<Service>(s => s.CurrentStatus == ServiceStatus.DOWN), Arg.Any<CancellationToken>());
+    }
+
+    // ── Maintenance override ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ActiveMaintenanceWindow_OverridesCheckStatus()
+    {
+        SetupService(1, "svc", ServiceStatus.UP);
+        SetupChecks(1, [ServiceStatus.UP]);
+        _maintenanceRepo.HasActiveWindowAsync(1, Arg.Any<CancellationToken>()).Returns(true);
+        _depRepo.GetBlockingDownstreamServiceIdsAsync(1, Arg.Any<CancellationToken>()).Returns([]);
+
+        await _sut.ComputeAsync(1);
+
+        await _serviceRepo.Received(1).UpdateAsync(Arg.Is<Service>(s => s.CurrentStatus == ServiceStatus.MAINTENANCE), Arg.Any<CancellationToken>());
     }
 
     // ── Service not found ────────────────────────────────────────────────────

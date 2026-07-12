@@ -52,4 +52,7 @@ public class ResendEmailService(
 
         logger.LogInformation("Email sent via Resend to {To}: {Subject}.", to, subject);
     }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }

@@ -1,15 +1,26 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
-import { onCallApi, type OnCallSlot, type OnCallLayer } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
+import axios from "axios";
+import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Settings, Save, Trash2 } from "lucide-react";
+import { onCallApi, type OnCallSlot } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionAccordion } from "@/components/ui/section-accordion";
+import { Button } from "@/components/ui/button";
+import DangerZone from "@/components/DangerZone";
 import { GanttTimeline } from "../components/GanttTimeline";
-import { AddLayerModal } from "../components/AddLayerModal";
-import { AddOverrideModal } from "../components/AddOverrideModal";
+import { AddLayerModal, type LayerFormPayload } from "../components/AddLayerModal";
+import { AddOverrideModal, type OverrideFormPayload } from "../components/AddOverrideModal";
+import GeneralSettingsSection from "../components/GeneralSettingsSection";
+import { useRotationsDraft, type DraftLayer } from "../hooks/useRotationsDraft";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+
+function apiErrorMessage(err: unknown, fallback: string) {
+  return (axios.isAxiosError(err) && (err.response?.data?.title || err.response?.data?.detail)) || fallback;
+}
 
 type ViewMode = "1day" | "1week" | "2weeks" | "1month";
 
@@ -33,8 +44,10 @@ function getRange(anchor: Date, mode: ViewMode): { from: Date; to: Date } {
   }
 }
 
+// Range days are UTC-aligned (see startOfDay) — format in UTC too, so the label always
+// matches the day the Gantt bars actually cover, regardless of the viewer's own timezone.
 function fmtRange(from: Date, to: Date, mode: ViewMode): string {
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", timeZone: "UTC" };
   if (mode === "1day") return from.toLocaleDateString(undefined, { ...opts, weekday: "long" });
   return `${from.toLocaleDateString(undefined, opts)} – ${addDays(to, -1).toLocaleDateString(undefined, opts)}`;
 }
@@ -52,19 +65,9 @@ export default function OnCallScheduleDetailPage() {
   const [anchor, setAnchor] = useState<Date>(startOfDay(new Date()));
   const [showAddLayer, setShowAddLayer] = useState(false);
   const [showAddOverride, setShowAddOverride] = useState(false);
-  const [editLayer, setEditLayer] = useState<OnCallLayer | null>(null);
+  const [editLayer, setEditLayer] = useState<DraftLayer | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const confirm = useConfirmDialog();
-
-  async function handleDeleteLayer(layerId: number) {
-    const layer = schedule?.layers.find((l: OnCallLayer) => l.id === layerId);
-    const ok = await confirm({
-      title: `Delete "${layer?.name ?? "layer"}"?`,
-      description: "This will remove the rotation and all its slots. This action cannot be undone.",
-      confirmLabel: "Delete",
-      destructive: true,
-    });
-    if (ok) deleteLayerMutation.mutate(layerId);
-  }
 
   const { from, to } = useMemo(() => getRange(anchor, viewMode), [anchor, viewMode]);
 
@@ -88,10 +91,78 @@ export default function OnCallScheduleDetailPage() {
     enabled: !!id,
   });
 
-  const deleteLayerMutation = useMutation({
-    mutationFn: (layerId: number) => onCallApi.deleteLayer(id!, layerId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE(id!) }),
+  const draft = useRotationsDraft(schedule?.layers ?? [], schedule?.overrides ?? []);
+
+  // Re-seed the draft whenever the underlying schedule reloads (e.g. after a successful save).
+  useEffect(() => {
+    if (schedule) draft.reset(schedule.layers, schedule.overrides ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule]);
+
+  // Live preview of the draft's coverage over the visible range — drives the red gap bands on
+  // Final Schedule. Recomputed whenever the draft or the visible range changes.
+  const draftBatch = draft.toBatch();
+  const { data: livePreview } = useQuery({
+    queryKey: [...QUERY_KEYS.ONCALL_SCHEDULE_EXPAND(id!, isoStr(from), isoStr(to)), "gaps-preview", draftBatch],
+    queryFn: () => onCallApi.previewRotations(id!, draftBatch, isoStr(from), isoStr(to)),
+    enabled: !!id && !!schedule,
   });
+  const liveGaps = livePreview?.gaps ?? [];
+
+  async function handleDeleteSchedule() {
+    await onCallApi.delete(id!);
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULES });
+    navigate(ROUTES.ONCALL.LIST);
+  }
+
+  async function handleDeleteDraftLayer(layerId: number) {
+    const layer = draft.layers.find((l) => l.id === layerId);
+    const ok = await confirm({
+      title: `Delete "${layer?.name ?? "layer"}"?`,
+      description: "This will remove the rotation and all its slots once you save.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (ok) draft.deleteLayer(layerId);
+  }
+
+  async function handleDeleteDraftOverride(overrideId: number) {
+    const ok = await confirm({
+      title: "Delete override?",
+      description: "This override will be removed once you save.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (ok) draft.deleteOverride(overrideId);
+  }
+
+  async function handleSave() {
+    if (!id) return;
+    setIsSaving(true);
+    try {
+      const batch = draft.toBatch();
+      const preview = await onCallApi.previewRotations(id, batch, isoStr(from), isoStr(addDays(from, 90)));
+
+      if (preview.gaps.length > 0) {
+        const ok = await confirm({
+          title: "Coverage gaps detected",
+          description: `${preview.gaps.length} window${preview.gaps.length === 1 ? "" : "s"} in the next 90 days will have no one on-call. You can review them as red bands in the Final Schedule below. Save anyway?`,
+          confirmLabel: "Save anyway",
+          destructive: true,
+        });
+        if (!ok) { setIsSaving(false); return; }
+      }
+
+      await onCallApi.saveRotations(id, batch);
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE(id) });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULES });
+      toast.success("Rotations saved.");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to save rotations."));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   function advance(direction: 1 | -1) {
     const days = viewMode === "1day" ? 1 : viewMode === "1week" ? 7 : viewMode === "2weeks" ? 14 : 30;
@@ -103,17 +174,30 @@ export default function OnCallScheduleDetailPage() {
   }
 
   if (loadingSchedule) {
-    return <AdminLayout title="On-Call Schedule"><div className="p-8 text-center text-muted-foreground">Loading…</div></AdminLayout>;
+    return <><div className="p-8 text-center text-muted-foreground">Loading…</div></>;
   }
 
   if (!schedule) {
-    return <AdminLayout title="Not Found"><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></AdminLayout>;
+    return <><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></>;
   }
 
-  // Rotations: pure schedule without any override substitution
-  const rotationRows = schedule.layers.map((layer: OnCallLayer) => ({
+  // Rotations: pure schedule without any override substitution. Bars come from the last
+  // *saved* expand (the Gantt bars themselves don't reflect the draft until Save is pressed),
+  // but the row list/labels come from the draft so newly-added/edited/deleted layers show up
+  // immediately with working edit/delete controls.
+  const rotationRows = draft.layers.map((layer) => ({
     label: layer.name,
-    layer,
+    layer: {
+      id: layer.id,
+      scheduleId: schedule.id,
+      name: layer.name,
+      order: 0,
+      recurrenceRule: layer.recurrenceRule,
+      firstOccurrenceStartsAt: layer.firstOccurrenceStartsAt,
+      firstOccurrenceEndsAt: layer.firstOccurrenceEndsAt,
+      isAllDay: false,
+      users: layer.users,
+    },
     slots: rotationSlots.filter((s: OnCallSlot) => s.layerId === layer.id),
   }));
 
@@ -150,7 +234,7 @@ export default function OnCallScheduleDetailPage() {
   });
 
   // Final: all slots merged (rotations with overrides applied)
-  const finalRows = schedule.layers.map((layer: OnCallLayer) => ({
+  const finalRows = schedule.layers.map((layer) => ({
     label: layer.name,
     slots: slots.filter((s: OnCallSlot) => s.layerId === layer.id),
   }));
@@ -163,31 +247,38 @@ export default function OnCallScheduleDetailPage() {
   ];
 
   return (
-    <AdminLayout title={schedule.name}>
-      {/* Breadcrumb */}
-      <button
-        onClick={() => navigate(ROUTES.ONCALL.LIST)}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ChevronLeft size={14} /> On-Call Schedules
-      </button>
+    <>
+      <PageHeader
+        breadcrumbs={[
+          { label: "On Call Schedules", onClick: () => navigate(ROUTES.ONCALL.LIST) },
+          { label: schedule.name },
+        ]}
+        subheader={schedule.timeZone}
+        actions={
+          schedule.layers.length === 0 ? (
+            <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-500">
+              <AlertTriangle size={13} />
+              No coverage — add a rotation layer
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+              Active
+            </span>
+          )
+        }
+      />
 
-      {/* Schedule header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">{schedule.name}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{schedule.timeZone}</p>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            Active
-          </span>
-        </div>
-      </div>
+      <SectionAccordion
+        title="General Settings"
+        description="Name, description, and timezone"
+        icon={<Settings size={16} className="text-muted-foreground" />}
+      >
+        <GeneralSettingsSection schedule={schedule} />
+      </SectionAccordion>
 
       {/* Date nav + view toggle */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mt-6 mb-6 flex-wrap">
         <button onClick={goToday} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted/50">Today</button>
         <div className="flex items-center gap-1">
           <button onClick={() => advance(-1)} className="p-1.5 rounded-lg border border-border hover:bg-muted/50">
@@ -216,44 +307,39 @@ export default function OnCallScheduleDetailPage() {
         </div>
       </div>
 
-      {/* Rotations section */}
-      <div className="rounded-xl border border-border bg-card mb-4">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl">
-          <h2 className="font-semibold text-sm text-foreground">Rotations</h2>
+      <SectionAccordion
+        title="Rotations"
+        description="Recurring on-call layers for this schedule"
+        defaultOpen
+        actions={
           <button
             onClick={() => setShowAddLayer(true)}
             className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
           >
             <Plus size={13} /> Add rotation
           </button>
-        </div>
-        <div className="py-3">
-          {schedule.layers.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic px-4">No rotations yet.</p>
-          ) : (
-            <GanttTimeline
-              rows={rotationRows}
-              from={from}
-              to={to}
-              totalMs={to.getTime() - from.getTime()}
-              onEditLayer={(layer) => setEditLayer(layer)}
-              onDeleteLayer={handleDeleteLayer}
-            />
-          )}
-        </div>
-      </div>
+        }
+      >
+        {draft.layers.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">No rotations yet.</p>
+        ) : (
+          <GanttTimeline
+            rows={rotationRows}
+            from={from}
+            to={to}
+            totalMs={to.getTime() - from.getTime()}
+            onEditLayer={(layer) => setEditLayer(draft.layers.find((l) => l.id === layer.id) ?? null)}
+            onDeleteLayer={handleDeleteDraftLayer}
+          />
+        )}
+      </SectionAccordion>
 
-      {/* Overrides section */}
-      <div className="rounded-xl border border-border bg-card mb-4">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl">
-          <h2 className="font-semibold text-sm text-foreground">Overrides</h2>
+      <SectionAccordion
+        title="Overrides"
+        description="Temporary substitutions for this period"
+        defaultOpen
+        actions={
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowAddOverride(true)}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Take on-call for an hour
-            </button>
             <button
               onClick={() => setShowAddOverride(true)}
               className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -261,67 +347,110 @@ export default function OnCallScheduleDetailPage() {
               <Plus size={13} /> Add override
             </button>
           </div>
-        </div>
-        <div className="px-4 py-3">
+        }
+      >
+        <div className="flex flex-col gap-4">
           {overrideRows.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No overrides in this period.</p>
           ) : (
             <GanttTimeline rows={overrideRows} from={from} to={to} totalMs={to.getTime() - from.getTime()} />
           )}
-        </div>
-      </div>
 
-      {/* Final schedule section */}
-      <div className="rounded-xl border border-border bg-card">
-        <div className="px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl">
-          <h2 className="font-semibold text-sm text-foreground">Final Schedule</h2>
+          <div className="rounded-lg border divide-y">
+            {draft.overrides.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic px-3 py-2">No overrides staged.</p>
+            ) : (
+              draft.overrides.map((ov) => (
+                <div key={ov.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0 text-sm">
+                    <span className="font-medium truncate">
+                      {ov.replacesUserName ? `${ov.userName} → replacing ${ov.replacesUserName}` : `${ov.userName} (extra coverage)`}
+                    </span>
+                    {ov.isNew && (
+                      <span className="text-xs rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 px-2 py-0.5">New</span>
+                    )}
+                  </div>
+                  <button onClick={() => handleDeleteDraftOverride(ov.id)} className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" title="Delete override">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-        <div className="px-4 py-3">
-          {loadingSlots ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : finalRows.every(r => r.slots.length === 0) ? (
-            <p className="text-sm text-muted-foreground italic">No coverage in this period.</p>
-          ) : (
-            <GanttTimeline rows={finalRows} from={from} to={to} totalMs={to.getTime() - from.getTime()} />
-          )}
+      </SectionAccordion>
+
+      {draft.isDirty && (
+        <div className="sticky bottom-4 z-10 flex justify-end">
+          <Button onClick={handleSave} disabled={isSaving} className="shadow-lg">
+            <Save size={14} />
+            {isSaving ? "Saving…" : "Save rotations"}
+          </Button>
         </div>
-      </div>
+      )}
+
+      <SectionAccordion
+        title="Final Schedule"
+        description="Rotations with overrides applied"
+        defaultOpen
+      >
+        {loadingSlots ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : finalRows.every(r => r.slots.length === 0) ? (
+          <p className="text-sm text-muted-foreground italic">No coverage in this period.</p>
+        ) : (
+          <GanttTimeline rows={finalRows} from={from} to={to} totalMs={to.getTime() - from.getTime()} gaps={liveGaps} />
+        )}
+      </SectionAccordion>
+
+      <SectionAccordion
+        title="Danger Zone"
+        description="Irreversible actions for this schedule"
+        icon={<AlertTriangle size={16} className="text-destructive" />}
+        titleClassName="text-destructive"
+      >
+        <DangerZone objectName="on-call schedule" objectId={schedule.name} onDelete={handleDeleteSchedule} />
+      </SectionAccordion>
 
       {/* Modals */}
       {showAddLayer && (
         <AddLayerModal
-          scheduleId={id!}
           onClose={() => setShowAddLayer(false)}
-          onSuccess={() => {
+          onSave={(payload: LayerFormPayload) => {
+            draft.addLayer(payload);
             setShowAddLayer(false);
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE(id!) });
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULES });
           }}
         />
       )}
       {editLayer && (
         <AddLayerModal
-          scheduleId={id!}
-          initialLayer={editLayer}
+          initialLayer={{
+            id: editLayer.id,
+            scheduleId: schedule.id,
+            name: editLayer.name,
+            order: 0,
+            recurrenceRule: editLayer.recurrenceRule,
+            firstOccurrenceStartsAt: editLayer.firstOccurrenceStartsAt,
+            firstOccurrenceEndsAt: editLayer.firstOccurrenceEndsAt,
+            isAllDay: false,
+            users: editLayer.users,
+          }}
           onClose={() => setEditLayer(null)}
-          onSuccess={() => {
+          onSave={(payload: LayerFormPayload) => {
+            draft.updateLayer(editLayer.id, payload);
             setEditLayer(null);
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE(id!) });
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE_EXPAND(id!, isoStr(from), isoStr(to)) });
           }}
         />
       )}
       {showAddOverride && (
         <AddOverrideModal
-          scheduleId={id!}
           onClose={() => setShowAddOverride(false)}
-          onSuccess={() => {
+          onSave={(payload: OverrideFormPayload) => {
+            draft.addOverride(payload);
             setShowAddOverride(false);
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE(id!) });
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.ONCALL_SCHEDULE_EXPAND(id!, isoStr(from), isoStr(to)) });
           }}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

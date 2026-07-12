@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Services;
 using Quartz;
+using Serilog.Context;
 
 namespace Piro.Infrastructure.Jobs;
 
@@ -19,6 +20,9 @@ public class CheckExecutionJob(IServiceScopeFactory scopeFactory, ILogger<CheckE
             logger.LogWarning("CheckExecutionJob fired without a valid checkId in JobDataMap.");
             return;
         }
+
+        // Tags every log emitted during this execution with CheckId, so the Logs page can filter to a single check.
+        using var _ = LogContext.PushProperty("CheckId", checkId);
 
         // Resolve scoped services — Quartz jobs are singleton-lifetime, so we create a scope manually.
         await using var scope = scopeFactory.CreateAsyncScope();

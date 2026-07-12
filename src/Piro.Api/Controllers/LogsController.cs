@@ -18,12 +18,13 @@ public class LogsController(ILogRepository logRepository) : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
+        [FromQuery] int? checkId = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken ct = default)
     {
         var result = await logRepository.GetPagedAsync(
-            new LogQueryParams(level, search, from, to, page, pageSize), ct);
+            new LogQueryParams(level, search, from, to, checkId, page, pageSize), ct);
         return Ok(result);
     }
 }

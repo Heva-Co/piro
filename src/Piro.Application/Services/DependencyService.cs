@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -25,7 +26,7 @@ public class DependencyService(
             ?? throw new NotFoundException(nameof(Service), serviceSlug);
 
         var deps = await dependencyRepo.GetByServiceIdAsync(service.Id, ct);
-        return deps.Select(d => ToDto(d, serviceSlug));
+        return deps.Select(d => d.ToDto(serviceSlug));
     }
 
     public async Task<DependencyDto> AddAsync(string serviceSlug, AddDependencyRequest request, CancellationToken ct = default)
@@ -59,7 +60,7 @@ public class DependencyService(
         // Trigger recomputation so the new dependency is reflected immediately
         TriggerRecompute(service.Id);
 
-        return ToDto(created, serviceSlug);
+        return created.ToDto(serviceSlug);
     }
 
     public async Task RemoveAsync(string serviceSlug, string dependsOnSlug, CancellationToken ct = default)
@@ -107,11 +108,4 @@ public class DependencyService(
 
     private void TriggerRecompute(int serviceId) =>
         statusChannel.Writer.TryWrite(new CheckStatusChangedEvent(0, serviceId, ServiceStatus.NO_DATA, ServiceStatus.NO_DATA));
-
-    private static DependencyDto ToDto(ServiceDependency d, string serviceSlug) => new(
-        serviceSlug,
-        d.DependsOnService?.Slug ?? d.DependsOnServiceId.ToString(),
-        d.PropagationMode,
-        d.CreatedAt
-    );
 }

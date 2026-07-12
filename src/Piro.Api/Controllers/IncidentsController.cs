@@ -11,8 +11,8 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/incidents")]
 [Produces("application/json")]
-[Authorize]
-public class IncidentsController(IncidentAppService incidentService, IIncidentPublishScheduler publishScheduler) : ControllerBase
+[Authorize(Roles = "Owner,Admin,Member")]
+public class IncidentsController(IncidentAppService incidentService) : ControllerBase
 {
     /// <summary>
     /// Returns incidents filtered by <paramref name="filter"/>:
@@ -25,23 +25,25 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     public async Task<IActionResult> GetAll([FromQuery] string filter = "active", CancellationToken ct = default) =>
         Ok(await incidentService.GetAllAsync(filter, ct));
 
-    /// <summary>
-    /// Returns published, non-merged incidents for the public status page.
-    /// Pass <c>includeResolved=true</c> to include incident history.
-    /// </summary>
-    [HttpGet("public")]
-    [AllowAnonymous]
-    [ProducesResponseType<IEnumerable<IncidentDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPublic([FromQuery] bool includeResolved = false, CancellationToken ct = default) =>
-        Ok(await incidentService.GetAllPublicAsync(includeResolved, ct));
-
-    /// <summary>Returns a single incident by ID.</summary>
+    /// <summary>Returns a single incident by ID with the full admin view (internal fields included).</summary>
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     [ProducesResponseType<IncidentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
         Ok(await incidentService.GetByIdAsync(id, ct));
+
+    /// <summary>
+    /// Returns a paginated page of an incident's full timeline (all events, any visibility), most
+    /// recent first — used for the admin "view full timeline" infinite-scroll flow.
+    /// </summary>
+    [HttpGet("{id:int}/timeline")]
+    [ProducesResponseType<IncidentTimelinePageDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTimeline(
+        int id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default) =>
+        Ok(await incidentService.GetTimelineAsync(id, page, pageSize, publicOnly: false, ct));
 
     /// <summary>Creates a new incident and optionally links affected services.</summary>
     [HttpPost]
@@ -59,33 +61,33 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     public async Task<IActionResult> Update(int id, [FromBody] UpdateIncidentRequest request, CancellationToken ct) =>
         Ok(await incidentService.UpdateAsync(id, request, ct));
 
-    /// <summary>Posts a status update comment on an incident and optionally advances its state.</summary>
-    [HttpPost("{id:int}/comments")]
+    /// <summary>Posts an update on an incident and optionally advances its status.</summary>
+    [HttpPost("{id:int}/updates")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AddComment(int id, [FromBody] AddCommentRequest request, CancellationToken ct)
+    public async Task<IActionResult> AddTimelineComment(int id, [FromBody] AddTimelineCommentRequest request, CancellationToken ct)
     {
-        await incidentService.AddCommentAsync(id, request, ct);
+        await incidentService.AddTimelineCommentAsync(id, request, ct);
         return NoContent();
     }
 
-    /// <summary>Updates the text or state of an existing comment.</summary>
-    [HttpPut("{id:int}/comments/{commentId:int}")]
+    /// <summary>Updates the text or visibility of an existing update.</summary>
+    [HttpPut("{id:int}/updates/{eventId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateComment(int id, int commentId, [FromBody] UpdateCommentRequest request, CancellationToken ct)
+    public async Task<IActionResult> UpdateTimelineComment(int id, int eventId, [FromBody] UpdateTimelineCommentRequest request, CancellationToken ct)
     {
-        await incidentService.UpdateCommentAsync(id, commentId, request, ct);
+        await incidentService.UpdateTimelineCommentAsync(id, eventId, request, ct);
         return NoContent();
     }
 
-    /// <summary>Deletes a single comment from an incident.</summary>
-    [HttpDelete("{id:int}/comments/{commentId:int}")]
+    /// <summary>Deletes a single update from an incident's timeline.</summary>
+    [HttpDelete("{id:int}/updates/{eventId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteComment(int id, int commentId, CancellationToken ct)
+    public async Task<IActionResult> DeleteTimelineComment(int id, int eventId, CancellationToken ct)
     {
-        await incidentService.DeleteCommentAsync(id, commentId, ct);
+        await incidentService.DeleteTimelineCommentAsync(id, eventId, ct);
         return NoContent();
     }
 
@@ -120,61 +122,33 @@ public class IncidentsController(IncidentAppService incidentService, IIncidentPu
     public async Task<IActionResult> RemoveService(int id, string serviceSlug, CancellationToken ct) =>
         Ok(await incidentService.RemoveServiceAsync(id, serviceSlug, ct));
 
-    /// <summary>Deletes an incident and all its comments.</summary>
+    /// <summary>Deletes an incident and all its timeline events.</summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await incidentService.DeleteAsync(id, ct);
-        await publishScheduler.CancelAsync(id, ct);
         return NoContent();
     }
 
-    /// <summary>Immediately publishes a draft incident to the status page, cancelling any pending auto-publish timer.</summary>
+    /// <summary>Publishes an incident to the status page. Always a manual, explicit action.</summary>
     [HttpPost("{id:int}/publish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Publish(int id, CancellationToken ct)
     {
         await incidentService.PublishAsync(id, ct);
-        await publishScheduler.CancelAsync(id, ct);
         return NoContent();
     }
 
-    /// <summary>
-    /// Extends the auto-publish timer by the specified number of minutes.
-    /// If no timer is pending, schedules a new one from now.
-    /// </summary>
-    [HttpPost("{id:int}/publish/delay")]
-    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DelayPublish(int id, [FromBody] DelayPublishRequest request, CancellationToken ct)
-    {
-        await incidentService.GetByIdAsync(id, ct); // throws 404 if not found
-        await publishScheduler.ExtendAsync(id, request.AdditionalMinutes, ct);
-        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
-        return Ok(new PublishScheduleDto(scheduledAt));
-    }
-
-    /// <summary>Cancels the auto-publish timer, keeping the incident as a draft indefinitely.</summary>
-    [HttpDelete("{id:int}/publish/schedule")]
+    /// <summary>Reverts a published incident back to private, hiding it (and its public comments) from the status page.</summary>
+    [HttpPost("{id:int}/unpublish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> CancelPublish(int id, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Unpublish(int id, CancellationToken ct)
     {
-        await publishScheduler.CancelAsync(id, ct);
+        await incidentService.UnpublishAsync(id, ct);
         return NoContent();
-    }
-
-    /// <summary>Returns when the incident is scheduled to be auto-published, or null if no timer is set.</summary>
-    [HttpGet("{id:int}/publish/schedule")]
-    [ProducesResponseType<PublishScheduleDto>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPublishSchedule(int id, CancellationToken ct)
-    {
-        var scheduledAt = await publishScheduler.GetScheduledTimeAsync(id, ct);
-        return Ok(new PublishScheduleDto(scheduledAt));
     }
 }
-
-public record DelayPublishRequest(int AdditionalMinutes);
-public record PublishScheduleDto(DateTimeOffset? ScheduledAt);

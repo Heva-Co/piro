@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
+using Piro.Domain.Enums;
+using Piro.Domain.Extensions;
 
 namespace Piro.Infrastructure.Email;
 
@@ -17,15 +19,19 @@ public class EmailServiceFactory(
     public async Task SendAsync(string to, string subject, string htmlBody, CancellationToken ct = default, string? from = null)
     {
         var config = await emailConfig.GetAsync(ct);
-        var provider = config.Provider ?? "smtp";
+        var provider = config.Provider.ParseEmailProvider();
 
-        IEmailService impl = provider.ToLowerInvariant() switch
+        IEmailService impl = provider switch
         {
-            "resend" => resend,
-            _        => smtp,
+            EmailProvider.Resend => resend,
+            EmailProvider.Smtp   => smtp,
+            _                    => throw new ArgumentOutOfRangeException(),
         };
 
         logger.LogDebug("Dispatching email via provider '{Provider}'.", provider);
         await impl.SendAsync(to, subject, htmlBody, ct, from);
     }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }
