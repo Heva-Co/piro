@@ -60,8 +60,7 @@ internal class RemoteCheckJobDispatcher(
                 ErrorMessage = "No remote workers connected"
             };
 
-            try { await dataPointRepo.CreateAsync(gapPoint, ct); }
-            catch { /* duplicate for this minute — ignore */ }
+            await dataPointRepo.CreateAsync(gapPoint, ct);
 
             return;
         }
@@ -127,8 +126,7 @@ internal class RemoteCheckJobDispatcher(
                 ErrorMessage = "No default worker connected"
             };
 
-            try { await dataPointRepo.CreateAsync(gapPoint, ct); }
-            catch { /* duplicate for this minute — ignore */ }
+            await dataPointRepo.CreateAsync(gapPoint, ct);
 
             return;
         }

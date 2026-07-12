@@ -22,6 +22,13 @@ public class Service
     /// <summary>Derived status computed from checks and dependency propagation. Never set directly.</summary>
     public ServiceStatus CurrentStatus { get; set; } = ServiceStatus.NO_DATA;
 
+    /// <summary>
+    /// Status shown on the public status page. Defaults to UP — raw check failures never affect
+    /// it. Only degraded/worsened by an active maintenance window or a Public incident's declared
+    /// impact. Never set directly.
+    /// </summary>
+    public ServiceStatus PublicStatus { get; set; } = ServiceStatus.UP;
+
     /// <summary>Status to use when no check data is available yet.</summary>
     public ServiceStatus DefaultStatus { get; set; } = ServiceStatus.NO_DATA;
 
@@ -38,6 +45,11 @@ public class Service
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>The escalation policy used to notify on-call users when this service's checks alert.
+    /// Many services may share the same policy. Null = no on-call escalation configured.</summary>
+    public int? EscalationPolicyId { get; set; }
+    public EscalationPolicy? EscalationPolicy { get; set; }
 
     public ICollection<Check> Checks { get; set; } = [];
     public ICollection<ServiceDependency> DependsOn { get; set; } = [];

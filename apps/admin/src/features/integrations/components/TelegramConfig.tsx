@@ -10,7 +10,7 @@ export function TelegramConfig() {
   return (
     <div className="flex flex-col gap-1.5">
       <label className={lbl}>Bot Token <span className="text-destructive">*</span></label>
-      <Input {...register("tgBotToken", { required: "Required" })} placeholder="123456:ABC-DEF…" className={inp} />
+      <Input type="password" {...register("tgBotToken")} placeholder="123456:ABC-DEF…" className={inp} />
       {errors.tgBotToken && <p className="text-xs text-destructive">{errors.tgBotToken.message}</p>}
       <p className="text-xs text-muted-foreground">From @BotFather. Each channel using this integration provides its own Chat ID.</p>
     </div>

@@ -1,33 +1,52 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Npgsql;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
 /// <summary>EF Core implementation of <see cref="ICheckDataPointRepository"/>.</summary>
-internal class CheckDataPointRepository(PiroDbContext db) : ICheckDataPointRepository
+internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPointRepository> logger) : ICheckDataPointRepository
 {
     public async Task<IEnumerable<CheckDataPoint>> GetByCheckIdAsync(
-        int checkId, long? from = null, long? to = null, CancellationToken ct = default)
+        int checkId, long? from = null, long? to = null, string? region = null, int? limit = null, CancellationToken ct = default)
     {
         var query = db.CheckDataPoints.Where(p => p.CheckId == checkId);
         if (from.HasValue) query = query.Where(p => p.Timestamp >= from.Value);
         if (to.HasValue) query = query.Where(p => p.Timestamp <= to.Value);
-        return await query.OrderByDescending(p => p.Timestamp).ToListAsync(ct);
+        if (region is not null) query = query.Where(p => p.WorkerRegion == region);
+
+        query = query.OrderByDescending(p => p.Timestamp);
+        if (limit.HasValue) query = query.Take(limit.Value);
+
+        return await query.ToListAsync(ct);
     }
 
-    public async Task CreateAsync(CheckDataPoint dataPoint, CancellationToken ct = default)
+    public async Task<bool> CreateAsync(CheckDataPoint dataPoint, CancellationToken ct = default)
     {
         db.CheckDataPoints.Add(dataPoint);
         try
         {
             await db.SaveChangesAsync(ct);
+            return true;
         }
-        catch
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            // Detach so the failed entity doesn't poison subsequent SaveChangesAsync calls
-            db.Entry(dataPoint).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            // Duplicate PK (same check/minute/region) — safe to ignore, another writer already has this row
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to persist data point for check {CheckId} at {Timestamp}.", dataPoint.CheckId, dataPoint.Timestamp);
             throw;
+        }
+        finally
+        {
+            // Detach so a failed entity doesn't poison subsequent SaveChangesAsync calls
+            if (db.Entry(dataPoint).State != EntityState.Detached)
+                db.Entry(dataPoint).State = EntityState.Detached;
         }
     }
 
@@ -48,6 +67,29 @@ internal class CheckDataPointRepository(PiroDbContext db) : ICheckDataPointRepos
                 Max: g.Max(p => p.LatencyMs!.Value)
             ))
             .OrderBy(d => d.DayTimestamp)
+            .ToList();
+    }
+
+    public async Task<IEnumerable<CheckDailyStats>> GetDailyStatsByCheckIdAsync(
+        int checkId, long from, long to, CancellationToken ct = default)
+    {
+        var rows = await db.CheckDataPoints
+            .Where(p => p.CheckId == checkId && p.Timestamp >= from && p.Timestamp <= to)
+            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Status, p.LatencyMs })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(p => (p.WorkerRegion, Day: p.Timestamp / 86400))
+            .Select(g => new CheckDailyStats(
+                Region: g.Key.WorkerRegion,
+                DayTimestamp: g.Key.Day * 86400,
+                CountUp: g.Count(p => p.Status == ServiceStatus.UP),
+                CountDown: g.Count(p => p.Status == ServiceStatus.DOWN || p.Status == ServiceStatus.FAILURE),
+                CountDegraded: g.Count(p => p.Status == ServiceStatus.DEGRADED),
+                AvgLatencyMs: g.Any(p => p.LatencyMs.HasValue)
+                    ? g.Where(p => p.LatencyMs.HasValue).Average(p => p.LatencyMs!.Value)
+                    : null))
+            .OrderBy(d => d.Region).ThenBy(d => d.DayTimestamp)
             .ToList();
     }
 

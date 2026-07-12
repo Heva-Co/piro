@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Plug } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -21,7 +20,7 @@ export default function IntegrationsPage() {
   });
 
   return (
-    <AdminLayout title="Integrations">
+    <>
       <div className="flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -118,6 +117,6 @@ export default function IntegrationsPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

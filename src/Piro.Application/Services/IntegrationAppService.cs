@@ -1,24 +1,30 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
-using Piro.Domain.Extensions;
 
 namespace Piro.Application.Services;
 
 public class IntegrationAppService(IIntegrationRepository repository)
 {
+    /// <summary>Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep the existing secret".</summary>
+    public const string MaskedSecretValue = IntegrationExtensions.MaskedSecretValue;
+
     public async Task<IEnumerable<IntegrationDto>> GetAllAsync(CancellationToken ct = default)
     {
         var items = await repository.GetAllAsync(ct);
-        return items.Select(ToDto);
+        return items.Select(i => i.ToDto());
     }
 
     public async Task<IntegrationDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var item = await repository.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Integration), id.ToString());
-        return ToDto(item);
+        return item.ToDto();
     }
 
     public async Task<IntegrationDto> CreateAsync(CreateIntegrationRequest request, CancellationToken ct = default)
@@ -31,7 +37,7 @@ public class IntegrationAppService(IIntegrationRepository repository)
             ConfigJson = request.ConfigJson
         };
         var created = await repository.CreateAsync(integration, ct);
-        return ToDto(created);
+        return created.ToDto();
     }
 
     public async Task<IntegrationDto> UpdateAsync(int id, UpdateIntegrationRequest request, CancellationToken ct = default)
@@ -41,10 +47,11 @@ public class IntegrationAppService(IIntegrationRepository repository)
 
         if (request.Name is not null) integration.Name = request.Name;
         if (request.Description is not null) integration.Description = request.Description;
-        if (request.ConfigJson is not null) integration.ConfigJson = request.ConfigJson;
+        if (request.ConfigJson is not null)
+            integration.ConfigJson = MergeConfigJson(integration.Type, integration.ConfigJson, request.ConfigJson);
 
         var updated = await repository.UpdateAsync(integration, ct);
-        return ToDto(updated);
+        return updated.ToDto();
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
@@ -59,15 +66,46 @@ public class IntegrationAppService(IIntegrationRepository repository)
         await repository.DeleteAsync(integration, ct);
     }
 
-    private static IntegrationDto ToDto(Integration i) => new(
-        i.Id, 
-        i.Name, 
-        i.Type, 
-        i.Type.GetCategory(), 
-        i.Description, 
-        i.ConfigJson,
-        i.Checks.Count, 
-        i.CreatedAt, 
-        i.UpdatedAt
-    );
+    /// <summary>
+    /// Merges an incoming ConfigJson over the existing one: any secret key whose incoming value is
+    /// still the masked sentinel is left untouched, so a client re-submitting a masked form (without
+    /// the user having entered a new secret) doesn't overwrite the stored credential with the placeholder.
+    /// </summary>
+    private static string MergeConfigJson(IntegrationType type, string existingConfigJson, string incomingConfigJson)
+    {
+        if (!IntegrationExtensions.SecretKeysByType.TryGetValue(type, out var secretKeys))
+            return incomingConfigJson;
+
+        JsonNode? incomingNode;
+        try
+        {
+            incomingNode = JsonNode.Parse(incomingConfigJson);
+        }
+        catch (JsonException)
+        {
+            return incomingConfigJson;
+        }
+
+        if (incomingNode is not JsonObject incoming)
+            return incomingConfigJson;
+
+        JsonObject? existing = null;
+        try
+        {
+            existing = JsonNode.Parse(existingConfigJson) as JsonObject;
+        }
+        catch (JsonException) { /* keep existing == null */ }
+
+        foreach (var key in secretKeys)
+        {
+            if (incoming[key] is JsonValue value &&
+                value.GetValueKind() == JsonValueKind.String &&
+                value.GetValue<string>() == MaskedSecretValue)
+            {
+                incoming[key] = existing?[key]?.DeepClone();
+            }
+        }
+
+        return incoming.ToJsonString();
+    }
 }

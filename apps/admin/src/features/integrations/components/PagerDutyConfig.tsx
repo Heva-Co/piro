@@ -10,7 +10,7 @@ export function PagerDutyConfig() {
   return (
     <div className="flex flex-col gap-1.5">
       <label className={lbl}>Routing Key <span className="text-destructive">*</span></label>
-      <Input {...register("pdRoutingKey", { required: "Required" })} placeholder="PagerDuty Events API v2 routing key" className={inp} />
+      <Input type="password" {...register("pdRoutingKey")} placeholder="PagerDuty Events API v2 routing key" className={inp} />
       {errors.pdRoutingKey && <p className="text-xs text-destructive">{errors.pdRoutingKey.message}</p>}
     </div>
   );

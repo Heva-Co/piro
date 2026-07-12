@@ -4,6 +4,9 @@ public interface ISiteConfigRepository
 {
     Task<SiteConfig> GetAsync(CancellationToken ct = default);
     Task SetAsync(string key, string? value, CancellationToken ct = default);
+
+    /// <summary>Persists all of the given key/value pairs in a single transaction — either all apply or none do.</summary>
+    Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default);
 }
 
 public record SiteConfig(
@@ -14,16 +17,5 @@ public record SiteConfig(
     string? MetaTitle,
     string? MetaDescription,
     string? OgImageUrl,
-    bool BuiltinWorkerDisabled = false,
-    int IncidentPublishDelayMinutes = 0,
-    IncidentCorrelationMode IncidentCorrelationMode = IncidentCorrelationMode.Hybrid,
-    int GlobalIncidentThreshold = 3,
-    int GlobalIncidentCorrelationWindowMinutes = 5
+    bool BuiltinWorkerDisabled = false
 );
-
-public enum IncidentCorrelationMode
-{
-    PerService,
-    Global,
-    Hybrid
-}

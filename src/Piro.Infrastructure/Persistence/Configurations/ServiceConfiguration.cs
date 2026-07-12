@@ -18,6 +18,7 @@ internal class ServiceConfiguration : IEntityTypeConfiguration<Service>
         builder.Property(s => s.ImageUrl).HasMaxLength(500);
         builder.Property(s => s.CurrentStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
         builder.Property(s => s.DefaultStatus).HasConversion<string>().HasDefaultValue(ServiceStatus.NO_DATA);
+        builder.Property(s => s.PublicStatus).HasConversion<string>().HasSentinel(ServiceStatus.NO_DATA).HasDefaultValue(ServiceStatus.UP);
 
         builder.HasMany(s => s.DependsOn)
             .WithOne(d => d.Service)
@@ -28,5 +29,10 @@ internal class ServiceConfiguration : IEntityTypeConfiguration<Service>
             .WithOne(d => d.DependsOnService)
             .HasForeignKey(d => d.DependsOnServiceId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(s => s.EscalationPolicy)
+            .WithMany(p => p.Services)
+            .HasForeignKey(s => s.EscalationPolicyId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

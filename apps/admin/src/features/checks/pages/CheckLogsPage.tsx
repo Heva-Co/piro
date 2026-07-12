@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Settings, ChevronLeft } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
+import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { checksApi } from "@/lib/api";
 import { ROUTES } from "@/constants/routes";
 
@@ -24,6 +24,7 @@ export default function CheckLogsPage() {
   const navigate = useNavigate();
 
   const { data: check } = useCheck(serviceSlug!, checkSlug!);
+  const { formatTimestamp } = useFormattedDate();
 
   const [limit, setLimit] = useState(50);
   const [region, setRegion] = useState("");
@@ -67,7 +68,7 @@ export default function CheckLogsPage() {
   }
 
   return (
-    <AdminLayout title="Logs">
+    <>
       <div className="flex flex-col gap-6">
         {/* Breadcrumb */}
         <div className="flex items-center justify-between">
@@ -206,7 +207,7 @@ export default function CheckLogsPage() {
                 {paginated.map((log, i) => (
                   <tr key={`${log.timestamp}-${i}`} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(log.timestamp * 1000).toLocaleString()}
+                      {formatTimestamp(log.timestamp)}
                     </td>
                     <td className="px-5 py-2.5">
                       <StatusPill status={log.status} dataType={log.dataType} />
@@ -267,6 +268,6 @@ export default function CheckLogsPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

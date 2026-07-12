@@ -16,10 +16,7 @@ export function JiraConfig() {
       <div className="flex flex-col gap-1.5">
         <label className={lbl}>Base URL <span className="text-destructive">*</span></label>
         <Input
-          {...register("jiraBaseUrl", {
-            required: "Base URL is required",
-            pattern: { value: /^https:\/\/[a-zA-Z0-9-]+\.atlassian\.net\/?$/, message: "Must be a valid Atlassian URL (https://your-org.atlassian.net)" },
-          })}
+          {...register("jiraBaseUrl")}
           placeholder="https://your-org.atlassian.net"
           className={inp(!!errors.jiraBaseUrl)}
         />
@@ -28,10 +25,7 @@ export function JiraConfig() {
       <div className="flex flex-col gap-1.5">
         <label className={lbl}>Email <span className="text-destructive">*</span></label>
         <Input
-          {...register("jiraEmail", {
-            required: "Email is required",
-            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email" },
-          })}
+          {...register("jiraEmail")}
           placeholder="you@example.com"
           className={inp(!!errors.jiraEmail)}
         />
@@ -41,7 +35,7 @@ export function JiraConfig() {
         <label className={lbl}>API Token <span className="text-destructive">*</span></label>
         <Input
           type="password"
-          {...register("jiraApiToken", { required: "API Token is required" })}
+          {...register("jiraApiToken")}
           placeholder="Your Jira API token"
           className={inp(!!errors.jiraApiToken)}
         />

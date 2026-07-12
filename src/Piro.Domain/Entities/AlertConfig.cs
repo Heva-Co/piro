@@ -23,9 +23,6 @@ public class AlertConfig
 
     public string? Description { get; set; }
 
-    /// <summary>When true, a new <see cref="Incident"/> is automatically created when the alert fires.</summary>
-    public bool CreateIncident { get; set; }
-
     public bool IsActive { get; set; } = true;
     public AlertSeverity Severity { get; set; } = AlertSeverity.Warning;
 
@@ -36,5 +33,4 @@ public class AlertConfig
     public DateTime UpdatedAt { get; set; }
 
     public Check Check { get; set; } = null!;
-    public ICollection<AlertConfigNotificationChannel> AlertConfigNotificationChannels { get; set; } = [];
 }

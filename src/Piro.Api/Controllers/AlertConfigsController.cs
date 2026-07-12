@@ -6,7 +6,7 @@ using Piro.Application.Services;
 namespace Piro.Api.Controllers;
 
 /// <summary>Manages alert configurations for a check.</summary>
-[Authorize]
+[Authorize(Roles = "Owner,Admin")]
 [ApiController]
 [Route("api/v1/services/{serviceSlug}/checks/{checkSlug}/alert-configs")]
 [Produces("application/json")]

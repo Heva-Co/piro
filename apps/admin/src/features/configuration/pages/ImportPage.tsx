@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CheckCircle, AlertCircle } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { configApi } from "@/lib/api";
 
 export default function ImportPage() {
@@ -30,7 +29,7 @@ export default function ImportPage() {
   }
 
   return (
-    <AdminLayout title="Import Configuration">
+    <>
       <div className="max-w-2xl">
         <p className="text-sm text-gray-500 mb-4">
           Paste your YAML configuration below to import services, checks, and channels.
@@ -66,6 +65,6 @@ export default function ImportPage() {
           </button>
         </form>
       </div>
-    </AdminLayout>
+    </>
   );
 }

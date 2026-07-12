@@ -9,6 +9,13 @@ namespace Piro.Infrastructure.Workers;
 /// </summary>
 internal class WorkerRegistry : IWorkerRegistry
 {
+    /// <summary>
+    /// Workers heartbeat every ~1 minute (see ApiWorkerHostedService / WorkerSignalRService).
+    /// A worker silent for longer than this is treated as dead even if SignalR hasn't
+    /// noticed the disconnect yet, so fan-out doesn't wait on it for the full batch timeout.
+    /// </summary>
+    private static readonly TimeSpan StaleThreshold = TimeSpan.FromMinutes(3);
+
     private readonly ConcurrentDictionary<string, WorkerInfo> _byConnectionId = new();
 
     public void Register(string connectionId, WorkerInfo info) =>
@@ -48,8 +55,11 @@ internal class WorkerRegistry : IWorkerRegistry
     }
 
     public IReadOnlyList<WorkerInfo> GetAll() =>
-        _byConnectionId.Values.ToList();
+        _byConnectionId.Values.Where(IsAlive).ToList();
 
     public WorkerInfo? GetDefaultWorker() =>
-        _byConnectionId.Values.FirstOrDefault(w => w.IsDefault);
+        _byConnectionId.Values.Where(IsAlive).FirstOrDefault(w => w.IsDefault);
+
+    private static bool IsAlive(WorkerInfo w) =>
+        DateTime.UtcNow - w.LastHeartbeat < StaleThreshold;
 }

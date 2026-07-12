@@ -15,7 +15,7 @@ public record WorkerDto(
 
 public record CreateWorkerRequest(string Name, string Region, bool IsDefault = false);
 
-public record UpdateWorkerRequest(string? Region = null);
+public record UpdateWorkerRequest(string? Region = null, bool? IsDefault = null);
 
 /// <summary>
 /// Returned once at creation time. <see cref="WorkerToken"/> is the plaintext token

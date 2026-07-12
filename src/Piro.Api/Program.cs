@@ -121,17 +121,32 @@ builder.Services.AddSignalR()
         opts.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// JWT authentication
+// JWT authentication, with an X-Api-Key header alternative that resolves to the same
+// NameIdentifier/Role claims. A policy scheme picks whichever is present per-request so
+// existing [Authorize]/[Authorize(Roles = "...")] attributes work against either.
 var jwtSecret = builder.Configuration["Auth:JwtSecret"]
     ?? throw new InvalidOperationException("Auth:JwtSecret is required.");
 
+const string SmartAuthScheme = "SmartAuth";
+
 builder.Services.AddAuthentication(opts =>
     {
-        opts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        opts.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        opts.DefaultAuthenticateScheme = SmartAuthScheme;
+        opts.DefaultChallengeScheme = SmartAuthScheme;
+    })
+    .AddPolicyScheme(SmartAuthScheme, SmartAuthScheme, opts =>
+    {
+        opts.ForwardDefaultSelector = context =>
+            context.Request.Headers.ContainsKey(ApiKeyAuthenticationOptions.HeaderName)
+                ? ApiKeyAuthenticationOptions.Scheme
+                : JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(opts =>
     {
+        // .NET 8+ defaults MapInboundClaims to false, so the JWT's "sub" claim would stay
+        // literally "sub" instead of being mapped to ClaimTypes.NameIdentifier — breaking
+        // every controller that reads User.FindFirstValue(ClaimTypes.NameIdentifier).
+        opts.MapInboundClaims = true;
         opts.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -140,16 +155,20 @@ builder.Services.AddAuthentication(opts =>
             ValidateAudience = false,
             ClockSkew = TimeSpan.Zero
         };
-    });
+    })
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationOptions.Scheme, _ => { });
 
 // Application services
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ServiceAppService>();
 builder.Services.AddScoped<CheckAppService>();
 builder.Services.AddScoped<DependencyService>();
+builder.Services.AddScoped<AlertLifecycleService>();
 builder.Services.AddScoped<AlertEvaluationService>();
 builder.Services.AddScoped<AlertConfigAppService>();
-builder.Services.AddScoped<NotificationChannelAppService>();
+builder.Services.AddScoped<AlertAppService>();
+builder.Services.AddScoped<DashboardAppService>();
 builder.Services.AddScoped<IntegrationAppService>();
 builder.Services.AddScoped<CheckRunnerService>();
 builder.Services.AddScoped<ServiceStatusService>();
@@ -216,3 +235,6 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = apiVe
    .AllowAnonymous();
 
 app.Run();
+
+/// <summary>Exposed so WebApplicationFactory&lt;Program&gt; can bootstrap the app in integration tests.</summary>
+public partial class Program;

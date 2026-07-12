@@ -1,7 +1,9 @@
+using Piro.Domain.Enums;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>A bearer token used for programmatic API access.</summary>
-/// <remarks>Only the HMAC-SHA256 hash of the raw key is stored. The raw key is shown once on creation.</remarks>
+/// <remarks>Only the SHA-256 hash of the raw key is stored. The raw key is shown once on creation.</remarks>
 public class ApiKey
 {
     public int Id { get; set; }
@@ -11,15 +13,18 @@ public class ApiKey
 
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>HMAC-SHA256 hash of the raw API key.</summary>
+    /// <summary>SHA-256 hash of the raw API key.</summary>
     public string HashedKey { get; set; } = string.Empty;
 
     /// <summary>Partially redacted key shown in the UI (e.g. "pk_****abc").</summary>
     public string MaskedKey { get; set; } = string.Empty;
 
-    public string Status { get; set; } = "ACTIVE";
+    public ApiKeyStatus Status { get; set; } = ApiKeyStatus.Active;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>When this key last successfully authenticated a request, if ever.</summary>
+    public DateTime? LastUsedAt { get; set; }
 
     public AppUser? User { get; set; }
 }

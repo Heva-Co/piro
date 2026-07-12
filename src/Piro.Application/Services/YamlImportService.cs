@@ -13,7 +13,6 @@ namespace Piro.Application.Services;
 public class YamlImportService(
     IServiceRepository serviceRepo,
     ICheckRepository checkRepo,
-    INotificationChannelRepository channelRepo,
     IAlertConfigRepository alertConfigRepo,
     ICheckSchedulerService checkScheduler)
 {
@@ -43,59 +42,6 @@ public class YamlImportService(
 
         var entries = new List<ImportPlanEntryDto>();
         var errors = new List<string>();
-
-        // ── Notification Channels ─────────────────────────────────────────────
-        var existingChannels = (await channelRepo.GetAllAsync(ct))
-            .ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var t in config.Triggers ?? [])
-        {
-            if (string.IsNullOrWhiteSpace(t.Name))
-            { errors.Add("Notification channel entry missing required field 'name'."); continue; }
-            if (string.IsNullOrWhiteSpace(t.Type))
-            { errors.Add($"Notification channel '{t.Name}' missing required field 'type'."); continue; }
-            if (!Enum.TryParse<IntegrationType>(t.Type, ignoreCase: true, out var channelType))
-            { errors.Add($"Notification channel '{t.Name}': unknown type '{t.Type}'."); continue; }
-
-            var metaJson = ToJson(t.Meta);
-
-            if (existingChannels.TryGetValue(t.Name, out var existing))
-            {
-                var importedIsInactive = string.Equals(t.Status, "INACTIVE", StringComparison.OrdinalIgnoreCase);
-                bool changed = existing.Type != channelType
-                    || existing.MetaJson != metaJson
-                    || existing.IsInactive != importedIsInactive
-                    || existing.Description != t.Description;
-
-                if (!changed) { entries.Add(Skip("NotificationChannel", t.Name)); continue; }
-
-                entries.Add(Entry("NotificationChannel", t.Name, null, null, "Update", $"type: {t.Type}"));
-                if (!dryRun)
-                {
-                    existing.Type = channelType;
-                    existing.MetaJson = metaJson;
-                    existing.IsInactive = importedIsInactive;
-                    existing.Description = t.Description;
-                    existing.UpdatedAt = DateTime.UtcNow;
-                    await channelRepo.UpdateAsync(existing, ct);
-                }
-            }
-            else
-            {
-                entries.Add(Entry("NotificationChannel", t.Name, null, null, "Create", $"type: {t.Type}"));
-                if (!dryRun)
-                    await channelRepo.CreateAsync(new NotificationChannel
-                    {
-                        Name = t.Name,
-                        Type = channelType,
-                        IsInactive = string.Equals(t.Status, "INACTIVE", StringComparison.OrdinalIgnoreCase),
-                        Description = t.Description,
-                        MetaJson = metaJson,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                    }, ct);
-            }
-        }
 
         // ── Services + Checks ────────────────────────────────────────────────
         foreach (var s in config.Services ?? [])

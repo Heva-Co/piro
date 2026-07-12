@@ -1,0 +1,19 @@
+{{~
+  service_link = service_url ? ("[" + service_name + "](" + service_url + ")") : service_name
+  check_link = check_url ? ("[" + check_name + "](" + check_url + ")") : check_name
+~}}
+{{~ if is_recovery ~}}
+✅ *RECOVERED* — {{ service_link }} / {{ check_link }}
+
+Status: `{{ current_status }}`
+Time: {{ fired_at }}
+{{~ else ~}}
+🚨 *{{ severity }}* — {{ service_link }} / {{ check_link }}
+
+Status: `{{ current_status }}`
+Severity: {{ severity }}
+{{~ if alert_description ~}}
+Note: {{ alert_description }}
+{{~ end ~}}
+Time: {{ fired_at }}
+{{~ end ~}}

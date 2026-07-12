@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Upload, Save } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { siteApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 
 const DEFAULT_ASSET = "/piro.svg";
+
+const UPLOAD_LABELS: Record<"logo" | "favicon" | "og-image", string> = {
+  logo: "Logo",
+  favicon: "Favicon",
+  "og-image": "Social preview image",
+};
 
 export default function SiteConfigPage() {
   const qc = useQueryClient();
@@ -19,13 +25,7 @@ export default function SiteConfigPage() {
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
 
-  const [infoSaving, setInfoSaving] = useState(false);
-  const [infoSuccess, setInfoSuccess] = useState(false);
-  const [seoSaving, setSeoSaving] = useState(false);
-  const [seoSuccess, setSeoSuccess] = useState(false);
-
   const [uploading, setUploading] = useState<"logo" | "favicon" | "og-image" | null>(null);
-  const [uploadError, setUploadError] = useState("");
 
   const logoRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
@@ -41,34 +41,41 @@ export default function SiteConfigPage() {
 
   const infoMutation = useMutation({
     mutationFn: () => siteApi.update({ name, url }),
-    onMutate: () => setInfoSaving(true),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG });
-      setInfoSuccess(true);
-      setTimeout(() => setInfoSuccess(false), 3000);
-    },
-    onSettled: () => setInfoSaving(false),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG }),
   });
+
+  function handleSaveInfo() {
+    toast.promise(infoMutation.mutateAsync(), {
+      loading: "Saving site information…",
+      success: "Site information saved.",
+      error: "Failed to save. Check that the URL is valid.",
+    });
+  }
 
   const seoMutation = useMutation({
     mutationFn: () => siteApi.update({ metaTitle, metaDescription }),
-    onMutate: () => setSeoSaving(true),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG });
-      setSeoSuccess(true);
-      setTimeout(() => setSeoSuccess(false), 3000);
-    },
-    onSettled: () => setSeoSaving(false),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG }),
   });
+
+  function handleSaveSeo() {
+    toast.promise(seoMutation.mutateAsync(), {
+      loading: "Saving SEO settings…",
+      success: "SEO settings saved.",
+      error: "Failed to save.",
+    });
+  }
 
   async function handleUpload(type: "logo" | "favicon" | "og-image", file: File) {
     setUploading(type);
-    setUploadError("");
     try {
-      await siteApi.upload(type, file);
-      await qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG });
-    } catch {
-      setUploadError(`Failed to upload ${type}.`);
+      await toast.promise(
+        siteApi.upload(type, file).then(() => qc.invalidateQueries({ queryKey: QUERY_KEYS.SITE_CONFIG })),
+        {
+          loading: `Uploading ${UPLOAD_LABELS[type]}…`,
+          success: `${UPLOAD_LABELS[type]} updated.`,
+          error: `Failed to upload ${UPLOAD_LABELS[type]}.`,
+        }
+      );
     } finally {
       setUploading(null);
     }
@@ -76,14 +83,14 @@ export default function SiteConfigPage() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Site">
+      <>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Site">
+    <>
       <div className="max-w-4xl space-y-4">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Site</h1>
@@ -122,14 +129,14 @@ export default function SiteConfigPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
             <button
-              onClick={() => infoMutation.mutate()}
-              disabled={infoSaving}
+              onClick={handleSaveInfo}
+              disabled={infoMutation.isPending}
               className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Save size={14} />
-              {infoSuccess ? "Saved!" : infoSaving ? "Saving…" : "Save"}
+              Save
             </button>
           </div>
         </div>
@@ -168,9 +175,6 @@ export default function SiteConfigPage() {
               </button>
             </div>
           </div>
-          {uploadError && uploading === null && (
-            <p className="text-xs text-destructive mt-2">{uploadError}</p>
-          )}
         </div>
 
         {/* ── Favicon ── */}
@@ -277,18 +281,18 @@ export default function SiteConfigPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
             <button
-              onClick={() => seoMutation.mutate()}
-              disabled={seoSaving}
+              onClick={handleSaveSeo}
+              disabled={seoMutation.isPending}
               className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Save size={14} />
-              {seoSuccess ? "Saved!" : seoSaving ? "Saving…" : "Save"}
+              Save
             </button>
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

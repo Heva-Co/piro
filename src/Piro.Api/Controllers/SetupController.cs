@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Piro.Application.Constants;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
+using Piro.Domain.Extensions;
 
 namespace Piro.Api.Controllers;
 
@@ -16,6 +19,7 @@ public class SetupController(
     ISiteConfigRepository siteConfigRepo,
     IEmailConfigRepository emailConfigRepo,
     IWorkerRegistrationRepository workerRepo,
+    IUserNotificationPreferenceRepository prefRepo,
     IUnitOfWork uow) : ControllerBase
 {
     private const string OwnerRole = "Owner";
@@ -68,18 +72,32 @@ public class SetupController(
 
             await userManager.AddToRoleAsync(user, OwnerRole);
 
+            // Every user gets one auto-created, always-present Email preference mirroring their
+            // account address — see UserManagementService.AcceptInviteAsync for the same seeding
+            // on the normal invite path; the Owner created here skips that path entirely.
+            await prefRepo.CreateAsync(new UserNotificationPreference
+            {
+                UserId = user.Id,
+                Channel = PersonalNotificationChannel.Email,
+                Handle = user.Email!,
+                Priority = 0,
+                VerifiedAt = DateTimeOffset.UtcNow,
+                IsAccountFallback = true,
+            }, ct);
+
             // Save site config
             if (!string.IsNullOrWhiteSpace(request.SiteTitle))
-                await siteConfigRepo.SetAsync("site:name", request.SiteTitle, ct);
+                await siteConfigRepo.SetAsync(SiteDataKeys.SiteName, request.SiteTitle, ct);
             if (!string.IsNullOrWhiteSpace(request.SiteUrl))
-                await siteConfigRepo.SetAsync("site:url", request.SiteUrl, ct);
+                await siteConfigRepo.SetAsync(SiteDataKeys.SiteUrl, request.SiteUrl, ct);
 
             // Save email config
             if (!string.IsNullOrWhiteSpace(request.EmailHost) || !string.IsNullOrWhiteSpace(request.ResendApiKey))
             {
-                var isResend = !string.IsNullOrWhiteSpace(request.ResendApiKey);
+                var provider = string.IsNullOrWhiteSpace(request.ResendApiKey) ? EmailProvider.Smtp : EmailProvider.Resend;
+                var isResend = provider == EmailProvider.Resend;
                 var cfg = new EmailProviderConfig(
-                    Provider:     isResend ? "resend" : "smtp",
+                    Provider:     provider.ToStorageString(),
                     SmtpHost:     isResend ? null : request.EmailHost,
                     SmtpPort:     isResend ? null : request.EmailPort ?? 587,
                     SmtpUsername: isResend ? null : request.EmailUsername,

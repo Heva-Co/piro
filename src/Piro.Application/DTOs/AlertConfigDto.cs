@@ -10,11 +10,9 @@ public record AlertConfigDto(
     int FailureThreshold,
     int SuccessThreshold,
     string? Description,
-    bool CreateIncident,
     bool IsActive,
     bool IsAlerting,
     AlertSeverity Severity,
-    List<int> NotificationChannelIds,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -25,10 +23,8 @@ public record CreateAlertConfigRequest(
     int FailureThreshold = 1,
     int SuccessThreshold = 1,
     string? Description = null,
-    bool CreateIncident = false,
     bool IsActive = true,
-    AlertSeverity Severity = AlertSeverity.Warning,
-    List<int>? NotificationChannelIds = null
+    AlertSeverity Severity = AlertSeverity.Warning
 );
 
 public record UpdateAlertConfigRequest(
@@ -37,8 +33,6 @@ public record UpdateAlertConfigRequest(
     int? FailureThreshold,
     int? SuccessThreshold,
     string? Description,
-    bool? CreateIncident,
     bool? IsActive,
-    AlertSeverity? Severity,
-    List<int>? NotificationChannelIds
+    AlertSeverity? Severity
 );

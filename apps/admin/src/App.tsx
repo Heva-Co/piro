@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ConfirmDialogProvider } from "@/providers/ConfirmDialogProvider";
+import { TimezoneProvider } from "@/providers/TimezoneProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGuard } from "@/components/AuthGuard";
+import { AdminLayout } from "@/components/AdminLayout";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
 
@@ -22,11 +25,12 @@ import ChecksPage from "@/features/checks/pages/ChecksPage";
 import CheckFormPage from "@/features/checks/pages/CheckFormPage";
 import CheckDetailPage from "@/features/checks/pages/CheckDetailPage";
 import CheckLogsPage from "@/features/checks/pages/CheckLogsPage";
+import AlertsPage from "@/features/alerts/pages/AlertsPage";
+import AlertDetailPage from "@/features/alerts/pages/AlertDetailPage";
 import IncidentsPage from "@/features/incidents/pages/IncidentsPage";
 import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
-import ChannelsPage from "@/features/channels/pages/ChannelsPage";
-import ChannelFormPage from "@/features/channels/pages/ChannelFormPage";
+import IncidentTimelinePage from "@/features/incidents/pages/IncidentTimelinePage";
 import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
 import IntegrationFormPage from "@/features/integrations/pages/IntegrationFormPage";
 import MaintenancesPage from "@/features/maintenances/pages/MaintenancesPage";
@@ -38,15 +42,18 @@ import EmailConfigPage from "@/features/configuration/pages/EmailConfigPage";
 import UsersPage from "@/features/configuration/pages/UsersPage";
 import UserDetailPage from "@/features/configuration/pages/UserDetailPage";
 import SsoPage from "@/features/configuration/pages/SsoPage";
+import SsoProviderFormPage from "@/features/configuration/pages/SsoProviderFormPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
-import IncidentsConfigPage from "@/features/configuration/pages/IncidentsConfigPage";
+import JobsPage from "@/features/configuration/pages/JobsPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
-import EscalationPolicyPage from "@/features/escalation/pages/EscalationPolicyPage";
+import EscalationPoliciesPage from "@/features/escalation/pages/EscalationPoliciesPage";
+import EscalationPolicyDetailPage from "@/features/escalation/pages/EscalationPolicyDetailPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import { ToastContainer } from 'react-toastify';
+import { Toaster } from "@/components/ui/sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,7 +68,9 @@ function ProtectedLayout() {
   return (
     <AuthGuard>
       <ErrorBoundary fallback={<ErrorFallback />}>
-        <Outlet />
+        <AdminLayout>
+          <Outlet />
+        </AdminLayout>
       </ErrorBoundary>
     </AuthGuard>
   );
@@ -71,10 +80,13 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastContainer />
+      <TooltipProvider>
       <ThemeProvider>
+      <Toaster />
       <ConfirmDialogProvider>
       <BrowserRouter>
         <AuthProvider>
+        <TimezoneProvider>
           <Routes>
             {/* Redirect root to admin */}
             <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
@@ -98,15 +110,15 @@ export default function App() {
               <Route path="/admin/services/:slug/checks/:checkSlug" element={<CheckDetailPage />} />
               <Route path="/admin/services/:slug/checks/:checkSlug/logs" element={<CheckLogsPage />} />
 
+              {/* Alerts */}
+              <Route path={ROUTES.ALERTS.LIST} element={<AlertsPage />} />
+              <Route path="/admin/alerts/:id" element={<AlertDetailPage />} />
+
               {/* Incidents */}
               <Route path={ROUTES.INCIDENTS.LIST} element={<IncidentsPage />} />
               <Route path={ROUTES.INCIDENTS.NEW} element={<IncidentFormPage />} />
               <Route path="/admin/incidents/:id" element={<IncidentDetailPage />} />
-
-              {/* Channels */}
-              <Route path={ROUTES.CHANNELS.LIST} element={<ChannelsPage />} />
-              <Route path={ROUTES.CHANNELS.NEW} element={<ChannelFormPage />} />
-              <Route path="/admin/channels/:id" element={<ChannelFormPage />} />
+              <Route path="/admin/incidents/:id/timeline" element={<IncidentTimelinePage />} />
 
               {/* Integrations */}
               <Route path={ROUTES.INTEGRATIONS.LIST} element={<IntegrationsPage />} />
@@ -125,27 +137,34 @@ export default function App() {
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
               <Route path={ROUTES.CONFIG.EMAIL} element={<EmailConfigPage />} />
               <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
+              <Route path={ROUTES.CONFIG.SSO_NEW} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_DETAIL(":id")} element={<SsoProviderFormPage />} />
               <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />
               <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
               <Route path={ROUTES.CONFIG.USER_DETAIL(":id")} element={<UserDetailPage />} />
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
               <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
-              <Route path={ROUTES.CONFIG.INCIDENTS} element={<IncidentsConfigPage />} />
+              <Route path={ROUTES.CONFIG.JOBS} element={<JobsPage />} />
 
               {/* On-Call */}
               <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />
               <Route path="/admin/oncall/:id" element={<OnCallScheduleDetailPage />} />
-              <Route path={ROUTES.ESCALATION} element={<EscalationPolicyPage />} />
+
+              {/* Escalation policies */}
+              <Route path={ROUTES.ESCALATION.LIST} element={<EscalationPoliciesPage />} />
+              <Route path={ROUTES.ESCALATION.DETAIL(":policyId")} element={<EscalationPolicyDetailPage />} />
               <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
             </Route>
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           </Routes>
+        </TimezoneProvider>
         </AuthProvider>
       </BrowserRouter>
       </ConfirmDialogProvider>
       </ThemeProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

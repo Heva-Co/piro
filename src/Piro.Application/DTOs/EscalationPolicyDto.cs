@@ -1,10 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Piro.Application.DTOs;
 
 public record EscalationPolicyDto(
     int Id,
     string Name,
     string? Description,
-    int ReEscalateAfterAckMinutes,
     int ReEscalateAfterInactivityMinutes,
     List<EscalationStepDto> Steps
 );
@@ -18,15 +19,22 @@ public record EscalationStepDto(
 );
 
 public record UpsertEscalationPolicyRequest(
-    string Name,
-    string? Description,
-    int ReEscalateAfterAckMinutes,
-    int ReEscalateAfterInactivityMinutes,
+    [Required, StringLength(200, MinimumLength = 1)] string Name,
+    [StringLength(1000)] string? Description,
+    [Range(0, int.MaxValue)] int ReEscalateAfterInactivityMinutes,
     List<UpsertEscalationStepRequest> Steps
 );
 
 public record UpsertEscalationStepRequest(
     int Order,
-    int DelayMinutes,
+    [Range(0, int.MaxValue)] int DelayMinutes,
     int ScheduleId
+);
+
+/// <summary>A page of <see cref="EscalationPolicyDto"/> results plus the total matching count.</summary>
+public record EscalationPolicyPageDto(
+    IEnumerable<EscalationPolicyDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize
 );

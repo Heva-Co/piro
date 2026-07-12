@@ -30,7 +30,7 @@ For anything beyond a small bug fix or typo, **open an issue first**. This lets 
 
 ## Development setup
 
-See the [Development section in the README](README.md#development) for prerequisites and running the stack locally.
+See [AGENTS.md](AGENTS.md) for prerequisites and running each part of the stack locally (API, Worker, public status page, admin panel).
 
 ## Pull request process
 
@@ -43,12 +43,13 @@ See the [Development section in the README](README.md#development) for prerequis
 
 3. **Test your changes**
    ```bash
-   dotnet test          # backend tests
-   cd frontend && npm run check   # frontend type checking
+   dotnet test                              # backend tests
+   cd apps/web && pnpm exec tsc --noEmit     # public status page type checking
+   cd apps/admin && pnpm exec tsc --noEmit   # admin panel type checking
    ```
 
 4. **Open a pull request** against `main` with:
-   - A clear title (e.g. `feat: add Slack alert template support`)
+   - A clear title (e.g. `feat: add Ntfy alert template support`)
    - A description of what changed and why
    - Reference to the related issue (e.g. `closes #42`)
 
@@ -77,8 +78,11 @@ src/
   Piro.Application/     Application services, DTOs, interfaces
   Piro.Infrastructure/  EF Core, repositories, alert dispatchers, email
   Piro.Api/             ASP.NET Core controllers, middleware, Program.cs
-  Piro.Worker/          Background worker (SignalR client, check executor)
-frontend/               SvelteKit application
+  Piro.Worker/          Standalone worker process (SignalR client, check executor)
+apps/
+  web/                  Next.js public status page
+  admin/                Vite admin panel (SPA)
+nginx/                  Reverse proxy in front of web + API
 docs/wiki/              GitHub Wiki source (synced automatically)
 ```
 

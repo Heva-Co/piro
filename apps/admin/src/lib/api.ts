@@ -5,6 +5,7 @@
 
 import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
+import type { Incident } from "@/lib/actions/incidents";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ export interface ApiKey {
   id: number;
   name: string;
   maskedKey: string;
-  status: string;
+  status: "Active" | "Revoked";
   createdAt: string;
   lastUsedAt?: string | null;
 }
@@ -68,17 +69,31 @@ export interface Service {
   isHidden: boolean;
   displayOrder: number;
   checkCount?: number;
+  escalationPolicyId?: number | null;
+  escalationPolicyName?: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export const servicesApi = {
-  list: () => api.get<Service[]>(ENDPOINTS.SERVICES).then((r) => r.data),
+  list: (params?: { page?: number; pageSize?: number; search?: string }) =>
+    api.get<PaginatedResponse<Service>>(ENDPOINTS.SERVICES, { params }).then((r) => r.data),
 
   get: (slug: string) => api.get<Service>(ENDPOINTS.SERVICE(slug)).then((r) => r.data),
 
-  create: (data: Omit<Service, "currentStatus">) =>
+  create: (data: Omit<Service, "currentStatus" | "escalationPolicyName">) =>
     api.post<Service>(ENDPOINTS.SERVICES, data).then((r) => r.data),
 
-  update: (slug: string, data: Partial<Omit<Service, "slug" | "currentStatus">>) =>
+  // escalationPolicyId: omit the key to leave it unchanged, send null explicitly to clear it.
+  update: (
+    slug: string,
+    data: Partial<Omit<Service, "slug" | "currentStatus" | "escalationPolicyName">>
+  ) =>
     api.put<Service>(ENDPOINTS.SERVICE(slug), data).then((r) => r.data),
 
   delete: (slug: string) => api.delete(ENDPOINTS.SERVICE(slug)),
@@ -99,11 +114,7 @@ export interface Check {
   isActive: boolean;
   isMultiRegion: boolean;
   integrationId?: number | null;
-  criticality: CheckCriticality;
-  automaticallyCreateIncident: boolean;
 }
-
-export type CheckCriticality = "Critical" | "High" | "Medium" | "Low";
 
 export interface CreateCheck {
   slug: string;
@@ -114,8 +125,6 @@ export interface CreateCheck {
   typeDataJson: string;
   isActive?: boolean;
   isMultiRegion?: boolean;
-  criticality?: CheckCriticality;
-  automaticallyCreateIncident?: boolean;
   failureThreshold?: number;
   recoveryThreshold?: number;
   integrationId?: number;
@@ -128,6 +137,15 @@ export interface CheckLog {
   dataType?: string;
   errorMessage?: string;
   workerRegion: string;
+}
+
+export interface CheckDailyStats {
+  region: string;
+  timestamp: number;
+  countUp: number;
+  countDown: number;
+  countDegraded: number;
+  avgLatencyMs: number | null;
 }
 
 export interface CheckSummary {
@@ -174,157 +192,190 @@ export const checksApi = {
   run: (serviceSlug: string, checkSlug: string) =>
     api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
 
-  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string }) =>
+  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string; from?: string; to?: string }) =>
     api.get<CheckLog[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug), { params }).then((r) => r.data),
+
+  history: (serviceSlug: string, checkSlug: string, days = 14) =>
+    api.get<CheckDailyStats[]>(ENDPOINTS.SERVICE_CHECK_HISTORY(serviceSlug, checkSlug), { params: { days } }).then((r) => r.data),
+};
+
+// ─── Alerts ──────────────────────────────────────────────────────────────────
+
+export interface AlertSummary {
+  id: number;
+  checkSlug: string;
+  checkName: string;
+  serviceSlug: string;
+  serviceName: string;
+  alertConfigDescription?: string;
+  message?: string;
+  impactAtFireTime: string;
+  firedAt: string;
+  resolvedAt?: string;
+  occurrenceCount: number;
+  incidentId?: number;
+  hasEscalationPolicy: boolean;
+}
+
+export interface AlertDetail {
+  id: number;
+  checkSlug: string;
+  checkName: string;
+  serviceSlug: string;
+  serviceName: string;
+  alertConfigId: number;
+  alertFor: string;
+  alertValue: string;
+  failureThreshold: number;
+  successThreshold: number;
+  alertConfigDescription?: string;
+  message?: string;
+  impactAtFireTime: string;
+  severity: string;
+  firedAt: string;
+  resolvedAt?: string;
+  occurrenceCount: number;
+  incidentId?: number;
+  incidentTitle?: string;
+  escalationCurrentStep?: number | null;
+  acknowledgedAt?: number | null;
+  acknowledgedBy?: string | null;
+}
+
+export const alertsApi = {
+  list: (params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) =>
+    api
+      .get<{ items: AlertSummary[]; totalCount: number; page: number; pageSize: number; allTimeTotalCount: number }>(
+        ENDPOINTS.ALERTS,
+        { params }
+      )
+      .then((r) => r.data),
+
+  get: (id: number | string) =>
+    api.get<AlertDetail>(ENDPOINTS.ALERT(id)).then((r) => r.data),
+
+  getOpenIncidents: () =>
+    api.get<Incident[]>(ENDPOINTS.ALERTS_OPEN_INCIDENTS).then((r) => r.data),
+
+  linkToIncident: (id: number | string, incidentId?: number) =>
+    api.post<AlertDetail>(ENDPOINTS.ALERT_INCIDENT(id), { incidentId }).then((r) => r.data),
+
+  acknowledge: (id: number | string) =>
+    api.post<AlertDetail>(ENDPOINTS.ALERT_ACKNOWLEDGE(id)).then((r) => r.data),
+
+  getEscalationLogs: (id: number | string) =>
+    api.get<EscalationDeliveryLog[]>(ENDPOINTS.ALERT_ESCALATION_LOGS(id)).then((r) => r.data),
+};
+
+export interface EscalationDeliveryLog {
+  stepIndex: number;
+  userName: string;
+  channelType: string;
+  succeeded: boolean;
+  errorMessage?: string;
+  attemptedAt: string;
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface DailyIncidentCount {
+  date: string;
+  count: number;
+}
+
+export interface DailyAlertCount {
+  date: string;
+  count: number;
+}
+
+export interface ServiceIncidentCount {
+  serviceSlug: string;
+  serviceName: string;
+  count: number;
+}
+
+export interface ServiceAlertCount {
+  serviceSlug: string;
+  serviceName: string;
+  count: number;
+}
+
+export interface SeverityIncidentCount {
+  severity: string;
+  count: number;
+}
+
+export interface IncidentMetrics {
+  mttaSeconds: number | null;
+  mttrSeconds: number | null;
+  incidentCount: number;
+}
+
+export interface AlertMetrics {
+  mttaSeconds: number | null;
+  mttrSeconds: number | null;
+  meanTimeToIncidentSeconds: number | null;
+  alertToIncidentConversionRate: number | null;
+  alertCount: number;
+  dailyAlertCounts: DailyAlertCount[];
+  alertsByService: ServiceAlertCount[];
+  alertsBySeverity: SeverityIncidentCount[];
+}
+
+export interface DashboardMetrics {
+  from: string;
+  to: string;
+  incidentMetrics: IncidentMetrics;
+  alertMetrics: AlertMetrics;
+  dailyIncidentCounts: DailyIncidentCount[];
+  incidentsByService: ServiceIncidentCount[];
+}
+
+export const dashboardApi = {
+  metrics: (from?: string, to?: string) =>
+    api
+      .get<DashboardMetrics>(ENDPOINTS.DASHBOARD_METRICS, { params: { from, to } })
+      .then((r) => r.data),
 };
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
-
-export interface IncidentService {
-  serviceSlug: string;
-  impact: string;
-  triggeringCheckSlug?: string | null;
-}
-
-export interface Incident {
-  id: number;
-  title: string;
-  /** @deprecated Use `isResolved` (derived from `state`) instead. */
-  status: string;
-  state: string;
-  isResolved: boolean;
-  startDateTime: number;
-  endDateTime?: number | null;
-  isGlobal: boolean;
-  source?: string | null;
-  isPublic: boolean;
-  mergedIntoIncidentId?: number | null;
-  services: IncidentService[];
-  comments: IncidentComment[];
-  createdAt: string;
-  updatedAt: string;
-  acknowledgedAt?: number;
-  acknowledgedBy?: string;
-  currentImpact: string;
-  impactChanges: { timestamp: number; impact: string }[];
-}
-
-export interface PublishSchedule {
-  scheduledAt: string | null;
-}
-
-export interface IncidentComment {
-  id: number;
-  comment: string;
-  commentedAt: number;
-  state: string;
-  /** @deprecated Use `IncidentDto.isResolved` instead. */
-  status: string;
-  createdAt: string;
-}
+// Moved to @/lib/actions/incidents — re-exported here only for `updateCheck`,
+// which lives on the same object despite belonging to Checks, not Incidents.
+export type { Incident, IncidentTimelineEvent, IncidentService } from "@/lib/actions/incidents";
+import { incidentsApi as incidentsApiBase } from "@/lib/actions/incidents";
 
 export const incidentsApi = {
-  list: (filter = "active") =>
-    api.get<Incident[]>(`${ENDPOINTS.INCIDENTS}?filter=${filter}`).then((r) => r.data),
-
-  get: (id: number | string) =>
-    api.get<Incident>(ENDPOINTS.INCIDENT(id)).then((r) => r.data),
-
-  create: (data: { title: string; startDateTime: number; state: string; isGlobal: boolean }) =>
-    api.post<Incident>(ENDPOINTS.INCIDENTS, data).then((r) => r.data),
-
-  update: (id: number | string, data: Partial<Omit<Incident, "id">>) =>
-    api.put<Incident>(ENDPOINTS.INCIDENT(id), data).then((r) => r.data),
-
-  delete: (id: number | string) => api.delete(ENDPOINTS.INCIDENT(id)),
-
-  comments: (id: number | string) =>
-    api.get<IncidentComment[]>(ENDPOINTS.INCIDENT_COMMENTS(id)).then((r) => r.data),
-
-  addComment: (id: number | string, comment: string, state: string) =>
-    api
-      .post<IncidentComment>(ENDPOINTS.INCIDENT_COMMENTS(id), { comment, state })
-      .then((r) => r.data),
-
-  deleteComment: (id: number | string, commentId: number | string) =>
-    api.delete(ENDPOINTS.INCIDENT_COMMENT(id, commentId)),
-
-  addService: (id: number | string, slug: string, impact: string) =>
-    api.post(ENDPOINTS.INCIDENT_SERVICES(id), { serviceSlug: slug, impact }),
-
-  setServices: (id: number | string, services: { serviceSlug: string; impact: string }[]) =>
-    api.put<Incident>(ENDPOINTS.INCIDENT_SERVICES(id), { services }).then((r) => r.data),
-
-  acknowledge: (id: number | string) =>
-    api.post<Incident>(ENDPOINTS.INCIDENT_ACKNOWLEDGE(id)).then((r) => r.data),
-
-  removeService: (id: number | string, slug: string) =>
-    api.delete(ENDPOINTS.INCIDENT_SERVICE(id, slug)),
-
-  publish: (id: number | string) =>
-    api.post(`/api/v1/incidents/${id}/publish`),
-
-  getPublishSchedule: (id: number | string) =>
-    api.get<PublishSchedule>(`/api/v1/incidents/${id}/publish/schedule`).then((r) => r.data),
-
-  delayPublish: (id: number | string, additionalMinutes: number) =>
-    api.post<PublishSchedule>(`/api/v1/incidents/${id}/publish/delay`, { additionalMinutes }).then((r) => r.data),
-
-  cancelPublish: (id: number | string) =>
-    api.delete(`/api/v1/incidents/${id}/publish/schedule`),
-
-  updateCheck: (serviceSlug: string, checkSlug: string, data: Partial<{
-    criticality: string;
-    automaticallyCreateIncident: boolean;
-  }>) => api.put(`/api/v1/services/${serviceSlug}/checks/${checkSlug}`, data).then((r) => r.data),
-};
-
-// ─── Notification channels ───────────────────────────────────────────────────
-
-export interface NotificationChannel {
-  id: number;
-  name: string;
-  type: string;
-  description?: string;
-  isInactive: boolean;
-  metaJson: string;
-  isGlobal: boolean;
-  isLocked: boolean;
-  createdAt: string;
-  updatedAt: string;
-  alertConfigCount: number;
-  integrationId?: number;
-  integrationName?: string;
-}
-
-export const channelsApi = {
-  list: () => api.get<NotificationChannel[]>(ENDPOINTS.CHANNELS).then((r) => r.data),
-
-  get: (id: number | string) =>
-    api.get<NotificationChannel>(ENDPOINTS.CHANNEL(id)).then((r) => r.data),
-
-  create: (data: Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">) =>
-    api.post<NotificationChannel>(ENDPOINTS.CHANNELS, data).then((r) => r.data),
-
-  update: (id: number | string, data: Partial<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "alertConfigCount" | "integrationName">>) =>
-    api.put<NotificationChannel>(ENDPOINTS.CHANNEL(id), data).then((r) => r.data),
-
-  delete: (id: number | string) => api.delete(ENDPOINTS.CHANNEL(id)),
-
-  test: (data: { type: string; metaJson: string; name?: string; integrationId?: number }) =>
-    api.post(ENDPOINTS.CHANNEL_TEST, data),
-
-  testPersonal: (data: { integrationId: number; handle: string }) =>
-    api.post<{ message: string }>(ENDPOINTS.CHANNEL_TEST_PERSONAL, data),
+  ...incidentsApiBase,
 };
 
 // ─── Alert configs ────────────────────────────────────────────────────────────
 
+export type AlertFor = "Status" | "Latency" | "Uptime";
+export type AlertSeverity = "Warning" | "Critical";
+
 export interface AlertConfig {
   id: number;
-  channelId: number;
-  onDown: boolean;
-  onRecovery: boolean;
+  checkId: number;
+  alertFor: AlertFor;
+  alertValue: string;
+  failureThreshold: number;
+  successThreshold: number;
+  description?: string;
+  isActive: boolean;
+  isAlerting: boolean;
+  severity: AlertSeverity;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAlertConfig {
+  alertFor: AlertFor;
+  alertValue: string;
+  failureThreshold?: number;
+  successThreshold?: number;
+  description?: string;
+  isActive?: boolean;
+  severity?: AlertSeverity;
 }
 
 export const alertConfigsApi = {
@@ -333,7 +384,7 @@ export const alertConfigsApi = {
       .get<AlertConfig[]>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug))
       .then((r) => r.data),
 
-  create: (serviceSlug: string, checkSlug: string, data: Omit<AlertConfig, "id">) =>
+  create: (serviceSlug: string, checkSlug: string, data: CreateAlertConfig) =>
     api
       .post<AlertConfig>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug), data)
       .then((r) => r.data),
@@ -342,7 +393,7 @@ export const alertConfigsApi = {
     serviceSlug: string,
     checkSlug: string,
     id: number | string,
-    data: Partial<Omit<AlertConfig, "id">>
+    data: Partial<CreateAlertConfig>
   ) =>
     api
       .put<AlertConfig>(ENDPOINTS.ALERT_CONFIG(serviceSlug, checkSlug, id), data)
@@ -354,31 +405,86 @@ export const alertConfigsApi = {
 
 // ─── Maintenances ────────────────────────────────────────────────────────────
 
+export const MAINTENANCE_DISPLAY_STATUSES = {
+  Scheduled: "Scheduled",
+  Active: "Active",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+} as const;
+
+export type MaintenanceDisplayStatus = keyof typeof MAINTENANCE_DISPLAY_STATUSES;
+
+export interface MaintenanceEvent {
+  id: number;
+  startDateTime: number;
+  endDateTime: number;
+  status: string;
+}
+
 export interface Maintenance {
   id: number;
-  name: string;
+  title: string;
   description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
+  startDateTime: number;
+  rRule: string;
+  durationSeconds: number;
   status: string;
+  displayStatus: MaintenanceDisplayStatus;
   isGlobal: boolean;
-  services: { slug: string; name: string }[];
+  upcomingEvents: MaintenanceEvent[];
+  serviceSlugs: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/// Lightweight row for the maintenance list view — no per-event data, just the next scheduled occurrence (if any).
+export interface MaintenanceListItem {
+  id: number;
+  title: string;
+  rRule: string;
+  durationSeconds: number;
+  displayStatus: MaintenanceDisplayStatus;
+  isGlobal: boolean;
+  nextEventAt: number | null;
+  serviceSlugs: string[];
+}
+
+export interface CreateMaintenanceRequest {
+  title: string;
+  description?: string;
+  startDateTime: number;
+  rRule: string;
+  durationSeconds: number;
+  isGlobal: boolean;
+  serviceSlugs?: string[];
+}
+
+export interface UpdateMaintenanceRequest {
+  title?: string;
+  description?: string;
+  startDateTime?: number;
+  rRule?: string;
+  durationSeconds?: number;
+  isGlobal?: boolean;
 }
 
 export const maintenancesApi = {
-  list: () => api.get<Maintenance[]>(ENDPOINTS.MAINTENANCES).then((r) => r.data),
+  list: () => api.get<MaintenanceListItem[]>(ENDPOINTS.MAINTENANCES).then((r) => r.data),
 
   get: (id: number | string) =>
     api.get<Maintenance>(ENDPOINTS.MAINTENANCE(id)).then((r) => r.data),
 
-  create: (data: Omit<Maintenance, "id" | "status" | "services">) =>
+  create: (data: CreateMaintenanceRequest) =>
     api.post<Maintenance>(ENDPOINTS.MAINTENANCES, data).then((r) => r.data),
 
-  update: (id: number | string, data: Partial<Omit<Maintenance, "id">>) =>
+  update: (id: number | string, data: UpdateMaintenanceRequest) =>
     api.put<Maintenance>(ENDPOINTS.MAINTENANCE(id), data).then((r) => r.data),
 
   cancel: (id: number | string) =>
     api.post(ENDPOINTS.MAINTENANCE_CANCEL(id)),
+
+  cancelEvent: (id: number | string, eventId: number) =>
+    api.post(ENDPOINTS.MAINTENANCE_EVENT_CANCEL(id, eventId)),
 
   delete: (id: number | string) => api.delete(ENDPOINTS.MAINTENANCE(id)),
 };
@@ -390,6 +496,9 @@ export interface User {
   name: string;
   email: string;
   roles: string[];
+  isActive: boolean;
+  isPending: boolean;
+  createdAt: string;
 }
 
 export const usersApi = {
@@ -417,8 +526,25 @@ export const usersApi = {
   getNotificationPreferences: (userId: number | string) =>
     api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
 
-  setNotificationPreferences: (userId: number | string, preferences: UpsertNotificationPreference[]) =>
-    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+  createNotificationPreference: (userId: number | string, data: UpsertNotificationPreference) =>
+    api.post<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), data).then((r) => r.data),
+
+  updateNotificationPreference: (userId: number | string, preferenceId: number, data: UpsertNotificationPreference) =>
+    api.put<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCE(userId, preferenceId), data).then((r) => r.data),
+
+  reorderNotificationPreferences: (userId: number | string, orderedIds: number[]) =>
+    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES_REORDER(userId), { orderedIds }).then((r) => r.data),
+
+  deleteNotificationPreference: (userId: number | string, preferenceId: number) =>
+    api.delete(ENDPOINTS.USER_NOTIFICATION_PREFERENCE(userId, preferenceId)),
+
+  sendNotificationPreferenceCode: (userId: number | string, preferenceId: number) =>
+    api.post(ENDPOINTS.USER_NOTIFICATION_PREFERENCE_VERIFY_SEND(userId, preferenceId)),
+
+  confirmNotificationPreferenceCode: (userId: number | string, preferenceId: number, code: string) =>
+    api
+      .post<UserNotificationPreference>(ENDPOINTS.USER_NOTIFICATION_PREFERENCE_VERIFY_CONFIRM(userId, preferenceId), { code })
+      .then((r) => r.data),
 };
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
@@ -428,28 +554,41 @@ export interface UserProfile {
   email: string;
   name: string;
   color: string;
+  timeZone: string;
   roles: string[];
   isOidc: boolean;
 }
 
+/** Personal channels a user can pick for on-call notifications. Kept in sync with PersonalNotificationChannel on the backend. */
+export const PERSONAL_NOTIFICATION_CHANNELS = {
+  Email: "Email",
+  Telegram: "Telegram",
+  TwilioSms: "TwilioSms",
+  Ntfy: "Ntfy",
+} as const;
+
+export type PersonalNotificationChannelType = keyof typeof PERSONAL_NOTIFICATION_CHANNELS;
+
 export interface UserNotificationPreference {
   id: number;
-  integrationId: number;
-  integrationName: string;
-  integrationType: string;
+  channel: PersonalNotificationChannelType;
+  integrationId: number | null;
+  integrationName: string | null;
   handle: string;
   priority: number;
+  isVerified: boolean;
+  isAccountFallback: boolean;
 }
 
 export interface UpsertNotificationPreference {
-  integrationId: number;
+  channel: PersonalNotificationChannelType;
+  integrationId: number | null;
   handle: string;
-  priority: number;
 }
 
 export const profileApi = {
   get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
-  update: (data: { name?: string; color?: string }) =>
+  update: (data: { name?: string; color?: string; timeZone?: string }) =>
     api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
 };
 
@@ -463,13 +602,6 @@ export interface SiteConfig {
   metaTitle?: string;
   metaDescription?: string;
   ogImageUrl?: string;
-}
-
-export interface IncidentsConfig {
-  publishDelayMinutes: number;
-  correlationMode: import("@/constants/incidents").IncidentCorrelationModeKey;
-  globalThreshold: number;
-  globalCorrelationWindowMinutes: number;
 }
 
 export const siteApi = {
@@ -487,12 +619,6 @@ export const siteApi = {
       })
       .then((r) => r.data);
   },
-
-  getIncidentsConfig: () =>
-    api.get<IncidentsConfig>(ENDPOINTS.SITE.INCIDENTS_CONFIG).then((r) => r.data),
-
-  updateIncidentsConfig: (data: Partial<IncidentsConfig>) =>
-    api.put(ENDPOINTS.SITE.INCIDENTS_CONFIG, data).then((r) => r.data),
 };
 
 // ─── OIDC config ─────────────────────────────────────────────────────────────
@@ -535,8 +661,9 @@ export const oidcApi = {
   setSsoMode: (ssoOnly: boolean) =>
     api.put(ENDPOINTS.OIDC_CONFIG_SSO_MODE, { ssoOnly }),
 
-  test: (providerId: string) =>
-    api.post<{ success: boolean; message: string }>(ENDPOINTS.OIDC_CONFIG_TEST, { providerId }).then((r) => r.data),
+  /** Pass authority to test an authority URL directly (e.g. before the provider is saved); pass providerId to test a saved provider. */
+  test: (params: { providerId?: string; authority?: string }) =>
+    api.post<{ success: boolean; message: string }>(ENDPOINTS.OIDC_CONFIG_TEST, params).then((r) => r.data),
 };
 
 // ─── Email config ─────────────────────────────────────────────────────────────
@@ -589,21 +716,56 @@ export interface Worker {
   isDefault: boolean;
 }
 
+export interface CreateWorkerResponse {
+  id: string;
+  name: string;
+  region: string;
+  workerToken: string;
+  createdAt: string;
+}
+
 export const workersApi = {
   list: () => api.get<Worker[]>(ENDPOINTS.WORKERS).then((r) => r.data),
 
   get: (id: string) => api.get<Worker>(ENDPOINTS.WORKER(id)).then((r) => r.data),
 
   create: (name: string, region: string, isDefault?: boolean) =>
-    api.post(ENDPOINTS.WORKERS, { name, region, isDefault: isDefault ?? false }).then((r) => r.data),
+    api.post<CreateWorkerResponse>(ENDPOINTS.WORKERS, { name, region, isDefault: isDefault ?? false }).then((r) => r.data),
 
   delete: (id: string) => api.delete(ENDPOINTS.WORKER(id)),
 
   updateRegion: (id: string, region: string) =>
     api.patch(ENDPOINTS.WORKER(id), { region }).then((r) => r.data),
 
+  setDefault: (id: string) =>
+    api.patch(ENDPOINTS.WORKER(id), { isDefault: true }).then((r) => r.data),
+
   toggleBuiltin: (disabled: boolean) =>
     api.post(`${ENDPOINTS.WORKERS}/builtin/toggle`, { disabled }).then((r) => r.data),
+};
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+
+export interface JobCheckRef {
+  id: number;
+  name: string;
+  slug: string;
+  serviceSlug: string;
+}
+
+export interface JobStatus {
+  jobGroup: string;
+  jobName: string;
+  triggerGroup: string;
+  triggerName: string;
+  state: string;
+  nextFireTimeUtc?: string | null;
+  previousFireTimeUtc?: string | null;
+  check?: JobCheckRef | null;
+}
+
+export const jobsApi = {
+  list: () => api.get<JobStatus[]>(ENDPOINTS.JOBS).then((r) => r.data),
 };
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
@@ -657,7 +819,41 @@ export const logsApi = {
     source?: string;
     from?: string;
     to?: string;
-  }) => api.get<{ items: LogEntry[]; totalCount: number }>(ENDPOINTS.LOGS, { params }).then((r) => r.data),
+    checkId?: number;
+  }) => {
+    // The API filters by "search" (substring over Message/SourceContext/Exception) —
+    // there is no dedicated "source" query param, so map it here.
+    const { source, ...rest } = params ?? {};
+    const apiParams = source ? { ...rest, search: source } : rest;
+    return api.get<{ items: LogEntry[]; totalCount: number }>(ENDPOINTS.LOGS, { params: apiParams }).then((r) => r.data);
+  },
+};
+
+// ─── Global search ──────────────────────────────────────────────────────────────
+
+export type SearchResultType =
+  | "Service"
+  | "Check"
+  | "Alert"
+  | "Incident"
+  | "Maintenance"
+  | "OnCallSchedule"
+  | "EscalationPolicy"
+  | "User"
+  | "ApiKey";
+
+export interface SearchResult {
+  type: SearchResultType;
+  title: string;
+  subtitle?: string;
+  url: string;
+  incidentId?: number;
+  incidentUrl?: string;
+}
+
+export const searchApi = {
+  search: (q: string) =>
+    api.get<SearchResult[]>(ENDPOINTS.SEARCH, { params: { q } }).then((r) => r.data),
 };
 
 // ─── Config import ────────────────────────────────────────────────────────────
@@ -678,7 +874,7 @@ export const INTEGRATION_TYPES = {
   PagerDuty: "PagerDuty",
   MSTeams: "MSTeams",
   Telegram: "Telegram",
-  TwilioSms: "TwilioSms",
+  Twilio: "Twilio",
   GoogleChat: "GoogleChat",
   Discord: "Discord",
   Opsgenie: "Opsgenie",
@@ -775,6 +971,7 @@ export interface OnCallSchedule {
   createdAt: string;
   updatedAt: string;
   layers: OnCallLayer[];
+  overrides: OnCallOverride[];
 }
 
 export interface OnCallSlot {
@@ -788,6 +985,10 @@ export interface OnCallSlot {
   endsAt: string;
   isOverride: boolean;
   replacesUserName: string | null;
+  scheduleId?: number;
+  scheduleName?: string;
+  layerOrder: number;
+  isPrimarySchedule: boolean;
 }
 
 export interface OnCallUser {
@@ -797,17 +998,61 @@ export interface OnCallUser {
   color: string;
 }
 
-export interface UserNotificationPreference {
+export interface OnCallScheduleMembers {
   id: number;
-  integrationId: number;
-  integrationName: string;
-  integrationType: string;
-  handle: string;
-  priority: number;
+  name: string;
+  members: { userId: number; userName: string; userInitials: string; userColor: string }[];
+}
+
+// ─── Rotations batch (draft save) ───────────────────────────────────────────
+
+export interface CreateLayerDraft {
+  name: string;
+  recurrenceRule: string;
+  firstOccurrenceStartsAt: string;
+  firstOccurrenceEndsAt: string;
+  userIds: number[];
+}
+
+export interface UpdateLayerDraft extends CreateLayerDraft {
+  layerId: number;
+}
+
+export interface CreateOverrideDraft {
+  userId: number;
+  replacesUserId?: number;
+  startsAtUtc: string;
+  endsAtUtc: string;
+  reason?: string;
+}
+
+export interface SaveRotationsRequest {
+  layersToCreate: CreateLayerDraft[];
+  layersToUpdate: UpdateLayerDraft[];
+  layerIdsToDelete: number[];
+  overridesToCreate: CreateOverrideDraft[];
+  overrideIdsToDelete: number[];
+}
+
+export interface CoverageGap {
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface RotationsPreview {
+  slots: OnCallSlot[];
+  gaps: CoverageGap[];
 }
 
 export const onCallApi = {
-  list: () => api.get<OnCallSchedule[]>(ENDPOINTS.ONCALL_SCHEDULES).then((r) => r.data),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api
+      .get<{ items: OnCallSchedule[]; totalCount: number; page: number; pageSize: number }>(
+        ENDPOINTS.ONCALL_SCHEDULES,
+        { params }
+      )
+      .then((r) => r.data),
+  listMembers: () => api.get<OnCallScheduleMembers[]>(ENDPOINTS.ONCALL_SCHEDULES_MEMBERS).then((r) => r.data),
   get: (id: number | string) => api.get<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE(id)).then((r) => r.data),
   create: (data: { name: string; description?: string; timeZone?: string; notifyOnShiftStart?: boolean; startsAtUtc?: string; endsAtUtc?: string }) =>
     api.post<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULES, data).then((r) => r.data),
@@ -817,6 +1062,10 @@ export const onCallApi = {
   getCurrent: (id: number | string) => api.get<OnCallUser[]>(ENDPOINTS.ONCALL_SCHEDULE_CURRENT(id)).then((r) => r.data),
   expand: (id: number | string, from: string, to: string, applyOverrides = true) =>
     api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_SCHEDULE_EXPAND(id)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&applyOverrides=${applyOverrides}`).then((r) => r.data),
+  getMySlots: (from: string, to: string) =>
+    api.get<OnCallSlot[]>(`${ENDPOINTS.ONCALL_MY_SLOTS}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.data),
+  getMyCurrentStatus: () =>
+    api.get<OnCallSlot | null>(ENDPOINTS.ONCALL_MY_CURRENT).then((r) => (r.status === 204 ? null : r.data)),
 
   // Layers
   createLayer: (scheduleId: number | string, data: { name: string; order: number; recurrenceRule: string; firstOccurrenceStartsAt: string; firstOccurrenceEndsAt: string; userIds: number[] }) =>
@@ -825,10 +1074,6 @@ export const onCallApi = {
     api.put<OnCallLayer>(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId), data).then((r) => r.data),
   deleteLayer: (scheduleId: number | string, layerId: number | string) =>
     api.delete(ENDPOINTS.ONCALL_SCHEDULE_LAYER(scheduleId, layerId)),
-  addLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
-    api.post(ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId), { userId }),
-  removeLayerUser: (scheduleId: number | string, layerId: number | string, userId: number) =>
-    api.delete(`${ENDPOINTS.ONCALL_SCHEDULE_LAYER_USERS(scheduleId, layerId)}/${userId}`),
 
   // Overrides
   createOverride: (scheduleId: number | string, data: { userId: number; replacesUserId?: number; startsAtUtc: string; endsAtUtc: string; reason?: string }) =>
@@ -836,11 +1081,16 @@ export const onCallApi = {
   deleteOverride: (scheduleId: number | string, overrideId: number | string) =>
     api.delete(ENDPOINTS.ONCALL_SCHEDULE_OVERRIDE(scheduleId, overrideId)),
 
-  // User notification preferences
-  getNotificationPreferences: (userId: number | string) =>
-    api.get<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId)).then((r) => r.data),
-  setNotificationPreferences: (userId: number | string, preferences: { integrationId: number; handle: string; priority: number }[]) =>
-    api.put<UserNotificationPreference[]>(ENDPOINTS.USER_NOTIFICATION_PREFERENCES(userId), { preferences }).then((r) => r.data),
+  // Rotations batch (transactional save + gap preview)
+  previewRotations: (scheduleId: number | string, batch: SaveRotationsRequest, from: string, to: string) =>
+    api
+      .post<RotationsPreview>(
+        `${ENDPOINTS.ONCALL_SCHEDULE_ROTATIONS_PREVIEW(scheduleId)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        batch
+      )
+      .then((r) => r.data),
+  saveRotations: (scheduleId: number | string, batch: SaveRotationsRequest) =>
+    api.put<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE_ROTATIONS(scheduleId), batch).then((r) => r.data),
 };
 
 // ─── Escalation ──────────────────────────────────────────────────────────────
@@ -857,7 +1107,6 @@ export interface EscalationPolicy {
   id: number;
   name: string;
   description?: string;
-  reEscalateAfterAckMinutes: number;
   reEscalateAfterInactivityMinutes: number;
   steps: EscalationStep[];
 }
@@ -865,7 +1114,6 @@ export interface EscalationPolicy {
 export interface UpsertEscalationPolicyRequest {
   name: string;
   description?: string;
-  reEscalateAfterAckMinutes: number;
   reEscalateAfterInactivityMinutes: number;
   steps: { order: number; delayMinutes: number; scheduleId: number }[];
 }
@@ -884,11 +1132,18 @@ export const utilsApi = {
 };
 
 export const escalationApi = {
-  get: () =>
-    api.get<EscalationPolicy>("/api/v1/escalation-policy")
-      .then((r) => r.data)
-      .catch((e) => (e?.response?.status === 404 ? null : Promise.reject(e))),
-  upsert: (data: UpsertEscalationPolicyRequest) =>
-    api.put<EscalationPolicy>("/api/v1/escalation-policy", data).then((r) => r.data),
-  delete: () => api.delete("/api/v1/escalation-policy"),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api
+      .get<{ items: EscalationPolicy[]; totalCount: number; page: number; pageSize: number }>(
+        ENDPOINTS.ESCALATION_POLICIES,
+        { params }
+      )
+      .then((r) => r.data),
+  get: (id: number | string) =>
+    api.get<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id)).then((r) => r.data),
+  create: (data: UpsertEscalationPolicyRequest) =>
+    api.post<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICIES, data).then((r) => r.data),
+  update: (id: number | string, data: UpsertEscalationPolicyRequest) =>
+    api.put<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id), data).then((r) => r.data),
+  delete: (id: number | string) => api.delete(ENDPOINTS.ESCALATION_POLICY(id)),
 };

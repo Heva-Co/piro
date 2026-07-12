@@ -80,6 +80,7 @@ Services: proxy (`:80`), web, api, db (postgres).
 - **Alert dispatchers** implement `ITriggerDispatcher` and live in `src/Piro.Infrastructure/Alerts/`. Each dispatcher handles one `TriggerType` enum value. Register in `InfrastructureServiceExtensions.cs`.
 - **Background jobs** use Quartz.NET with a persistent PostgreSQL store.
 - **Check execution** routes through `RoutingCheckJobDispatcher` → `LocalCheckJobDispatcher` (in-process) or `RemoteCheckJobDispatcher` (SignalR workers).
+- **Prefer regular method bodies over lambdas.** Write `private async Task<Foo> DoThing(...) { ... }`, not `private Func<Task<Foo>> DoThing = async (...) => { ... }`. Reserve lambdas for short inline callbacks passed to LINQ/collection methods (`.Where(x => ...)`, `.Select(x => ...)`, `.OrderBy(x => ...)`) — not for defining methods or services.
 
 ### Build & test
 ```bash
@@ -98,21 +99,28 @@ dotnet test
 ### apps/admin (Vite SPA — admin panel)
 - Vite, React, Tailwind CSS 4, TypeScript
 - All API calls go through `/admin/api` server route
+- **Dates/times**: never call `toLocaleString`/`toLocaleDateString`/`new Date().toString()` directly in a component. Always format through the centralized helper in `src/utils/date.ts` (and its `useFormattedDate`-style hook, backed by `TimezoneProvider`). The display timezone defaults to the user's profile `timeZone` (`GET /api/v1/auth/me`), with the browser's detected timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) offered as an override when it differs — same UX pattern as Google Calendar.
+- **One component per `.tsx` file.** A page file (e.g. `AlertsPage.tsx`) exports exactly one component — the page itself. Never define helper components (`StatItem`, a skeleton, a row renderer, etc.) inline in a page or dialog file. Extract each to its own file under that feature's `components/` folder (e.g. `features/alerts/components/StatItem.tsx`, `features/alerts/components/StatItemSkeleton.tsx`), even if it's only used once — pages stay short and each piece is independently reusable/testable.
+- **Loading skeletons are reusable components, not inline JSX.** Never hand-roll `<div className="animate-pulse ...">` blocks in a page. Build the skeleton as its own component (e.g. `TableSkeleton.tsx`, `StatItemSkeleton.tsx`) using the shadcn `Skeleton` primitive (`components/ui/skeleton.tsx`), shaped to mirror the real content it stands in for — so it can be reused anywhere that same shape of data loads.
+- **Component props: never destructure inline in the parameter list.** Always take a single `props: Props` parameter and destructure inside the function body — `function Foo(props: Props) { const { a, b } = props; ... }`, never `function Foo({ a, b }: Props) { ... }`. Not ESLint-enforced (no reliable AST rule without false positives on non-component functions) — enforce via code review.
 
 ### Common
 - Use `pnpm` in all scripts and Dockerfiles
 - No SvelteKit — the project was fully migrated to Next.js + Vite
+- **Type-check with `pnpm exec tsc -b`, not `tsc --noEmit`.** Both `apps/web` and `apps/admin` build via `tsc -b && vite build` (project references), and `-b` catches errors that a plain `--noEmit` run can miss or under-report due to incremental/composite project caching. Always run `tsc -b` before considering a frontend change verified — it's what CI actually runs.
 
 ---
 
 ## Docker images (GHCR)
 
-| Image | Tag pattern | Trigger |
-|---|---|---|
-| `ghcr.io/heva-co/piro-api` | `api/v*` | `release-api.yml` |
-| `ghcr.io/heva-co/piro-worker` | `worker/v*` | `release-worker.yml` |
-| `ghcr.io/heva-co/piro-web` | `web/v*` | `release-web.yml` |
-| `ghcr.io/heva-co/piro-proxy` | `proxy/v*` | `release-proxy.yml` |
+A single `release.yml` workflow (triggered on GitHub Release publish) builds and pushes all four images, tagged `vX.Y.Z` and `latest`:
+
+| Image | Dockerfile |
+|---|---|
+| `ghcr.io/heva-co/piro-api` | `Dockerfile` |
+| `ghcr.io/heva-co/piro-worker` | `src/Piro.Worker/Dockerfile` |
+| `ghcr.io/heva-co/piro-web` | `apps/web/Dockerfile` |
+| `ghcr.io/heva-co/piro-proxy` | `nginx/Dockerfile` |
 
 `docker-compose.yml` uses pre-built images — no source code needed to run the stack.
 

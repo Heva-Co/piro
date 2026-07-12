@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, FileText, Settings } from "lucide-react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useAllChecks } from "@/hooks/useChecks";
@@ -55,7 +54,7 @@ export default function ChecksPage() {
   const down     = checks?.filter((c) => c.currentStatus.toLowerCase() === "down").length ?? 0;
 
   return (
-    <AdminLayout title="Checks">
+    <>
       <div className="flex flex-col gap-6">
         {/* Header */}
         <div>
@@ -184,6 +183,6 @@ export default function ChecksPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }
