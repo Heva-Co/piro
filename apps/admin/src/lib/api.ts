@@ -59,46 +59,6 @@ export interface ApiKey {
   lastUsedAt?: string | null;
 }
 
-// ─── Services ────────────────────────────────────────────────────────────────
-
-export interface Service {
-  slug: string;
-  name: string;
-  description?: string;
-  currentStatus: string;
-  isHidden: boolean;
-  displayOrder: number;
-  checkCount?: number;
-  escalationPolicyId?: number | null;
-  escalationPolicyName?: string | null;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
-export const servicesApi = {
-  list: (params?: { page?: number; pageSize?: number; search?: string }) =>
-    api.get<PaginatedResponse<Service>>(ENDPOINTS.SERVICES, { params }).then((r) => r.data),
-
-  get: (slug: string) => api.get<Service>(ENDPOINTS.SERVICE(slug)).then((r) => r.data),
-
-  create: (data: Omit<Service, "currentStatus" | "escalationPolicyName">) =>
-    api.post<Service>(ENDPOINTS.SERVICES, data).then((r) => r.data),
-
-  // escalationPolicyId: omit the key to leave it unchanged, send null explicitly to clear it.
-  update: (
-    slug: string,
-    data: Partial<Omit<Service, "slug" | "currentStatus" | "escalationPolicyName">>
-  ) =>
-    api.put<Service>(ENDPOINTS.SERVICE(slug), data).then((r) => r.data),
-
-  delete: (slug: string) => api.delete(ENDPOINTS.SERVICE(slug)),
-};
-
 // ─── Checks ──────────────────────────────────────────────────────────────────
 
 export interface Check {

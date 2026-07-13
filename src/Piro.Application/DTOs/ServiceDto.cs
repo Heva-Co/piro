@@ -1,4 +1,3 @@
-using Piro.Application.Models;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
@@ -42,11 +41,7 @@ public record CreateServiceRequest(
     int? EscalationPolicyId = null
 );
 
-/// <summary>
-/// Payload for updating an existing service. All fields are optional — omit a property to leave
-/// it unchanged. <see cref="EscalationPolicyId"/> uses <see cref="Optional{T}"/> so the client can
-/// send it as JSON <c>null</c> to explicitly clear the assignment, distinct from omitting it.
-/// </summary>
+/// <summary>Payload for updating an existing service — a full replace, sent by the admin form on every submit.</summary>
 public record UpdateServiceRequest(
     string? Name,
     string? Description,
@@ -56,5 +51,5 @@ public record UpdateServiceRequest(
     int? DisplayOrder,
     int? HistoryDaysDesktop,
     int? HistoryDaysMobile,
-    Optional<int?> EscalationPolicyId = default
+    int? EscalationPolicyId
 );

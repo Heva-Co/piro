@@ -69,18 +69,15 @@ public class ServiceAppService(IServiceRepository repository, IEscalationPolicyR
         if (request.HistoryDaysDesktop is not null) service.HistoryDaysDesktop = request.HistoryDaysDesktop.Value;
         if (request.HistoryDaysMobile is not null) service.HistoryDaysMobile = request.HistoryDaysMobile.Value;
 
-        if (request.EscalationPolicyId.IsSet)
+        if (request.EscalationPolicyId is int policyId)
         {
-            if (request.EscalationPolicyId.Value is int policyId)
-            {
-                _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
-                    ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
-                service.EscalationPolicyId = policyId;
-            }
-            else
-            {
-                service.EscalationPolicyId = null;
-            }
+            _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
+                ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
+            service.EscalationPolicyId = policyId;
+        }
+        else
+        {
+            service.EscalationPolicyId = null;
         }
 
         var updated = await repository.UpdateAsync(service, ct);
