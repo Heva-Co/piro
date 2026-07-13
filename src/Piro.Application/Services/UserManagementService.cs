@@ -238,6 +238,19 @@ public class UserManagementService(
         return user.ToDto(roles.ToArray(), user.ExternalProvider is not null);
     }
 
+    public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+
+        if (user.ExternalProvider is not null)
+            throw new InvalidOperationException("This account signs in via SSO and has no local password to change.");
+
+        var result = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+    }
+
     public async Task<List<UserNotificationPreferenceDto>> GetNotificationPreferencesAsync(int userId, CancellationToken ct = default)
     {
         var prefs = await prefRepo.GetByUserIdAsync(userId, ct);

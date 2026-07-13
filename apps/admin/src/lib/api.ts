@@ -550,6 +550,8 @@ export const profileApi = {
   get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
   update: (data: { name?: string; color?: string; timeZone?: string }) =>
     api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.put(ENDPOINTS.AUTH_ME_PASSWORD, data),
 };
 
 // ─── Site config ─────────────────────────────────────────────────────────────

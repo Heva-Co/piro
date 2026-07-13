@@ -35,3 +35,8 @@ public record UpdateProfileRequest(
     string? Color,
     string? TimeZone
 );
+
+public record ChangePasswordRequest(
+    [Required] string CurrentPassword,
+    [Required, MinLength(8)] string NewPassword
+);
