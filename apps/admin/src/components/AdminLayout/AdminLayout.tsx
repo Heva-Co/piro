@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import {
   LayoutDashboard,
   Blend,
@@ -37,11 +38,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTimezone } from "@/hooks/useTimezone";
 import { useMyOnCallCurrentStatus } from "@/hooks/useOnCallMe";
 import { useOnCallNowDismissal } from "@/hooks/useOnCallNowDismissal";
+import { useTimezoneMismatchDismissal } from "@/hooks/useTimezoneMismatchDismissal";
 import { TimezoneMismatchBanner } from "@/components/TimezoneMismatchBanner";
 import { OnCallNowBanner } from "@/components/OnCallNowBanner";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
-import { siteApi } from "@/lib/api";
+import { siteApi, alertsApi, maintenancesApi } from "@/lib/api";
+import { incidentsApi } from "@/lib/actions/incidents";
 import { ROUTES } from "@/constants/routes";
 import { QUERY_KEYS } from "@/constants/api";
 import { cn } from "@/lib/utils";
@@ -95,6 +98,30 @@ function Sidebar({ onClose }: SidebarProps) {
     staleTime: 60_000,
   });
 
+  const { data: activeAlerts } = useQuery({
+    queryKey: [...QUERY_KEYS.ALERTS, "active-count"],
+    queryFn: () => alertsApi.list({ activeOnly: true, pageSize: 1 }),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+  const hasActiveAlerts = (activeAlerts?.totalCount ?? 0) > 0;
+
+  const { data: activeIncidents } = useQuery({
+    queryKey: [...QUERY_KEYS.INCIDENTS, "active"],
+    queryFn: () => incidentsApi.list("active"),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+  const hasActiveIncidents = (activeIncidents?.length ?? 0) > 0;
+
+  const { data: maintenances } = useQuery({
+    queryKey: [...QUERY_KEYS.MAINTENANCES, "sidebar"],
+    queryFn: () => maintenancesApi.list(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+  const hasOngoingMaintenance = (maintenances ?? []).some((m) => m.displayStatus === "Active");
+
   const siteName = siteConfig?.name || "Piro";
   const logoUrl = siteConfig?.logoUrl;
   const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -129,25 +156,44 @@ function Sidebar({ onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
-        {mainNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onClose}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )
-            }
-          >
-            {item.icon}
-            {item.label}
-          </NavLink>
-        ))}
+        {mainNavItems.map((item) => {
+          const isAlerting =
+            (item.to === ROUTES.ALERTS.LIST && hasActiveAlerts) ||
+            (item.to === ROUTES.INCIDENTS.LIST && hasActiveIncidents) ||
+            (item.to === ROUTES.MAINTENANCES.LIST && hasOngoingMaintenance);
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={onClose}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isAlerting
+                    ? "text-destructive hover:bg-destructive/10"
+                    : isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  isAlerting && isActive && "bg-destructive/10"
+                )
+              }
+            >
+              {isAlerting ? (
+                <motion.span
+                  className="inline-flex"
+                  animate={{ rotate: [0, -12, 12, -8, 8, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
+                >
+                  {item.icon}
+                </motion.span>
+              ) : (
+                item.icon
+              )}
+              {item.label}
+            </NavLink>
+          );
+        })}
 
         {/* Configuration section */}
         <div className="pt-1">
@@ -239,10 +285,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
-  const { useBrowserTimeZone, activeTimeZone, profileTimeZone } = useTimezone();
+  const { mismatch, useBrowserTimeZone, activeTimeZone, profileTimeZone, browserTimeZone } = useTimezone();
   const { data: currentOnCallSlot } = useMyOnCallCurrentStatus();
   const { isDismissed: onCallBannerDismissed } = useOnCallNowDismissal(currentOnCallSlot);
   const showOnCallIcon = !!currentOnCallSlot && onCallBannerDismissed;
+  const { isDismissed: timezoneMismatchDismissed } = useTimezoneMismatchDismissal(
+    profileTimeZone ?? "",
+    browserTimeZone
+  );
+  const showTimezoneMismatchIcon = mismatch && !useBrowserTimeZone && timezoneMismatchDismissed;
 
   const { data: siteConfig } = useQuery({
     queryKey: QUERY_KEYS.SITE_CONFIG,
@@ -335,6 +386,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </Tooltip>
           )}
 
+          {showTimezoneMismatchIcon && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="p-1.5 rounded-md text-amber-600 dark:text-amber-400" />
+                }
+              >
+                <Globe size={16} />
+              </TooltipTrigger>
+              <TooltipContent>
+                Your profile timezone is {profileTimeZone}, but this device is set to {browserTimeZone}.
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {showOnCallIcon && (
             <Tooltip>
               <TooltipTrigger
@@ -381,3 +447,5 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+
+export default AdminLayout;
