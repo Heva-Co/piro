@@ -13,6 +13,7 @@ public interface IUserManagementService
     Task<List<RoleDto>> GetRolesAsync(CancellationToken ct = default);
     Task<UserProfileDto> GetProfileAsync(int userId, CancellationToken ct = default);
     Task<UserProfileDto> UpdateProfileAsync(int userId, UpdateProfileRequest request, CancellationToken ct = default);
+    Task ChangePasswordAsync(int userId, string currentPassword, string newPassword, CancellationToken ct = default);
     Task<List<UserNotificationPreferenceDto>> GetNotificationPreferencesAsync(int userId, CancellationToken ct = default);
 
     /// <summary>Creates a new preference, appended at the lowest priority.</summary>

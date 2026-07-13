@@ -153,6 +153,7 @@ export const ENDPOINTS = {
 
   // Auth/me
   AUTH_ME: `${API_BASE}/auth/me`,
+  AUTH_ME_PASSWORD: `${API_BASE}/auth/me/password`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */

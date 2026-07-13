@@ -66,6 +66,25 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
         return Ok(await userService.UpdateProfileAsync(userId, request, ct));
     }
 
+    /// <summary>Changes the authenticated user's password. Rejects SSO accounts, which have no local password.</summary>
+    [HttpPut("me/password")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            await userService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
+    }
+
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// <summary>Lists API keys for the authenticated user. Owner/Admin only.</summary>
