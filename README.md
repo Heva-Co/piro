@@ -19,7 +19,7 @@
 
 ---
 
-Piro is a **self-hosted, enterprise-grade status page and uptime monitoring platform** built for engineering teams that demand full control over their infrastructure. Run it on your own servers, connect distributed workers from any region, and give your users real-time visibility into your services — without sending your data to a third party.
+Piro is a **self-hosted, enterprise-grade status page, uptime monitoring platform and incident response platform** built for engineering teams that demand full control over their infrastructure. Run it on your own servers, connect distributed workers from any region, and give your users real-time visibility into your services — without sending your data to a third party.
 
 Built by [Heva](https://heva.co) and released as open source to give every team access to the kind of monitoring tooling that was previously only available in expensive SaaS platforms.
 
