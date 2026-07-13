@@ -65,7 +65,7 @@ public class UserManagementService(
             throw new InvalidOperationException($"A user with email '{email}' already exists.");
 
         var role = await roleManager.FindByIdAsync(roleId.ToString())
-            ?? throw new InvalidOperationException($"Role {roleId} not found.");
+            ?? throw new NotFoundException(nameof(AppRole), roleId);
 
         // Create inactive placeholder — no password yet
         var user = new AppUser
@@ -162,10 +162,10 @@ public class UserManagementService(
     public async Task ChangeRoleAsync(int userId, int newRoleId, CancellationToken ct = default)
     {
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new NotFoundException(nameof(AppUser), userId);
 
         var newRole = await roleManager.FindByIdAsync(newRoleId.ToString())
-            ?? throw new InvalidOperationException($"Role {newRoleId} not found.");
+            ?? throw new NotFoundException(nameof(AppRole), newRoleId);
 
         var currentRoles = await userManager.GetRolesAsync(user);
 
@@ -188,7 +188,7 @@ public class UserManagementService(
             throw new InvalidOperationException("You cannot delete your own account.");
 
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new NotFoundException(nameof(AppUser), userId);
 
         var roles = await userManager.GetRolesAsync(user);
         if (roles.Contains("Owner"))
@@ -213,7 +213,7 @@ public class UserManagementService(
     public async Task<UserProfileDto> GetProfileAsync(int userId, CancellationToken ct = default)
     {
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new StaleIdentityException(userId);
         var roles = await userManager.GetRolesAsync(user);
         var isOidc = user.ExternalProvider is not null;
         return user.ToDto(roles.ToArray(), isOidc);
@@ -222,7 +222,7 @@ public class UserManagementService(
     public async Task<UserProfileDto> UpdateProfileAsync(int userId, UpdateProfileRequest request, CancellationToken ct = default)
     {
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new StaleIdentityException(userId);
 
         if (request.Name is not null) user.Name = request.Name;
         if (request.Color is not null) user.Color = request.Color;
@@ -241,7 +241,7 @@ public class UserManagementService(
     public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword, CancellationToken ct = default)
     {
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new StaleIdentityException(userId);
 
         if (user.ExternalProvider is not null)
             throw new InvalidOperationException("This account signs in via SSO and has no local password to change.");
@@ -249,6 +249,17 @@ public class UserManagementService(
         var result = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
         if (!result.Succeeded)
             throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+    }
+
+    public async Task MarkShowcaseSeenAsync(int userId, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new StaleIdentityException(userId);
+
+        if (user.HasSeenShowcase) return;
+
+        user.HasSeenShowcase = true;
+        await userManager.UpdateAsync(user);
     }
 
     public async Task<List<UserNotificationPreferenceDto>> GetNotificationPreferencesAsync(int userId, CancellationToken ct = default)
@@ -347,7 +358,7 @@ public class UserManagementService(
             throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
 
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new NotFoundException(nameof(AppUser), userId);
 
         if (!_dispatchers.TryGetValue(pref.Channel.ToIntegrationType(), out var dispatcher))
             throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
@@ -369,7 +380,7 @@ public class UserManagementService(
             throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
 
         var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new InvalidOperationException($"User {userId} not found.");
+            ?? throw new NotFoundException(nameof(AppUser), userId);
 
         var valid = await userManager.VerifyUserTokenAsync(
             user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle), code);

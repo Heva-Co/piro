@@ -10,8 +10,11 @@ import ServicesTable from "@/features/dashboard/components/ServicesTable";
 import ActiveIncidentsCard from "@/features/dashboard/components/ActiveIncidentsCard";
 import ActiveMaintenancesCard from "@/features/dashboard/components/ActiveMaintenancesCard";
 import NoLocalExecutionBanner from "@/features/dashboard/components/NoLocalExecutionBanner";
+import { ShowcaseOverlay } from "@/features/showcase/components/ShowcaseOverlay";
+import { useShowcase } from "@/features/showcase/hooks/useShowcase";
 
 export default function DashboardPage() {
+  const { shouldShow: showShowcase, dismiss: dismissShowcase } = useShowcase();
   const servicesQuery = useAllServices();
   const incidentsQuery = useQuery({
     queryKey: QUERY_KEYS.INCIDENTS,
@@ -46,6 +49,8 @@ export default function DashboardPage() {
 
   return (
     <>
+      {showShowcase && <ShowcaseOverlay onClose={dismissShowcase} />}
+
       <PageHeader breadcrumbs={[{ label: "Dashboard" }]} />
 
       {noLocalExecution && <NoLocalExecutionBanner />}

@@ -16,6 +16,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await WriteProblem(context, StatusCodes.Status404NotFound, "Not Found", ex.Message);
         }
+        catch (StaleIdentityException ex)
+        {
+            await WriteProblem(context, StatusCodes.Status401Unauthorized, "Unauthorized", ex.Message);
+        }
         catch (CyclicDependencyException ex)
         {
             await WriteProblem(context, StatusCodes.Status422UnprocessableEntity, "Cyclic Dependency", ex.Message);

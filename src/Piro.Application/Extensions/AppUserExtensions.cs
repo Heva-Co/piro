@@ -7,6 +7,13 @@ public static class AppUserExtensions
 {
     /// <summary>Maps an <see cref="AlertConfig"/> entity to its outbound DTO representation.</summary>
     public static UserProfileDto ToDto(this AppUser user, string[] roles, bool isOidc) => new(
-       user.Id, user.Email!, user.Name, user.Color, user.TimeZone, roles, isOidc
+       user.Id, 
+       user.Email!, 
+       user.Name, 
+       user.Color, 
+       user.TimeZone, 
+       roles, 
+       isOidc, 
+       user.HasSeenShowcase
     );
 }
