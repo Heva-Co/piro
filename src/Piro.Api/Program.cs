@@ -68,6 +68,19 @@ builder.Services.AddControllers()
     {
         opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+// AddOpenApi's schema generation reads Microsoft.AspNetCore.Http.Json.JsonOptions (the minimal-API
+// options), not MVC's — without this, enums are described as bare integers in the OpenAPI spec even
+// though the wire format (via the JsonStringEnumConverter above) is actually strings.
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(opts =>
+{
+    opts.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+
+    // ASP.NET Core's minimal-API JsonOptions default to AllowReadingFromString, which makes every
+    // int/long property in the OpenAPI schema (and generated TS types) describe itself as
+    // `number | string` instead of a plain number. No client actually sends numbers as JSON
+    // strings, so tightening this only affects schema/type generation, not real traffic.
+    opts.SerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict;
+});
 builder.Services.AddCors(opts =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

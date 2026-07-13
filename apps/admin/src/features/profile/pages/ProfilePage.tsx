@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { NotificationPreferencesEditor } from "@/components/NotificationPreferencesEditor";
 import { TimezonePicker } from "@/components/TimezonePicker";
 import { MyOnCallCalendarCard } from "@/features/profile/components/MyOnCallCalendarCard";
+import { ChangePasswordSection } from "@/features/profile/components/ChangePasswordSection";
 
 const COLOR_PALETTE = [
   "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
@@ -126,6 +127,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Password card */}
+      {profile && !profile.isOidc && <ChangePasswordSection />}
 
       {/* On-call calendar card */}
       <MyOnCallCalendarCard />

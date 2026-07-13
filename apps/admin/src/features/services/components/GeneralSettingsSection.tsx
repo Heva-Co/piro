@@ -13,10 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useService, useUpdateService } from "@/hooks/useServices";
 import { escalationApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
-import { Save } from "lucide-react";
+import { Save, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const NO_POLICY = "__none__";
@@ -177,7 +178,28 @@ function GeneralSettingsSection({ slug }: { slug: string }) {
 
       {/* Escalation policy */}
       <div className="flex flex-col gap-1.5 w-1/2">
-        <label className="text-sm font-semibold">Escalation Policy</label>
+        <label className="text-sm font-semibold flex items-center gap-1.5">
+          Escalation Policy
+          <Controller
+            name="escalationPolicyId"
+            control={control}
+            render={({ field }) => (
+              <>
+                {field.value === NO_POLICY && (
+                  <Tooltip>
+                    <TooltipTrigger render={<span className="inline-flex" />}>
+                      <TriangleAlert size={14} className="text-amber-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      No escalation policy assigned — if an alert fires for one of this service's
+                      checks, on-call won't be notified.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          />
+        </label>
         <Controller
           name="escalationPolicyId"
           control={control}

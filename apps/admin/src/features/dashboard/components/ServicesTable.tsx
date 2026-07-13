@@ -1,7 +1,8 @@
-import { StatusBadge } from "@/components/StatusBadge";
+
+import StatusPill from "@/components/StatusBadge";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Service } from "@/lib/api";
+import type { Service } from "@/lib/actions/services";
 
 const COLUMNS = ["Name", "Slug", "Status"];
 
@@ -40,7 +41,7 @@ function ServicesTable(props: Props) {
                 <TableCell className="font-medium text-foreground">{service.name}</TableCell>
                 <TableCell className="text-muted-foreground">{service.slug}</TableCell>
                 <TableCell>
-                  <StatusBadge status={service.currentStatus} />
+                  <StatusPill status={service.currentStatus} />
                 </TableCell>
               </TableRow>
             ))}

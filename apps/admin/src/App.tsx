@@ -6,7 +6,7 @@ import { ConfirmDialogProvider } from "@/providers/ConfirmDialogProvider";
 import { TimezoneProvider } from "@/providers/TimezoneProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGuard } from "@/components/AuthGuard";
-import { AdminLayout } from "@/components/AdminLayout";
+import AdminLayout from "@/components/AdminLayout";
 import { ErrorBoundary, ErrorFallback } from "@/components/ErrorBoundary";
 import { ROUTES } from "@/constants/routes";
 
