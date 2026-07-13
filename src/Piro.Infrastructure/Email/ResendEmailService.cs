@@ -37,6 +37,20 @@ public class ResendEmailService(
         }
 
         var http = httpClientFactory.CreateClient();
+        await SendWithConfigAsync(http, apiKey, from, to, subject, htmlBody, ct);
+        logger.LogInformation("Email sent via Resend to {To}: {Subject}.", to, subject);
+    }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
+
+    /// <summary>
+    /// Sends using an explicit, not-yet-persisted API key — used by the setup wizard to verify
+    /// a mailbox works before the config (or any user account) is saved to the database.
+    /// </summary>
+    public static async Task SendWithConfigAsync(
+        HttpClient http, string apiKey, string from, string to, string subject, string htmlBody, CancellationToken ct = default)
+    {
         http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
 
         // `to` accepts string or string[] (max 50) — we always send as array for consistency
@@ -46,13 +60,7 @@ public class ResendEmailService(
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);
-            logger.LogError("Resend API returned {Status}: {Body}", (int)response.StatusCode, body);
             throw new InvalidOperationException($"Resend API error ({(int)response.StatusCode}): {body}");
         }
-
-        logger.LogInformation("Email sent via Resend to {To}: {Subject}.", to, subject);
     }
-
-    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
-        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }

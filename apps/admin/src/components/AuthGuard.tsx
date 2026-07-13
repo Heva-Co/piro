@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { setupApi } from "@/lib/api";
+import { setupApi } from "@/lib/actions/setup";
 import { ROUTES } from "@/constants/routes";
 import { PiroLogoLoader } from "@/components/PiroLogoLoader";
 

@@ -40,6 +40,21 @@ public class SmtpEmailService(
             return;
         }
 
+        await SendWithConfigAsync(smtpHost, port, useTls, username, password, from, to, subject, htmlBody, ct);
+        logger.LogInformation("Email sent via SMTP to {To}: {Subject}.", to, subject);
+    }
+
+    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
+        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
+
+    /// <summary>
+    /// Sends using explicit, not-yet-persisted SMTP settings — used by the setup wizard to
+    /// verify a mailbox works before the config (or any user account) is saved to the database.
+    /// </summary>
+    public static async Task SendWithConfigAsync(
+        string smtpHost, int port, bool useTls, string username, string password,
+        string from, string to, string subject, string htmlBody, CancellationToken ct = default)
+    {
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(to));
@@ -62,10 +77,5 @@ public class SmtpEmailService(
             await smtp.AuthenticateAsync(username, password, ct);
         await smtp.SendAsync(message, ct);
         await smtp.DisconnectAsync(true, ct);
-
-        logger.LogInformation("Email sent via SMTP to {To}: {Subject}.", to, subject);
     }
-
-    public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
-        SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 }

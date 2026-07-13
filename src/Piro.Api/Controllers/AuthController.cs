@@ -85,6 +85,17 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
         }
     }
 
+    /// <summary>Marks the post-setup feature showcase as seen for the authenticated user. Idempotent.</summary>
+    [HttpPut("me/showcase-seen")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> MarkShowcaseSeen(CancellationToken ct)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await userService.MarkShowcaseSeenAsync(userId, ct);
+        return NoContent();
+    }
+
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// <summary>Lists API keys for the authenticated user. Owner/Admin only.</summary>

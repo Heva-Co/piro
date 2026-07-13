@@ -46,16 +46,26 @@ internal class WorkerRegistrationRepository(PiroDbContext db) : IWorkerRegistrat
 
     public async Task SetAsDefaultAsync(WorkerRegistration worker, CancellationToken ct = default)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Reuse the caller's transaction if one is already open — Npgsql/EF Core doesn't allow
+        // nesting BeginTransactionAsync on the same connection (see SiteConfigRepository.SetManyAsync).
+        var ownsTransaction = db.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction ? await db.Database.BeginTransactionAsync(ct) : null;
 
-        await db.WorkerRegistrations
-            .Where(w => w.IsDefault && w.Id != worker.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(w => w.IsDefault, false), ct);
+        try
+        {
+            await db.WorkerRegistrations
+                .Where(w => w.IsDefault && w.Id != worker.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(w => w.IsDefault, false), ct);
 
-        worker.IsDefault = true;
-        db.WorkerRegistrations.Update(worker);
-        await db.SaveChangesAsync(ct);
+            worker.IsDefault = true;
+            db.WorkerRegistrations.Update(worker);
+            await db.SaveChangesAsync(ct);
 
-        await transaction.CommitAsync(ct);
+            if (transaction is not null) await transaction.CommitAsync(ct);
+        }
+        finally
+        {
+            if (transaction is not null) await transaction.DisposeAsync();
+        }
     }
 }

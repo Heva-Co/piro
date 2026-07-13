@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { profileApi } from "@/lib/api";
+import { profileApi } from "@/lib/actions/profile";
 import { QUERY_KEYS } from "@/constants/api";
 import { cn } from "@/lib/utils";
 import { NotificationPreferencesEditor } from "@/components/NotificationPreferencesEditor";

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { profileApi } from "@/lib/api";
+import { profileApi } from "@/lib/actions/profile";
 import { QUERY_KEYS } from "@/constants/api";
 import { useAuth } from "@/hooks/useAuth";
 

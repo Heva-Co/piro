@@ -32,5 +32,8 @@ public class AppUser : IdentityUser<int>
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>Whether this user has seen the post-setup feature showcase. Shown once.</summary>
+    public bool HasSeenShowcase { get; set; }
+
     public ICollection<UserNotificationPreference> NotificationPreferences { get; set; } = [];
 }
