@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:api-types": "rm -f ../../src/Piro.Api/obj/Piro.Api.OpenApiFiles.cache && ASPNETCORE_ENVIRONMENT=Development dotnet build -t:GenerateOpenApiDocuments ../../src/Piro.Api/Piro.Api.csproj && openapi-typescript Piro.Api.json -o src/lib/api-types.ts && rm -f Piro.Api.json"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -30,6 +31,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.20.0",
     "marked": "^18.0.5",
+    "motion": "^12.42.2",
     "react": "^19.2.6",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.6",
@@ -56,6 +58,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"

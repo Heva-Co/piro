@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { servicesApi } from "@/lib/api";
-import type { Service } from "@/lib/api";
+import { servicesApi } from "@/lib/actions/services";
+import type { Service, UpdateServiceRequest } from "@/lib/actions/services";
 import { QUERY_KEYS } from "@/constants/api";
 
 export function useServices(params?: { page?: number; pageSize?: number; search?: string }) {
@@ -41,8 +41,7 @@ export function useCreateService() {
 export function useUpdateService(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Omit<Service, "slug" | "currentStatus">>) =>
-      servicesApi.update(slug, data),
+    mutationFn: (data: Partial<UpdateServiceRequest>) => servicesApi.update(slug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICE(slug) });
