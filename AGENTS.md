@@ -114,7 +114,7 @@ dotnet test
 
 ## Docker images (GHCR)
 
-A single `release.yml` workflow (triggered on GitHub Release publish) builds and pushes all four images, tagged `vX.Y.Z` and `latest`:
+A single `release.yml` workflow (triggered on GitHub Release publish) builds and pushes all four images, tagged `vX.Y.Z`:
 
 | Image | Dockerfile |
 |---|---|
@@ -122,6 +122,10 @@ A single `release.yml` workflow (triggered on GitHub Release publish) builds and
 | `ghcr.io/heva-co/piro-worker` | `src/Piro.Worker/Dockerfile` |
 | `ghcr.io/heva-co/piro-web` | `apps/web/Dockerfile` |
 | `ghcr.io/heva-co/piro-proxy` | `nginx/Dockerfile` |
+
+- The `latest` tag is only added when the GitHub Release is **not** marked as a pre-release — publishing a release candidate (e.g. `v0.5.0-rc1`, checked "Set as a pre-release") never overwrites `latest`.
+- All four images always ship under the same version — there's one `PIRO_VERSION` to pin, not four.
+- The workflow also generates a `docker-compose.release.yml` (this repo's `docker-compose.yml` with `PIRO_VERSION` resolved to the release tag) and attaches it as a release asset, so `docker compose -f docker-compose.release.yml up` runs that exact release without needing to set any env var.
 
 `docker-compose.yml` uses pre-built images — no source code needed to run the stack.
 

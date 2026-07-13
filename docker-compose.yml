@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: ghcr.io/heva-co/piro-proxy:${PROXY_VERSION:-latest}
+    image: ghcr.io/heva-co/piro-proxy:${PIRO_VERSION:-latest}
     ports:
       - "80:80"
     depends_on:
@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/heva-co/piro-web:${WEB_VERSION:-latest}
+    image: ghcr.io/heva-co/piro-web:${PIRO_VERSION:-latest}
     environment:
       - NODE_ENV=production
       - INTERNAL_API_URL=http://api:8080
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/heva-co/piro-api:${API_VERSION:-latest}
+    image: ghcr.io/heva-co/piro-api:${PIRO_VERSION:-latest}
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__ConnectionString=Host=db;Database=piro;Username=piro;Password=${POSTGRES_PASSWORD:-piro};SSL Mode=Disable
