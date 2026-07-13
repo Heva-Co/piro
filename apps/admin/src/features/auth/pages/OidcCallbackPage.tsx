@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { authApi } from "@/lib/api";
 import { setStoredAuth } from "@/lib/axios";
 import { ROUTES } from "@/constants/routes";
+import { PiroLogoLoader } from "@/components/PiroLogoLoader";
 
 /**
  * OIDC callback handler.
@@ -55,7 +56,7 @@ export default function OidcCallbackPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-      <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <PiroLogoLoader />
       <p className="text-sm text-muted-foreground">Completing sign-in…</p>
     </div>
   );
