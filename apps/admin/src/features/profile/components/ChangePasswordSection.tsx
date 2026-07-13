@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { profileApi } from "@/lib/api";
+import { profileApi } from "@/lib/actions/profile";
 
 const schema = z
   .object({

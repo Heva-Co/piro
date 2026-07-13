@@ -731,6 +731,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Changes the authenticated user's password. Rejects SSO accounts, which have no local password. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangePasswordRequest"];
+                    "text/json": components["schemas"]["ChangePasswordRequest"];
+                    "application/*+json": components["schemas"]["ChangePasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/showcase-seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Marks the post-setup feature showcase as seen for the authenticated user. Idempotent. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/api-keys": {
         parameters: {
             query?: never;
@@ -4782,6 +4869,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/setup/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends a verification code to the given address using not-yet-saved email settings,
+         *     proving the config actually works before anything is persisted. Stateless — the code is
+         *     an HMAC of the address, the exact config, and the current time window, verified the same
+         *     way on confirm. No account or config exists yet at this point in the wizard.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SendSetupEmailCodeRequest"];
+                    "text/json": components["schemas"]["SendSetupEmailCodeRequest"];
+                    "application/*+json": components["schemas"]["SendSetupEmailCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/setup/email/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirms a verification code sent by Task&lt;IActionResult&gt; SetupController.SendEmailVerificationCode(SendSetupEmailCodeRequest request, CancellationToken ct). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfirmSetupEmailCodeRequest"];
+                    "text/json": components["schemas"]["ConfirmSetupEmailCodeRequest"];
+                    "application/*+json": components["schemas"]["ConfirmSetupEmailCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/setup/status": {
         parameters: {
             query?: never;
@@ -4854,6 +5057,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SetupStatusResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
                     };
                 };
                 /** @description Conflict */
@@ -6037,6 +6249,10 @@ export interface components {
         };
         /** @enum {unknown} */
         ApiKeyStatus: "Active" | "Revoked";
+        ChangePasswordRequest: {
+            currentPassword: string;
+            newPassword: string;
+        };
         ChangeRoleRequest: {
             /** Format: int32 */
             roleId: number;
@@ -6127,8 +6343,11 @@ export interface components {
             email: string;
             password: string;
             name: string;
+            timeZone: null | string;
             siteTitle: null | string;
             siteUrl: null | string;
+            emailProvider: string;
+            emailVerificationCode: string;
             emailHost: null | string;
             /** Format: int32 */
             emailPort: null | number;
@@ -6137,9 +6356,15 @@ export interface components {
             emailFrom: null | string;
             emailUseSsl: null | boolean;
             resendApiKey: null | string;
+            resendFrom: null | string;
         };
         ConfirmNotificationPreferenceCodeRequest: {
             code: string;
+        };
+        ConfirmSetupEmailCodeRequest: {
+            email: string;
+            code: string;
+            config: components["schemas"]["SetupEmailConfigPayload"];
         };
         CoverageGapDto: {
             /** Format: date-time */
@@ -6795,6 +7020,19 @@ export interface components {
             incidentId: null | number;
             incidentUrl: null | string;
         };
+        SendSetupEmailCodeRequest: {
+            email: string;
+            provider: string;
+            smtpHost: null | string;
+            /** Format: int32 */
+            smtpPort: null | number;
+            smtpUsername: null | string;
+            smtpPassword: null | string;
+            smtpFrom: null | string;
+            smtpUseSsl: null | boolean;
+            resendApiKey: null | string;
+            resendFrom: null | string;
+        };
         ServiceAlertCountDto: {
             serviceSlug: string;
             serviceName: string;
@@ -6867,6 +7105,22 @@ export interface components {
         };
         SetSsoModeRequest: {
             ssoOnly: boolean;
+        };
+        /**
+         * @description The email config fields the verification code's HMAC is bound to — changing any of
+         *         these after requesting a code invalidates it, so confirming proves this exact config works.
+         */
+        SetupEmailConfigPayload: {
+            provider: string;
+            smtpHost: null | string;
+            /** Format: int32 */
+            smtpPort: null | number;
+            smtpUsername: null | string;
+            smtpPassword: null | string;
+            smtpFrom: null | string;
+            smtpUseSsl: null | boolean;
+            resendApiKey: null | string;
+            resendFrom: null | string;
         };
         SetupStatusResponse: {
             isComplete: boolean;
@@ -7111,6 +7365,7 @@ export interface components {
             timeZone: string;
             roles: string[];
             isOidc: boolean;
+            hasSeenShowcase: boolean;
         };
         WorkerDto: {
             /** Format: uuid */

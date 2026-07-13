@@ -1,98 +1,246 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { AlertCircle, Check } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { setupApi, authApi } from "@/lib/api";
+import { setupApi } from "@/lib/actions/setup";
+import { authApi } from "@/lib/api";
 import { setStoredAuth } from "@/lib/axios";
 import { ROUTES } from "@/constants/routes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { TimezonePicker } from "@/components/TimezonePicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Step = 1 | 2 | 3;
-type EmailProvider = "smtp" | "resend";
+
+const schema = z
+  .object({
+    siteName: z.string().min(1, "Site name is required"),
+    siteUrl: z.union([z.url("Enter a valid URL"), z.literal("")]),
+
+    name: z.string().min(1, "Full name is required"),
+    email: z.email("Enter a valid email"),
+    password: z.string().min(8, "Must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+    timeZone: z.string().min(1, "Time zone is required"),
+
+    provider: z.enum(["smtp", "resend"]),
+    smtpHost: z.string(),
+    smtpPort: z.number(),
+    smtpUsername: z.string(),
+    smtpPassword: z.string(),
+    smtpFrom: z.string(),
+    smtpUseSsl: z.boolean(),
+    resendApiKey: z.string(),
+    resendFrom: z.string(),
+    verificationCode: z.string(),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  })
+  .refine(
+    (values) =>
+      values.provider === "smtp"
+        ? values.smtpHost.trim() !== "" && values.smtpFrom.trim() !== ""
+        : values.resendApiKey.trim() !== "" && values.resendFrom.trim() !== "",
+    {
+      message: "Email configuration is required to complete setup.",
+      path: ["smtpHost"],
+    }
+  );
+
+type FormValues = z.infer<typeof schema>;
+
+const STEP_FIELDS: Record<Step, (keyof FormValues)[]> = {
+  1: ["siteName", "siteUrl"],
+  2: ["name", "email", "password", "confirmPassword", "timeZone"],
+  3: [],
+};
+
+function emailConfigFromValues(values: FormValues) {
+  return values.provider === "smtp"
+    ? {
+        provider: "smtp",
+        smtpHost: values.smtpHost,
+        smtpPort: values.smtpPort,
+        smtpUsername: values.smtpUsername || null,
+        smtpPassword: values.smtpPassword || null,
+        smtpFrom: values.smtpFrom,
+        smtpUseSsl: values.smtpUseSsl,
+        resendApiKey: null,
+        resendFrom: null,
+      }
+    : {
+        provider: "resend",
+        smtpHost: null,
+        smtpPort: null,
+        smtpUsername: null,
+        smtpPassword: null,
+        smtpFrom: null,
+        smtpUseSsl: null,
+        resendApiKey: values.resendApiKey,
+        resendFrom: values.resendFrom,
+      };
+}
 
 export default function SetupPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loginWithTokens } = useAuth();
 
   const [setupDone, setSetupDone] = useState(false);
+  const [step, setStep] = useState<Step>(1);
+  const [codeSent, setCodeSent] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [confirmingCode, setConfirmingCode] = useState(false);
+
   useEffect(() => {
-    setupApi.status().then((s) => {
-      if (s.isComplete) setSetupDone(true);
-    }).catch(() => {});
+    setupApi
+      .status()
+      .then((s) => {
+        if (s.isComplete) setSetupDone(true);
+      })
+      .catch(() => {});
   }, []);
 
-  const [step, setStep] = useState<Step>(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const {
+    register,
+    control,
+    handleSubmit,
+    trigger,
+    watch,
+    getValues,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      siteName: "Piro",
+      siteUrl: window.location.origin,
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      provider: "smtp",
+      smtpHost: "",
+      smtpPort: 587,
+      smtpUsername: "",
+      smtpPassword: "",
+      smtpFrom: "",
+      smtpUseSsl: true,
+      resendApiKey: "",
+      resendFrom: "",
+      verificationCode: "",
+    },
+  });
 
-  // Step 1 — General config
-  const [siteName, setSiteName] = useState("Piro");
-  const [siteUrl, setSiteUrl] = useState(() => window.location.origin);
-
-  // Step 2 — Email
-  const [provider, setProvider] = useState<EmailProvider>("smtp");
-  const [smtpHost, setSmtpHost] = useState("");
-  const [smtpPort, setSmtpPort] = useState<number | "">(587);
-  const [smtpUsername, setSmtpUsername] = useState("");
-  const [smtpPassword, setSmtpPassword] = useState("");
-  const [smtpFrom, setSmtpFrom] = useState("");
-  const [smtpUseSsl, setSmtpUseSsl] = useState(true);
-  const [resendApiKey, setResendApiKey] = useState("");
-  const [resendFrom, setResendFrom] = useState("");
-
-  // Step 3 — User
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const provider = watch("provider");
 
   if (setupDone && isAuthenticated) {
     return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
 
-  function handleStep1(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setStep(2);
+  function resetVerification() {
+    setCodeSent(false);
+    setCodeVerified(false);
   }
 
-  function handleStep2(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setStep(3);
+  async function goNext() {
+    const valid = await trigger(STEP_FIELDS[step]);
+    if (valid) setStep((s) => (s + 1) as Step);
   }
 
-  async function handleStep3(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  async function sendCode() {
+    const valid =
+      provider === "smtp"
+        ? await trigger(["smtpHost", "smtpFrom"])
+        : await trigger(["resendApiKey", "resendFrom"]);
+    if (!valid) return;
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    setSendingCode(true);
+    try {
+      const values = getValues();
+      await setupApi.sendEmailTestCode({ email: values.email, ...emailConfigFromValues(values) });
+      setCodeSent(true);
+      setCodeVerified(false);
+      toast.success(`Verification code sent to ${values.email}.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send verification code.";
+      toast.error(msg);
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function confirmCode() {
+    const values = getValues();
+    if (!values.verificationCode.trim()) {
+      toast.error("Enter the code sent to your email.");
       return;
     }
 
-    setSubmitting(true);
+    setConfirmingCode(true);
     try {
-      // 1. Complete setup — sends everything in one call
+      await setupApi.confirmEmailTestCode({
+        email: values.email,
+        code: values.verificationCode,
+        config: emailConfigFromValues(values),
+      });
+      setCodeVerified(true);
+      toast.success("Email configuration verified.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Invalid or expired code.";
+      toast.error(msg);
+    } finally {
+      setConfirmingCode(false);
+    }
+  }
+
+  async function onSubmit(values: FormValues) {
+    if (!codeVerified) {
+      toast.error("Verify your email configuration before finishing setup.");
+      return;
+    }
+
+    try {
+      const isSmtp = values.provider === "smtp";
       await setupApi.complete({
-        name, email, password,
-        siteTitle: siteName || undefined,
-        siteUrl: siteUrl || undefined,
-        ...(provider === "smtp" && smtpHost ? {
-          emailHost: smtpHost,
-          emailPort: Number(smtpPort) || 587,
-          emailUsername: smtpUsername || undefined,
-          emailPassword: smtpPassword || undefined,
-          emailFrom: smtpFrom || undefined,
-          emailUseSsl: smtpUseSsl,
-        } : {}),
-        ...(provider === "resend" && resendApiKey ? {
-          resendApiKey,
-          emailFrom: resendFrom || undefined,
-        } : {}),
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        timeZone: values.timeZone,
+        siteTitle: values.siteName,
+        siteUrl: values.siteUrl,
+        emailProvider: values.provider,
+        emailVerificationCode: values.verificationCode,
+        emailHost: isSmtp ? values.smtpHost : null,
+        emailPort: isSmtp ? values.smtpPort || 587 : null,
+        emailUsername: isSmtp ? values.smtpUsername || null : null,
+        emailPassword: isSmtp ? values.smtpPassword || null : null,
+        emailFrom: isSmtp ? values.smtpFrom || null : null,
+        emailUseSsl: isSmtp ? values.smtpUseSsl : null,
+        resendApiKey: isSmtp ? null : values.resendApiKey,
+        resendFrom: isSmtp ? null : values.resendFrom || null,
       });
 
-      // 2. Auto sign-in
-      const { accessToken, refreshToken, expiresIn, user } = await authApi.signIn(email, password);
+      const { accessToken, refreshToken, expiresIn, user } = await authApi.signIn(
+        values.email,
+        values.password
+      );
       const auth = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000 };
       setStoredAuth(auth);
       loginWithTokens(auth, user);
@@ -100,23 +248,23 @@ export default function SetupPage() {
       navigate(ROUTES.DASHBOARD, { replace: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Setup failed. Please try again.";
-      setError(msg);
-    } finally {
-      setSubmitting(false);
+      toast.error(msg);
     }
   }
 
   const steps = [
     { n: 1, label: "General" },
-    { n: 2, label: "Email" },
-    { n: 3, label: "Account" },
+    { n: 2, label: "Account" },
+    { n: 3, label: "Email" },
   ];
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-md flex flex-col gap-6">
         <div className="text-center">
-          <a href="/" className="text-2xl font-bold tracking-tight">Piro</a>
+          <a href="/" className="text-2xl font-bold tracking-tight">
+            Piro
+          </a>
           <p className="text-muted-foreground text-sm mt-1">Initial setup</p>
         </div>
 
@@ -125,284 +273,338 @@ export default function SetupPage() {
           {steps.map((s, i) => (
             <div key={s.n} className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-xs">
-                <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
-                  step > s.n
-                    ? "bg-primary text-primary-foreground"
-                    : step === s.n
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}>
+                <span
+                  className={`size-5 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${
+                    step >= s.n
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   {step > s.n ? <Check size={10} /> : s.n}
                 </span>
-                <span className={step === s.n ? "font-medium" : "text-muted-foreground"}>{s.label}</span>
+                <span className={step === s.n ? "font-medium" : "text-muted-foreground"}>
+                  {s.label}
+                </span>
               </div>
               {i < steps.length - 1 && <div className="h-px w-6 bg-border" />}
             </div>
           ))}
         </div>
 
-        <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive mb-4">
-              <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {/* ── Step 1: General config ── */}
-          {step === 1 && (
-            <form onSubmit={handleStep1} className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-sm font-semibold mb-0.5">General configuration</h2>
-                <p className="text-xs text-muted-foreground">Basic info about your status page.</p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Site name</label>
-                <input
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  placeholder="Piro"
-                  required
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Site URL</label>
-                <input
-                  value={siteUrl}
-                  onChange={(e) => setSiteUrl(e.target.value)}
-                  placeholder="https://status.yourdomain.com"
-                  type="url"
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground">Used for OIDC redirect URIs and email links.</p>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-2 w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                Continue
-              </button>
-            </form>
-          )}
-
-          {/* ── Step 2: Email config ── */}
-          {step === 2 && (
-            <form onSubmit={handleStep2} className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-sm font-semibold mb-0.5">Email provider</h2>
-                <p className="text-xs text-muted-foreground">Used to send invite and alert emails. You can skip and configure later.</p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Provider</label>
-                <select
-                  value={provider}
-                  onChange={(e) => setProvider(e.target.value as EmailProvider)}
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="smtp">SMTP</option>
-                  <option value="resend">Resend</option>
-                </select>
-              </div>
-
-              {provider === "smtp" && (
+        <div className="rounded-xl border border-border bg-card shadow-sm p-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              {/* ── Step 1: General config ── */}
+              {step === 1 && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium">Host</label>
-                      <input
-                        value={smtpHost}
-                        onChange={(e) => setSmtpHost(e.target.value)}
-                        placeholder="smtp.example.com"
-                        className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium">Port</label>
-                      <input
-                        value={smtpPort}
-                        onChange={(e) => setSmtpPort(e.target.value === "" ? "" : Number(e.target.value))}
-                        type="number"
-                        placeholder="587"
-                        className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
+                  <div>
+                    <h2 className="text-sm font-semibold mb-0.5">General configuration</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Basic info about your status page.
+                    </p>
                   </div>
+
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">Username</label>
-                    <input
-                      value={smtpUsername}
-                      onChange={(e) => setSmtpUsername(e.target.value)}
-                      placeholder="user@example.com"
-                      autoComplete="off"
-                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <Label htmlFor="siteName">Site name</Label>
+                    <Input id="siteName" placeholder="Piro" {...register("siteName")} />
+                    {errors.siteName && (
+                      <p className="text-xs text-destructive">{errors.siteName.message}</p>
+                    )}
                   </div>
+
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">Password</label>
-                    <input
-                      value={smtpPassword}
-                      onChange={(e) => setSmtpPassword(e.target.value)}
-                      type="password"
-                      placeholder="SMTP password"
-                      autoComplete="new-password"
-                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    <Label htmlFor="siteUrl">Site URL</Label>
+                    <Input
+                      id="siteUrl"
+                      type="url"
+                      placeholder="https://status.yourdomain.com"
+                      {...register("siteUrl")}
                     />
+                    {errors.siteUrl ? (
+                      <p className="text-xs text-destructive">{errors.siteUrl.message}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Used for OIDC redirect URIs and email links.
+                      </p>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">From address</label>
-                    <input
-                      value={smtpFrom}
-                      onChange={(e) => setSmtpFrom(e.target.value)}
-                      placeholder="Piro <no-reply@example.com>"
-                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={smtpUseSsl}
-                      onChange={(e) => setSmtpUseSsl(e.target.checked)}
-                      className="size-4 rounded"
-                    />
-                    Use SSL/TLS
-                  </label>
+
+                  <Button type="button" onClick={goNext} className="mt-2 w-full">
+                    Continue
+                  </Button>
                 </>
               )}
 
-              {provider === "resend" && (
+              {/* ── Step 2: Admin account ── */}
+              {step === 2 && (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">API Key</label>
-                    <input
-                      value={resendApiKey}
-                      onChange={(e) => setResendApiKey(e.target.value)}
-                      type="password"
-                      placeholder="re_..."
-                      autoComplete="new-password"
-                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
+                  <div>
+                    <h2 className="text-sm font-semibold mb-0.5">Owner account</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Create the first administrator account.
+                    </p>
                   </div>
+
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">From address</label>
-                    <input
-                      value={resendFrom}
-                      onChange={(e) => setResendFrom(e.target.value)}
-                      placeholder="Piro <no-reply@yourdomain.com>"
-                      className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    <Label htmlFor="name">Full name</Label>
+                    <Input id="name" placeholder="Jane Smith" autoComplete="name" {...register("name")} />
+                    {errors.name && (
+                      <p className="text-xs text-destructive">{errors.name.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      {...register("email", { onChange: resetVerification })}
                     />
+                    {errors.email && (
+                      <p className="text-xs text-destructive">{errors.email.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="password">Password</Label>
+                    <PasswordInput
+                      id="password"
+                      placeholder="Minimum 8 characters"
+                      autoComplete="new-password"
+                      {...register("password")}
+                    />
+                    {errors.password && (
+                      <p className="text-xs text-destructive">{errors.password.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="confirmPassword">Confirm password</Label>
+                    <PasswordInput
+                      id="confirmPassword"
+                      placeholder="Repeat your password"
+                      autoComplete="new-password"
+                      {...register("confirmPassword")}
+                    />
+                    {errors.confirmPassword && (
+                      <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="timeZone">Time zone</Label>
+                    <Controller
+                      name="timeZone"
+                      control={control}
+                      render={({ field }) => (
+                        <TimezonePicker value={field.value} onChange={field.onChange} />
+                      )}
+                    />
+                    {errors.timeZone && (
+                      <p className="text-xs text-destructive">{errors.timeZone.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(1)}
+                      className="flex-1"
+                    >
+                      Back
+                    </Button>
+                    <Button type="button" onClick={goNext} className="flex-1">
+                      Continue
+                    </Button>
                   </div>
                 </>
               )}
 
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex-1 rounded-lg border py-2.5 text-sm font-medium hover:bg-muted transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
-                >
-                  Continue
-                </button>
-              </div>
+              {/* ── Step 3: Email config + verification ── */}
+              {step === 3 && (
+                <>
+                  <div>
+                    <h2 className="text-sm font-semibold mb-0.5">Email provider</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Required — Piro needs a working mailbox to send invites and alerts.
+                      We'll send a code to <strong>{getValues("email")}</strong> to confirm it works.
+                    </p>
+                  </div>
 
-            </form>
-          )}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Provider</Label>
+                    <Controller
+                      name="provider"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={(v) => {
+                            field.onChange(v);
+                            resetVerification();
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="smtp">SMTP</SelectItem>
+                            <SelectItem value="resend">Resend</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
 
-          {/* ── Step 3: Admin account ── */}
-          {step === 3 && (
-            <form onSubmit={handleStep3} className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-sm font-semibold mb-0.5">Owner account</h2>
-                <p className="text-xs text-muted-foreground">Create the first administrator account.</p>
-              </div>
+                  {provider === "smtp" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="smtpHost">Host</Label>
+                          <Input
+                            id="smtpHost"
+                            placeholder="smtp.example.com"
+                            {...register("smtpHost", { onChange: resetVerification })}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="smtpPort">Port</Label>
+                          <Input
+                            id="smtpPort"
+                            type="number"
+                            placeholder="587"
+                            {...register("smtpPort", { valueAsNumber: true, onChange: resetVerification })}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="smtpUsername">Username</Label>
+                        <Input
+                          id="smtpUsername"
+                          placeholder="user@example.com"
+                          autoComplete="off"
+                          {...register("smtpUsername", { onChange: resetVerification })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="smtpPassword">Password</Label>
+                        <PasswordInput
+                          id="smtpPassword"
+                          placeholder="SMTP password"
+                          autoComplete="new-password"
+                          {...register("smtpPassword", { onChange: resetVerification })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="smtpFrom">From address</Label>
+                        <Input
+                          id="smtpFrom"
+                          placeholder="Piro <no-reply@example.com>"
+                          {...register("smtpFrom", { onChange: resetVerification })}
+                        />
+                        {errors.smtpHost && (
+                          <p className="text-xs text-destructive">{errors.smtpHost.message}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Controller
+                          name="smtpUseSsl"
+                          control={control}
+                          render={({ field }) => (
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={(v) => {
+                                field.onChange(v);
+                                resetVerification();
+                              }}
+                            />
+                          )}
+                        />
+                        <Label className="mb-0!">Use SSL/TLS</Label>
+                      </div>
+                    </>
+                  )}
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="name" className="text-sm font-medium">Full name</label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Jane Smith"
-                  required
-                  autoComplete="name"
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
+                  {provider === "resend" && (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="resendApiKey">API Key</Label>
+                        <PasswordInput
+                          id="resendApiKey"
+                          placeholder="re_..."
+                          autoComplete="new-password"
+                          {...register("resendApiKey", { onChange: resetVerification })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="resendFrom">From address</Label>
+                        <Input
+                          id="resendFrom"
+                          placeholder="Piro <no-reply@yourdomain.com>"
+                          {...register("resendFrom", { onChange: resetVerification })}
+                        />
+                        {errors.smtpHost && (
+                          <p className="text-xs text-destructive">{errors.smtpHost.message}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
+                  {!codeVerified && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={sendCode}
+                      disabled={sendingCode}
+                      className="w-full"
+                    >
+                      {sendingCode ? "Sending…" : codeSent ? "Resend code" : "Send verification code"}
+                    </Button>
+                  )}
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="password" className="text-sm font-medium">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
+                  {codeSent && !codeVerified && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="verificationCode">Verification code</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="verificationCode"
+                          placeholder="123456"
+                          maxLength={6}
+                          {...register("verificationCode")}
+                        />
+                        <Button type="button" onClick={confirmCode} disabled={confirmingCode}>
+                          {confirmingCode ? "Verifying…" : "Verify"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm password</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
+                  {codeVerified && (
+                    <p className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400">
+                      <Check size={14} />
+                      Email configuration verified.
+                    </p>
+                  )}
 
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  disabled={submitting}
-                  className="flex-1 rounded-lg border py-2.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-                >
-                  {submitting ? "Setting up…" : "Finish setup"}
-                </button>
-              </div>
-            </form>
-          )}
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(2)}
+                      disabled={isSubmitting}
+                      className="flex-1"
+                    >
+                      Back
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting || !codeVerified} className="flex-1">
+                      {isSubmitting ? "Setting up…" : "Finish setup"}
+                    </Button>
+                  </div>
+                </>
+              )}
+          </form>
         </div>
       </div>
     </div>

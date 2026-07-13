@@ -27,7 +27,8 @@ public record UserProfileDto(
     string Color,
     string TimeZone,
     string[] Roles,
-    bool IsOidc
+    bool IsOidc,
+    bool HasSeenShowcase
 );
 
 public record UpdateProfileRequest(

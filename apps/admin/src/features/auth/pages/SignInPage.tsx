@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { setupApi } from "@/lib/api";
+import { setupApi } from "@/lib/actions/setup";
 import { ROUTES } from "@/constants/routes";
 import { ENDPOINTS } from "@/constants/api";
 import axios from "axios";
