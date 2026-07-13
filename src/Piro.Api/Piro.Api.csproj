@@ -7,12 +7,23 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <Version>1.0.0</Version>
+
+    <!-- Not generated on every build (OpenApiGenerateDocumentsOnBuild defaults to false) — that
+         would force ASPNETCORE_ENVIRONMENT=Development + a live DB connection string during
+         CI/release builds too. Run explicitly via:
+         ASPNETCORE_ENVIRONMENT=Development dotnet build -t:GenerateOpenApiDocuments src/Piro.Api/Piro.Api.csproj
+         (wired up as `pnpm run generate:api-types` in apps/admin). -->
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../apps/admin</OpenApiDocumentsDirectory>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
