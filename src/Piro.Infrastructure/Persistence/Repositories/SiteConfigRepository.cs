@@ -33,35 +33,46 @@ internal class SiteConfigRepository(PiroDbContext db) : ISiteConfigRepository
 
     public async Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Reuse the caller's transaction if one is already open (e.g. SetupController.Complete
+        // wraps several repository calls in one UnitOfWork) — Npgsql/EF Core doesn't allow nesting
+        // BeginTransactionAsync on the same connection.
+        var ownsTransaction = db.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction ? await db.Database.BeginTransactionAsync(ct) : null;
 
-        foreach (var (key, value) in values)
+        try
         {
-            var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
+            foreach (var (key, value) in values)
+            {
+                var row = await db.SiteData.FirstOrDefaultAsync(s => s.Key == key, ct);
 
-            if (value is null)
-            {
-                if (row is not null) db.SiteData.Remove(row);
-            }
-            else if (row is null)
-            {
-                db.SiteData.Add(new SiteData
+                if (value is null)
                 {
-                    Key = key,
-                    Value = value,
-                    DataType = "string",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                });
+                    if (row is not null) db.SiteData.Remove(row);
+                }
+                else if (row is null)
+                {
+                    db.SiteData.Add(new SiteData
+                    {
+                        Key = key,
+                        Value = value,
+                        DataType = "string",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
+                }
+                else
+                {
+                    row.Value = value;
+                    row.UpdatedAt = DateTime.UtcNow;
+                }
             }
-            else
-            {
-                row.Value = value;
-                row.UpdatedAt = DateTime.UtcNow;
-            }
-        }
 
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+            await db.SaveChangesAsync(ct);
+            if (transaction is not null) await transaction.CommitAsync(ct);
+        }
+        finally
+        {
+            if (transaction is not null) await transaction.DisposeAsync();
+        }
     }
 }

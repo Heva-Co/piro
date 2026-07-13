@@ -24,6 +24,8 @@ export const ENDPOINTS = {
   SETUP: {
     STATUS: `${API_BASE}/setup/status`,
     COMPLETE: `${API_BASE}/setup/complete`,
+    EMAIL_TEST: `${API_BASE}/setup/email/test`,
+    EMAIL_CONFIRM: `${API_BASE}/setup/email/confirm`,
   },
 
   // Site config
@@ -154,6 +156,7 @@ export const ENDPOINTS = {
   // Auth/me
   AUTH_ME: `${API_BASE}/auth/me`,
   AUTH_ME_PASSWORD: `${API_BASE}/auth/me/password`,
+  AUTH_ME_SHOWCASE_SEEN: `${API_BASE}/auth/me/showcase-seen`,
 } as const;
 
 /** TanStack Query keys — used for cache invalidation and prefetching */

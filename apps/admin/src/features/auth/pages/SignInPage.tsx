@@ -7,7 +7,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Mail, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { setupApi } from "@/lib/api";
+import { setupApi } from "@/lib/actions/setup";
 import { ROUTES } from "@/constants/routes";
 import { ENDPOINTS } from "@/constants/api";
 import axios from "axios";

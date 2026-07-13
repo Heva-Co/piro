@@ -507,17 +507,7 @@ export const usersApi = {
       .then((r) => r.data),
 };
 
-// ─── Profile ──────────────────────────────────────────────────────────────────
-
-export interface UserProfile {
-  id: number;
-  email: string;
-  name: string;
-  color: string;
-  timeZone: string;
-  roles: string[];
-  isOidc: boolean;
-}
+// Profile — see lib/actions/profile
 
 /** Personal channels a user can pick for on-call notifications. Kept in sync with PersonalNotificationChannel on the backend. */
 export const PERSONAL_NOTIFICATION_CHANNELS = {
@@ -545,14 +535,6 @@ export interface UpsertNotificationPreference {
   integrationId: number | null;
   handle: string;
 }
-
-export const profileApi = {
-  get: () => api.get<UserProfile>(ENDPOINTS.AUTH_ME).then((r) => r.data),
-  update: (data: { name?: string; color?: string; timeZone?: string }) =>
-    api.put<UserProfile>(ENDPOINTS.AUTH_ME, data).then((r) => r.data),
-  changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    api.put(ENDPOINTS.AUTH_ME_PASSWORD, data),
-};
 
 // ─── Site config ─────────────────────────────────────────────────────────────
 
@@ -728,38 +710,6 @@ export interface JobStatus {
 
 export const jobsApi = {
   list: () => api.get<JobStatus[]>(ENDPOINTS.JOBS).then((r) => r.data),
-};
-
-// ─── Setup ────────────────────────────────────────────────────────────────────
-
-export interface SetupStatus {
-  isComplete: boolean;
-}
-
-export interface CompleteSetupPayload {
-  // User
-  email: string;
-  password: string;
-  name: string;
-  // Site
-  siteTitle?: string;
-  siteUrl?: string;
-  // Email SMTP
-  emailHost?: string;
-  emailPort?: number;
-  emailUsername?: string;
-  emailPassword?: string;
-  emailFrom?: string;
-  emailUseSsl?: boolean;
-  // Email Resend
-  resendApiKey?: string;
-}
-
-export const setupApi = {
-  status: () => api.get<SetupStatus>(ENDPOINTS.SETUP.STATUS).then((r) => r.data),
-
-  complete: (data: CompleteSetupPayload) =>
-    api.post(ENDPOINTS.SETUP.COMPLETE, data),
 };
 
 // ─── Logs ─────────────────────────────────────────────────────────────────────
