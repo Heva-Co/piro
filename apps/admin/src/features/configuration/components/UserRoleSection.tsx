@@ -29,7 +29,7 @@ export default function UserRoleSection({ user, roles }: Props) {
   });
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex items-end gap-3">
+    <div className="flex items-end gap-3">
       <div className="space-y-1.5 flex-1 max-w-xs">
         <label className="text-sm font-medium">Role</label>
         <Select value={String(selectedRoleId)} onValueChange={(v) => v && setSelectedRoleId(Number(v))}>

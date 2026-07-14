@@ -38,6 +38,7 @@ public class CheckResultIngesterService(
             Timestamp = timestamp,
             Status = result.Status,
             LatencyMs = result.LatencyMs,
+            MetricValue = result.MetricValue,
             DataType = DataPointType.REALTIME,
             ErrorMessage = result.ErrorMessage,
             WorkerRegion = workerRegion

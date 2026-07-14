@@ -319,6 +319,7 @@ export default function OnCallScheduleDetailPage() {
             <Plus size={13} /> Add rotation
           </button>
         }
+        disableCard
       >
         {draft.layers.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">No rotations yet.</p>
@@ -348,6 +349,7 @@ export default function OnCallScheduleDetailPage() {
             </button>
           </div>
         }
+        disableCard
       >
         <div className="flex flex-col gap-4">
           {overrideRows.length === 0 ? (
@@ -393,6 +395,7 @@ export default function OnCallScheduleDetailPage() {
         title="Final Schedule"
         description="Rotations with overrides applied"
         defaultOpen
+        disableCard
       >
         {loadingSlots ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -408,6 +411,7 @@ export default function OnCallScheduleDetailPage() {
         description="Irreversible actions for this schedule"
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
+        disableCard
       >
         <DangerZone objectName="on-call schedule" objectId={schedule.name} onDelete={handleDeleteSchedule} />
       </SectionAccordion>

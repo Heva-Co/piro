@@ -69,6 +69,7 @@ export default function ServiceDetailPage() {
           description="Checks configured for this service"
           icon={<ClipboardList size={16} className="text-muted-foreground" />}
           actions={<Button onClick={() => navigate(`/admin/services/${slug}/checks/new`)}> + Add Check</Button>}
+          disableCard
         >
           <ChecksSection slug={slug!} />
         </SectionAccordion>
@@ -78,6 +79,7 @@ export default function ServiceDetailPage() {
           description="Irreversible actions for this service"
           icon={<AlertTriangle size={16} className="text-destructive" />}
           titleClassName="text-destructive"
+          disableCard
         >
           <DangerZone objectName="service" objectId={slug!} onDelete={handleDeleteService} />
         </SectionAccordion>

@@ -91,6 +91,7 @@ export default function MaintenanceDetailPage() {
           title={`Upcoming Events (${maintenance.upcomingEvents.length})`}
           description="Individual occurrences of this recurring maintenance"
           icon={<CalendarClock size={16} className="text-muted-foreground" />}
+          disableCard
         >
           <MaintenanceEventsSection maintenance={maintenance} />
         </SectionAccordion>
@@ -101,6 +102,7 @@ export default function MaintenanceDetailPage() {
         description="Irreversible actions for this maintenance"
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
+        disableCard
       >
         <div className="flex flex-col gap-4">
           {oneTime && !isCancelled && (

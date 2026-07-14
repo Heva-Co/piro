@@ -28,12 +28,6 @@ public record HttpCheckData
 
     /// <summary>Response body rules evaluated in order; first failure wins.</summary>
     public List<HttpResponseRule>? ResponseRules { get; init; }
-
-    /// <summary>Latency threshold in milliseconds to trigger DEGRADED. Optional.</summary>
-    public int? DegradedLatencyMs { get; init; }
-
-    /// <summary>Latency threshold in milliseconds to trigger DOWN. Optional.</summary>
-    public int? DownLatencyMs { get; init; }
 }
 
 /// <summary>Deserializes status codes accepting both string ("200", "2xx") and legacy integer (200) JSON values.</summary>

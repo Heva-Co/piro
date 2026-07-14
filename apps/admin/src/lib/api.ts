@@ -7,6 +7,8 @@ import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
 import type { Incident } from "@/lib/actions/incidents";
 
+export type CheckType = components["schemas"]["CheckType"];
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface SignInResponse {
@@ -58,106 +60,6 @@ export interface ApiKey {
   createdAt: string;
   lastUsedAt?: string | null;
 }
-
-// ─── Checks ──────────────────────────────────────────────────────────────────
-
-export interface Check {
-  id: number;
-  slug: string;
-  name: string;
-  description?: string;
-  type: string;
-  cron: string;
-  typeDataJson: string;
-  currentStatus: string;
-  defaultStatus: string;
-  isActive: boolean;
-  isMultiRegion: boolean;
-  integrationId?: number | null;
-}
-
-export interface CreateCheck {
-  slug: string;
-  name: string;
-  description?: string;
-  type: string;
-  cron: string;
-  typeDataJson: string;
-  isActive?: boolean;
-  isMultiRegion?: boolean;
-  failureThreshold?: number;
-  recoveryThreshold?: number;
-  integrationId?: number;
-}
-
-export interface CheckLog {
-  timestamp: number;
-  status: string;
-  latencyMs: number | null;
-  dataType?: string;
-  errorMessage?: string;
-  workerRegion: string;
-}
-
-export interface CheckDailyStats {
-  region: string;
-  timestamp: number;
-  countUp: number;
-  countDown: number;
-  countDegraded: number;
-  avgLatencyMs: number | null;
-}
-
-export interface CheckSummary {
-  id: number;
-  serviceSlug: string;
-  serviceName: string;
-  slug: string;
-  name: string;
-  description?: string;
-  type: string;
-  cron: string;
-  currentStatus: string;
-  isActive: boolean;
-  isMultiRegion: boolean;
-  updatedAt: string;
-  lastErrorMessage?: string;
-}
-
-export const checksApi = {
-  listAll: () =>
-    api.get<CheckSummary[]>(ENDPOINTS.CHECKS).then((r) => r.data),
-
-  listForService: (serviceSlug: string) =>
-    api.get<Check[]>(ENDPOINTS.SERVICE_CHECKS(serviceSlug)).then((r) => r.data),
-
-  get: (serviceSlug: string, checkSlug: string) =>
-    api.get<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug)).then((r) => r.data),
-
-  create: (serviceSlug: string, data: CreateCheck) =>
-    api.post<Check>(ENDPOINTS.SERVICE_CHECKS(serviceSlug), data).then((r) => r.data),
-
-  update: (
-    serviceSlug: string,
-    checkSlug: string,
-    data: Partial<Omit<Check, "id" | "slug" | "currentStatus">>
-  ) =>
-    api
-      .put<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug), data)
-      .then((r) => r.data),
-
-  delete: (serviceSlug: string, checkSlug: string) =>
-    api.delete(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug)),
-
-  run: (serviceSlug: string, checkSlug: string) =>
-    api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
-
-  logs: (serviceSlug: string, checkSlug: string, params?: { limit?: number; region?: string; from?: string; to?: string }) =>
-    api.get<CheckLog[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug), { params }).then((r) => r.data),
-
-  history: (serviceSlug: string, checkSlug: string, days = 14) =>
-    api.get<CheckDailyStats[]>(ENDPOINTS.SERVICE_CHECK_HISTORY(serviceSlug, checkSlug), { params: { days } }).then((r) => r.data),
-};
 
 // ─── Alerts ──────────────────────────────────────────────────────────────────
 
@@ -303,65 +205,13 @@ export const dashboardApi = {
 // which lives on the same object despite belonging to Checks, not Incidents.
 export type { Incident, IncidentTimelineEvent, IncidentService } from "@/lib/actions/incidents";
 import { incidentsApi as incidentsApiBase } from "@/lib/actions/incidents";
+import type { components } from "./api-types";
 
 export const incidentsApi = {
   ...incidentsApiBase,
 };
 
-// ─── Alert configs ────────────────────────────────────────────────────────────
-
-export type AlertFor = "Status" | "Latency" | "Uptime";
-export type AlertSeverity = "Warning" | "Critical";
-
-export interface AlertConfig {
-  id: number;
-  checkId: number;
-  alertFor: AlertFor;
-  alertValue: string;
-  failureThreshold: number;
-  successThreshold: number;
-  description?: string;
-  isActive: boolean;
-  isAlerting: boolean;
-  severity: AlertSeverity;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateAlertConfig {
-  alertFor: AlertFor;
-  alertValue: string;
-  failureThreshold?: number;
-  successThreshold?: number;
-  description?: string;
-  isActive?: boolean;
-  severity?: AlertSeverity;
-}
-
-export const alertConfigsApi = {
-  list: (serviceSlug: string, checkSlug: string) =>
-    api
-      .get<AlertConfig[]>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug))
-      .then((r) => r.data),
-
-  create: (serviceSlug: string, checkSlug: string, data: CreateAlertConfig) =>
-    api
-      .post<AlertConfig>(ENDPOINTS.ALERT_CONFIGS(serviceSlug, checkSlug), data)
-      .then((r) => r.data),
-
-  update: (
-    serviceSlug: string,
-    checkSlug: string,
-    id: number | string,
-    data: Partial<CreateAlertConfig>
-  ) =>
-    api
-      .put<AlertConfig>(ENDPOINTS.ALERT_CONFIG(serviceSlug, checkSlug, id), data)
-      .then((r) => r.data),
-
-  delete: (serviceSlug: string, checkSlug: string, id: number | string) =>
-    api.delete(ENDPOINTS.ALERT_CONFIG(serviceSlug, checkSlug, id)),
-};
+// Alert configs — see lib/actions/alert-configs
 
 // ─── Maintenances ────────────────────────────────────────────────────────────
 

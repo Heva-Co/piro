@@ -16,8 +16,6 @@ public record CheckDto(
     ServiceStatus CurrentStatus,
     bool IsActive,
     bool IsMultiRegion,
-    int? FailureThreshold,
-    int? RecoveryThreshold,
     int? HistoryDaysDesktop,
     int? HistoryDaysMobile,
     DateTime CreatedAt,
@@ -25,7 +23,12 @@ public record CheckDto(
     int? IntegrationId
 );
 
-/// <summary>Payload for creating a new check within a service.</summary>
+/// <summary>
+/// Payload for creating a new check within a service.
+/// <c>AlertConfigs</c>, if provided, are created in the same transaction as the check
+/// (e.g. from the admin's check-creation form). No alert configs are created automatically —
+/// a check with none configured simply won't notify anyone until one is added.
+/// </summary>
 public record CreateCheckRequest(
     [Required, StringLength(200, MinimumLength = 1)] string Slug,
     [Required, StringLength(200, MinimumLength = 1)] string Name,
@@ -35,9 +38,8 @@ public record CreateCheckRequest(
     [Required] string TypeDataJson,
     bool IsActive = true,
     bool IsMultiRegion = false,
-    int? FailureThreshold = null,
-    int? RecoveryThreshold = null,
-    int? IntegrationId = null
+    int? IntegrationId = null,
+    IReadOnlyList<CreateAlertConfigRequest>? AlertConfigs = null
 );
 
 /// <summary>Payload for updating an existing check. All fields are optional.</summary>
@@ -48,9 +50,9 @@ public record UpdateCheckRequest(
     string? TypeDataJson,
     bool? IsActive,
     bool? IsMultiRegion,
-    int? FailureThreshold,
-    int? RecoveryThreshold,
+    [property: Obsolete]
     int? HistoryDaysDesktop,
+    [property: Obsolete]
     int? HistoryDaysMobile,
     int? IntegrationId = null
 );
@@ -72,11 +74,15 @@ public record CheckSummaryDto(
     string? LastErrorMessage
 );
 
-/// <summary>A single execution log entry for a check.</summary>
+/// <summary>
+/// A single execution log entry for a check. <c>MetricValue</c> is the raw non-latency metric
+/// (e.g. days until cert expiry) — see <see cref="Piro.Domain.Entities.CheckDataPoint.MetricValue"/>.
+/// </summary>
 public record CheckDataPointDto(
     long Timestamp,
     string Status,
     double? LatencyMs,
+    double? MetricValue,
     string? DataType,
     string? ErrorMessage,
     string WorkerRegion

@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone/DangerZone";
@@ -159,8 +158,7 @@ export default function IntegrationFormPage() {
           icon={<Settings size={16} className="text-muted-foreground" />}
           defaultOpen
         >
-          <Card>
-            <CardContent className="flex flex-col gap-5">
+          <>
               <div className="flex flex-col gap-1.5">
                 <Label>Provider</Label>
                 <Controller
@@ -225,8 +223,7 @@ export default function IntegrationFormPage() {
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
+          </>
         </SectionAccordion>
 
         <SectionAccordion
@@ -235,20 +232,18 @@ export default function IntegrationFormPage() {
           icon={<Icon icon={typeMeta?.icon ?? "lucide:plug"} className={`size-4 ${typeMeta?.iconClass ?? ""}`} />}
           defaultOpen
         >
-          <Card>
-            <CardContent className="flex flex-col gap-5">
-              {type === "GoogleCloud" && <GoogleCloudConfig />}
-              {type === "Jira" && <JiraConfig />}
-              {type === "PagerDuty" && <PagerDutyConfig />}
-              {type === "MSTeams" && <MSTeamsConfig />}
-              {type === "Telegram" && <TelegramConfig />}
-              {type === "Twilio" && <TwilioConfig />}
-              {type === "Email" && <EmailConfig />}
-              {type === "Opsgenie" && <OpsgenieConfig />}
-              {type === "Pushover" && <PushoverConfig />}
-              {type === "Ntfy" && <NtfyConfig />}
-            </CardContent>
-          </Card>
+          <>
+            {type === "GoogleCloud" && <GoogleCloudConfig />}
+            {type === "Jira" && <JiraConfig />}
+            {type === "PagerDuty" && <PagerDutyConfig />}
+            {type === "MSTeams" && <MSTeamsConfig />}
+            {type === "Telegram" && <TelegramConfig />}
+            {type === "Twilio" && <TwilioConfig />}
+            {type === "Email" && <EmailConfig />}
+            {type === "Opsgenie" && <OpsgenieConfig />}
+            {type === "Pushover" && <PushoverConfig />}
+            {type === "Ntfy" && <NtfyConfig />}
+          </>
         </SectionAccordion>
 
         {isEdit && (
@@ -257,6 +252,7 @@ export default function IntegrationFormPage() {
             description="Irreversible actions for this integration"
             icon={<AlertTriangle size={16} className="text-destructive" />}
             titleClassName="text-destructive"
+            disableCard
           >
             <DangerZone objectName="integration" objectId={existing?.name ?? ""} onDelete={handleDelete} />
           </SectionAccordion>

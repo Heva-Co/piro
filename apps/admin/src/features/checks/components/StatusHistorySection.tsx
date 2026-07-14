@@ -6,11 +6,7 @@ function StatusHistorySection({ serviceSlug, checkSlug }: { serviceSlug: string;
 
   if (isLoading) return <div className="text-sm text-muted-foreground py-4">Loading…</div>;
 
-  return (
-    <div className="rounded-xl border bg-card p-6">
-      <StatusHistoryBar data={data ?? []} days={14} />
-    </div>
-  );
+  return <StatusHistoryBar data={data ?? []} days={14} />;
 }
 
 export default StatusHistorySection;

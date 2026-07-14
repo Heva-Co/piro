@@ -6,5 +6,6 @@ namespace Piro.Application.Models;
 public record CheckExecutionResult(
     ServiceStatus Status,
     double? LatencyMs,
-    string? ErrorMessage
+    string? ErrorMessage,
+    double? MetricValue = null
 );

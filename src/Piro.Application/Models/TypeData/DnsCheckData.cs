@@ -20,16 +20,4 @@ public record DnsCheckData
     /// When null, any successful resolution counts as UP.
     /// </summary>
     public string? ExpectedValue { get; init; }
-
-    /// <summary>Number of name server failures to trigger DEGRADED. Default: 1.</summary>
-    public int? DegradedAfter { get; init; }
-
-    /// <summary>Number of name server failures to trigger DOWN. Default: all name servers.</summary>
-    public int? DownAfter { get; init; }
-
-    /// <summary>Latency threshold in milliseconds to trigger DEGRADED. Optional.</summary>
-    public int? DegradedLatencyMs { get; init; }
-
-    /// <summary>Latency threshold in milliseconds to trigger DOWN. Optional.</summary>
-    public int? DownLatencyMs { get; init; }
 }

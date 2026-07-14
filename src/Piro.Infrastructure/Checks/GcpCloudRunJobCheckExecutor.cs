@@ -11,6 +11,7 @@ using Piro.Infrastructure.Integrations.GoogleCloud;
 
 namespace Piro.Infrastructure.Checks;
 
+/// <see href="https://docs.cloud.google.com/run/docs/reference/rest"/>
 [RequiresIntegration(IntegrationType.GoogleCloud)]
 internal class GcpCloudRunJobCheckExecutor(
     IHttpClientFactory httpClientFactory,
@@ -53,14 +54,23 @@ internal class GcpCloudRunJobCheckExecutor(
             return new CheckExecutionResult(ServiceStatus.FAILURE, null, $"Failed to obtain GCP access token: {ex.Message}");
         }
 
-        var url = $"https://run.googleapis.com/v2/projects/{data.ProjectId}/locations/{data.Region}/jobs/{data.JobName}/executions";
+        var jobUrl = $"https://run.googleapis.com/v2/projects/{data.ProjectId}/locations/{data.Region}/jobs/{data.JobName}";
+        var executionsUrl = $"{jobUrl}/executions";
         var client = httpClientFactory.CreateClient("piro-http");
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
         var sw = Stopwatch.StartNew();
         try
         {
-            using var response = await client.GetAsync(url, ct);
+            using var jobResponse = await client.GetAsync(jobUrl, ct);
+            if (jobResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                sw.Stop();
+                return new CheckExecutionResult(ServiceStatus.FAILURE, sw.Elapsed.TotalMilliseconds,
+                    $"Cloud Run job '{data.JobName}' does not exist in project '{data.ProjectId}', region '{data.Region}'.");
+            }
+
+            using var response = await client.GetAsync(executionsUrl, ct);
             sw.Stop();
 
             if (!response.IsSuccessStatusCode)
@@ -77,33 +87,34 @@ internal class GcpCloudRunJobCheckExecutor(
             if (executions is null || executions.Count == 0)
                 return new CheckExecutionResult(ServiceStatus.NO_DATA, sw.Elapsed.TotalMilliseconds, "No executions found.");
 
-            var latest = executions[0];
-            var completedCondition = latest.Conditions?.FirstOrDefault(c =>
-                string.Equals(c.Type, "Completed", StringComparison.OrdinalIgnoreCase));
+            var latest = executions
+                .OrderByDescending(e => e.CreateTime ?? DateTime.MinValue)
+                .First();
 
-            if (completedCondition is null || !string.Equals(completedCondition.Status, "True", StringComparison.OrdinalIgnoreCase))
+            if (latest.CompletionTime is null)
                 return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, "Latest execution is still running.");
 
+            double? ageHours = null;
             if (latest.CreateTime.HasValue)
             {
-                var age = DateTime.UtcNow - latest.CreateTime.Value;
-                if (age.TotalHours > data.MaxAgeHours)
+                ageHours = (DateTime.UtcNow - latest.CreateTime.Value).TotalHours;
+                if (ageHours > data.MaxAgeHours)
                     return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
-                        $"Last execution was {age.TotalHours:F1}h ago (threshold: {data.MaxAgeHours}h).");
+                        $"Last execution was {ageHours:F1}h ago (threshold: {data.MaxAgeHours}h).", MetricValue: ageHours);
             }
 
             var failed = latest.FailedCount ?? 0;
             var succeeded = latest.SucceededCount ?? 0;
 
             if (failed == 0)
-                return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
+                return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null, MetricValue: ageHours);
 
             if (succeeded > 0)
                 return new CheckExecutionResult(ServiceStatus.DEGRADED, sw.Elapsed.TotalMilliseconds,
-                    $"{failed} task(s) failed, {succeeded} succeeded.");
+                    $"{failed} task(s) failed, {succeeded} succeeded.", MetricValue: ageHours);
 
             return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds,
-                $"All {failed} task(s) failed.");
+                $"All {failed} task(s) failed.", MetricValue: ageHours);
         }
         catch (TaskCanceledException)
         {
@@ -123,11 +134,7 @@ internal class GcpCloudRunJobCheckExecutor(
     private record ExecutionResource(
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("createTime")] DateTime? CreateTime,
-        [property: JsonPropertyName("conditions")] List<ExecutionCondition>? Conditions,
+        [property: JsonPropertyName("completionTime")] DateTime? CompletionTime,
         [property: JsonPropertyName("succeededCount")] int? SucceededCount,
         [property: JsonPropertyName("failedCount")] int? FailedCount);
-
-    private record ExecutionCondition(
-        [property: JsonPropertyName("type")] string? Type,
-        [property: JsonPropertyName("status")] string? Status);
 }
