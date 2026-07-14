@@ -84,6 +84,7 @@ export default function EscalationPolicyDetailPage() {
         description="Irreversible actions for this policy"
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
+        disableCard
       >
         <DangerZone objectName="escalation policy" objectId={policy.name} onDelete={handleDelete} />
       </SectionAccordion>

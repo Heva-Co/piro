@@ -54,7 +54,7 @@ public class AlertEvaluationService(
         List<CheckDataPoint> recentPoints,
         CancellationToken ct)
     {
-        bool conditionMet(CheckDataPoint dp) => IsThresholdConditionMet(config, dp);
+        bool conditionMet(CheckDataPoint dp) => IsThresholdConditionMet(config, check, dp);
 
         // Count consecutive points (most recent first) where condition is met or not
         int consecutiveFailures = CountConsecutive(recentPoints, conditionMet);
@@ -95,18 +95,52 @@ public class AlertEvaluationService(
         }
     }
 
+    private static readonly HashSet<AlertFor> _metricBasedAlertFors = [AlertFor.CertExpiry, AlertFor.FailedNameServers];
+
     /// <summary>Returns true when a data point's metric meets the alert threshold condition.</summary>
-    private static bool IsThresholdConditionMet(AlertConfig config, CheckDataPoint dp)
+    private bool IsThresholdConditionMet(AlertConfig config, Check check, CheckDataPoint dp)
     {
+        if (_metricBasedAlertFors.Contains(config.AlertFor) && !dp.MetricValue.HasValue)
+        {
+            logger.LogWarning(
+                "AlertConfig {AlertConfigId} on check {CheckId} ({CheckName}) evaluates {AlertFor}, but the latest data point has no MetricValue — this alert can never fire until the check's executor reports one.",
+                config.Id, check.Id, check.Name, config.AlertFor);
+        }
+
         return config.AlertFor switch
         {
-            AlertFor.Status => Enum.TryParse<ServiceStatus>(config.AlertValue, out var targetStatus)
-                               && dp.Status == targetStatus,
-            AlertFor.Latency => double.TryParse(config.AlertValue, out var maxLatency)
-                                && dp.LatencyMs.HasValue
-                                && dp.LatencyMs.Value >= maxLatency,
+            AlertFor.Status => IsStatusMet(config, dp),
+            AlertFor.Latency => IsLatencyMet(config, dp),
+            AlertFor.CertExpiry => IsCertExpiryMet(config, dp),
+            AlertFor.FailedNameServers => IsFailedNameServersMet(config, dp),
             _ => false
         };
+    }
+
+    private static bool IsStatusMet(AlertConfig config, CheckDataPoint dp)
+    {
+        return Enum.TryParse<ServiceStatus>(config.AlertValue, out var targetStatus) && dp.Status == targetStatus;
+    }
+
+    private static bool IsLatencyMet(AlertConfig config, CheckDataPoint dp)
+    {
+        return double.TryParse(config.AlertValue, out var maxLatency)
+            && dp.LatencyMs.HasValue
+            && dp.LatencyMs.Value >= maxLatency;
+    }
+
+    private static bool IsCertExpiryMet(AlertConfig config, CheckDataPoint dp)
+    {
+        return double.TryParse(config.AlertValue, out var maxDaysRemaining)
+            && dp.MetricValue.HasValue
+            && dp.MetricValue.Value <= maxDaysRemaining;
+    }
+
+    private static bool IsFailedNameServersMet(AlertConfig config, CheckDataPoint dp)
+    {
+        return double.TryParse(config.AlertValue, out var maxFailures)
+            && dp.MetricValue.HasValue
+            && dp.MetricValue.Value >= maxFailures;
     }
 
     /// <summary>Counts how many consecutive data points (from the start of the list) satisfy the predicate.</summary>

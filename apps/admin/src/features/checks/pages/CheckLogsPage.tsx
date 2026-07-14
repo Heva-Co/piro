@@ -6,7 +6,7 @@ import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheck } from "@/hooks/useChecks";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
-import { checksApi } from "@/lib/api";
+import { checksApi } from "@/lib/actions/checks";
 import { ROUTES } from "@/constants/routes";
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────

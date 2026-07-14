@@ -4,6 +4,7 @@ using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
+using Piro.Domain.Extensions;
 
 namespace Piro.Application.Services;
 
@@ -17,7 +18,9 @@ public class CheckAppService(
     ICheckRepository checkRepository,
     IServiceRepository serviceRepository,
     ICheckSchedulerService scheduler,
-    ICheckDataPointRepository dataPointRepository)
+    ICheckDataPointRepository dataPointRepository,
+    IAlertConfigRepository alertConfigRepository,
+    IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -54,6 +57,9 @@ public class CheckAppService(
         if (await checkRepository.SlugExistsInServiceAsync(service.Id, request.Slug, ct))
             throw new DomainValidationException($"A check with slug '{request.Slug}' already exists in service '{serviceSlug}'.");
 
+        foreach (var alertConfigRequest in request.AlertConfigs ?? [])
+            EnsureAlertForAllowed(request.Type, alertConfigRequest.AlertFor);
+
         var check = new Check
         {
             ServiceId = service.Id,
@@ -66,14 +72,49 @@ public class CheckAppService(
             CurrentStatus = ServiceStatus.NO_DATA,
             IsActive = request.IsActive,
             IsMultiRegion = request.IsMultiRegion,
-            FailureThreshold = request.FailureThreshold,
-            RecoveryThreshold = request.RecoveryThreshold,
             IntegrationId = request.IntegrationId
         };
 
-        var created = await checkRepository.CreateAsync(check, ct);
+        await unitOfWork.BeginAsync(ct);
+        Check created;
+        try
+        {
+            created = await checkRepository.CreateAsync(check, ct);
+            foreach (var alertConfigRequest in request.AlertConfigs ?? [])
+                await CreateAlertConfigAsync(created, alertConfigRequest, ct);
+
+            await unitOfWork.CommitAsync(ct);
+        }
+        catch
+        {
+            await unitOfWork.RollbackAsync(ct);
+            throw;
+        }
+
         await scheduler.ScheduleAsync(created, ct);
         return created.ToDto();
+    }
+
+    private async Task CreateAlertConfigAsync(Check check, CreateAlertConfigRequest request, CancellationToken ct)
+    {
+        var config = new AlertConfig
+        {
+            CheckId = check.Id,
+            AlertFor = request.AlertFor,
+            AlertValue = request.AlertValue,
+            FailureThreshold = request.FailureThreshold,
+            SuccessThreshold = request.SuccessThreshold,
+            Description = request.Description,
+            IsActive = request.IsActive,
+            Severity = request.Severity
+        };
+        await alertConfigRepository.CreateAsync(config, ct);
+    }
+
+    private static void EnsureAlertForAllowed(CheckType type, AlertFor alertFor)
+    {
+        if (!type.AllowedAlertFors().Contains(alertFor))
+            throw new DomainValidationException($"{alertFor} is not a valid alert metric for a {type} check.");
     }
 
     public async Task<CheckDto> UpdateAsync(string serviceSlug, string checkSlug, UpdateCheckRequest request, CancellationToken ct = default)
@@ -89,8 +130,6 @@ public class CheckAppService(
         if (request.TypeDataJson is not null) check.TypeDataJson = request.TypeDataJson;
         if (request.IsActive is not null) check.IsActive = request.IsActive.Value;
         if (request.IsMultiRegion is not null) check.IsMultiRegion = request.IsMultiRegion.Value;
-        if (request.FailureThreshold is not null) check.FailureThreshold = request.FailureThreshold;
-        if (request.RecoveryThreshold is not null) check.RecoveryThreshold = request.RecoveryThreshold;
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
@@ -131,7 +170,7 @@ public class CheckAppService(
 
         var points = await dataPointRepository.GetByCheckIdAsync(
             check.Id, fromValue.ToUnixTimeSeconds(), toValue.ToUnixTimeSeconds(), region, limit, ct);
-        return points.Select(p => new CheckDataPointDto(p.Timestamp, p.Status.ToString(), p.LatencyMs, p.DataType?.ToString(), p.ErrorMessage, p.WorkerRegion));
+        return points.Select(p => p.ToDto());
     }
 
     public async Task<IEnumerable<CheckDailyStatsDto>> GetDailyStatsAsync(

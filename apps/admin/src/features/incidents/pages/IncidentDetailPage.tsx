@@ -363,6 +363,7 @@ export default function IncidentDetailPage() {
             </Button>
           </>
         }
+        disableCard
       >
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           {recentTimeline.length === 0 ? (
@@ -507,6 +508,7 @@ export default function IncidentDetailPage() {
         title={`Impact (${incident.services?.length ?? 0})`}
         description="Scope of services affected by this incident"
         icon={<Blend size={16} className="text-muted-foreground" />}
+        disableCard
       >
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="divide-y divide-border">
@@ -577,6 +579,7 @@ export default function IncidentDetailPage() {
         title="Visibility"
         description={isPublic ? "Visible on the public status page" : "Private — not visible on the status page"}
         icon={isPublic ? <Globe size={16} className="text-muted-foreground" /> : <Lock size={16} className="text-muted-foreground" />}
+        disableCard
       >
         {!isPublic ? (
           <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 flex items-center justify-between gap-3">
@@ -609,6 +612,7 @@ export default function IncidentDetailPage() {
         description="Irreversible actions for this incident"
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
+        disableCard
       >
         <DangerZone objectName="incident" objectId={String(incident.id)} onDelete={handleDelete} />
       </SectionAccordion>

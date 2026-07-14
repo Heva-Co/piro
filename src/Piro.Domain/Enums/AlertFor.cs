@@ -5,5 +5,10 @@ public enum AlertFor
 {
     Status,
     Latency,
-    Uptime
+
+    /// <summary>Days remaining until a SSL certificate expires. Compares against <see cref="Entities.CheckDataPoint.MetricValue"/>.</summary>
+    CertExpiry,
+
+    /// <summary>Number of DNS name servers that failed to resolve on the last query. Compares against <see cref="Entities.CheckDataPoint.MetricValue"/>.</summary>
+    FailedNameServers
 }

@@ -42,7 +42,7 @@ internal class SslCheckExecutor : ICheckExecutor
                            ?? new X509Certificate2(ssl.RemoteCertificate!);
 
                 var expiresIn = cert.NotAfter - DateTime.UtcNow;
-                return ClassifyExpiry(expiresIn, cert.NotAfter, sw.Elapsed.TotalMilliseconds, data);
+                return ClassifyExpiry(expiresIn, cert.NotAfter, sw.Elapsed.TotalMilliseconds);
             }
             catch (Exception ex)
             {
@@ -56,20 +56,21 @@ internal class SslCheckExecutor : ICheckExecutor
         }
     }
 
-    internal static CheckExecutionResult ClassifyExpiry(TimeSpan expiresIn, DateTime notAfter, double? latencyMs, SslCheckData data)
+    /// <summary>
+    /// The check only measures: expired (or handshake failure elsewhere) is the one real DOWN.
+    /// Everything else is UP, reporting days-until-expiry as <see cref="CheckExecutionResult.MetricValue"/>
+    /// so severity (e.g. "warn at 30 days, critical at 7") is an <see cref="AlertConfig"/>
+    /// decision via <see cref="AlertFor.CertExpiry"/> — see RFC 0002.
+    /// </summary>
+    internal static CheckExecutionResult ClassifyExpiry(TimeSpan expiresIn, DateTime notAfter, double? latencyMs)
     {
         if (expiresIn <= TimeSpan.Zero)
             return new CheckExecutionResult(ServiceStatus.DOWN, latencyMs,
                 $"Certificate expired on {notAfter:yyyy-MM-dd}.");
 
-        if (expiresIn.TotalDays < data.CriticalDaysBeforeExpiry)
-            return new CheckExecutionResult(ServiceStatus.DOWN, latencyMs,
-                $"Certificate expires in {(int)expiresIn.TotalDays} day(s) ({notAfter:yyyy-MM-dd}) — critical threshold.");
-
-        if (expiresIn.TotalDays < data.WarningDaysBeforeExpiry)
-            return new CheckExecutionResult(ServiceStatus.DEGRADED, latencyMs,
-                $"Certificate expires in {(int)expiresIn.TotalDays} day(s) ({notAfter:yyyy-MM-dd}).");
-
-        return new CheckExecutionResult(ServiceStatus.UP, latencyMs, null);
+        var daysRemaining = expiresIn.TotalDays;
+        return new CheckExecutionResult(ServiceStatus.UP, latencyMs,
+            $"Certificate expires in {(int)daysRemaining} day(s) ({notAfter:yyyy-MM-dd}).",
+            MetricValue: daysRemaining);
     }
 }
