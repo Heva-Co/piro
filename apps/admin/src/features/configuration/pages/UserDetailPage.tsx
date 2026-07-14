@@ -86,6 +86,7 @@ export default function UserDetailPage() {
           description="Irreversible actions for this user"
           icon={<AlertTriangle size={16} className="text-destructive" />}
           titleClassName="text-destructive"
+          disableCard
         >
           <DangerZone objectName="user" objectId={user.email} onDelete={handleDelete} />
         </SectionAccordion>

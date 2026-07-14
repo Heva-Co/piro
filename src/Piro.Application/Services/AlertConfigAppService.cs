@@ -3,6 +3,7 @@ using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
+using Piro.Domain.Extensions;
 
 namespace Piro.Application.Services;
 
@@ -34,12 +35,7 @@ public class AlertConfigAppService(
         string serviceSlug, string checkSlug, CreateAlertConfigRequest request, CancellationToken ct = default)
     {
         var check = await ResolveCheckAsync(serviceSlug, checkSlug, ct);
-
-        // Restricted to one AlertConfig per Check for now — multi-config evaluation
-        // (combining/prioritizing several rules on the same check) is deferred.
-        var existing = await alertConfigRepository.GetByCheckIdAsync(check.Id, ct);
-        if (existing.Any())
-            throw new DomainValidationException("This check already has an alert configuration. Update it instead of creating a new one.");
+        EnsureAlertForAllowed(check, request.AlertFor);
 
         var config = new AlertConfig
         {
@@ -65,6 +61,7 @@ public class AlertConfigAppService(
             ?? throw new NotFoundException(nameof(AlertConfig), id.ToString());
         if (config.CheckId != check.Id) throw new NotFoundException(nameof(AlertConfig), id.ToString());
 
+        if (request.AlertFor is not null) EnsureAlertForAllowed(check, request.AlertFor.Value);
         if (request.AlertFor is not null) config.AlertFor = request.AlertFor.Value;
         if (request.AlertValue is not null) config.AlertValue = request.AlertValue;
         if (request.FailureThreshold is not null) config.FailureThreshold = request.FailureThreshold.Value;
@@ -88,6 +85,13 @@ public class AlertConfigAppService(
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static void EnsureAlertForAllowed(Check check, Domain.Enums.AlertFor alertFor)
+    {
+        if (!check.Type.AllowedAlertFors().Contains(alertFor))
+            throw new DomainValidationException(
+                $"{alertFor} is not a valid alert metric for a {check.Type} check.");
+    }
 
     private async Task<Check> ResolveCheckAsync(string serviceSlug, string checkSlug, CancellationToken ct)
     {

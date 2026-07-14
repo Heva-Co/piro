@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
-import { Settings, Wrench } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Settings, Wrench, Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
@@ -9,43 +10,20 @@ import { checkTypesApi, integrationsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { SectionAccordion } from "@/components/ui/section-accordion";
-import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
-import { CheckGeneralSettingsFields, type CheckGeneralFormValues } from "@/features/checks/components/CheckGeneralSettingsFields";
-import { CHECK_TYPE_LABELS, CHECK_TYPE_DEFAULTS } from "@/constants/checks";
-import { slugify } from "@/utils/slugify";
+import { PageHeader } from "@/components/PageHeader";
+import { WarningConfirmDialog } from "@/components/ui/warning-confirm-dialog";
+import FormActions from "@/components/ui/form-actions";
+import { CheckTypeConfigFields } from "@/features/checks/components/CheckTypeConfigFields";
+import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
+import { AlertConfigListEditor, type AlertConfigListEditorHandle } from "@/features/checks/components/AlertConfigListEditor";
+import type { AlertConfigDraft } from "@/features/checks/components/AlertConfigRow";
+import { checkConfigSchema, CHECK_CONFIG_DEFAULTS, type CheckConfigFormValues } from "@/features/checks/validations";
+import { CHECK_TYPE_LABELS } from "@/constants/checks";
+import { buildTypeDataJson } from "@/features/checks/utils/typeDataJson";
+import type { components } from "@/lib/api-types";
 
-type CheckType = string;
-
-function buildConfig(type: CheckType, config: Record<string, unknown>): Record<string, unknown> {
-  if (type === "HTTP") {
-    const headers = (config.headers as { key: string; value: string }[]) ?? [];
-    return {
-      url: config.url,
-      method: config.method ?? "GET",
-      timeout: config.timeout ?? 5000,
-      expectedStatusCodes: Array.isArray(config.expectedStatusCodes)
-        ? config.expectedStatusCodes
-        : String(config.expectedStatusCodes ?? "200").split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n)),
-      followRedirects: config.followRedirects ?? true,
-      body: config.body || undefined,
-      headers: Object.fromEntries(headers.filter((h) => h.key).map((h) => [h.key, h.value])),
-    };
-  }
-  if (type === "DNS") {
-    const nameServers = ((config.nameServers as string[]) ?? []).filter(Boolean);
-    return {
-      host: config.host,
-      recordType: config.recordType ?? "A",
-      expectedValue: (config.expectedValue as string) || undefined,
-      nameServers: nameServers.length > 0 ? nameServers : undefined,
-      degradedAfter: config.degradedAfter || undefined,
-      downAfter: config.downAfter || undefined,
-    };
-  }
-  return config;
-}
+type CheckType = components["schemas"]["CheckType"];
 
 export default function CheckFormPage() {
   const { slug: serviceSlug } = useParams<{ slug: string }>();
@@ -62,50 +40,49 @@ export default function CheckFormPage() {
     queryFn: integrationsApi.list,
   });
 
-  const [checkSlug, setCheckSlug] = useState("");
-  const [slugManual, setSlugManual] = useState(false);
-  const [type, setType] = useState<CheckType>("HTTP");
-  const [config, setConfig] = useState<Record<string, unknown>>(CHECK_TYPE_DEFAULTS.HTTP);
+  const [alertDrafts, setAlertDrafts] = useState<AlertConfigDraft[]>([]);
   const [submitError, setSubmitError] = useState("");
+  const [showNoAlertsWarning, setShowNoAlertsWarning] = useState(false);
+  const [pendingValues, setPendingValues] = useState<CheckConfigFormValues | null>(null);
+  const alertConfigEditorRef = useRef<AlertConfigListEditorHandle>(null);
 
-  const methods = useForm<CheckGeneralFormValues>({
+  const methods = useForm<CheckConfigFormValues>({
+    resolver: zodResolver(checkConfigSchema),
     defaultValues: {
       name: "",
+      slug: "",
       description: "",
       cron: "* * * * *",
       showCustomCron: false,
       isActive: true,
       isMultiRegion: false,
+      type: "HTTP",
+      ...CHECK_CONFIG_DEFAULTS,
     },
   });
 
-  const watchedName = methods.watch("name");
-  if (!slugManual && watchedName !== undefined) {
-    const auto = slugify(watchedName);
-    if (auto !== checkSlug) setCheckSlug(auto);
-  }
+  const { watch, setValue, handleSubmit } = methods;
+  const type = watch("type") as CheckType;
 
   function handleTypeChange(t: CheckType) {
-    setType(t);
-    setConfig(CHECK_TYPE_DEFAULTS[t] ?? {});
+    setValue("type", t);
   }
 
-  async function handleSubmit(values: CheckGeneralFormValues) {
+  async function createTheCheck(values: CheckConfigFormValues) {
     setSubmitError("");
     try {
-      const integrationId = config.integrationId ? Number(config.integrationId) : undefined;
-      const { integrationId: _removed, ...typeConfig } = config;
-      void _removed;
+      const integrationId = values.integrationId ? Number(values.integrationId) : undefined;
       const check = await createCheck.mutateAsync({
-        slug: checkSlug,
+        slug: values.slug,
         name: values.name,
-        description: values.description || undefined,
-        type,
+        description: values.description || null,
+        type: values.type as CheckType,
         cron: values.cron,
-        typeDataJson: JSON.stringify(buildConfig(type, typeConfig)),
+        typeDataJson: buildTypeDataJson(values),
         isActive: values.isActive,
         isMultiRegion: values.isMultiRegion,
         integrationId,
+        alertConfigs: alertDrafts,
       });
       navigate(ROUTES.CHECKS.DETAIL(serviceSlug!, check.slug));
     } catch (err: unknown) {
@@ -113,8 +90,29 @@ export default function CheckFormPage() {
     }
   }
 
+  async function onSubmit(values: CheckConfigFormValues) {
+    const alertConfigsValid = await alertConfigEditorRef.current?.validateAll() ?? true;
+    if (!alertConfigsValid) {
+      setSubmitError("Fix the invalid alert configuration(s) before creating this check.");
+      return;
+    }
+    if (alertDrafts.length === 0) {
+      setPendingValues(values);
+      setShowNoAlertsWarning(true);
+      return;
+    }
+    await createTheCheck(values);
+  }
+
+  async function handleConfirmCreateWithoutAlerts() {
+    if (!pendingValues) return;
+    setShowNoAlertsWarning(false);
+    await createTheCheck(pendingValues);
+    setPendingValues(null);
+  }
+
   const typeSelect = (
-    <Select value={type} onValueChange={(v) => v && handleTypeChange(v)}>
+    <Select value={type} onValueChange={(v) => v && handleTypeChange(v as CheckType)}>
       <SelectTrigger className="w-full">
         <SelectValue>{(v: string) => CHECK_TYPE_LABELS[v] ?? v}</SelectValue>
       </SelectTrigger>
@@ -126,38 +124,17 @@ export default function CheckFormPage() {
     </Select>
   );
 
-  const slugField = (
-    <>
-      <label className="text-sm font-semibold">Slug <span className="text-destructive">*</span></label>
-      <Input
-        value={checkSlug}
-        onChange={(e) => {
-          setSlugManual(true);
-          setCheckSlug(e.target.value);
-        }}
-        placeholder="health"
-        className="font-mono"
-      />
-      <p className="text-xs text-muted-foreground">Unique identifier within this service</p>
-    </>
-  );
-
   return (
     <>
       <FormProvider {...methods}>
-        <form onSubmit={methods.handleSubmit(handleSubmit)}>
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-            <button type="button" onClick={() => navigate(ROUTES.SERVICES.LIST)} className="hover:text-foreground transition-colors">
-              Services
-            </button>
-            <span>/</span>
-            <button type="button" onClick={() => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!))} className="hover:text-foreground transition-colors">
-              {service?.name ?? serviceSlug}
-            </button>
-            <span>/</span>
-            <span className="text-foreground font-medium">New Check</span>
-          </nav>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <PageHeader
+            breadcrumbs={[
+              { label: "Services", onClick: () => navigate(ROUTES.SERVICES.LIST) },
+              { label: service?.name ?? serviceSlug!, onClick: () => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!)) },
+              { label: "New Check" },
+            ]}
+          />
 
           {submitError && (
             <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -171,7 +148,7 @@ export default function CheckFormPage() {
             icon={<Settings size={16} className="text-muted-foreground" />}
             defaultOpen
           >
-            <CheckGeneralSettingsFields typeNode={typeSelect} slugNode={slugField} />
+            <CheckGeneralSettingsFields typeNode={typeSelect} slugEditable />
           </SectionAccordion>
 
           <SectionAccordion
@@ -180,32 +157,43 @@ export default function CheckFormPage() {
             icon={<Wrench size={16} className="text-muted-foreground" />}
             defaultOpen
           >
-            {type === "HTTP" && <HttpConfig config={config} onChange={setConfig} />}
-            {type === "DNS" && <DnsConfig config={config} onChange={setConfig} />}
-            {type === "TCP" && <TcpConfig config={config} onChange={setConfig} />}
-            {type === "Ping" && <PingConfig config={config} onChange={setConfig} />}
-            {type === "SSL" && <SslConfig config={config} onChange={setConfig} />}
-            {type === "Heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
-            {type === "GCP_CloudRunJob" && (
-              <GcpCloudRunJobConfig config={config} onChange={setConfig} integrations={integrations} />
-            )}
+            <CheckTypeConfigFields type={type} integrations={integrations} />
           </SectionAccordion>
 
-          {/* ── Footer actions ── */}
-          <div className="flex items-center justify-between mt-6">
-            <button type="button"
-              onClick={() => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!))}
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={createCheck.isPending}
-              className="flex items-center gap-2 rounded-lg bg-foreground text-background px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity">
-              <Settings size={14} />
-              {createCheck.isPending ? "Creating…" : "Create Check"}
-            </button>
-          </div>
+          <SectionAccordion
+            title="Alert Configurations"
+            description="Notification channels triggered by this check"
+            icon={<Bell size={16} className="text-muted-foreground" />}
+            disableCard
+          >
+            <AlertConfigListEditor ref={alertConfigEditorRef} checkType={type} value={alertDrafts} onChange={setAlertDrafts} />
+          </SectionAccordion>
+
+          <FormActions
+            onCancel={() => navigate(ROUTES.SERVICES.DETAIL(serviceSlug!))}
+            submitLabel="Create Check"
+            submitPendingLabel="Creating…"
+            submitIcon={<Settings size={14} />}
+            isPending={createCheck.isPending}
+          />
         </form>
       </FormProvider>
+
+      <WarningConfirmDialog
+        open={showNoAlertsWarning}
+        onOpenChange={setShowNoAlertsWarning}
+        title="Create check without any alerts?"
+        description={
+          <>
+            This check has no Alert Configurations. It will still run and report its status, but no one
+            will be notified if it goes down. You can add alert configurations later from the check's page.
+          </>
+        }
+        confirmLabel="Create anyway"
+        confirmPendingLabel="Creating…"
+        onConfirm={handleConfirmCreateWithoutAlerts}
+        isPending={createCheck.isPending}
+      />
     </>
   );
 }

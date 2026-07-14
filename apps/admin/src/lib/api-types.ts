@@ -6178,7 +6178,7 @@ export interface components {
             escalationCurrentStep: null | number;
         };
         /** @enum {unknown} */
-        AlertFor: "Status" | "Latency" | "Uptime";
+        AlertFor: "Status" | "Latency" | "CertExpiry" | "FailedNameServers";
         AlertMetricsDto: {
             /** Format: double */
             mttaSeconds: null | number;
@@ -6276,6 +6276,8 @@ export interface components {
             status: string;
             /** Format: double */
             latencyMs: null | number;
+            /** Format: double */
+            metricValue: null | number;
             dataType: null | string;
             errorMessage: null | string;
             workerRegion: string;
@@ -6294,10 +6296,6 @@ export interface components {
             currentStatus: components["schemas"]["ServiceStatus"];
             isActive: boolean;
             isMultiRegion: boolean;
-            /** Format: int32 */
-            failureThreshold: null | number;
-            /** Format: int32 */
-            recoveryThreshold: null | number;
             /** Format: int32 */
             historyDaysDesktop: null | number;
             /** Format: int32 */
@@ -6405,11 +6403,8 @@ export interface components {
             /** @default false */
             isMultiRegion: boolean;
             /** Format: int32 */
-            failureThreshold?: null | number;
-            /** Format: int32 */
-            recoveryThreshold?: null | number;
-            /** Format: int32 */
             integrationId?: null | number;
+            alertConfigs?: null | components["schemas"]["CreateAlertConfigRequest"][];
         };
         CreateIncidentRequest: {
             title: string;
@@ -7178,10 +7173,6 @@ export interface components {
             typeDataJson: null | string;
             isActive: null | boolean;
             isMultiRegion: null | boolean;
-            /** Format: int32 */
-            failureThreshold: null | number;
-            /** Format: int32 */
-            recoveryThreshold: null | number;
             /** Format: int32 */
             historyDaysDesktop: null | number;
             /** Format: int32 */

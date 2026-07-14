@@ -12,7 +12,7 @@ export default function UserProfileSection({ user }: Props) {
     : null;
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex items-center gap-4">
+    <div className="flex items-center gap-4">
       <div className="size-12 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
         {initials ?? <UserIcon size={20} />}
       </div>

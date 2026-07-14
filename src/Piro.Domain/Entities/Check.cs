@@ -28,18 +28,14 @@ public class Check
     public ServiceStatus CurrentStatus { get; set; } = ServiceStatus.NO_DATA;
     public bool IsActive { get; set; } = true;
 
-    /// <summary>Consecutive failures required before transitioning to DOWN.</summary>
-    public int? FailureThreshold { get; set; }
-
-    /// <summary>Consecutive successes required to recover from DOWN/DEGRADED.</summary>
-    public int? RecoveryThreshold { get; set; }
-
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>Days of status history shown on desktop. Overrides service-level setting when set.</summary>
+    [Obsolete]
     public int? HistoryDaysDesktop { get; set; }
     /// <summary>Days of status history shown on mobile. Overrides service-level setting when set.</summary>
+    [Obsolete]
     public int? HistoryDaysMobile { get; set; }
 
     /// <summary>

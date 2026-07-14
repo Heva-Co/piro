@@ -90,7 +90,7 @@ function GeneralSettingsSection({ slug }: { slug: string }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="rounded-xl border bg-card p-6 flex flex-col gap-5"
+      className="flex flex-col gap-5"
     >
       {updateService.isError && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">

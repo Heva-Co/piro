@@ -62,10 +62,7 @@ internal class DnsCheckExecutor : ICheckExecutor
 
         // Single query (system resolver)
         if (nameServers.Count == 0)
-        {
-            var single = await QuerySingleAsync(new LookupClient(), data.Host, queryType, data.ExpectedValue, data.RecordType, ct);
-            return ApplyLatencyThresholds(single, data.DegradedLatencyMs, data.DownLatencyMs);
-        }
+            return await QuerySingleAsync(new LookupClient(), data.Host, queryType, data.ExpectedValue, data.RecordType, ct);
 
         // Parallel queries across all name servers
         var tasks = nameServers.Select(ns => QueryNameServerAsync(ns, data.Host, queryType, data.ExpectedValue, data.RecordType, ct)).ToList();
@@ -74,49 +71,30 @@ internal class DnsCheckExecutor : ICheckExecutor
         return ClassifyNsResults(results, nameServers, data);
     }
 
+    /// <summary>
+    /// Aggregates per-name-server results. DOWN only when every configured name server failed
+    /// to resolve — any partial failure is reported as UP with the failure count in
+    /// <see cref="CheckExecutionResult.MetricValue"/>, so severity (e.g. "alert if 1+ NS fails")
+    /// is an <see cref="Piro.Domain.Entities.AlertConfig"/> decision, not the check's own (RFC 0002).
+    /// </summary>
     internal static CheckExecutionResult ClassifyNsResults(
         CheckExecutionResult[] results, List<string> nameServers, DnsCheckData data)
     {
         var failures = results.Count(r => r.Status != ServiceStatus.UP);
         var maxLatency = results.Max(r => r.LatencyMs);
-        var degradedAfter = data.DegradedAfter ?? 1;
-        var downAfter = data.DownAfter ?? nameServers.Count;
 
         if (failures == 0)
-        {
-            var up = new CheckExecutionResult(ServiceStatus.UP, maxLatency, null);
-            return ApplyLatencyThresholds(up, data.DegradedLatencyMs, data.DownLatencyMs);
-        }
+            return new CheckExecutionResult(ServiceStatus.UP, maxLatency, null, MetricValue: 0);
 
         var failureMessages = results
             .Select((r, i) => r.Status != ServiceStatus.UP ? $"{nameServers[i]}: {r.ErrorMessage}" : null)
             .Where(m => m is not null);
         var errorMessage = string.Join("; ", failureMessages);
 
-        if (failures >= downAfter)
-            return new CheckExecutionResult(ServiceStatus.DOWN, maxLatency, errorMessage);
+        if (failures == nameServers.Count)
+            return new CheckExecutionResult(ServiceStatus.DOWN, maxLatency, errorMessage, MetricValue: failures);
 
-        if (failures >= degradedAfter)
-            return new CheckExecutionResult(ServiceStatus.DEGRADED, maxLatency, errorMessage);
-
-        return new CheckExecutionResult(ServiceStatus.UP, maxLatency, null);
-    }
-
-    private static CheckExecutionResult ApplyLatencyThresholds(
-        CheckExecutionResult result, int? degradedLatencyMs, int? downLatencyMs)
-    {
-        if (result.Status != ServiceStatus.UP || result.LatencyMs is null)
-            return result;
-
-        if (downLatencyMs.HasValue && result.LatencyMs >= downLatencyMs.Value)
-            return new CheckExecutionResult(ServiceStatus.DOWN, result.LatencyMs,
-                $"Latency {result.LatencyMs:F0} ms exceeded DOWN threshold of {downLatencyMs} ms.");
-
-        if (degradedLatencyMs.HasValue && result.LatencyMs >= degradedLatencyMs.Value)
-            return new CheckExecutionResult(ServiceStatus.DEGRADED, result.LatencyMs,
-                $"Latency {result.LatencyMs:F0} ms exceeded DEGRADED threshold of {degradedLatencyMs} ms.");
-
-        return result;
+        return new CheckExecutionResult(ServiceStatus.UP, maxLatency, errorMessage, MetricValue: failures);
     }
 
     private static async Task<CheckExecutionResult> QueryNameServerAsync(

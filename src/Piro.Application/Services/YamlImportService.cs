@@ -117,8 +117,6 @@ public class YamlImportService(
                         || existingCheck.Description != c.Description
                         || existingCheck.IsActive != c.IsActive
                         || existingCheck.IsMultiRegion != c.IsMultiRegion
-                        || existingCheck.FailureThreshold != c.FailureThreshold
-                        || existingCheck.RecoveryThreshold != c.RecoveryThreshold
                         || existingCheck.HistoryDaysDesktop != c.HistoryDaysDesktop
                         || existingCheck.HistoryDaysMobile != c.HistoryDaysMobile;
 
@@ -133,8 +131,6 @@ public class YamlImportService(
                         existingCheck.Description = c.Description;
                         existingCheck.IsActive = c.IsActive;
                         existingCheck.IsMultiRegion = c.IsMultiRegion;
-                        existingCheck.FailureThreshold = c.FailureThreshold;
-                        existingCheck.RecoveryThreshold = c.RecoveryThreshold;
                         existingCheck.HistoryDaysDesktop = c.HistoryDaysDesktop;
                         existingCheck.HistoryDaysMobile = c.HistoryDaysMobile;
                         existingCheck.UpdatedAt = DateTime.UtcNow;
@@ -158,8 +154,6 @@ public class YamlImportService(
                             Description = c.Description,
                             IsActive = c.IsActive,
                             IsMultiRegion = c.IsMultiRegion,
-                            FailureThreshold = c.FailureThreshold,
-                            RecoveryThreshold = c.RecoveryThreshold,
                             HistoryDaysDesktop = c.HistoryDaysDesktop,
                             HistoryDaysMobile = c.HistoryDaysMobile,
                             CreatedAt = DateTime.UtcNow,

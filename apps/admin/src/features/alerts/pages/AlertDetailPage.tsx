@@ -133,7 +133,7 @@ export default function AlertDetailPage() {
         icon={<Info size={16} className="text-muted-foreground" />}
         defaultOpen
       >
-        <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+        <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-5">
             <Field label="Check">
               <Link
@@ -180,7 +180,7 @@ export default function AlertDetailPage() {
         icon={<ListChecks size={16} className="text-muted-foreground" />}
         defaultOpen
       >
-        <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-5">
             <Field label="Alert For">{alert.alertFor}</Field>
             <Field label="Value">{alert.alertValue}</Field>
@@ -198,6 +198,7 @@ export default function AlertDetailPage() {
         description="On-call notification attempts for this alert"
         icon={<History size={16} className="text-muted-foreground" />}
         defaultOpen={escalationLogs.length > 0}
+        disableCard
       >
         <div className="rounded-xl border bg-card overflow-hidden">
           {escalationLogs.length === 0 ? (
@@ -251,7 +252,7 @@ export default function AlertDetailPage() {
         defaultOpen
       >
         {alert.incidentId != null ? (
-          <div className="rounded-xl border bg-card p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold">Linked Incident</p>
               <p className="text-xs text-muted-foreground mt-0.5">{alert.incidentTitle ?? `Incident #${alert.incidentId}`}</p>
@@ -262,7 +263,7 @@ export default function AlertDetailPage() {
             </Button>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card p-5 flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold">Not linked</p>
               <p className="text-xs text-muted-foreground mt-0.5">This alert isn't linked to any incident yet.</p>

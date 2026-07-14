@@ -1,0 +1,46 @@
+import api from "@/lib/axios";
+import { ENDPOINTS } from "@/constants/api";
+import type { components } from "@/lib/api-types";
+
+export type Check = components["schemas"]["CheckDto"];
+export type CheckSummary = components["schemas"]["CheckSummaryDto"];
+export type CheckDataPoint = components["schemas"]["CheckDataPointDto"];
+export type CheckDailyStats = components["schemas"]["CheckDailyStatsDto"];
+export type CreateCheckRequest = components["schemas"]["CreateCheckRequest"];
+export type UpdateCheckRequest = components["schemas"]["UpdateCheckRequest"];
+
+export const checksApi = {
+  listAll: () => api.get<CheckSummary[]>(ENDPOINTS.CHECKS).then((r) => r.data),
+
+  listForService: (serviceSlug: string) =>
+    api.get<Check[]>(ENDPOINTS.SERVICE_CHECKS(serviceSlug)).then((r) => r.data),
+
+  get: (serviceSlug: string, checkSlug: string) =>
+    api.get<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug)).then((r) => r.data),
+
+  create: (serviceSlug: string, data: CreateCheckRequest) =>
+    api.post<Check>(ENDPOINTS.SERVICE_CHECKS(serviceSlug), data).then((r) => r.data),
+
+  update: (serviceSlug: string, checkSlug: string, data: Partial<UpdateCheckRequest>) =>
+    api.put<Check>(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug), data).then((r) => r.data),
+
+  delete: (serviceSlug: string, checkSlug: string) =>
+    api.delete(ENDPOINTS.SERVICE_CHECK(serviceSlug, checkSlug)),
+
+  run: (serviceSlug: string, checkSlug: string) =>
+    api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
+
+  logs: (
+    serviceSlug: string,
+    checkSlug: string,
+    params?: { limit?: number; region?: string; from?: string; to?: string }
+  ) =>
+    api
+      .get<CheckDataPoint[]>(ENDPOINTS.SERVICE_CHECK_LOGS(serviceSlug, checkSlug), { params })
+      .then((r) => r.data),
+
+  history: (serviceSlug: string, checkSlug: string, days = 14) =>
+    api
+      .get<CheckDailyStats[]>(ENDPOINTS.SERVICE_CHECK_HISTORY(serviceSlug, checkSlug), { params: { days } })
+      .then((r) => r.data),
+};

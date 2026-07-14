@@ -15,6 +15,12 @@ interface SectionAccordionProps {
   titleClassName?: string;
   /** Marks the section as upcoming — disables interaction and shows a "Soon" badge */
   upcomming?: boolean;
+  /**
+   * Opts out of the standard bordered card box (rounded-xl border bg-card p-6) wrapping children.
+   * Cards are the default — set this for sections that bring their own layout instead
+   * (tables, logs, etc.).
+   */
+  disableCard?: boolean;
 }
 
 export function SectionAccordion({
@@ -26,6 +32,7 @@ export function SectionAccordion({
   defaultOpen = false,
   titleClassName,
   upcomming = false,
+  disableCard = false,
 }: SectionAccordionProps) {
   const [open, setOpen] = useState(defaultOpen && !upcomming);
 
@@ -68,7 +75,11 @@ export function SectionAccordion({
         </AccordionTrigger>
         {!upcomming && (
           <AccordionContent className="pb-6">
-            {children}
+            {disableCard ? children : (
+              <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+                {children}
+              </div>
+            )}
           </AccordionContent>
         )}
       </AccordionItem>

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Piro.Application.Models.TypeData;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Checks;
 
@@ -9,67 +8,40 @@ public class SslCheckExecutorTests
 {
     private static readonly DateTime _notAfter = DateTime.UtcNow.AddDays(100);
 
-    private static SslCheckData DefaultData(int warning = 14, int critical = 3) =>
-        new() { Host = "example.com", WarningDaysBeforeExpiry = warning, CriticalDaysBeforeExpiry = critical };
-
     [Fact]
-    public void Classify_ValidCertAboveWarning_ReturnsUp()
+    public void Classify_ValidCert_ReturnsUp_WithDaysRemainingAsMetricValue()
     {
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(30), _notAfter, 50, DefaultData());
+        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(30), _notAfter, 50);
 
         result.Status.Should().Be(ServiceStatus.UP);
-        result.ErrorMessage.Should().BeNull();
+        result.MetricValue.Should().BeApproximately(30, 0.01);
     }
 
     [Fact]
-    public void Classify_DaysRemainingBelowWarning_ReturnsDegraded()
+    public void Classify_CertCloseToExpiry_StillReturnsUp()
     {
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(10), _notAfter, 50, DefaultData(warning: 14, critical: 3));
+        // Severity is no longer judged by the executor (RFC 0002) — a cert expiring soon is
+        // still UP; only an AlertConfig on CertExpiry decides whether that's alerting.
+        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(2), _notAfter, 50);
 
-        result.Status.Should().Be(ServiceStatus.DEGRADED);
-        result.ErrorMessage.Should().Contain("expires in");
-    }
-
-    [Fact]
-    public void Classify_DaysRemainingBelowCritical_ReturnsDown()
-    {
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(2), _notAfter, 50, DefaultData(warning: 14, critical: 3));
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("critical threshold");
+        result.Status.Should().Be(ServiceStatus.UP);
+        result.MetricValue.Should().BeApproximately(2, 0.01);
     }
 
     [Fact]
     public void Classify_CertAlreadyExpired_ReturnsDown()
     {
         var expired = DateTime.UtcNow.AddDays(-1);
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(-1), expired, 50, DefaultData());
+        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(-1), expired, 50);
 
         result.Status.Should().Be(ServiceStatus.DOWN);
         result.ErrorMessage.Should().Contain("expired");
     }
 
     [Fact]
-    public void Classify_ExactlyAtWarningThreshold_ReturnsDegraded()
-    {
-        // 14.0 days remaining, warning = 14 → just inside the warning window
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(13.9), _notAfter, 50, DefaultData(warning: 14, critical: 3));
-
-        result.Status.Should().Be(ServiceStatus.DEGRADED);
-    }
-
-    [Fact]
-    public void Classify_ExactlyAtCriticalThreshold_ReturnsDown()
-    {
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(2.9), _notAfter, 50, DefaultData(warning: 14, critical: 3));
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-    }
-
-    [Fact]
     public void Classify_LatencyIsPreservedInResult()
     {
-        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(30), _notAfter, 123.45, DefaultData());
+        var result = SslCheckExecutor.ClassifyExpiry(TimeSpan.FromDays(30), _notAfter, 123.45);
 
         result.LatencyMs.Should().Be(123.45);
     }

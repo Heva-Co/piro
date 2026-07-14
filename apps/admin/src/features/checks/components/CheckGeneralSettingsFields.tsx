@@ -1,58 +1,92 @@
+import { useEffect, useRef } from "react";
 import { useFormContext, Controller } from "react-hook-form";
+import cronstrue from "cronstrue";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import { CRON_PRESETS } from "@/constants/checks";
+import type { CheckConfigFormValues } from "@/features/checks/validations";
+import { Textarea } from "@/components/ui/textarea";
+import { slugify } from "@/utils/slugify";
 
-export interface CheckGeneralFormValues {
-  name: string;
-  description: string;
-  cron: string;
-  showCustomCron: boolean;
-  isActive: boolean;
-  isMultiRegion: boolean;
+function describeCron(cron: string): string {
+  try {
+    return cronstrue.toString(cron, { verbose: false });
+  } catch {
+    return cron;
+  }
 }
 
 interface Props {
   /** In create mode: editable Select node. In edit mode: read-only input node. */
   typeNode: React.ReactNode;
-  /** Slug field node — create: editable Input, edit: read-only input */
-  slugNode?: React.ReactNode;
+  /** The slug is editable and auto-derived from Name until the user edits it directly. Omit for edit mode, where the slug is fixed. */
+  slugEditable?: boolean;
 }
 
-export function CheckGeneralSettingsFields({ typeNode, slugNode }: Props) {
-  const { register, control, watch, setValue } = useFormContext<CheckGeneralFormValues>();
+export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: Props) {
+  const { register, control, watch, setValue, formState: { errors } } = useFormContext<CheckConfigFormValues>();
   const showCustomCron = watch("showCustomCron");
   const cron = watch("cron");
   const isActive = watch("isActive");
   const isMultiRegion = watch("isMultiRegion");
+  const name = watch("name");
+
+  const slugManual = useRef(false);
+  useEffect(() => {
+    if (!slugEditable || slugManual.current) return;
+    setValue("slug", slugify(name ?? ""));
+  }, [slugEditable, name, setValue]);
 
   return (
     <div className="flex flex-col gap-5">
       {/* Name + Slug */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Name <span className="text-destructive">*</span></label>
+        <Field>
+          <Label required>Name</Label>
           <Input {...register("name")} placeholder="Health Endpoint" />
-        </div>
-        {slugNode && <div className="flex flex-col gap-1.5">{slugNode}</div>}
+          <FieldError errors={[errors.name]} />
+        </Field>
+        <Field>
+          <Label required>Slug</Label>
+          {slugEditable ? (
+            <Input
+              {...register("slug")}
+              onChange={(e) => {
+                slugManual.current = true;
+                setValue("slug", e.target.value);
+              }}
+              placeholder="health"
+              className="font-mono"
+            />
+          ) : (
+            <Input {...register("slug")} readOnly className="font-mono bg-muted text-muted-foreground" />
+          )}
+          <FieldError errors={[errors.slug]} />
+          {!errors.slug && (
+            <FieldDescription>
+              {slugEditable ? "Unique identifier within this service" : "Cannot be changed after creation"}
+            </FieldDescription>
+          )}
+        </Field>
       </div>
 
       {/* Description */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold">Description</label>
-        <textarea {...register("description")} rows={2}
-          placeholder="A brief description of what this check monitors"
-          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring w-full disabled:cursor-not-allowed disabled:opacity-50 resize-none" />
-      </div>
+      <Field>
+        <FieldLabel >Description</FieldLabel>
+        <Textarea {...register("description")} rows={2}
+          placeholder="A brief description of what this check monitors" />
+      </Field>
 
       {/* Type + Cron */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Type <span className="text-destructive">*</span></label>
+        <Field className="flex flex-col gap-1.5">
+          <FieldLabel required>Type</FieldLabel>
           {typeNode}
-        </div>
-        <div className="flex flex-col gap-1.5">
+        </Field>
+        <Field className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold">Cron Schedule</label>
           {showCustomCron ? (
             <Input {...register("cron")} placeholder="*/5 * * * *" className="font-mono" />
@@ -74,28 +108,31 @@ export function CheckGeneralSettingsFields({ typeNode, slugNode }: Props) {
             className="text-xs text-left hover:underline w-fit">
             {showCustomCron ? "← Use preset" : "Enter custom cron →"}
           </button>
-          <p className="text-xs text-muted-foreground">
-            {showCustomCron ? cron : (CRON_PRESETS.find((p) => p.value === cron)?.label ?? cron)}
-          </p>
-        </div>
+          <FieldError errors={[errors.cron]} />
+          {!errors.cron && (
+            <p className="text-xs text-muted-foreground">
+              {showCustomCron ? describeCron(cron) : (CRON_PRESETS.find((p) => p.value === cron)?.label ?? describeCron(cron))}
+            </p>
+          )}
+        </Field>
       </div>
 
       {/* Active + Multi-region */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
+        <Field >
           <label className="text-sm font-semibold">Active</label>
           <div className="flex items-center gap-2.5">
             <Switch checked={isActive} onCheckedChange={(v) => setValue("isActive", v)} />
-            <span className="text-sm text-muted-foreground">{isActive ? "Check is running" : "Check is paused"}</span>
+            <FieldDescription>{isActive ? "Check is running" : "Check is paused"}</FieldDescription>
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
+        </Field>
+        <Field >
           <label className="text-sm font-semibold">Multi-region</label>
           <div className="flex items-center gap-2.5">
             <Switch checked={isMultiRegion} onCheckedChange={(v) => setValue("isMultiRegion", v)} />
-            <span className="text-sm text-muted-foreground">{isMultiRegion ? "Enabled" : "Disabled"}</span>
+            <FieldDescription >{isMultiRegion ? "Enabled" : "Disabled"}</FieldDescription>
           </div>
-        </div>
+        </Field>
       </div>
     </div>
   );

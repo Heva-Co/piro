@@ -149,20 +149,21 @@ public class HttpCheckExecutorTests
     }
 
     [Fact]
-    public async Task Returns_Down_When_DownLatencyMs_Exceeded()
+    public async Task Returns_Up_And_Reports_LatencyMs_Regardless_Of_How_Slow_The_Response_Is()
     {
-        // Use a handler that adds a small delay to reliably exceed the threshold
+        // Severity is no longer judged by the executor itself (RFC 0002) — a slow-but-successful
+        // response is still UP; only an AlertConfig on Latency decides whether that's alerting.
         var handler = new DelayedHandler(HttpStatusCode.OK, delayMs: 50);
         var client = new HttpClient(handler);
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(client);
         var sut = new HttpCheckExecutor(factory);
-        var check = MakeCheck(new { url = "http://example.com", downLatencyMs = 10 });
+        var check = MakeCheck(new { url = "http://example.com" });
 
         var result = await sut.ExecuteAsync(check);
 
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("threshold");
+        result.Status.Should().Be(ServiceStatus.UP);
+        result.LatencyMs.Should().BeGreaterThanOrEqualTo(50);
     }
 
     [Fact]
