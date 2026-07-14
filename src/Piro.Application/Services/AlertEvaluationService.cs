@@ -155,7 +155,30 @@ public class AlertEvaluationService(
         return count;
     }
 
-    /// <summary>Builds the frozen Alert message from the most recent data point's error, falling back to the config description.</summary>
-    private static string? BuildMessage(AlertConfig config, List<CheckDataPoint> recentPoints) =>
-        recentPoints.FirstOrDefault()?.ErrorMessage ?? config.Description;
+    /// <summary>
+    /// Builds the frozen Alert message from the most recent data point's error, falling back to a
+    /// message synthesized from the metric for threshold-based triggers (the check may still be UP,
+    /// so the executor never had a failure to describe in ErrorMessage), then to the config description.
+    /// </summary>
+    private static string? BuildMessage(AlertConfig config, List<CheckDataPoint> recentPoints)
+    {
+        var latest = recentPoints.FirstOrDefault();
+        return latest?.ErrorMessage ?? BuildMetricMessage(config, latest) ?? config.Description;
+    }
+
+    private static string? BuildMetricMessage(AlertConfig config, CheckDataPoint? latest)
+    {
+        if (latest is null) return null;
+
+        return config.AlertFor switch
+        {
+            AlertFor.Latency when latest.LatencyMs.HasValue =>
+                $"Latency {latest.LatencyMs.Value:F0}ms exceeded threshold {config.AlertValue}ms",
+            AlertFor.CertExpiry when latest.MetricValue.HasValue =>
+                $"Certificate expires in {latest.MetricValue.Value:F0} day(s), at or below threshold {config.AlertValue}",
+            AlertFor.FailedNameServers when latest.MetricValue.HasValue =>
+                $"{latest.MetricValue.Value:F0} name server(s) failed, at or above threshold {config.AlertValue}",
+            _ => null
+        };
+    }
 }
