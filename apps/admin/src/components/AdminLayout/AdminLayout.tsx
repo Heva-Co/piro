@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { useHealth } from "@/hooks/useHealth";
 import { useTimezone } from "@/hooks/useTimezone";
 import { useMyOnCallCurrentStatus } from "@/hooks/useOnCallMe";
 import { useOnCallNowDismissal } from "@/hooks/useOnCallNowDismissal";
@@ -125,6 +126,7 @@ function Sidebar({ onClose }: SidebarProps) {
   const siteName = siteConfig?.name || "Piro";
   const logoUrl = siteConfig?.logoUrl;
   const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+  const { data: health } = useHealth();
 
   function handleLogout() {
     logout();
@@ -146,6 +148,9 @@ function Sidebar({ onClose }: SidebarProps) {
             <img src="/piro.svg" alt="Piro" className="size-5 rounded-sm object-contain" />
           )}
           <span className="text-base font-semibold">{siteName}</span>
+          {health?.version && (
+            <span className="text-xs text-muted-foreground font-mono">{health.version}</span>
+          )}
         </NavLink>
         {onClose && (
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground lg:hidden p-1">

@@ -6,6 +6,9 @@
 const _base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 export const API_BASE = `${_base}/api/v1`;
 
+/** Unversioned root endpoint — not under /api/v1. */
+export const HEALTH_ENDPOINT = `${_base}/health`;
+
 export const ENDPOINTS = {
   // Auth
   AUTH: {
@@ -161,6 +164,7 @@ export const ENDPOINTS = {
 
 /** TanStack Query keys — used for cache invalidation and prefetching */
 export const QUERY_KEYS = {
+  HEALTH: ["health"] as const,
   SERVICES: ["services"] as const,
   SERVICE: (slug: string) => ["services", slug] as const,
   CHECKS: ["checks"] as const,

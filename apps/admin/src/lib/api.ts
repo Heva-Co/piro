@@ -4,7 +4,7 @@
  */
 
 import api from "@/lib/axios";
-import { ENDPOINTS } from "@/constants/api";
+import { ENDPOINTS, HEALTH_ENDPOINT } from "@/constants/api";
 import type { Incident } from "@/lib/actions/incidents";
 
 export type CheckType = components["schemas"]["CheckType"];
@@ -623,6 +623,18 @@ export const searchApi = {
 export const configApi = {
   import: (yaml: string) =>
     api.post(ENDPOINTS.CONFIG_IMPORT, { yaml }),
+};
+
+// ─── Health ───────────────────────────────────────────────────────────────────
+
+export interface HealthResponse {
+  status: string;
+  version: string;
+  timestamp: string;
+}
+
+export const healthApi = {
+  check: () => api.get<HealthResponse>(HEALTH_ENDPOINT).then((r) => r.data),
 };
 
 // ─── Integrations ─────────────────────────────────────────────────────────────

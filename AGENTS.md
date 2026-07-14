@@ -136,3 +136,26 @@ A single `release.yml` workflow (triggered on GitHub Release publish) builds and
 - All changes go through a feature branch + PR — never push directly to `main`.
 - Never merge a PR without explicit user approval.
 - Use conventional commits (`feat:`, `fix:`, `ci:`, etc.).
+- Label every PR with whatever applies from the repo's label set (`gh label list`). As of writing:
+
+| Label | Meaning |
+|---|---|
+| `bug` | Something isn't working |
+| `documentation` | Improvements or additions to documentation |
+| `duplicate` | This issue or pull request already exists |
+| `enhancement` | New feature or request |
+| `good first issue` | Good for newcomers |
+| `help wanted` | Extra attention is needed |
+| `invalid` | This doesn't seem right |
+| `question` | Further information is requested |
+| `wontfix` | This will not be worked on |
+| `backend` | Backend / API work |
+| `frontend` | Frontend / UI work |
+| `notifications` | Notification channels & triggers |
+| `partial` | Domain entities exist, implementation missing |
+| `auth` | Authentication & authorization |
+| `infrastructure` | Infrastructure & deployment |
+| `config-as-code` | YAML config-as-code feature |
+| `developer-experience` | DX improvements |
+| `rfc` | Introduces a technical proposal or design document open for community feedback and discussion |
+| `implements-rfc` | Implements a previously approved RFC proposal |
