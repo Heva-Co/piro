@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import type { CheckDailyStats } from "@/lib/api";
+import type { CheckDailyStats } from "@/lib/actions/checks";
 import { formatDate } from "@/utils/date";
 import { useTimezone } from "@/hooks/useTimezone";
 

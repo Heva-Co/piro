@@ -23,7 +23,7 @@ internal class AlertEntityConfiguration : IEntityTypeConfiguration<Alert>
         builder.HasOne(a => a.AlertConfig)
             .WithMany()
             .HasForeignKey(a => a.AlertConfigId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(a => a.Check)
             .WithMany()

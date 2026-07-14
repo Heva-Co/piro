@@ -245,8 +245,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckId")
-                        .IsUnique();
+                    b.HasIndex("CheckId");
 
                     b.ToTable("AlertConfigs");
                 });
@@ -481,9 +480,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<int?>("FailureThreshold")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("HistoryDaysDesktop")
                         .HasColumnType("integer");
 
@@ -503,9 +499,6 @@ namespace Piro.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
-
-                    b.Property<int?>("RecoveryThreshold")
-                        .HasColumnType("integer");
 
                     b.Property<int>("ServiceId")
                         .HasColumnType("integer");
@@ -562,6 +555,9 @@ namespace Piro.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<double?>("LatencyMs")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("MetricValue")
                         .HasColumnType("double precision");
 
                     b.Property<string>("Status")
@@ -1638,7 +1634,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasOne("Piro.Domain.Entities.AlertConfig", "AlertConfig")
                         .WithMany()
                         .HasForeignKey("AlertConfigId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Piro.Domain.Entities.Check", "Check")

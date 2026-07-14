@@ -70,7 +70,7 @@ export default function MaintenanceGeneralSettingsSection({ maintenance }: Props
   return (
     <form
       onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(); }}
-      className="rounded-xl border bg-card p-6 flex flex-col gap-5"
+      className="flex flex-col gap-5"
     >
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">

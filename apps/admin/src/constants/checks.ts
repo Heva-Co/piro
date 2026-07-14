@@ -1,3 +1,5 @@
+import type { AlertFor } from "@/types/checks";
+
 export const CRON_PRESETS = [
   { label: "Every minute",     value: "* * * * *" },
   { label: "Every 5 minutes",  value: "*/5 * * * *" },
@@ -19,11 +21,24 @@ export const CHECK_TYPE_LABELS: Record<string, string> = {
 };
 
 export const CHECK_TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
-  HTTP:            { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [{ key: "", value: "" }] },
-  DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [], degradedLatencyMs: "", downLatencyMs: "" },
+  HTTP:            { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [] },
+  DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [] },
   TCP:             { host: "", port: 80 },
   Ping:            { host: "" },
-  SSL:             { host: "", port: 443, warningDaysBeforeExpiry: 14, criticalDaysBeforeExpiry: 3 },
+  SSL:             { host: "", port: 443 },
   Heartbeat:       { gracePeriodSeconds: 60 },
   GCP_CloudRunJob: { integrationId: "", projectId: "", region: "", jobName: "", maxAgeHours: 25 },
+};
+
+// Mirrors CheckTypeExtensions.AllowedAlertFors() in the backend — the set of AlertFor values
+// that make sense for each CheckType (see RFC 0002 §4.4). Keep both in sync.
+export const ALLOWED_ALERT_FORS: Record<string, readonly AlertFor[]> = {
+  HTTP:            ["Status", "Latency"],
+  DNS:             ["Status", "Latency", "FailedNameServers"],
+  TCP:             ["Status", "Latency"],
+  Ping:            ["Status", "Latency"],
+  SSL:             ["Status", "CertExpiry"],
+  Heartbeat:       ["Status"],
+  GRPC:            ["Status", "Latency"],
+  GCP_CloudRunJob: ["Status"],
 };

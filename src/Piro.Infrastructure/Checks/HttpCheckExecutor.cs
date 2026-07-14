@@ -72,16 +72,7 @@ internal class HttpCheckExecutor(IHttpClientFactory httpClientFactory) : ICheckE
                     }
                 }
 
-                // 3. Latency thresholds (checked after content rules)
                 var latencyMs = sw.Elapsed.TotalMilliseconds;
-                if (data.DownLatencyMs.HasValue && latencyMs >= data.DownLatencyMs.Value)
-                    return new CheckExecutionResult(ServiceStatus.DOWN, latencyMs,
-                        $"Response time {latencyMs:F0}ms exceeded down threshold ({data.DownLatencyMs}ms).");
-
-                if (data.DegradedLatencyMs.HasValue && latencyMs >= data.DegradedLatencyMs.Value)
-                    return new CheckExecutionResult(ServiceStatus.DEGRADED, latencyMs,
-                        $"Response time {latencyMs:F0}ms exceeded degraded threshold ({data.DegradedLatencyMs}ms).");
-
                 return new CheckExecutionResult(ServiceStatus.UP, latencyMs, null);
             }
             catch (TaskCanceledException)

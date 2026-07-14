@@ -33,8 +33,6 @@ public class CheckYamlEntry
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsMultiRegion { get; set; } = false;
-    public int? FailureThreshold { get; set; }
-    public int? RecoveryThreshold { get; set; }
     public int? HistoryDaysDesktop { get; set; }
     public int? HistoryDaysMobile { get; set; }
     /// <summary>Flexible type-specific check data (url, host, port, etc.).</summary>

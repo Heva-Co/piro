@@ -13,6 +13,18 @@ public class CheckDataPoint
     public ServiceStatus Status { get; set; }
     public double? LatencyMs { get; set; }
 
+    /// <summary>
+    /// Generic raw metric slot for executors whose severity-relevant number isn't latency —
+    /// e.g. days until SSL certificate expiry, number of DNS name servers that failed to
+    /// resolve, or hours since a GCP Cloud Run Job's last successful execution.
+    /// <see cref="AlertFor.CertExpiry"/>, <see cref="AlertFor.FailedNameServers"/>, and similar
+    /// non-latency <c>AlertFor</c> values compare <see cref="AlertConfig.AlertValue"/>
+    /// against this field the same way <c>AlertFor.Latency</c> compares against <see cref="LatencyMs"/>.
+    /// Null for check types with no single comparable raw number (e.g. Ping, TCP) or where
+    /// <see cref="LatencyMs"/> already is that number.
+    /// </summary>
+    public double? MetricValue { get; set; }
+
     /// <summary>Origin of this data point. See <see cref="DataPointType"/> for possible values.</summary>
     public DataPointType? DataType { get; set; }
 

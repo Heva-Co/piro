@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { checksApi, alertConfigsApi, alertsApi } from "@/lib/api";
-import type { Check, CreateCheck, AlertConfig, CreateAlertConfig } from "@/lib/api";
+import { alertsApi } from "@/lib/api";
+import { checksApi } from "@/lib/actions/checks";
+import type { CreateCheckRequest, UpdateCheckRequest } from "@/lib/actions/checks";
+import { alertConfigsApi } from "@/lib/actions/alert-configs";
+import type { CreateAlertConfigRequest, UpdateAlertConfigRequest } from "@/lib/actions/alert-configs";
 import { QUERY_KEYS } from "@/constants/api";
 
 export function useAllChecks() {
@@ -46,8 +49,7 @@ export function useCheck(serviceSlug: string, checkSlug: string) {
 export function useCreateCheck(serviceSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateCheck) =>
-      checksApi.create(serviceSlug, data),
+    mutationFn: (data: CreateCheckRequest) => checksApi.create(serviceSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICE_CHECKS(serviceSlug) });
     },
@@ -57,7 +59,7 @@ export function useCreateCheck(serviceSlug: string) {
 export function useUpdateCheck(serviceSlug: string, checkSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Omit<Check, "id" | "slug" | "currentStatus">>) =>
+    mutationFn: (data: Partial<UpdateCheckRequest>) =>
       checksApi.update(serviceSlug, checkSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SERVICE_CHECKS(serviceSlug) });
@@ -111,7 +113,7 @@ export function useAlertConfigs(serviceSlug: string, checkSlug: string) {
 export function useCreateAlertConfig(serviceSlug: string, checkSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateAlertConfig) =>
+    mutationFn: (data: CreateAlertConfigRequest) =>
       alertConfigsApi.create(serviceSlug, checkSlug, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -124,7 +126,7 @@ export function useCreateAlertConfig(serviceSlug: string, checkSlug: string) {
 export function useUpdateAlertConfig(serviceSlug: string, checkSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number | string; data: Partial<Omit<AlertConfig, "id">> }) =>
+    mutationFn: ({ id, data }: { id: number | string; data: Partial<UpdateAlertConfigRequest> }) =>
       alertConfigsApi.update(serviceSlug, checkSlug, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({

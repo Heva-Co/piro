@@ -12,8 +12,9 @@ internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
     {
         builder.HasKey(a => a.Id);
 
-        // Restricted to one AlertConfig per Check for now — multi-config evaluation is deferred.
-        builder.HasIndex(a => a.CheckId).IsUnique();
+        // A Check can have multiple AlertConfigs (e.g. a Warning at 30 days-to-expiry and a
+        // Critical at 7, on the same SSL check) — see RFC 0002. Non-unique index, kept for lookup.
+        builder.HasIndex(a => a.CheckId);
 
         builder.Property(a => a.AlertFor).HasConversion<string>();
         builder.Property(a => a.AlertValue).HasMaxLength(255).IsRequired();

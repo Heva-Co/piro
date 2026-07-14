@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -8,28 +10,80 @@ import {
   useUpdateCheck,
   useDeleteCheck,
   useRunCheck,
-  useAlertConfigs,
-  useCreateAlertConfig,
-  useUpdateAlertConfig,
-  useDeleteAlertConfig,
 } from "@/hooks/useChecks";
 import { integrationsApi } from "@/lib/api";
-import { useForm, FormProvider } from "react-hook-form";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { SectionAccordion } from "@/components/ui/section-accordion";
-import { HttpConfig, DnsConfig, TcpConfig, PingConfig, SslConfig, HeartbeatConfig, GcpCloudRunJobConfig } from "@/features/checks/components";
-import { CheckGeneralSettingsFields, type CheckGeneralFormValues } from "@/features/checks/components/CheckGeneralSettingsFields";
+import { CheckTypeConfigFields } from "@/features/checks/components/CheckTypeConfigFields";
+import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
+import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
+import { checkConfigSchema, CHECK_CONFIG_DEFAULTS, type CheckConfigFormValues } from "@/features/checks/validations";
 import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
+import { buildTypeDataJson } from "@/features/checks/utils/typeDataJson";
 import StatusHistorySection from "../components/StatusHistorySection";
 import RecentLogsSection from "../components/RecentLogsSection";
 import DangerZone from "@/components/DangerZone";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RecentLogsActions from "../components/RecentLogsActions";
+import type { Check } from "@/lib/actions/checks";
+
+/** Maps a persisted check's typeDataJson back into the flat CheckConfigFormValues shape. */
+function parseTypeDataJson(check: Check): Partial<CheckConfigFormValues> {
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = check.typeDataJson ? JSON.parse(check.typeDataJson) : {};
+  } catch {
+    parsed = {};
+  }
+
+  switch (check.type) {
+    case "HTTP": {
+      const rawHeaders = parsed.headers;
+      const headers = rawHeaders && typeof rawHeaders === "object"
+        ? Object.entries(rawHeaders as Record<string, string>).map(([key, value]) => ({ key, value }))
+        : [];
+      const rawCodes = parsed.expectedStatusCodes;
+      const expectedStatusCodes = Array.isArray(rawCodes) ? rawCodes.join(", ") : String(rawCodes ?? "200");
+      return {
+        url: (parsed.url as string) ?? "",
+        method: (parsed.method as string) ?? "GET",
+        timeout: (parsed.timeout as number) ?? 5000,
+        expectedStatusCodes,
+        followRedirects: (parsed.followRedirects as boolean) ?? true,
+        body: (parsed.body as string) ?? "",
+        headers,
+        responseRules: (parsed.responseRules as CheckConfigFormValues["responseRules"]) ?? [],
+      };
+    }
+    case "DNS":
+      return {
+        host: (parsed.host as string) ?? "",
+        recordType: (parsed.recordType as string) ?? "A",
+        expectedValue: (parsed.expectedValue as string) ?? "",
+        nameServers: (parsed.nameServers as string[]) ?? [],
+      };
+    case "TCP":
+      return { host: (parsed.host as string) ?? "", port: (parsed.port as number) ?? 80 };
+    case "Ping":
+      return { host: (parsed.host as string) ?? "" };
+    case "SSL":
+      return { host: (parsed.host as string) ?? "", port: (parsed.port as number) ?? 443 };
+    case "Heartbeat":
+      return { gracePeriodSeconds: (parsed.gracePeriodSeconds as number) ?? 60 };
+    case "GCP_CloudRunJob":
+      return {
+        projectId: (parsed.projectId as string) ?? "",
+        region: (parsed.region as string) ?? "",
+        jobName: (parsed.jobName as string) ?? "",
+        maxAgeHours: (parsed.maxAgeHours as number) ?? 25,
+        integrationId: check.integrationId ?? "",
+      };
+    default:
+      return {};
+  }
+}
 
 // ── General Settings ──────────────────────────────────────────────────────────
 
@@ -39,14 +93,18 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  const methods = useForm<CheckGeneralFormValues>({
+  const methods = useForm<CheckConfigFormValues>({
+    resolver: zodResolver(checkConfigSchema),
     defaultValues: {
       name: "",
+      slug: "",
       description: "",
       cron: "* * * * *",
       showCustomCron: false,
       isActive: true,
       isMultiRegion: false,
+      type: "HTTP",
+      ...CHECK_CONFIG_DEFAULTS,
     },
   });
 
@@ -55,15 +113,19 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     const isPreset = CRON_PRESETS.some((p) => p.value === check.cron);
     methods.reset({
       name: check.name,
+      slug: check.slug,
       description: check.description ?? "",
       cron: check.cron ?? "* * * * *",
       showCustomCron: !isPreset,
       isActive: check.isActive,
       isMultiRegion: check.isMultiRegion,
+      type: check.type,
+      ...CHECK_CONFIG_DEFAULTS,
+      ...parseTypeDataJson(check),
     });
   }, [check, methods]);
 
-  async function handleSave(values: CheckGeneralFormValues) {
+  async function handleSave(values: CheckConfigFormValues) {
     setError("");
     try {
       await updateCheck.mutateAsync({
@@ -81,28 +143,19 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
   }
 
   const typeNode = (
-    <input value={CHECK_TYPE_LABELS[check?.type ?? ""] ?? check?.type ?? ""} readOnly
+    <input value={check ? (CHECK_TYPE_LABELS[check.type] ?? check.type) : ""} readOnly
       className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none h-9 w-full" />
-  );
-
-  const slugNode = (
-    <>
-      <label className="text-sm font-semibold">Slug</label>
-      <input value={checkSlug} readOnly
-        className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none h-9 w-full" />
-      <p className="text-xs text-muted-foreground">Cannot be changed after creation</p>
-    </>
   );
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(handleSave)} className="rounded-xl border bg-card p-6 flex flex-col gap-5">
+      <form onSubmit={methods.handleSubmit(handleSave)} className="flex flex-col gap-5">
         {error && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}
-        <CheckGeneralSettingsFields typeNode={typeNode} slugNode={slugNode} />
+        <CheckGeneralSettingsFields typeNode={typeNode} />
         <div className="flex justify-end">
           <button type="submit" disabled={updateCheck.isPending}
             className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
@@ -124,26 +177,46 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
     queryKey: QUERY_KEYS.INTEGRATIONS,
     queryFn: integrationsApi.list,
   });
-  const [config, setConfig] = useState<Record<string, unknown>>(() => {
-    if (!check) return {};
-    try {
-      const parsed = check.typeDataJson ? JSON.parse(check.typeDataJson) : {};
-      return { ...parsed, ...(check.integrationId != null ? { integrationId: check.integrationId } : {}) };
-    } catch {
-      return {};
-    }
-  });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSave() {
+  const methods = useForm<CheckConfigFormValues>({
+    resolver: zodResolver(checkConfigSchema),
+    defaultValues: {
+      name: "",
+      slug: "",
+      description: "",
+      cron: "* * * * *",
+      showCustomCron: false,
+      isActive: true,
+      isMultiRegion: false,
+      type: "HTTP",
+      ...CHECK_CONFIG_DEFAULTS,
+    },
+  });
+
+  useEffect(() => {
+    if (!check) return;
+    methods.reset({
+      name: check.name,
+      slug: check.slug,
+      description: check.description ?? "",
+      cron: check.cron,
+      showCustomCron: false,
+      isActive: check.isActive,
+      isMultiRegion: check.isMultiRegion,
+      type: check.type,
+      ...CHECK_CONFIG_DEFAULTS,
+      ...parseTypeDataJson(check),
+    });
+  }, [check, methods]);
+
+  async function handleSave(values: CheckConfigFormValues) {
     setError("");
     try {
-      const integrationId = config.integrationId ? Number(config.integrationId) : undefined;
-      const { integrationId: _removed, ...typeConfig } = config;
-      void _removed;
+      const integrationId = values.integrationId ? Number(values.integrationId) : undefined;
       await updateCheck.mutateAsync({
-        typeDataJson: JSON.stringify(typeConfig),
+        typeDataJson: buildTypeDataJson(values),
         ...(integrationId != null ? { integrationId } : {}),
       });
       setSaved(true);
@@ -156,184 +229,22 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   const rawType = check?.type ?? "HTTP";
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">Type-specific settings for the {CHECK_TYPE_LABELS[rawType] ?? rawType} check</p>
-      {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
-      )}
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(handleSave)} className="flex flex-col gap-5">
+        {error && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
+        )}
 
-      {rawType === "HTTP"      && <HttpConfig      config={config} onChange={setConfig} />}
-      {rawType === "TCP"       && <TcpConfig       config={config} onChange={setConfig} />}
-      {rawType === "DNS"       && <DnsConfig       config={config} onChange={setConfig} />}
-      {rawType === "Ping"      && <PingConfig      config={config} onChange={setConfig} />}
-      {rawType === "SSL"       && <SslConfig       config={config} onChange={setConfig} />}
-      {rawType === "Heartbeat" && <HeartbeatConfig config={config} onChange={setConfig} />}
-      {rawType === "GCP_CloudRunJob" && (
-        <GcpCloudRunJobConfig
-          config={config}
-          onChange={setConfig}
-          integrations={integrations}
-        />
-      )}
+        <CheckTypeConfigFields type={rawType} integrations={integrations} />
 
-      <div className="flex justify-end">
-        <button type="button" onClick={handleSave} disabled={updateCheck.isPending}
-          className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
-          <Save size={14} />
-          {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
-const ALERT_FOR_OPTIONS = [
-  { value: "Status", label: "Status" },
-  { value: "Latency", label: "Latency" },
-  { value: "Uptime", label: "Uptime" },
-] as const;
-
-// Restricted to one AlertConfig per Check for now — the backend enforces this with a unique
-// index on CheckId. The form below edits that single config in place (creating it on first
-// save) instead of listing/adding multiple rules.
-function AlertConfigsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
-  const { data: alertConfigs, isLoading } = useAlertConfigs(serviceSlug, checkSlug);
-  const createAlertConfig = useCreateAlertConfig(serviceSlug, checkSlug);
-  const updateAlertConfig = useUpdateAlertConfig(serviceSlug, checkSlug);
-  const deleteAlertConfig = useDeleteAlertConfig(serviceSlug, checkSlug);
-
-  const existing = alertConfigs?.[0];
-
-  const [alertFor, setAlertFor] = useState<"Status" | "Latency" | "Uptime">("Status");
-  const [alertValue, setAlertValue] = useState("DOWN");
-  const [failureThreshold, setFailureThreshold] = useState(1);
-  const [successThreshold, setSuccessThreshold] = useState(1);
-  const [severity, setSeverity] = useState<"Warning" | "Critical">("Critical");
-  const [isActive, setIsActive] = useState(true);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!existing) return;
-    setAlertFor(existing.alertFor);
-    setAlertValue(existing.alertValue);
-    setFailureThreshold(existing.failureThreshold);
-    setSuccessThreshold(existing.successThreshold);
-    setSeverity(existing.severity);
-    setIsActive(existing.isActive);
-  }, [existing]);
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    const data = {
-      alertFor,
-      alertValue,
-      failureThreshold,
-      successThreshold,
-      severity,
-      isActive,
-    };
-    try {
-      if (existing) {
-        await updateAlertConfig.mutateAsync({ id: existing.id, data });
-      } else {
-        await createAlertConfig.mutateAsync(data);
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setError("Failed to save alert configuration.");
-    }
-  }
-
-  const isPending = createAlertConfig.isPending || updateAlertConfig.isPending;
-
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card overflow-hidden px-5 py-6 text-sm text-muted-foreground">
-        Loading…
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <form onSubmit={handleSave} className="flex flex-col">
-        {error && <p className="text-sm text-destructive px-5 pt-5">{error}</p>}
-
-        {/* Trigger condition */}
-        <div className="p-5 flex flex-col gap-4">
-          <div>
-            <p className="text-sm font-semibold">Trigger Condition</p>
-            <p className="text-xs text-muted-foreground mt-0.5">What this check must do to be considered alerting</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Alert For</label>
-              <Select value={alertFor} onValueChange={(v) => v && setAlertFor(v as typeof alertFor)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALERT_FOR_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Value</label>
-              <Input required value={alertValue} onChange={(e) => setAlertValue(e.target.value)}
-                placeholder={alertFor === "Status" ? "DOWN" : alertFor === "Latency" ? "5000" : "99.9"} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Failure threshold</label>
-              <Input type="number" min={1} value={failureThreshold}
-                onChange={(e) => setFailureThreshold(Number(e.target.value))} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Success threshold</label>
-              <Input type="number" min={1} value={successThreshold}
-                onChange={(e) => setSuccessThreshold(Number(e.target.value))} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Severity</label>
-              <Select value={severity} onValueChange={(v) => v && setSeverity(v as typeof severity)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Warning">Warning</SelectItem>
-                  <SelectItem value="Critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Active</label>
-              <div className="flex items-center gap-2.5 h-9">
-                <Switch checked={isActive} onCheckedChange={setIsActive} />
-                <span className="text-sm text-muted-foreground">{isActive ? "Enabled" : "Disabled"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="border-t p-5 flex items-center gap-3">
-          <Button type="submit" disabled={isPending}>
-            {saved ? "Saved!" : isPending ? "Saving…" : "Save"}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={updateCheck.isPending}>
+            <Save size={14} />
+            {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
           </Button>
-          {existing && (
-            <Button type="button" variant="ghost" onClick={() => deleteAlertConfig.mutate(existing.id)}
-              className="text-destructive hover:text-destructive">
-              Remove configuration
-            </Button>
-          )}
         </div>
       </form>
-    </div>
+    </FormProvider>
   );
 }
 
@@ -377,7 +288,7 @@ export default function CheckDetailPage() {
         ]}
         actions={
           <>
-            <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{check.type}</span>
+            <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{CHECK_TYPE_LABELS[check.type] ?? check.type}</span>
             <StatusPill status={check.currentStatus}/>
             <Button
               onClick={() => runCheck.mutate()}
@@ -402,10 +313,19 @@ export default function CheckDetailPage() {
 
       <SectionAccordion
         title="Configuration"
-        description={`Settings for the ${check.type} check`}
+        description={`Settings for the ${CHECK_TYPE_LABELS[check.type] ?? check.type} check`}
         icon={<Wrench size={16} className="text-muted-foreground" />}
       >
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
+      </SectionAccordion>
+
+      <SectionAccordion
+        title="Alert Configurations"
+        description="Notification channels triggered by this check"
+        icon={<Bell size={16} className="text-muted-foreground" />}
+        disableCard
+      >
+        <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} checkType={check.type} />
       </SectionAccordion>
 
       <SectionAccordion
@@ -413,6 +333,7 @@ export default function CheckDetailPage() {
         description="Latest check executions"
         icon={<ClipboardList size={16} className="text-muted-foreground" />}
         actions={<RecentLogsActions serviceSlug={serviceSlug!} checkSlug={checkSlug!} />}
+        disableCard
       >
         <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
@@ -426,18 +347,11 @@ export default function CheckDetailPage() {
       </SectionAccordion>
 
       <SectionAccordion
-        title="Alert Configurations"
-        description="Notification channels triggered by this check"
-        icon={<Bell size={16} className="text-muted-foreground" />}
-      >
-        <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
-      </SectionAccordion>
-
-      <SectionAccordion
         title="Danger Zone"
         description="Irreversible actions for this check"
         icon={<AlertTriangle size={16} className="text-destructive" />}
         titleClassName="text-destructive"
+        disableCard
       >
         <DangerZone objectName="check" objectId={checkSlug!} onDelete={handleDelete} />
       </SectionAccordion>
