@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,9 +16,10 @@ using Piro.Infrastructure.Persistence;
 using Serilog;
 using Serilog.Sinks.PeriodicBatching;
 
-var assemblyVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-var apiVersion = assemblyVersion is not null
-    ? $"v{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}"
+var informationalVersion = Assembly.GetExecutingAssembly()
+    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+var apiVersion = !string.IsNullOrEmpty(informationalVersion)
+    ? $"v{informationalVersion.Split('+')[0]}"
     : "v1";
 
 var builder = WebApplication.CreateBuilder(args);
@@ -123,7 +125,7 @@ builder.Services.AddOpenApi("v1", options =>
     options.AddDocumentTransformer<SecuritySchemeTransformer>();
 
     // Include XML doc comments
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
         options.AddDocumentTransformer((doc, _, _) => Task.CompletedTask); // placeholder — XML loaded via schema transformers
