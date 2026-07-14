@@ -1,6 +1,6 @@
 # RFC 0002 — Separate raw measurement from alert severity (Prometheus/Alertmanager-style)
 
-Status: proposal
+Status: Implemented
 Author: Arael Espinosa (assisted draft)
 Date: 2026-07-13
 

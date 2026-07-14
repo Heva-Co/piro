@@ -55,7 +55,7 @@ Notes on each section:
 - **Alternatives considered**: for each rejected alternative, give the one-sentence reason, tied back to the design principle. This is what lets a future reader trust that the alternative wasn't just missed.
 - **Risks**: favor risks that are specific to *this* design (e.g. "a webhook-anchored Check whose CurrentStatus never resets if the upstream sender goes silent — there's no heartbeat of its own to catch that") over generic ones ("might have bugs").
 
-When the proposal builds on or competes with an existing open issue (search with `gh issue list` / `gh search issues` if unsure), link it directly and use it to sharpen the comparison — see §4.0 pattern in `docs/rfcs/0001-prometheus-alertmanager-integration.md`, which frames the new design against issue #1 (Heartbeat) point by point instead of pretending it doesn't exist.
+When the proposal builds on or competes with an existing open issue (search with `gh issue list` / `gh search issues` if unsure), link it directly and use it to sharpen the comparison — see §4.0 pattern in `docs/rfcs/0001-third-party-alert-ingestion.md`, which frames the new design against issue #1 (Heartbeat) point by point instead of pretending it doesn't exist.
 
 ## Reuse over parallel pipelines
 
