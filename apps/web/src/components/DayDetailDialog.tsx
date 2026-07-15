@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DailyStatsDto } from "@/src/lib/api";
+import type { DailyStatsDto } from "@/src/lib/actions/services";
 import { formatUtcDateLong } from "@/src/lib/utils";
 import { StatusBarCalendar } from "./StatusBarCalendar";
 import { PerMinuteStatusGrid } from "./PerMinuteStatusGrid";

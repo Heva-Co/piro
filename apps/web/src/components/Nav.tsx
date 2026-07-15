@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { publicApi } from "@/src/lib/api";
+import { siteConfigApi } from "@/src/lib/actions/site-config";
 import { ThemeToggle } from "@/src/components/ThemeToggle";
 
 export async function Nav() {
   let siteName = "Piro";
   try {
-    const cfg = await publicApi.siteConfig();
+    const cfg = await siteConfigApi.get();
     if (cfg.name) siteName = cfg.name;
   } catch { /* use default */ }
 

@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { DailyStatsDto } from "@/src/lib/api";
+import type { DailyStatsDto } from "@/src/lib/actions/services";
 import { formatLatency } from "@/src/lib/utils";
 
 interface Props {
