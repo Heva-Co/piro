@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Incident, Maintenance } from "@/src/lib/api";
+import type { Incident } from "@/src/lib/actions/incidents";
+import type { Maintenance } from "@/src/lib/actions/maintenances";
 import { IncidentCard } from "./IncidentCard";
 
 type Tab = "incidents" | "maintenances";

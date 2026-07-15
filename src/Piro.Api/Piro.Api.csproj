@@ -12,8 +12,10 @@
          would force ASPNETCORE_ENVIRONMENT=Development + a live DB connection string during
          CI/release builds too. Run explicitly via:
          ASPNETCORE_ENVIRONMENT=Development dotnet build -t:GenerateOpenApiDocuments src/Piro.Api/Piro.Api.csproj
-         (wired up as `pnpm run generate:api-types` in apps/admin). -->
-    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../apps/admin</OpenApiDocumentsDirectory>
+         (wired up as `pnpm run generate:api-types` in both apps/admin and apps/web — each app
+         points openapi-typescript at this single shared JSON to produce its own local
+         src/lib/api-types.ts, so the backend only needs to generate once). -->
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../apps/shared/openapi</OpenApiDocumentsDirectory>
   </PropertyGroup>
 
   <ItemGroup>

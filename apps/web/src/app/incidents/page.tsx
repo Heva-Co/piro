@@ -1,4 +1,5 @@
-import { publicApi } from "@/src/lib/api";
+import { incidentsApi } from "@/src/lib/actions/incidents";
+import { maintenancesApi } from "@/src/lib/actions/maintenances";
 import { IncidentHistoryClient } from "@/src/components/IncidentHistoryClient";
 
 export const revalidate = 60;
@@ -9,8 +10,8 @@ export const metadata = {
 
 export default async function IncidentHistoryPage() {
   const [incidents, maintenances] = await Promise.all([
-    publicApi.incidents(true).catch(() => []),
-    publicApi.maintenances().catch(() => []),
+    incidentsApi.list(true).catch(() => []),
+    maintenancesApi.list().catch(() => []),
   ]);
 
   return (

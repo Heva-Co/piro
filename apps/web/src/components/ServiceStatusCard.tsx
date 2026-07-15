@@ -1,4 +1,4 @@
-import type { ServiceOverviewDto } from "@/src/lib/api";
+import type { ServiceOverviewDto } from "@/src/lib/actions/services";
 import { formatLatency, formatLocalDateTime } from "@/src/lib/utils";
 
 const statusLabel: Record<string, string> = {
@@ -34,7 +34,7 @@ export function ServiceStatusCard({ overview }: Props) {
         <p className="text-sm font-medium">Last Updated</p>
         <p className="text-xs text-muted-foreground">{formatLocalDateTime(overview.lastUpdatedAt)}</p>
       </div>
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="flex flex-col gap-1">
           <p className={`text-2xl font-semibold ${statusClass[currentStatus] ?? statusClass.NO_DATA}`}>
             {statusLabel[currentStatus] ?? currentStatus}
@@ -42,7 +42,7 @@ export function ServiceStatusCard({ overview }: Props) {
           <p className="text-xs text-muted-foreground">Current Status</p>
         </div>
         {overview.lastLatencyMs && (
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-start sm:items-end gap-1">
             <p className="text-2xl font-semibold">{formatLatency(overview.lastLatencyMs)}</p>
             <p className="text-xs text-muted-foreground">Latest Latency</p>
           </div>

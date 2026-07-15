@@ -1,4 +1,4 @@
-import type { Incident, IncidentImpactChange } from "@/src/lib/api";
+import type { Incident, IncidentImpactChange } from "@/src/lib/actions/incidents";
 
 const impactColor: Record<string, string> = {
   UP: "bg-green-500",

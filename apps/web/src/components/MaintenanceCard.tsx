@@ -1,4 +1,4 @@
-import type { Maintenance } from "@/src/lib/api";
+import type { Maintenance } from "@/src/lib/actions/maintenances";
 
 interface Props {
   maintenance: Maintenance;
