@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:api-types": "rm -f ../../src/Piro.Api/obj/Piro.Api.OpenApiFiles.cache && ASPNETCORE_ENVIRONMENT=Development dotnet build -t:GenerateOpenApiDocuments ../../src/Piro.Api/Piro.Api.csproj && openapi-typescript Piro.Api.json -o src/lib/api-types.ts && rm -f Piro.Api.json"
+    "generate:api-types": "rm -f ../../src/Piro.Api/obj/Piro.Api.OpenApiFiles.cache && ASPNETCORE_ENVIRONMENT=Development dotnet build -t:GenerateOpenApiDocuments ../../src/Piro.Api/Piro.Api.csproj && openapi-typescript ../shared/openapi/Piro.Api.json -o src/lib/api-types.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

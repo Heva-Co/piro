@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { publicApi } from "@/src/lib/api";
+import { incidentsApi } from "@/src/lib/actions/incidents";
 import { IncidentDetailClient } from "./IncidentDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   try {
-    const incident = await publicApi.incident(id);
+    const incident = await incidentsApi.get(id);
     return { title: incident.title };
   } catch {
     return { title: "Incident" };
@@ -23,7 +23,7 @@ export default async function IncidentDetailPage({ params }: Props) {
 
   let incident;
   try {
-    incident = await publicApi.incident(id);
+    incident = await incidentsApi.get(id);
   } catch {
     notFound();
   }

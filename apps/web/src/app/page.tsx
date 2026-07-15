@@ -1,4 +1,7 @@
-import { publicApi, type ServiceStatus } from "@/src/lib/api";
+import { servicesApi } from "@/src/lib/actions/services";
+import { incidentsApi } from "@/src/lib/actions/incidents";
+import { maintenancesApi } from "@/src/lib/actions/maintenances";
+import { computeOverallStatus } from "@/src/lib/utils";
 import { StatusHeader } from "@/src/components/StatusHeader";
 import { ServiceRow } from "@/src/components/ServiceRow";
 import { IncidentCard } from "@/src/components/IncidentCard";
@@ -9,15 +12,15 @@ export const revalidate = 30;
 
 export default async function StatusPage() {
   const [services, incidents, maintenances] = await Promise.all([
-    publicApi.services().catch(() => []),
-    publicApi.incidents(false).catch(() => []),
-    publicApi.maintenances().catch(() => []),
+    servicesApi.list().catch(() => []),
+    incidentsApi.list(false).catch(() => []),
+    maintenancesApi.list().catch(() => []),
   ]);
 
   // Fetch per-service overview in parallel
   const overviews = await Promise.all(
     services.map((s) =>
-      publicApi.overview(s.slug, s.historyDaysDesktop).catch(() => null)
+      servicesApi.overview(s.slug, s.historyDaysDesktop).catch(() => null)
     )
   );
   const overviewBySlug = Object.fromEntries(services.map((s, i) => [s.slug, overviews[i]]));
@@ -35,44 +38,12 @@ export default async function StatusPage() {
   );
 
   const activeIncidents = incidents.filter((i) => i.status !== "Resolved");
-  const hasActiveIncident = activeIncidents.length > 0;
 
-  // Each service's currentStatus is already computed server-side (ServiceStatusService),
-  // factoring in checks + active incidents + maintenance windows — never re-derive it
-  // client-side from raw incident impacts, or the two can silently disagree.
-  const downCount = services.filter((s) => s.status === "DOWN").length;
-  const degradedCount = services.filter((s) => s.status === "DEGRADED").length;
-  const totalCount = services.length;
-  const majorThreshold = totalCount > 1 ? totalCount / 2 : 1;
-
-  const overallStatus: ServiceStatus = downCount > 0
-    ? "DOWN"
-    : degradedCount > 0 || hasActiveIncident
-      ? "DEGRADED"
-      : ongoingMaintenances.length > 0
-        ? "MAINTENANCE"
-        : totalCount > 0
-          ? "UP"
-          : "NO_DATA";
-
-  let statusText: string;
-  if (downCount >= majorThreshold) {
-    statusText = "Major system outage";
-  } else if (downCount > 1) {
-    statusText = "Multiple services disrupted";
-  } else if (downCount === 1) {
-    statusText = "Service disruption";
-  } else if (degradedCount > 1) {
-    statusText = "Multiple services degraded";
-  } else if (degradedCount === 1) {
-    statusText = "Partial service degradation";
-  } else if (hasActiveIncident) {
-    statusText = "Active incident in progress";
-  } else if (ongoingMaintenances.length > 0) {
-    statusText = "Under maintenance";
-  } else {
-    statusText = "All systems operational";
-  }
+  const { status: overallStatus, text: statusText } = computeOverallStatus({
+    services,
+    activeIncidentCount: activeIncidents.length,
+    ongoingMaintenanceCount: ongoingMaintenances.length,
+  });
 
   return (
     <main className="mx-auto w-full max-w-screen-lg px-8 py-10 flex flex-col gap-6">
