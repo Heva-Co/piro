@@ -1,5 +1,5 @@
 import { cn } from "@/src/lib/utils";
-import type { ServiceStatus } from "@/src/lib/api";
+import type { ServiceStatus } from "@/src/lib/actions/services";
 
 const colorMap: Record<ServiceStatus, string> = {
   UP: "bg-green-500",

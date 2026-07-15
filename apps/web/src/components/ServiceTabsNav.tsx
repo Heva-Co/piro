@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/src/components/ui/select";
 
 type Tab = "status" | "latency" | "incidents" | "maintenances";
 
@@ -10,18 +18,15 @@ const DAY_OPTIONS = [
   { label: "7 Days", value: 7 },
   { label: "14 Days", value: 14 },
   { label: "30 Days", value: 30 },
-  { label: "60 Days", value: 60 },
-  { label: "90 Days", value: 90 },
 ];
 
 interface Props {
   slug: string;
-  historyDaysDesktop: number;
   defaultDays: number;
   incidentsCount: number;
 }
 
-export function ServiceTabsNav({ slug, historyDaysDesktop, defaultDays, incidentsCount }: Props) {
+export function ServiceTabsNav({ slug, defaultDays, incidentsCount }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +36,20 @@ export function ServiceTabsNav({ slug, historyDaysDesktop, defaultDays, incident
   const daysParam = Number(searchParams.get("days"));
   const selectedDays = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : defaultDays;
 
-  const availableDayOptions = DAY_OPTIONS.filter((o) => o.value <= historyDaysDesktop);
+  // The day-range selector is hidden below the `sm` breakpoint (no room for it there), so the
+  // server always renders with `defaultDays`. Once mounted, correct that to 7 days on an actual
+  // mobile viewport — but only when the URL has no explicit ?days=, so we never override a value
+  // the user (or a shared link) already picked.
+  useEffect(() => {
+    if (searchParams.get("days")) return;
+    if (defaultDays === 7) return;
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("days", "7");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "status", label: "Status" },
@@ -64,7 +82,7 @@ export function ServiceTabsNav({ slug, historyDaysDesktop, defaultDays, incident
         isPending ? "opacity-50" : ""
       }`}
     >
-      <div className="flex bg-transparent p-0 h-auto rounded-none gap-0">
+      <div className="flex min-w-0 bg-transparent p-0 h-auto rounded-none gap-0 overflow-x-auto">
         {tabs.map(({ id, label, badge }) => (
           <Link
             key={id}
@@ -85,17 +103,27 @@ export function ServiceTabsNav({ slug, historyDaysDesktop, defaultDays, incident
         ))}
       </div>
 
-      <select
-        value={displayedDays}
-        onChange={(e) => changeDays(Number(e.target.value))}
-        className="text-xs rounded-full border px-3 h-8 bg-background mb-2 shrink-0"
+      <Select
+        items={DAY_OPTIONS.map((opt) => ({ label: opt.label, value: String(opt.value) }))}
+        value={String(displayedDays)}
+        onValueChange={(value) => changeDays(Number(value))}
       >
-        {availableDayOptions.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          size="sm"
+          className="hidden sm:flex rounded-full text-xs mb-2 shrink-0"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {DAY_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={String(opt.value)}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

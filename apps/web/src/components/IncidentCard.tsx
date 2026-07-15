@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import type { Incident } from "@/src/lib/api";
+import type { Incident } from "@/src/lib/actions/incidents";
 import Link from "next/link";
 
 const statusColor: Record<string, string> = {

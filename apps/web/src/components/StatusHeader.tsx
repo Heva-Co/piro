@@ -1,4 +1,4 @@
-import type { ServiceStatus } from "@/src/lib/api";
+import type { ServiceStatus } from "@/src/lib/actions/services";
 import { cn } from "@/src/lib/utils";
 
 const pingColor: Record<ServiceStatus, string> = {

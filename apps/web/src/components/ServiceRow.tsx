@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CircleCheck, CircleX, TriangleAlert, Wrench, CircleMinus } from "lucide-react";
-import type { PublicService, ServiceOverviewDto, ServiceStatus } from "@/src/lib/api";
+import type { PublicService, ServiceOverviewDto, ServiceStatus } from "@/src/lib/actions/services";
 import { formatLatency } from "@/src/lib/utils";
 import { StatusBarCalendar } from "./StatusBarCalendar";
 

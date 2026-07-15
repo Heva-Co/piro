@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { DailyStatsDto } from "@/src/lib/api";
+import type { DailyStatsDto } from "@/src/lib/actions/services";
 import { formatLatency, formatUtcDate, cn } from "@/src/lib/utils";
 import { TooltipProvider, TooltipRoot, TooltipTrigger, TooltipContent } from "@/src/components/ui/tooltip";
 

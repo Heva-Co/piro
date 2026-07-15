@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DailyStatsDto } from "@/src/lib/api";
+import type { DailyStatsDto } from "@/src/lib/actions/services";
 import { formatLatency } from "@/src/lib/utils";
 import { LatencyTrendChart } from "./LatencyTrendChart";
 

@@ -5,10 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, RefreshCw, Globe } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Timeline } from "@/src/components/ui/timeline";
-import { publicApi } from "@/src/lib/api";
-import type { IncidentTimelineEvent } from "@/src/lib/api";
-
-type Incident = Awaited<ReturnType<typeof publicApi.incident>>;
+import { incidentsApi } from "@/src/lib/actions/incidents";
+import type { Incident, IncidentTimelineEvent } from "@/src/lib/actions/incidents";
 
 const statusColor: Record<string, string> = {
   Investigating: "bg-red-100 text-red-700",
@@ -58,7 +56,7 @@ export function IncidentDetailClient({ id, initial }: Props) {
 
   async function fetchTimeline() {
     try {
-      const page = await publicApi.incidentTimeline(id, 1, 50);
+      const page = await incidentsApi.timeline(id, 1, 50);
       setComments(page.items.filter((e) => e.type === "CommentPosted"));
     } catch { /* silent */ }
   }
