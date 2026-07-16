@@ -60,6 +60,7 @@ export function IntegrationConfigForm(props: Props) {
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<GeneralFormValues>({
     defaultValues: { name: existing?.name ?? "", description: existing?.description ?? "" },
+    mode: "all"
   });
   const [configValues, setConfigValues] = useState<Record<string, string>>(() =>
     existing ? parseConfigJson(existing.configJson) : {}

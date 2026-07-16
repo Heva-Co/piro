@@ -82,7 +82,7 @@ export function DynamicConfigField(props: Props) {
           A value is already configured and hidden for security. Leave blank to keep it, or enter a new one to replace it.
         </p>
       )}
-      {field.helpText && !isMasked && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+      {!error && field.helpText && !isMasked && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
