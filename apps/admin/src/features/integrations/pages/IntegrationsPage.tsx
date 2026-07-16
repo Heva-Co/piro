@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Plug } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { integrationsApi } from "@/lib/api";
+import { integrationTypesApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { INTEGRATION_TYPE_MAP } from "@/constants/integrations";
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
@@ -17,6 +17,10 @@ export default function IntegrationsPage() {
   const { data: integrations = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.INTEGRATIONS,
     queryFn: integrationsApi.list,
+  });
+  const { data: types = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATION_TYPES,
+    queryFn: integrationTypesApi.list,
   });
 
   return (
@@ -83,7 +87,9 @@ export default function IntegrationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {integrations.map((integration) => (
+                {integrations.map((integration) => {
+                  const typeMeta = types.find((t) => t.type === integration.type);
+                  return (
                   <tr key={integration.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-3 font-medium">
                       <div>{integration.name}</div>
@@ -93,10 +99,8 @@ export default function IntegrationsPage() {
                     </td>
                     <td className="px-5 py-3">
                       <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                        {INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP]?.icon && (
-                          <Icon icon={INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP].icon} className="size-3.5" />
-                        )}
-                        {INTEGRATION_TYPE_MAP[integration.type as keyof typeof INTEGRATION_TYPE_MAP]?.label ?? integration.type}
+                        {typeMeta?.iconifyIcon && <Icon icon={typeMeta.iconifyIcon} className="size-3.5" />}
+                        {typeMeta?.label ?? integration.type}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">
@@ -111,7 +115,8 @@ export default function IntegrationsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

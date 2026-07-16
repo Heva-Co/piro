@@ -2502,6 +2502,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the manifest (category, direction, capabilities, ConfigJson schema) for every
+         *     non-obsolete IntegrationType — see RFC 0003. Reflected from each type's ConfigType, not
+         *     hand-authored, so it can't drift from what the code actually deserializes.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationTypeMetaDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations": {
         parameters: {
             query?: never;
@@ -2509,6 +2549,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Returns every configured Integration, with secret config fields masked. */
         get: {
             parameters: {
                 query?: never;
@@ -6356,6 +6397,19 @@ export interface components {
             resendApiKey: null | string;
             resendFrom: null | string;
         };
+        ConfigFieldSchemaDto: {
+            key: string;
+            label: string;
+            type: components["schemas"]["ConfigFieldType"];
+            required: boolean;
+            isSecret: boolean;
+            supportsFileUpload: boolean;
+            placeholder: null | string;
+            helpText: null | string;
+            options: null | string[];
+        };
+        /** @enum {unknown} */
+        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline";
         ConfirmNotificationPreferenceCodeRequest: {
             code: string;
         };
@@ -6676,6 +6730,8 @@ export interface components {
         IncidentVisibility: "Private" | "Public";
         /** @enum {unknown} */
         IntegrationCategory: "Notification" | "ThirdParty";
+        /** @enum {unknown} */
+        IntegrationDirection: "Outbound" | "Inbound" | "Both";
         IntegrationDto: {
             /** Format: int32 */
             id: number;
@@ -6693,6 +6749,18 @@ export interface components {
         };
         /** @enum {unknown} */
         IntegrationType: "GoogleCloud" | "Jira" | "Email" | "Webhook" | "Slack" | "PagerDuty" | "MSTeams" | "Telegram" | "Twilio" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
+        IntegrationTypeMetaDto: {
+            type: string;
+            label: null | string;
+            description: null | string;
+            iconifyIcon: null | string;
+            category: components["schemas"]["IntegrationCategory"];
+            channelOnly: boolean;
+            creatable: boolean;
+            direction: components["schemas"]["IntegrationDirection"];
+            capabilities: string[];
+            configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+        };
         InviteUserRequest: {
             email: string;
             /** Format: int32 */
