@@ -1,6 +1,8 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
+using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
@@ -9,24 +11,18 @@ namespace Piro.Application.Extensions;
 
 public static class IntegrationExtensions
 {
-    /// <summary>Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep the existing secret".</summary>
+    /// <summary>
+    /// Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep
+    /// the existing secret".
+    /// </summary>
     public const string MaskedSecretValue = "__MASKED__";
 
-    /// <summary>JSON keys within each integration type's ConfigJson that hold credentials and must never be sent to the client in plaintext.</summary>
-    public static readonly Dictionary<IntegrationType, string[]> SecretKeysByType = new()
-    {
-        [IntegrationType.GoogleCloud] = ["serviceAccountJson"],
-        [IntegrationType.Jira] = ["apiToken"],
-        [IntegrationType.PagerDuty] = ["routingKey"],
-        [IntegrationType.MSTeams] = ["webhookUrl"],
-        [IntegrationType.Telegram] = ["botToken"],
-        [IntegrationType.Twilio] = ["authToken"],
-        [IntegrationType.Opsgenie] = ["apiKey"],
-        [IntegrationType.Pushover] = ["appToken"],
-        [IntegrationType.Ntfy] = ["token"],
-    };
+    private static readonly JsonNamingPolicy ConfigJsonNaming = JsonNamingPolicy.CamelCase;
 
-    /// <summary>Maps an <see cref="Integration"/> entity to its outbound DTO representation, masking secret config keys.</summary>
+    /// <summary>
+    /// Maps an <see cref="Integration"/> entity to its outbound DTO representation, masking secret
+    /// config keys.
+    /// </summary>
     public static IntegrationDto ToDto(this Integration i) => new(
         i.Id,
         i.Name,
@@ -39,10 +35,16 @@ public static class IntegrationExtensions
         i.UpdatedAt
     );
 
-    /// <summary>Replaces any known secret key's value in <paramref name="configJson"/> with <see cref="MaskedSecretValue"/> before it leaves the server.</summary>
+    /// <summary>
+    /// Replaces any secret-marked config key's value in <paramref name="configJson"/> with
+    /// <see cref="MaskedSecretValue"/> before it leaves the server. Secret keys are discovered by
+    /// reflecting over the IntegrationType's manifest ConfigType for properties annotated with
+    /// <see cref="SecretFieldAttribute"/> — see IntegrationManifestAttribute.
+    /// </summary>
     public static string MaskSecrets(IntegrationType type, string configJson)
     {
-        if (!SecretKeysByType.TryGetValue(type, out var secretKeys))
+        var secretKeys = GetSecretKeys(type);
+        if (secretKeys.Length == 0)
             return configJson;
 
         JsonNode? node;
@@ -65,5 +67,22 @@ public static class IntegrationExtensions
         }
 
         return obj.ToJsonString();
+    }
+
+    /// <summary>
+    /// The ConfigJson property names (in wire/camelCase form) marked <see cref="SecretFieldAttribute"/>
+    /// on this IntegrationType's manifest ConfigType. Empty for a type with no manifest or no secret fields.
+    /// </summary>
+    public static string[] GetSecretKeys(IntegrationType type)
+    {
+        var configType = type.GetManifest()?.ConfigType;
+        if (configType is null)
+            return [];
+
+        return configType
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetCustomAttribute<SecretFieldAttribute>() is not null)
+            .Select(p => ConfigJsonNaming.ConvertName(p.Name))
+            .ToArray();
     }
 }
