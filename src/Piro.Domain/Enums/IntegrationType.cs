@@ -15,7 +15,7 @@ public enum IntegrationType
         Description = "Run Cloud Run Job checks against your GCP project.",
         IconifyIcon = "logos:google-cloud"
     )]
-    GoogleCloud,
+    GoogleCloud = 0,
 
     [IntegrationManifest(
         IntegrationCategory.ThirdParty,
@@ -26,7 +26,7 @@ public enum IntegrationType
         Description = "Create and track Jira tickets from alerts.",
         IconifyIcon = "logos:jira"
     )]
-    Jira,
+    Jira = 1,
 
     // Notification integrations (formerly NotificationChannelType)
     [IntegrationManifest(
@@ -40,21 +40,21 @@ public enum IntegrationType
         Description = "Send alert emails via the platform's configured SMTP/Resend setup.",
         IconifyIcon = "logos:google-gmail"
     )]
-    Email,
+    Email = 2,
 
     /// <summary>
     /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
     /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
     /// </summary>
     [Obsolete("Not supported for now.")]
-    Webhook,
+    Webhook = 3,
 
     /// <summary>
     /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
     /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
     /// </summary>
     [Obsolete("Not supported for now.")]
-    Slack,
+    Slack = 4,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -65,7 +65,19 @@ public enum IntegrationType
         Description = "Page your on-call team through PagerDuty.",
         IconifyIcon = "logos:pagerduty"
     )]
-    PagerDuty,
+    PagerDuty = 5,
+
+    [IntegrationManifest(
+        IntegrationCategory.ThirdParty,
+        IntegrationDirection.Inbound,
+        IntegrationCapability.CreatesAlerts | IntegrationCapability.SupportsEscalationPolicy,
+        typeof(GcpCloudMonitoringWebhookConfig),
+        Label = "GCP Cloud Monitoring",
+        Description = "Receive alerting policy notifications from Google Cloud Monitoring as Alerts.",
+        IconifyIcon = "logos:google-cloud",
+        WebhookPath = "gcp"
+    )]
+    GcpCloudMonitoringWebhook = 6,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -76,7 +88,7 @@ public enum IntegrationType
         Description = "Post alert notifications to a Microsoft Teams channel.",
         IconifyIcon = "logos:microsoft-teams"
     )]
-    MSTeams,
+    MSTeams = 7,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -87,7 +99,7 @@ public enum IntegrationType
         Description = "Notify a Telegram bot chat when alerts fire.",
         IconifyIcon = "logos:telegram"
     )]
-    Telegram,
+    Telegram = 8,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -98,21 +110,21 @@ public enum IntegrationType
         Description = "Send SMS alerts through Twilio.",
         IconifyIcon = "logos:twilio-icon"
     )]
-    Twilio,
+    Twilio = 9,
 
     /// <summary>
     /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
     /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
     /// </summary>
     [Obsolete("Not supported for now.")]
-    GoogleChat,
+    GoogleChat = 10,
 
     /// <summary>
     /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
     /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
     /// </summary>
     [Obsolete("Not supported for now.")]
-    Discord,
+    Discord = 11,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -123,7 +135,7 @@ public enum IntegrationType
         Description = "Route alerts into Opsgenie's on-call escalation.",
         IconifyIcon = "simple-icons:opsgenie"
     )]
-    Opsgenie,
+    Opsgenie = 12,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -134,7 +146,7 @@ public enum IntegrationType
         Description = "Send push notifications via Pushover.",
         IconifyIcon = "tabler:brand-pushover"
     )]
-    Pushover,
+    Pushover = 13,
 
     [IntegrationManifest(
         IntegrationCategory.Notification,
@@ -145,5 +157,5 @@ public enum IntegrationType
         Description = "Publish alert notifications to a self-hosted or public ntfy topic.",
         IconifyIcon = "simple-icons:ntfy"
     )]
-    Ntfy,
+    Ntfy = 14,
 }

@@ -31,6 +31,7 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<AlertConfig> AlertConfigs => Set<AlertConfig>();
     public DbSet<Alert> Alerts => Set<Alert>();
     public DbSet<EscalationDeliveryLog> EscalationDeliveryLogs => Set<EscalationDeliveryLog>();
+    public DbSet<WebhookRequestLog> WebhookRequestLogs => Set<WebhookRequestLog>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();

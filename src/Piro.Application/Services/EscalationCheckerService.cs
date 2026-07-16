@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
-using Piro.Application.Models;
 using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -53,7 +53,10 @@ public class EscalationCheckerService(
 
     private async Task ProcessAlertAsync(Alert alert, DateTimeOffset now, CancellationToken ct)
     {
-        var policy = alert.Service.EscalationPolicy!;
+        // Snapshotted at creation (from Service.EscalationPolicyId or Integration.EscalationPolicyId
+        // for orphan alerts) — never re-resolved via Service/Integration, so this alert's escalation
+        // stays deterministic even if the source policy changes mid-flight. See RFC 0001 §4.6.
+        var policy = alert.EscalationPolicy!;
         var steps = policy.Steps.OrderBy(s => s.Order).ToList();
         if (steps.Count == 0) return;
 
@@ -64,7 +67,7 @@ public class EscalationCheckerService(
             alert.EscalationStepStartedAt = alert.FiredAt;
             logger.LogInformation(
                 "Escalation initialized for alert #{AlertId} ({Service}/{Check}) — starting at step 1 of {Total}.",
-                alert.Id, alert.Service.Name, alert.Check.Name, steps.Count);
+                alert.Id, alert.ServiceLabel(), alert.CheckLabel(), steps.Count);
         }
 
         var currentStepIndex = alert.EscalationCurrentStep.Value;
@@ -146,18 +149,23 @@ public class EscalationCheckerService(
         {
             logger.LogWarning(
                 "Escalation step {StepNum} for alert #{AlertId} ({Service}/{Check}): no on-call users found in schedule {ScheduleId}.",
-                currentStepIndex + 1, alert.Id, alert.Service.Name, alert.Check.Name, step.ScheduleId);
+                currentStepIndex + 1, alert.Id, alert.ServiceLabel(), alert.CheckLabel(), step.ScheduleId);
         }
         else
         {
             var names = string.Join(", ", onCallUsers.Select(u => u.UserName ?? u.Email));
             logger.LogInformation(
                 "Escalation step {StepNum}/{Total} for alert #{AlertId} ({Service}/{Check}) — on-call: {OnCallUsers}.",
-                currentStepIndex + 1, steps.Count, alert.Id, alert.Service.Name, alert.Check.Name, names);
+                currentStepIndex + 1, steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel(), names);
         }
 
-        var serviceUrl = await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Service, ct, alert.Service.Slug);
-        var checkUrl = await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Check, ct, alert.Service.Slug, alert.Check.Slug);
+        var serviceUrl = alert.Service is not null
+            ? await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Service, ct, alert.Service.Slug)
+            : null;
+        var checkUrl = alert.Service is not null && alert.Check is not null
+            ? await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Check, ct, alert.Service.Slug, alert.Check.Slug)
+            : null;
+        var alertUrl = await siteUrlBuilder.GetUrlAsync(AdminArtifactType.Alert, ct, alert.Id.ToString());
 
         // Notify each on-call user via their personal preferences (ordered by priority). No
         // fallback to any global channel — if a user has no personal preference configured,
@@ -170,7 +178,7 @@ public class EscalationCheckerService(
             if (!prefsByUser.TryGetValue(user.Id, out var prefs) || prefs.Count == 0) continue;
 
             // Built per-user: FiredAtDisplay depends on each on-call user's own time zone.
-            var context = BuildContext(alert, serviceUrl, checkUrl, user.TimeZone);
+            var context = alert.ToNotificationContext(serviceUrl, checkUrl, alertUrl, FormatForTimeZone(alert.FiredAt, user.TimeZone));
 
             foreach (var pref in prefs.OrderBy(p => p.Priority))
             {
@@ -226,35 +234,22 @@ public class EscalationCheckerService(
             alert.EscalationCurrentStep = nextIndex;
             logger.LogInformation(
                 "Escalation advanced to step {NextStep}/{Total} for alert #{AlertId} ({Service}/{Check}).",
-                nextIndex + 1, steps.Count, alert.Id, alert.Service.Name, alert.Check.Name);
+                nextIndex + 1, steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel());
         }
         else
         {
             logger.LogInformation(
                 "Escalation completed all {Total} step(s) for alert #{AlertId} ({Service}/{Check}) — no further steps.",
-                steps.Count, alert.Id, alert.Service.Name, alert.Check.Name);
+                steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel());
         }
 
         alert.EscalationStepStartedAt = now;
         await alertRepo.UpdateAsync(alert, ct);
     }
 
-    private static AlertNotificationContext BuildContext(
-        Alert alert, string? serviceUrl, string? checkUrl, string recipientTimeZone) => new(
-        ServiceName: alert.Service.Name,
-        CheckName: alert.Check.Name,
-        CurrentStatus: alert.ImpactAtFireTime,
-        AlertDescription: alert.AlertConfig?.Description ?? alert.Message,
-        Severity: alert.AlertConfig?.Severity ?? AlertSeverity.Critical,
-        IsRecovery: false,
-        FiredAt: alert.FiredAt,
-        CheckId: alert.CheckId,
-        ServiceUrl: serviceUrl,
-        CheckUrl: checkUrl,
-        FiredAtDisplay: FormatForTimeZone(alert.FiredAt, recipientTimeZone)
-    );
-
-    /// <summary>Formats a timestamp in the given IANA time zone, with the zone name in parentheses. Falls back to UTC if the id is unrecognized.</summary>
+    /// <summary>
+    /// Formats a timestamp in the given IANA time zone, with the zone name in parentheses. Falls back to UTC if the id is unrecognized.
+    /// </summary>
     private static string FormatForTimeZone(DateTimeOffset instant, string timeZoneId)
     {
         var tz = TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var found) ? found : TimeZoneInfo.Utc;

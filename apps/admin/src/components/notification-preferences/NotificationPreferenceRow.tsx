@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   usersApi,
-  type Integration,
   type PersonalNotificationChannelType,
   type UserNotificationPreference,
   type UpsertNotificationPreference,
 } from "@/lib/api";
+import type { Integration } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 
 const CHANNEL_INTEGRATION_TYPE: Partial<Record<PersonalNotificationChannelType, string>> = {
@@ -155,7 +155,7 @@ export function NotificationPreferenceRow(props: Props) {
         {requiredIntegrationType && (
           <Select
             value={draft.integrationId ? String(draft.integrationId) : ""}
-            onValueChange={(v) => v && onChange({ integrationId: Number(v) })}
+            onValueChange={(v) => v && onChange({ integrationId: v })}
             disabled={!isEditable}
           >
             <SelectTrigger className="w-48">

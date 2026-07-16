@@ -11,7 +11,7 @@ import {
   useDeleteCheck,
   useRunCheck,
 } from "@/hooks/useChecks";
-import { integrationsApi } from "@/lib/api";
+import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { SectionAccordion } from "@/components/ui/section-accordion";
@@ -214,7 +214,7 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   async function handleSave(values: CheckConfigFormValues) {
     setError("");
     try {
-      const integrationId = values.integrationId ? Number(values.integrationId) : undefined;
+      const integrationId = values.integrationId ? values.integrationId : undefined;
       await updateCheck.mutateAsync({
         typeDataJson: buildTypeDataJson(values),
         ...(integrationId != null ? { integrationId } : {}),

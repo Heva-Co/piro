@@ -2,13 +2,16 @@ using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
 
-/// <summary>Alert row for the global Alerts overview list — lightweight, no full incident/check payload.</summary>
+/// <summary>
+/// Alert row for the global Alerts overview list — lightweight, no full incident/check payload.
+/// Check/Service fields are null for an orphan alert (RFC 0001 §4.2) — no Check/Service to correlate against.
+/// </summary>
 public record AlertSummaryDto(
     int Id,
-    string CheckSlug,
-    string CheckName,
-    string ServiceSlug,
-    string ServiceName,
+    string? CheckSlug,
+    string? CheckName,
+    string? ServiceSlug,
+    string? ServiceName,
     string? AlertConfigDescription,
     string? Message,
     ServiceStatus ImpactAtFireTime,
@@ -16,7 +19,12 @@ public record AlertSummaryDto(
     DateTimeOffset? ResolvedAt,
     int OccurrenceCount,
     int? IncidentId,
-    bool HasEscalationPolicy
+    bool HasEscalationPolicy,
+    AlertSource Source,
+    /// <summary>Display label for Source's origin Integration type (e.g. "GCP Cloud Monitoring") — null for Internal.</summary>
+    string? SourceLabel,
+    /// <summary>Iconify icon for Source's origin Integration type — null for Internal.</summary>
+    string? SourceIconifyIcon
 );
 
 /// <summary>
@@ -44,22 +52,27 @@ public record AlertPageDto(
     int AllTimeTotalCount
 ) : PaginatedResponse<AlertSummaryDto>(Items, TotalCount, Page, PageSize);
 
-/// <summary>Full detail view of a single Alert, including the AlertConfig criteria that fired it.</summary>
+/// <summary>
+/// Full detail view of a single Alert, including the AlertConfig criteria that fired it.
+/// Check/Service fields are null for an orphan alert (RFC 0001 §4.2) — no Check/Service to correlate
+/// against. AlertConfigId/AlertFor/AlertValue/thresholds/Severity are null for a webhook-sourced
+/// alert (RFC 0001 §4.6) — there is no internal AlertConfig behind a third-party occurrence.
+/// </summary>
 public record AlertDetailDto(
     int Id,
-    string CheckSlug,
-    string CheckName,
-    string ServiceSlug,
-    string ServiceName,
-    int AlertConfigId,
-    AlertFor AlertFor,
-    string AlertValue,
-    int FailureThreshold,
-    int SuccessThreshold,
+    string? CheckSlug,
+    string? CheckName,
+    string? ServiceSlug,
+    string? ServiceName,
+    int? AlertConfigId,
+    AlertFor? AlertFor,
+    string? AlertValue,
+    int? FailureThreshold,
+    int? SuccessThreshold,
     string? AlertConfigDescription,
     string? Message,
     ServiceStatus ImpactAtFireTime,
-    AlertSeverity Severity,
+    AlertSeverity? Severity,
     DateTimeOffset FiredAt,
     DateTimeOffset? ResolvedAt,
     int OccurrenceCount,
@@ -67,11 +80,25 @@ public record AlertDetailDto(
     string? IncidentTitle,
     int? EscalationCurrentStep,
     long? AcknowledgedAt,
-    string? AcknowledgedBy
+    string? AcknowledgedBy,
+    AlertSource Source,
+    /// <summary>Display label for Source's origin Integration type (e.g. "GCP Cloud Monitoring") — null for Internal.</summary>
+    string? SourceLabel,
+    /// <summary>Iconify icon for Source's origin Integration type — null for Internal.</summary>
+    string? SourceIconifyIcon,
+    /// <summary>The exact webhook request body that created this alert (via SourceRequestLogId) — null for Internal or if the source log was since deleted.</summary>
+    string? SourceRawPayload,
+    /// <summary>Deep link into the source system's own console for this occurrence (e.g. GCP's incident URL) — null for Internal, or a source that doesn't provide one.</summary>
+    string? SourceUrl
 );
 
-/// <summary>Payload for linking an Alert to an Incident. Null IncidentId creates a new incident; otherwise attaches to the given one.</summary>
-public record LinkAlertToIncidentRequest(int? IncidentId);
+/// <summary>
+/// Payload for linking an Alert to an Incident. Null IncidentId creates a new incident; otherwise
+/// attaches to the given one. <see cref="ServiceIds"/> is used only when the Alert is orphan (no
+/// ServiceId of its own — RFC 0001 §4.9); omitting it there creates/attaches to an Incident with
+/// no IncidentService rows, which the rest of the system already tolerates.
+/// </summary>
+public record LinkAlertToIncidentRequest(int? IncidentId, IReadOnlyList<int>? ServiceIds = null);
 
 /// <summary>A single on-call delivery attempt in an alert's escalation history — see <see cref="Piro.Domain.Entities.EscalationDeliveryLog"/>.</summary>
 public record EscalationDeliveryLogDto(

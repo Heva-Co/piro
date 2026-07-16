@@ -1,1 +1,1 @@
-{{~ if is_recovery ~}}{{ check_name }} has recovered. Status: {{ current_status }}.{{~ else ~}}{{ check_name }} is {{ current_status }}. Severity: {{ severity }}.{{~ if alert_description ~}} {{ alert_description }}{{~ end ~}}{{~ end ~}}{{~ if check_url ~}} {{ check_url }}{{~ end ~}}
+{{~ if is_recovery ~}}{{ title }} has recovered. Status: {{ current_status }}.{{~ else ~}}{{ title }} is {{ current_status }}. Severity: {{ severity }}.{{~ if alert_description ~}} {{ alert_description }}{{~ end ~}}{{~ end ~}}{{~ if check_url ~}} {{ check_url }}{{~ end ~}}

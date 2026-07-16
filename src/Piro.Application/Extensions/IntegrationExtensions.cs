@@ -23,16 +23,17 @@ public static class IntegrationExtensions
     /// Maps an <see cref="Integration"/> entity to its outbound DTO representation, masking secret
     /// config keys.
     /// </summary>
-    public static IntegrationDto ToDto(this Integration i) => new(
+    public static IntegrationDto ToDto(this Integration i, bool revealGeneratedFields = false) => new(
         i.Id,
         i.Name,
         i.Type,
         i.Type.GetCategory(),
         i.Description,
-        MaskSecrets(i.Type, i.ConfigJson),
+        MaskSecrets(i.Type, i.ConfigJson, revealGeneratedFields),
         i.Checks.Count,
         i.CreatedAt,
-        i.UpdatedAt
+        i.UpdatedAt,
+        i.EscalationPolicyId
     );
 
     /// <summary>
@@ -40,12 +41,17 @@ public static class IntegrationExtensions
     /// <see cref="MaskedSecretValue"/> before it leaves the server. Secret keys are discovered by
     /// reflecting over the IntegrationType's manifest ConfigType for properties annotated with
     /// <see cref="SecretFieldAttribute"/> — see IntegrationManifestAttribute.
+    /// <paramref name="revealGeneratedFields"/> skips masking for fields also marked
+    /// <see cref="GeneratedFieldAttribute"/> (e.g. a webhook auth token) — set only on the response
+    /// to the create call, the one time an admin can see a server-generated secret's real value.
     /// </summary>
-    public static string MaskSecrets(IntegrationType type, string configJson)
+    public static string MaskSecrets(IntegrationType type, string configJson, bool revealGeneratedFields = false)
     {
         var secretKeys = GetSecretKeys(type);
         if (secretKeys.Length == 0)
             return configJson;
+
+        var generatedKeys = revealGeneratedFields ? GetGeneratedFieldKeys(type) : [];
 
         JsonNode? node;
         try
@@ -62,6 +68,9 @@ public static class IntegrationExtensions
 
         foreach (var key in secretKeys)
         {
+            if (generatedKeys.Contains(key))
+                continue;
+
             if (obj[key] is JsonValue value && value.GetValueKind() == JsonValueKind.String && !string.IsNullOrEmpty(value.GetValue<string>()))
                 obj[key] = MaskedSecretValue;
         }
@@ -82,6 +91,20 @@ public static class IntegrationExtensions
         return configType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetCustomAttribute<SecretFieldAttribute>() is not null)
+            .Select(p => ConfigJsonNaming.ConvertName(p.Name))
+            .ToArray();
+    }
+
+    /// <summary>The ConfigJson property names marked <see cref="GeneratedFieldAttribute"/> on this IntegrationType's manifest ConfigType.</summary>
+    private static string[] GetGeneratedFieldKeys(IntegrationType type)
+    {
+        var configType = type.GetManifest()?.ConfigType;
+        if (configType is null)
+            return [];
+
+        return configType
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.GetCustomAttribute<GeneratedFieldAttribute>() is not null)
             .Select(p => ConfigJsonNaming.ConvertName(p.Name))
             .ToArray();
     }

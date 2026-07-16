@@ -10,9 +10,22 @@ namespace Piro.Domain.Entities;
 public class Alert
 {
     public int Id { get; set; }
-    public int AlertConfigId { get; set; }
-    public int CheckId { get; set; }
-    public int ServiceId { get; set; }
+
+    /// <summary>
+    /// Null for a webhook-sourced alert (RFC 0001) — there is no internal AlertConfig behind a
+    /// third-party occurrence. Non-null (and dedup'd via <see cref="MessageFingerprint"/>) for
+    /// every <see cref="AlertSource.Internal"/> alert.
+    /// </summary>
+    public int? AlertConfigId { get; set; }
+
+    /// <summary>
+    /// Null for an orphan alert (RFC 0001) — a third-party alert with no monitored resource to
+    /// correlate against (e.g. a GCP alert policy with no matching <see cref="Domain.Entities.Check"/>).
+    /// </summary>
+    public int? CheckId { get; set; }
+
+    /// <summary>Null for an orphan alert — see <see cref="CheckId"/>.</summary>
+    public int? ServiceId { get; set; }
 
     /// <summary>Null until this Alert is hooked to an Incident (by occurrence or concurrent-count threshold).</summary>
     public int? IncidentId { get; set; }
@@ -56,8 +69,42 @@ public class Alert
     /// <summary>Per-attempt delivery history for this alert's on-call escalation — see <see cref="EscalationDeliveryLog"/>.</summary>
     public ICollection<EscalationDeliveryLog> EscalationDeliveryLogs { get; set; } = [];
 
-    public AlertConfig AlertConfig { get; set; } = null!;
-    public Check Check { get; set; } = null!;
-    public Service Service { get; set; } = null!;
+    /// <summary>
+    /// Snapshotted once at creation from <see cref="Service.EscalationPolicyId"/> (anchored alerts)
+    /// or <see cref="Integration.EscalationPolicyId"/> (orphan alerts) — never re-resolved live, so
+    /// an admin editing the source policy mid-escalation doesn't change the behavior of an alert
+    /// already partway through its steps. See RFC 0001 §4.6.
+    /// </summary>
+    public int? EscalationPolicyId { get; set; }
+
+    /// <summary>Where this alert came from — see <see cref="AlertSource"/>.</summary>
+    public AlertSource Source { get; set; } = AlertSource.Internal;
+
+    /// <summary>
+    /// The inbound webhook request that created this alert, if any (null for <see cref="AlertSource.Internal"/>).
+    /// Points at the exact raw payload instead of duplicating it onto this row — see <see cref="WebhookRequestLog"/>.
+    /// </summary>
+    public int? SourceRequestLogId { get; set; }
+
+    /// <summary>
+    /// The source system's own identifier for this occurrence (e.g. GCP Cloud Monitoring's
+    /// <c>incident.incident_id</c>) — null for <see cref="AlertSource.Internal"/> alerts, which
+    /// dedup via <see cref="MessageFingerprint"/> instead. Dedup key is <c>(Source, ExternalId)</c>,
+    /// not GCP-specific — any future webhook source (Alertmanager, etc.) reuses the same field.
+    /// </summary>
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// Deep link into the source system's own console for this occurrence (e.g. GCP Cloud
+    /// Monitoring's incident URL) — null for <see cref="AlertSource.Internal"/>, or for a source
+    /// that doesn't provide one. Generic across sources, not GCP-specific.
+    /// </summary>
+    public string? SourceUrl { get; set; }
+
+    public AlertConfig? AlertConfig { get; set; }
+    public Check? Check { get; set; }
+    public Service? Service { get; set; }
     public Incident? Incident { get; set; }
+    public EscalationPolicy? EscalationPolicy { get; set; }
+    public WebhookRequestLog? SourceRequestLog { get; set; }
 }

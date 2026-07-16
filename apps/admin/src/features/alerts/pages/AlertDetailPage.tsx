@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { ExternalLink, CheckCheck, Link2, PlusCircle, Info, ListChecks, Siren, History, XCircle } from "lucide-react";
+import { ExternalLink, CheckCheck, Link2, PlusCircle, Info, ListChecks, Siren, History, XCircle, FileJson } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,11 @@ import {
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { useAlert } from "@/hooks/useChecks";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
-import { alertsApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { alertsApi } from "@/lib/actions/alerts";
+import { AlertSourceBadge } from "../components/AlertSourceBadge";
+import { PayloadDialog } from "@/components/PayloadDialog";
 
 function apiErrorMessage(err: unknown, fallback: string) {
   return (axios.isAxiosError(err) && (err.response?.data?.title || err.response?.data?.detail)) || fallback;
@@ -56,6 +58,7 @@ export default function AlertDetailPage() {
 
   const [attachOpen, setAttachOpen] = useState(false);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>("");
+  const [payloadOpen, setPayloadOpen] = useState(false);
 
   const { data: openIncidents = [] } = useQuery({
     queryKey: ["alerts", "open-incidents"],
@@ -107,13 +110,22 @@ export default function AlertDetailPage() {
         ]}
         actions={
           <>
-            <StatusPill status={alert.impactAtFireTime} />
+            {!alert.resolvedAt && <StatusPill status={alert.impactAtFireTime} />}
+            {alert.resolvedAt ? (
+              <span className="rounded-lg border px-3 py-2 text-xs font-medium text-muted-foreground">
+                Resolved
+              </span>
+            ) : (
+              <span className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400">
+                Active
+              </span>
+            )}
             {alert.acknowledgedAt ? (
               <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 border border-green-500/30 px-3 py-2 text-xs text-green-600 dark:text-green-400">
                 <CheckCheck size={13} />
                 <span>Acked by <strong>{alert.acknowledgedBy}</strong></span>
               </div>
-            ) : (
+            ) : !alert.resolvedAt && (
               <Button
                 variant="outline"
                 onClick={() => acknowledgeMutation.mutate()}
@@ -134,24 +146,50 @@ export default function AlertDetailPage() {
         defaultOpen
       >
         <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Check">
-              <Link
-                to={ROUTES.CHECKS.DETAIL(alert.serviceSlug, alert.checkSlug)}
-                className="font-semibold hover:underline"
-              >
-                {alert.checkName}
-              </Link>
+          {alert.source !== "Internal" ? (
+            <Field label="Source">
+              <div className="flex items-center gap-3">
+                <AlertSourceBadge source={alert.source} sourceLabel={alert.sourceLabel} sourceIconifyIcon={alert.sourceIconifyIcon} />
+                {alert.sourceUrl && (
+                  <a
+                    href={alert.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    View in {alert.sourceLabel ?? "source"} <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
             </Field>
-            <Field label="Service">
-              <Link
-                to={ROUTES.SERVICES.DETAIL(alert.serviceSlug)}
-                className="font-semibold hover:underline"
-              >
-                {alert.serviceName}
-              </Link>
-            </Field>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-5">
+              <Field label="Check">
+                {alert.checkSlug && alert.serviceSlug ? (
+                  <Link
+                    to={ROUTES.CHECKS.DETAIL(alert.serviceSlug, alert.checkSlug)}
+                    className="font-semibold hover:underline"
+                  >
+                    {alert.checkName}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </Field>
+              <Field label="Service">
+                {alert.serviceSlug ? (
+                  <Link
+                    to={ROUTES.SERVICES.DETAIL(alert.serviceSlug)}
+                    className="font-semibold hover:underline"
+                  >
+                    {alert.serviceName}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </Field>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-5">
             <Field label="Fired At">{formatDate(alert.firedAt)}</Field>
@@ -162,7 +200,7 @@ export default function AlertDetailPage() {
 
           <div className="grid grid-cols-2 gap-5">
             <Field label="Occurrences">{alert.occurrenceCount}</Field>
-            <Field label="Severity">{alert.severity}</Field>
+            <Field label="Severity">{alert.severity ?? "—"}</Field>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -171,26 +209,41 @@ export default function AlertDetailPage() {
               {alert.message ?? "—"}
             </p>
           </div>
+
+          {alert.sourceRawPayload && (
+            <div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPayloadOpen(true)}>
+                <FileJson size={13} />
+                View raw payload
+              </Button>
+            </div>
+          )}
         </div>
       </SectionAccordion>
 
       <SectionAccordion
         title="Trigger Criteria"
-        description="The AlertConfig rule that fired this alert"
+        description={alert.source !== "Internal" ? "Managed externally of Piro" : "The AlertConfig rule that fired this alert"}
         icon={<ListChecks size={16} className="text-muted-foreground" />}
         defaultOpen
       >
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-5">
-            <Field label="Alert For">{alert.alertFor}</Field>
-            <Field label="Value">{alert.alertValue}</Field>
-            <Field label="Failure threshold">{alert.failureThreshold}</Field>
-            <Field label="Success threshold">{alert.successThreshold}</Field>
+        {alert.source !== "Internal" ? (
+          <p className="text-sm text-muted-foreground">
+            This alert was triggered by an external source — Piro doesn't evaluate its own criteria for it.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-5">
+              <Field label="Alert For">{alert.alertFor}</Field>
+              <Field label="Value">{alert.alertValue}</Field>
+              <Field label="Failure threshold">{alert.failureThreshold}</Field>
+              <Field label="Success threshold">{alert.successThreshold}</Field>
+            </div>
+            {alert.alertConfigDescription && (
+              <Field label="Description">{alert.alertConfigDescription}</Field>
+            )}
           </div>
-          {alert.alertConfigDescription && (
-            <Field label="Description">{alert.alertConfigDescription}</Field>
-          )}
-        </div>
+        )}
       </SectionAccordion>
 
       <SectionAccordion
@@ -230,7 +283,7 @@ export default function AlertDetailPage() {
                       ) : (
                         <span
                           className="inline-flex items-center gap-1.5 text-destructive"
-                          title={log.errorMessage}
+                          title={log.errorMessage ?? undefined}
                         >
                           <XCircle size={14} /> Failed
                         </span>
@@ -323,6 +376,16 @@ export default function AlertDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {alert.sourceRawPayload && (
+        <PayloadDialog
+          open={payloadOpen}
+          onOpenChange={setPayloadOpen}
+          title="Webhook payload"
+          description="The exact request that created this alert, unmodified."
+          payload={alert.sourceRawPayload}
+        />
+      )}
     </>
   );
 }

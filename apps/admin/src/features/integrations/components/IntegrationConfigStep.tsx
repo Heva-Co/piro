@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
-import { integrationsApi } from "@/lib/api";
-import { integrationTypesApi } from "@/lib/actions/integrations";
+import { integrationsApi, integrationTypesApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { IntegrationConfigForm } from "./IntegrationConfigForm";
 
@@ -25,7 +24,7 @@ export function IntegrationConfigStep(props: Props) {
 
   const { data: existing } = useQuery({
     queryKey: QUERY_KEYS.INTEGRATION(id!),
-    queryFn: () => integrationsApi.get(Number(id)),
+    queryFn: () => integrationsApi.get(id!),
     enabled: isEdit,
   });
   const { data: allTypes } = useQuery({

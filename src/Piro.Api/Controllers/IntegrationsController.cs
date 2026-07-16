@@ -37,10 +37,10 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await integrationApp.GetAllAsync(ct));
 
-    [HttpGet("{id:int}")]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<IntegrationDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken ct) =>
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         Ok(await integrationApp.GetByIdAsync(id, ct));
 
     [HttpPost]
@@ -55,17 +55,50 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<IntegrationDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateIntegrationRequest request, CancellationToken ct) =>
-        Ok(await integrationApp.UpdateAsync(id, request, ct));
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateIntegrationRequest request, CancellationToken ct)
+    {
+        return Ok(await integrationApp.UpdateAsync(id, request, ct));
+    }
 
-    [HttpDelete("{id:int}")]
+
+    /// <summary>Returns the most recent inbound webhook requests for this Integration — RFC 0001 §4.4.</summary>
+    [HttpGet("{id:guid}/webhook-logs")]
+    [ProducesResponseType<IEnumerable<WebhookRequestLogDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWebhookLogs(Guid id, CancellationToken ct)
+    {
+        return Ok(await integrationApp.GetWebhookLogsAsync(id, ct));
+    }
+
+    /// <summary>
+    /// Regenerates this Integration's server-generated fields (e.g. a lost/leaked webhook auth
+    /// token) and invalidates the old value immediately. Response's ConfigJson is unmasked, the one
+    /// time the new value is visible.
+    /// </summary>
+    [HttpPost("{id:guid}/regenerate-generated-fields")]
+    [ProducesResponseType<IntegrationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RegenerateGeneratedFields(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await integrationApp.RegenerateGeneratedFieldsAsync(id, ct));
+        }
+        catch (DomainValidationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         try
         {
