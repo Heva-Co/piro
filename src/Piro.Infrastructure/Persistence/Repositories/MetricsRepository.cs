@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
+using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
@@ -32,9 +33,11 @@ internal class MetricsRepository(PiroDbContext db) : IMetricsRepository
                 a.AcknowledgedAt,
                 a.IncidentId,
                 IncidentCreatedAt = a.Incident != null ? a.Incident.CreatedAt : (DateTime?)null,
-                Severity = a.AlertConfig.Severity,
-                a.Service.Slug,
-                a.Service.Name
+                // Both null for a webhook-sourced/orphan alert (RFC 0001) — no internal AlertConfig
+                // or Service behind it.
+                Severity = a.AlertConfig != null ? a.AlertConfig.Severity : (AlertSeverity?)null,
+                Slug = a.Service != null ? a.Service.Slug : null,
+                Name = a.Service != null ? a.Service.Name : null
             })
             .ToListAsync(ct);
 
@@ -69,13 +72,16 @@ internal class MetricsRepository(PiroDbContext db) : IMetricsRepository
                 .Select(g => new DailyAlertCountDto(g.Key, g.Count()))
                 .OrderBy(d => d.Date)
                 .ToList(),
+            // Both exclude external/orphan alerts (RFC 0001) — no Service/Severity to attribute them to.
             AlertsByService: alertRows
-                .GroupBy(r => (r.Slug, r.Name))
+                .Where(r => r.Slug is not null && r.Name is not null)
+                .GroupBy(r => (Slug: r.Slug!, Name: r.Name!))
                 .Select(g => new ServiceAlertCountDto(g.Key.Slug, g.Key.Name, g.Count()))
                 .OrderByDescending(s => s.Count)
                 .ToList(),
             AlertsBySeverity: alertRows
-                .GroupBy(r => r.Severity.ToString())
+                .Where(r => r.Severity is not null)
+                .GroupBy(r => r.Severity!.Value.ToString())
                 .Select(g => new SeverityIncidentCountDto(g.Key, g.Count()))
                 .OrderByDescending(s => s.Count)
                 .ToList()

@@ -22,7 +22,7 @@ export function GcpCloudRunJobConfig({ integrations }: Props) {
         <Controller name="integrationId" control={control} render={({ field }) => (
           <Select
             value={field.value === "" ? "" : String(field.value)}
-            onValueChange={(v) => field.onChange(v ? Number(v) : "")}
+            onValueChange={(v) => field.onChange(v ?? "")}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select an integration…">

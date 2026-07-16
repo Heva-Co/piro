@@ -5,7 +5,6 @@
 
 import api from "@/lib/axios";
 import { ENDPOINTS, HEALTH_ENDPOINT } from "@/constants/api";
-import type { Incident } from "@/lib/actions/incidents";
 
 export type CheckType = components["schemas"]["CheckType"];
 
@@ -62,81 +61,7 @@ export interface ApiKey {
 }
 
 // ─── Alerts ──────────────────────────────────────────────────────────────────
-
-export interface AlertSummary {
-  id: number;
-  checkSlug: string;
-  checkName: string;
-  serviceSlug: string;
-  serviceName: string;
-  alertConfigDescription?: string;
-  message?: string;
-  impactAtFireTime: string;
-  firedAt: string;
-  resolvedAt?: string;
-  occurrenceCount: number;
-  incidentId?: number;
-  hasEscalationPolicy: boolean;
-}
-
-export interface AlertDetail {
-  id: number;
-  checkSlug: string;
-  checkName: string;
-  serviceSlug: string;
-  serviceName: string;
-  alertConfigId: number;
-  alertFor: string;
-  alertValue: string;
-  failureThreshold: number;
-  successThreshold: number;
-  alertConfigDescription?: string;
-  message?: string;
-  impactAtFireTime: string;
-  severity: string;
-  firedAt: string;
-  resolvedAt?: string;
-  occurrenceCount: number;
-  incidentId?: number;
-  incidentTitle?: string;
-  escalationCurrentStep?: number | null;
-  acknowledgedAt?: number | null;
-  acknowledgedBy?: string | null;
-}
-
-export const alertsApi = {
-  list: (params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) =>
-    api
-      .get<{ items: AlertSummary[]; totalCount: number; page: number; pageSize: number; allTimeTotalCount: number }>(
-        ENDPOINTS.ALERTS,
-        { params }
-      )
-      .then((r) => r.data),
-
-  get: (id: number | string) =>
-    api.get<AlertDetail>(ENDPOINTS.ALERT(id)).then((r) => r.data),
-
-  getOpenIncidents: () =>
-    api.get<Incident[]>(ENDPOINTS.ALERTS_OPEN_INCIDENTS).then((r) => r.data),
-
-  linkToIncident: (id: number | string, incidentId?: number) =>
-    api.post<AlertDetail>(ENDPOINTS.ALERT_INCIDENT(id), { incidentId }).then((r) => r.data),
-
-  acknowledge: (id: number | string) =>
-    api.post<AlertDetail>(ENDPOINTS.ALERT_ACKNOWLEDGE(id)).then((r) => r.data),
-
-  getEscalationLogs: (id: number | string) =>
-    api.get<EscalationDeliveryLog[]>(ENDPOINTS.ALERT_ESCALATION_LOGS(id)).then((r) => r.data),
-};
-
-export interface EscalationDeliveryLog {
-  stepIndex: number;
-  userName: string;
-  channelType: string;
-  succeeded: boolean;
-  errorMessage?: string;
-  attemptedAt: string;
-}
+// Moved to @/lib/actions/alerts — types generated from AlertSummaryDto/AlertDetailDto/etc.
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
@@ -372,7 +297,7 @@ export type PersonalNotificationChannelType = keyof typeof PERSONAL_NOTIFICATION
 export interface UserNotificationPreference {
   id: number;
   channel: PersonalNotificationChannelType;
-  integrationId: number | null;
+  integrationId: string | null;
   integrationName: string | null;
   handle: string;
   priority: number;
@@ -382,7 +307,7 @@ export interface UserNotificationPreference {
 
 export interface UpsertNotificationPreference {
   channel: PersonalNotificationChannelType;
-  integrationId: number | null;
+  integrationId: string | null;
   handle: string;
 }
 
@@ -665,27 +590,6 @@ export const INTEGRATION_CATEGORIES = {
 
 export type NotificationCategoryType = keyof typeof INTEGRATION_CATEGORIES;
 
-export interface Integration {
-  id: number;
-  name: string;
-  type: IntegrationType;
-  category: NotificationCategoryType;
-  description?: string;
-  configJson: string;
-  checkCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const integrationsApi = {
-  list: () => api.get<Integration[]>(ENDPOINTS.INTEGRATIONS).then((r) => r.data),
-  get: (id: number) => api.get<Integration>(ENDPOINTS.INTEGRATION(id)).then((r) => r.data),
-  create: (data: { name: string; type: string; description?: string; configJson: string }) =>
-    api.post<Integration>(ENDPOINTS.INTEGRATIONS, data).then((r) => r.data),
-  update: (id: number, data: { name?: string; description?: string; configJson?: string }) =>
-    api.put<Integration>(ENDPOINTS.INTEGRATION(id), data).then((r) => r.data),
-  delete: (id: number) => api.delete(ENDPOINTS.INTEGRATION(id)),
-};
 
 // ─── Check Types ──────────────────────────────────────────────────────────────
 

@@ -20,7 +20,7 @@ internal class GcpTokenProvider(IHttpClientFactory httpClientFactory, GcpTokenCa
     /// </summary>
     /// <param name="integrationId">Used as the cache key.</param>
     /// <param name="configJson">The integration's ConfigJson — must contain a "serviceAccountJson" string field.</param>
-    public async Task<string> GetAccessTokenAsync(int integrationId, string configJson, CancellationToken ct = default)
+    public async Task<string> GetAccessTokenAsync(Guid integrationId, string configJson, CancellationToken ct = default)
     {
         if (tokenCache.TryGet(integrationId, out var cached))
             return cached;

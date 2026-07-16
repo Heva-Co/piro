@@ -1,0 +1,25 @@
+/* Minimal JSON-focused highlight.js theme, matched to the app's own color tokens instead of a bundled theme. */
+.hljs {
+  color: inherit;
+  background: transparent;
+}
+.hljs-attr {
+  color: #0969da;
+}
+.hljs-string {
+  color: #0a7d34;
+}
+.hljs-number,
+.hljs-literal {
+  color: #b35900;
+}
+.dark .hljs-attr {
+  color: #79c0ff;
+}
+.dark .hljs-string {
+  color: #7ee787;
+}
+.dark .hljs-number,
+.dark .hljs-literal {
+  color: #ffa657;
+}

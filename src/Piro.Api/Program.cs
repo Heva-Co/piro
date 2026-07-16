@@ -185,6 +185,7 @@ builder.Services.AddScoped<AlertConfigAppService>();
 builder.Services.AddScoped<AlertAppService>();
 builder.Services.AddScoped<DashboardAppService>();
 builder.Services.AddScoped<IntegrationAppService>();
+builder.Services.AddScoped<GcpWebhookIngestionService>();
 builder.Services.AddScoped<CheckRunnerService>();
 builder.Services.AddScoped<ServiceStatusService>();
 builder.Services.AddScoped<IncidentAppService>();

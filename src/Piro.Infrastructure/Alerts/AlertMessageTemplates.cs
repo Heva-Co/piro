@@ -81,14 +81,19 @@ internal static class AlertMessageTemplates
 
     private static object BuildModel(AlertNotificationContext ctx) => new
     {
+        title = ctx.Title(),
         service_name = ctx.ServiceName,
         check_name = ctx.CheckName,
         service_url = ctx.ServiceUrl,
         check_url = ctx.CheckUrl,
+        alert_url = ctx.AlertUrl,
         current_status = ctx.CurrentStatus.ToString(),
         severity = ctx.Severity.ToString().ToUpperInvariant(),
         alert_description = ctx.AlertDescription,
         is_recovery = ctx.IsRecovery,
+        is_external = ctx.IsExternal,
+        source_label = ctx.SourceLabel,
+        source_url = ctx.SourceUrl,
         // Pre-formatted in the recipient's own time zone (see AlertNotificationContext.FiredAtDisplay) —
         // never derive display time from FiredAt directly, it's still the raw UTC instant.
         fired_at = ctx.FiredAtDisplay ?? ctx.FiredAt.ToString("u"),

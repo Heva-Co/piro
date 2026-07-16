@@ -40,7 +40,8 @@ public class SearchRepository(PiroDbContext db, UserManager<AppUser> userManager
             .Select(a => new SearchResultDto(
                 "Alert",
                 a.Message ?? $"Alert #{a.Id}",
-                a.Service.Name,
+                // Null for an external/orphan alert (RFC 0001) — no Service to attribute it to.
+                a.Service != null ? a.Service.Name : null,
                 $"/admin/alerts/{a.Id}",
                 a.IncidentId,
                 a.IncidentId != null ? $"/admin/incidents/{a.IncidentId}" : null))

@@ -18,4 +18,7 @@ public class EscalationPolicy
 
     /// <summary>Services that use this policy for their alerts' on-call escalation. One policy may serve many services.</summary>
     public ICollection<Service> Services { get; set; } = [];
+
+    /// <summary>Integrations whose orphan alerts (no Service to inherit from) use this policy — see RFC 0001 §4.3.</summary>
+    public ICollection<Integration> Integrations { get; set; } = [];
 }

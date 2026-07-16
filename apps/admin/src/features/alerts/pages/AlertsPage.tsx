@@ -9,6 +9,7 @@ import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { ROUTES } from "@/constants/routes";
 import StatItemSkeleton from "../components/StatItemSkeleton";
 import StatItem from "../components/StatItem";
+import { AlertSourceBadge } from "../components/AlertSourceBadge";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -60,8 +61,8 @@ export default function AlertsPage() {
   const filtered = alerts.filter((a) => {
     const q = search.toLowerCase();
     return (
-      a.checkName.toLowerCase().includes(q) ||
-      a.serviceName.toLowerCase().includes(q) ||
+      (a.checkName ?? "").toLowerCase().includes(q) ||
+      (a.serviceName ?? "").toLowerCase().includes(q) ||
       (a.message ?? "").toLowerCase().includes(q)
     );
   });
@@ -148,13 +149,19 @@ export default function AlertsPage() {
                     <StatusPill status={alert.impactAtFireTime} />
                   </TableCell>
                   <TableCell className="px-5 py-3 font-semibold">
-                    <Link
-                      to={ROUTES.CHECKS.DETAIL(alert.serviceSlug, alert.checkSlug)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="hover:underline"
-                    >
-                      {alert.checkName}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      {alert.checkSlug && alert.serviceSlug ? (
+                        <Link
+                          to={ROUTES.CHECKS.DETAIL(alert.serviceSlug, alert.checkSlug)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline"
+                        >
+                          {alert.checkName}
+                        </Link>
+                      ) : (
+                        <AlertSourceBadge source={alert.source} sourceLabel={alert.sourceLabel} sourceIconifyIcon={alert.sourceIconifyIcon} />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="px-5 py-3 text-muted-foreground">
                     <div className="flex items-center gap-1.5">
@@ -162,27 +169,31 @@ export default function AlertsPage() {
                         <Tooltip >
                           <TooltipTrigger render={<BellRing size={14} className="text-foreground shrink-0" />} />
                           <TooltipContent>
-                            Service has an escalation policy — alerts notify on-call
+                            Escalation policy assigned — alerts notify on-call
                           </TooltipContent>
                         </Tooltip>
                       ) : (
                         <Tooltip >
                           <TooltipTrigger render={<BellOff size={14} className="text-foreground shrink-0" />} />
                           <TooltipContent>
-                            No escalation policy assigned to this service
+                            No escalation policy assigned
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      <Link
-                        to={ROUTES.SERVICES.DETAIL(alert.serviceSlug)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="hover:underline"
-                      >
-                        {alert.serviceName}
-                      </Link>
+                      {alert.serviceSlug ? (
+                        <Link
+                          to={ROUTES.SERVICES.DETAIL(alert.serviceSlug)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline"
+                        >
+                          {alert.serviceName}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-muted-foreground max-w-xs truncate" title={alert.message}>
+                  <TableCell className="px-5 py-3 text-muted-foreground max-w-xs truncate" title={alert.message ?? undefined}>
                     {alert.message ?? "—"}
                   </TableCell>
                   <TableCell className="px-5 py-3">{alert.occurrenceCount}</TableCell>

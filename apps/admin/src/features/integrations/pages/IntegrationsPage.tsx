@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, Plug } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { integrationsApi } from "@/lib/api";
-import { integrationTypesApi } from "@/lib/actions/integrations";
+import { integrationsApi, integrationTypesApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 

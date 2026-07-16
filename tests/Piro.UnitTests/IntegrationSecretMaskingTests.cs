@@ -16,12 +16,17 @@ namespace Piro.UnitTests;
 /// </summary>
 public class IntegrationSecretMaskingTests
 {
+    private static readonly Guid IntegrationId1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid IntegrationId2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
     private readonly IIntegrationRepository _repo = Substitute.For<IIntegrationRepository>();
+    private readonly IWebhookRequestLogRepository _webhookLogRepo = Substitute.For<IWebhookRequestLogRepository>();
+    private readonly IEscalationPolicyRepository _escalationPolicyRepo = Substitute.For<IEscalationPolicyRepository>();
     private readonly IntegrationAppService _sut;
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo);
     }
 
     [Fact]
@@ -29,14 +34,14 @@ public class IntegrationSecretMaskingTests
     {
         var integration = new Integration
         {
-            Id = 1,
+            Id = IntegrationId1,
             Name = "Prod PagerDuty",
             Type = IntegrationType.PagerDuty,
             ConfigJson = """{"routingKey":"real-secret-value"}""",
         };
-        _repo.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(integration);
+        _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
 
-        var dto = await _sut.GetByIdAsync(1);
+        var dto = await _sut.GetByIdAsync(IntegrationId1);
 
         dto.ConfigJson.Should().NotContain("real-secret-value");
         dto.ConfigJson.Should().Contain(IntegrationAppService.MaskedSecretValue);
@@ -47,15 +52,15 @@ public class IntegrationSecretMaskingTests
     {
         var integrations = new[]
         {
-            new Integration { Id = 1, Name = "Jira", Type = IntegrationType.Jira, ConfigJson = """{"baseUrl":"https://x.atlassian.net","apiToken":"secret-token"}""" },
-            new Integration { Id = 2, Name = "GCP", Type = IntegrationType.GoogleCloud, ConfigJson = """{"serviceAccountJson":"{\"private_key\":\"secret\"}"}""" },
+            new Integration { Id = IntegrationId1, Name = "Jira", Type = IntegrationType.Jira, ConfigJson = """{"baseUrl":"https://x.atlassian.net","apiToken":"secret-token"}""" },
+            new Integration { Id = IntegrationId2, Name = "GCP", Type = IntegrationType.GoogleCloud, ConfigJson = """{"serviceAccountJson":"{\"private_key\":\"secret\"}"}""" },
         };
         _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(integrations);
 
         var dtos = (await _sut.GetAllAsync()).ToList();
 
         dtos.Should().AllSatisfy(d => d.ConfigJson.Should().NotContain("secret"));
-        dtos.Single(d => d.Id == 1).ConfigJson.Should().Contain("https://x.atlassian.net"); // non-secret field preserved
+        dtos.Single(d => d.Id == IntegrationId1).ConfigJson.Should().Contain("https://x.atlassian.net"); // non-secret field preserved
     }
 
     [Fact]
@@ -63,12 +68,12 @@ public class IntegrationSecretMaskingTests
     {
         var integration = new Integration
         {
-            Id = 1,
+            Id = IntegrationId1,
             Name = "Opsgenie",
             Type = IntegrationType.Opsgenie,
             ConfigJson = """{"apiKey":"real-secret-value","region":"US"}""",
         };
-        _repo.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(integration);
+        _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
@@ -76,7 +81,7 @@ public class IntegrationSecretMaskingTests
         var maskedConfigJson = $$"""{"apiKey":"{{IntegrationAppService.MaskedSecretValue}}","region":"EU"}""";
         var request = new UpdateIntegrationRequest(null, null, maskedConfigJson);
 
-        await _sut.UpdateAsync(1, request);
+        await _sut.UpdateAsync(IntegrationId1, request);
 
         await _repo.Received(1).UpdateAsync(
             Arg.Is<Integration>(i => i.ConfigJson.Contains("real-secret-value") && i.ConfigJson.Contains("\"region\":\"EU\"")),
@@ -88,18 +93,18 @@ public class IntegrationSecretMaskingTests
     {
         var integration = new Integration
         {
-            Id = 1,
+            Id = IntegrationId1,
             Name = "Opsgenie",
             Type = IntegrationType.Opsgenie,
             ConfigJson = """{"apiKey":"old-secret","region":"US"}""",
         };
-        _repo.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(integration);
+        _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
         var request = new UpdateIntegrationRequest(null, null, """{"apiKey":"new-secret","region":"US"}""");
 
-        await _sut.UpdateAsync(1, request);
+        await _sut.UpdateAsync(IntegrationId1, request);
 
         await _repo.Received(1).UpdateAsync(
             Arg.Is<Integration>(i => i.ConfigJson.Contains("new-secret") && !i.ConfigJson.Contains("old-secret")),
