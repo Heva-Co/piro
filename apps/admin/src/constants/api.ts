@@ -122,6 +122,7 @@ export const ENDPOINTS = {
   // Integrations
   INTEGRATIONS: `${API_BASE}/integrations`,
   INTEGRATION: (id: number | string) => `${API_BASE}/integrations/${id}`,
+  INTEGRATION_TYPES: `${API_BASE}/integrations/types`,
 
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
@@ -194,6 +195,7 @@ export const QUERY_KEYS = {
     ["alert-configs", serviceSlug, checkSlug] as const,
   INTEGRATIONS: ["integrations"] as const,
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
+  INTEGRATION_TYPES: ["integration-types"] as const,
   CHECK_TYPES: ["check-types"] as const,
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
   ONCALL_SCHEDULES_MEMBERS: ["oncall-schedules", "members"] as const,

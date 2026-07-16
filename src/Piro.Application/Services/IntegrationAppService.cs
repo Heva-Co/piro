@@ -73,7 +73,8 @@ public class IntegrationAppService(IIntegrationRepository repository)
     /// </summary>
     private static string MergeConfigJson(IntegrationType type, string existingConfigJson, string incomingConfigJson)
     {
-        if (!IntegrationExtensions.SecretKeysByType.TryGetValue(type, out var secretKeys))
+        var secretKeys = IntegrationExtensions.GetSecretKeys(type);
+        if (secretKeys.Length == 0)
             return incomingConfigJson;
 
         JsonNode? incomingNode;

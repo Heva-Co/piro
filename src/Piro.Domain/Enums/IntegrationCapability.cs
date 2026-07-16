@@ -1,0 +1,28 @@
+namespace Piro.Domain.Enums;
+
+/// <summary>
+/// Concrete things an IntegrationType can do, declared in its <see cref="Attributes.IntegrationManifestAttribute"/>.
+/// Additive metadata over facts that already exist in the running system (e.g. a dispatcher being
+/// registered) — not an authorization mechanism. An empty set is a valid, honest declaration for a
+/// type that has no wired-up consumer yet (e.g. PagerDuty, Jira today).
+/// </summary>
+[Flags]
+public enum IntegrationCapability
+{
+    None = 0,
+
+    /// <summary>Has a registered INotificationDispatcher for this IntegrationType.</summary>
+    SendsPersonalNotification = 1 << 0,
+
+    /// <summary>Some ICheckExecutor requires an Integration of this type (see RequiresIntegrationAttribute).</summary>
+    RequiredByCheckType = 1 << 1,
+
+    /// <summary>An inbound webhook that produces Alert rows.</summary>
+    CreatesAlerts = 1 << 2,
+
+    /// <summary>Integration.EscalationPolicyId is meaningful for this type.</summary>
+    SupportsEscalationPolicy = 1 << 3,
+
+    /// <summary>An inbound type that can optionally anchor an incoming signal to a Check.</summary>
+    SupportsCheckCorrelation = 1 << 4,
+}

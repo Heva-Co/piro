@@ -5,14 +5,26 @@ namespace Piro.Domain.Attributes;
 
 public static class IntegrationTypeExtensions
 {
-    public static bool IsChannelOnly(this IntegrationType type)
-    {
-        var attr = typeof(IntegrationType)
-            .GetField(type.ToString())
-            ?.GetCustomAttribute<IntegrationCategoryAttribute>();
-        return attr?.ChannelOnly ?? false;
-    }
+    /// <summary>
+    /// Whether this type's manifest marks it as not storing global credentials — configuration is
+    /// provided per Notification Channel instead.
+    /// </summary>
+    public static bool IsChannelOnly(this IntegrationType type) =>
+        type.GetManifest()?.ChannelOnly ?? false;
 
+    /// <summary>
+    /// String-keyed overload of <see cref="IsChannelOnly(IntegrationType)"/> for callers that only
+    /// have the type name (e.g. from an untyped request payload). Returns false if the name doesn't
+    /// parse to a known <see cref="IntegrationType"/>.
+    /// </summary>
     public static bool IsChannelOnly(this string typeName) =>
         Enum.TryParse(typeName, out IntegrationType parsed) && parsed.IsChannelOnly();
+
+    /// <summary>
+    /// Returns this type's declared manifest, or null for a type with none (e.g. the obsolete ones).
+    /// </summary>
+    public static IntegrationManifestAttribute? GetManifest(this IntegrationType type) =>
+        typeof(IntegrationType)
+            .GetField(type.ToString())
+            ?.GetCustomAttribute<IntegrationManifestAttribute>();
 }
