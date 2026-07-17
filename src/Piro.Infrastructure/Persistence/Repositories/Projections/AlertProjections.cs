@@ -46,6 +46,7 @@ internal static class AlertProjections
         a.IncidentId,
         a.Incident != null ? a.Incident.Title : null,
         a.EscalationCurrentStep,
+        a.EscalationExhaustedAt,
         a.AcknowledgedAt,
         a.AcknowledgedBy,
         a.Source,

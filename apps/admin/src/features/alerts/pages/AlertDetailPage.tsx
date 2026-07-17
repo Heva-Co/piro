@@ -29,6 +29,7 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { alertsApi } from "@/lib/actions/alerts";
 import { AlertSourceBadge } from "../components/AlertSourceBadge";
+import EscalationHaltedBanner from "../components/EscalationHaltedBanner";
 import { PayloadDialog } from "@/components/PayloadDialog";
 
 function apiErrorMessage(err: unknown, fallback: string) {
@@ -245,6 +246,10 @@ export default function AlertDetailPage() {
           </div>
         )}
       </SectionAccordion>
+
+      {alert.escalationExhaustedAt && !alert.resolvedAt && !alert.acknowledgedAt && (
+        <EscalationHaltedBanner exhaustedAt={alert.escalationExhaustedAt} />
+      )}
 
       <SectionAccordion
         title="Escalation"

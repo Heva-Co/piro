@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Settings, ListOrdered } from "lucide-react";
-import { escalationApi } from "@/lib/api";
-import type { UpsertEscalationPolicyRequest } from "@/lib/api";
+import { escalationApi } from "@/lib/actions/escalation";
+import type { UpsertEscalationPolicyRequest } from "@/lib/actions/escalation";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { PageHeader } from "@/components/PageHeader";
@@ -39,7 +39,13 @@ export default function EscalationPolicyDetailPage() {
       name: policy!.name,
       description: policy!.description,
       reEscalateAfterInactivityMinutes: policy!.reEscalateAfterInactivityMinutes,
-      steps: policy!.steps.map((s) => ({ order: s.order, delayMinutes: s.delayMinutes, scheduleId: s.scheduleId })),
+      steps: policy!.steps.map((s) => ({
+        order: s.order,
+        delayMinutes: s.delayMinutes,
+        maxRetries: s.maxRetries,
+        retryIntervalMinutes: s.retryIntervalMinutes,
+        scheduleId: s.scheduleId,
+      })),
       ...overrides,
     };
   }

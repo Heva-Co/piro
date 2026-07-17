@@ -10,7 +10,7 @@ public static class EscalationPolicyExtensions
         p.Id, p.Name, p.Description,
         p.ReEscalateAfterInactivityMinutes,
         p.Steps.OrderBy(s => s.Order)
-            .Select(s => new EscalationStepDto(s.Id, s.Order, s.DelayMinutes, s.ScheduleId, s.Schedule?.Name ?? ""))
+            .Select(s => new EscalationStepDto(s.Id, s.Order, s.DelayMinutes, s.MaxRetries, s.RetryIntervalMinutes, s.ScheduleId, s.Schedule?.Name ?? ""))
             .ToList()
     );
 }
