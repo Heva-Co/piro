@@ -32,6 +32,7 @@ import {
   Clock,
   TriangleAlert,
   Search,
+  DatabaseZap,
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,6 +81,7 @@ const configNavItems: NavItem[] = [
   { label: "Site", to: ROUTES.CONFIG.SITE, icon: <Globe size={18} /> },
   { label: "Email", to: ROUTES.CONFIG.EMAIL, icon: <Mail size={18} /> },
   { label: "Jobs", to: ROUTES.CONFIG.JOBS, icon: <Clock size={18} /> },
+  { label: "Data Retention", to: ROUTES.CONFIG.DATA_RETENTION, icon: <DatabaseZap size={18} /> },
 ];
 
 interface SidebarProps {

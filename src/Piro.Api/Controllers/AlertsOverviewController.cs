@@ -67,4 +67,25 @@ public class AlertsOverviewController(AlertAppService alertApp) : ControllerBase
         var name = User.FindFirstValue("name") ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
         return Ok(await alertApp.AcknowledgeAsync(id, name, ct));
     }
+
+    /// <summary>
+    /// Data-retention preview: how many resolved, non-incident-linked alerts would be deleted with a
+    /// given cutoff. Read-only — does not delete anything. Owner/Admin only.
+    /// </summary>
+    [HttpGet("retention/preview")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<AlertRetentionResultDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewRetention([FromQuery] DateTimeOffset resolvedBefore, CancellationToken ct) =>
+        Ok(await alertApp.PreviewDeleteResolvedAlertsAsync(resolvedBefore, ct));
+
+    /// <summary>
+    /// Data-retention cleanup: permanently deletes resolved alerts resolved before the given cutoff
+    /// that are not linked to an incident. Active and incident-linked alerts are always preserved.
+    /// Owner/Admin only.
+    /// </summary>
+    [HttpPost("retention/delete")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<AlertRetentionResultDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteByRetention([FromBody] DeleteAlertsRequest request, CancellationToken ct) =>
+        Ok(await alertApp.DeleteResolvedAlertsAsync(request.ResolvedBefore, ct));
 }

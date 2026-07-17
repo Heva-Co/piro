@@ -7,6 +7,7 @@ export type AlertSummary = components["schemas"]["AlertSummaryDto"];
 export type AlertDetail = components["schemas"]["AlertDetailDto"];
 export type AlertPage = components["schemas"]["AlertPageDto"];
 export type EscalationDeliveryLog = components["schemas"]["EscalationDeliveryLogDto"];
+export type AlertRetentionResult = components["schemas"]["AlertRetentionResultDto"];
 
 export const alertsApi = {
   list: (params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) =>
@@ -26,4 +27,16 @@ export const alertsApi = {
 
   getEscalationLogs: (id: number | string) =>
     api.get<EscalationDeliveryLog[]>(ENDPOINTS.ALERT_ESCALATION_LOGS(id)).then((r) => r.data),
+
+  // Data retention: preview how many resolved (non-incident-linked) alerts a cutoff would delete…
+  previewRetention: (resolvedBefore: string) =>
+    api
+      .get<AlertRetentionResult>(ENDPOINTS.ALERTS_RETENTION_PREVIEW, { params: { resolvedBefore } })
+      .then((r) => r.data),
+
+  // …and permanently delete them.
+  deleteByRetention: (resolvedBefore: string) =>
+    api
+      .post<AlertRetentionResult>(ENDPOINTS.ALERTS_RETENTION_DELETE, { resolvedBefore })
+      .then((r) => r.data),
 };

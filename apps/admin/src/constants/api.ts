@@ -49,6 +49,8 @@ export const ENDPOINTS = {
   ALERT_INCIDENT: (id: number | string) => `${API_BASE}/alerts/${id}/incident`,
   ALERT_ACKNOWLEDGE: (id: number | string) => `${API_BASE}/alerts/${id}/acknowledge`,
   ALERT_ESCALATION_LOGS: (id: number | string) => `${API_BASE}/alerts/${id}/escalation-logs`,
+  ALERTS_RETENTION_PREVIEW: `${API_BASE}/alerts/retention/preview`,
+  ALERTS_RETENTION_DELETE: `${API_BASE}/alerts/retention/delete`,
 
   // Dashboard
   DASHBOARD_METRICS: `${API_BASE}/dashboard/metrics`,
@@ -173,6 +175,8 @@ export const QUERY_KEYS = {
   CHECKS: ["checks"] as const,
   ALERTS: ["alerts"] as const,
   ALERT: (id: number | string) => ["alerts", id] as const,
+  // Prefix key — invalidate this to refresh every dashboard-metrics query regardless of date range.
+  DASHBOARD_METRICS_ALL: ["dashboard-metrics"] as const,
   DASHBOARD_METRICS: (from: string, to: string) => ["dashboard-metrics", from, to] as const,
   SERVICE_CHECKS: (serviceSlug: string) => ["checks", serviceSlug] as const,
   SERVICE_CHECK: (serviceSlug: string, checkSlug: string) =>

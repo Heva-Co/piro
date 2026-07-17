@@ -531,6 +531,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts/retention/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data-retention preview: how many resolved, non-incident-linked alerts would be deleted with a
+         *     given cutoff. Read-only — does not delete anything. Owner/Admin only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    resolvedBefore?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AlertRetentionResultDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/retention/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Data-retention cleanup: permanently deletes resolved alerts resolved before the given cutoff
+         *     that are not linked to an incident. Active and incident-linked alerts are always preserved.
+         *     Owner/Admin only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeleteAlertsRequest"];
+                    "text/json": components["schemas"]["DeleteAlertsRequest"];
+                    "application/*+json": components["schemas"]["DeleteAlertsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AlertRetentionResultDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/sign-in": {
         parameters: {
             query?: never;
@@ -6393,6 +6480,10 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        AlertRetentionResultDto: {
+            /** Format: int32 */
+            count: number;
+        };
         /** @enum {unknown} */
         AlertSeverity: "Warning" | "Critical";
         /** @enum {unknown} */
@@ -6737,6 +6828,10 @@ export interface components {
             alertMetrics: components["schemas"]["AlertMetricsDto"];
             dailyIncidentCounts: components["schemas"]["DailyIncidentCountDto"][];
             incidentsByService: components["schemas"]["ServiceIncidentCountDto"][];
+        };
+        DeleteAlertsRequest: {
+            /** Format: date-time */
+            resolvedBefore: string;
         };
         DependencyDto: {
             serviceSlug: string;

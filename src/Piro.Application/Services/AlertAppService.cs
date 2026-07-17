@@ -127,6 +127,27 @@ public class AlertAppService(
         return await GetByIdAsync(alertId, ct);
     }
 
+    /// <summary>
+    /// Counts resolved alerts eligible for retention cleanup before the given cutoff (preview for the
+    /// destructive delete) — same predicate as <see cref="DeleteResolvedAlertsAsync"/>.
+    /// </summary>
+    public async Task<AlertRetentionResultDto> PreviewDeleteResolvedAlertsAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default)
+    {
+        var count = await alertRepository.CountResolvedBeforeAsync(resolvedBefore, ct);
+        return new AlertRetentionResultDto(count);
+    }
+
+    /// <summary>
+    /// Data-retention cleanup: permanently deletes resolved alerts resolved before the given cutoff
+    /// that are not linked to an Incident. Active and incident-linked alerts are always preserved.
+    /// Returns how many alerts were deleted.
+    /// </summary>
+    public async Task<AlertRetentionResultDto> DeleteResolvedAlertsAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default)
+    {
+        var deleted = await alertRepository.DeleteResolvedBeforeAsync(resolvedBefore, ct);
+        return new AlertRetentionResultDto(deleted);
+    }
+
     /// <summary>Acknowledges an alert, pausing its on-call escalation (see EscalationCheckerService).</summary>
     public async Task<AlertDetailDto> AcknowledgeAsync(int alertId, string acknowledgedBy, CancellationToken ct = default)
     {
