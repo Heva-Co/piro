@@ -54,8 +54,20 @@ public class Alert
     /// <summary>0-based index of the current escalation step. Null = not yet initialized.</summary>
     public int? EscalationCurrentStep { get; set; }
 
-    /// <summary>When the current step became active. Step 0 uses <see cref="FiredAt"/>; subsequent steps use dispatch time.</summary>
+    /// <summary>When the current step became active. Step 0 uses <see cref="FiredAt"/>; subsequent steps use dispatch time.
+    /// Also serves as the timestamp of the current step's last attempt, gating <see cref="EscalationStep.RetryIntervalMinutes"/>.</summary>
     public DateTimeOffset? EscalationStepStartedAt { get; set; }
+
+    /// <summary>How many times the CURRENT escalation step has notified its on-call users. Reset to
+    /// 0 each time escalation advances to a new step. Compared against <see cref="EscalationStep.MaxRetries"/>
+    /// to decide when to hand off to the next step.</summary>
+    public int EscalationStepAttempts { get; set; }
+
+    /// <summary>Set when escalation stops because the LAST step exhausted its retries without an ACK
+    /// or resolution. While non-null the alert is skipped by the escalation job — a persisted
+    /// terminal escalation state, distinct from <see cref="ResolvedAt"/> (the problem is still open).
+    /// Cleared if the alert is later acknowledged, so a human taking over can still drive escalation.</summary>
+    public DateTimeOffset? EscalationExhaustedAt { get; set; }
 
     /// <summary>Unix timestamp (seconds) when a team member acknowledged this alert. Null if not yet acknowledged.</summary>
     public long? AcknowledgedAt { get; set; }

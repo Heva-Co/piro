@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useService, useUpdateService } from "@/hooks/useServices";
-import { escalationApi } from "@/lib/api";
+import { escalationApi } from "@/lib/actions/escalation";
 import { QUERY_KEYS } from "@/constants/api";
 import { Save, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";

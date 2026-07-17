@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Plus, Siren } from "lucide-react";
-import { escalationApi } from "@/lib/api";
+import { escalationApi } from "@/lib/actions/escalation";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { PageHeader } from "@/components/PageHeader";
@@ -58,7 +58,7 @@ export default function EscalationPoliciesPage() {
     mutationFn: () =>
       escalationApi.create({
         name,
-        description: description || undefined,
+        description: description || null,
         reEscalateAfterInactivityMinutes: 0,
         steps: [],
       }),
