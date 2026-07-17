@@ -1,7 +1,12 @@
 changelog:
   exclude:
     labels:
-      # Meta / triage labels — not meaningful in a changelog
+      # Meta / triage labels — not meaningful in a changelog.
+      # NOTE: only put labels here that should HIDE a change entirely. GitHub evaluates
+      # exclude.labels first and as an OR — a PR with ANY of these is dropped before
+      # categorization, even if it also has `enhancement`/`bug`/etc. Do NOT list area
+      # labels (auth, notifications, config-as-code, …) here: a real feature PR that
+      # happens to touch that area would silently vanish from the release notes.
       - ignore-for-release
       - duplicate
       - invalid
@@ -10,10 +15,6 @@ changelog:
       - help wanted
       - good first issue
       - partial
-      # Area labels — used for filtering issues, not for classifying changes
-      - auth
-      - notifications
-      - config-as-code
   categories:
     - title: "New Features"
       labels:
