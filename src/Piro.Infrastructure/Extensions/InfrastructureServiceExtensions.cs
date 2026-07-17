@@ -202,15 +202,12 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
         // Alert dispatchers — registered as IEnumerable<INotificationDispatcher>.
-        // Webhook/Slack/GoogleChat/Discord are not registered: their DispatchPersonalAsync was
-        // never implemented (always returns false) and they're not supported for now — see
-        // IntegrationType for the corresponding commented-out enum values.
+        // Webhook/Slack/GoogleChat/Discord/MsTeams/Opsgenie/Pushover/PagerDuty are not registered:
+        // their DispatchPersonalAsync is a stub (always returns false) or has no dispatcher at all,
+        // and they're not supported for now — see the [Obsolete] IntegrationType enum values.
         services.AddScoped<INotificationDispatcher, EmailDispatcher>();
         services.AddScoped<INotificationDispatcher, TelegramDispatcher>();
         services.AddScoped<INotificationDispatcher, TwilioSmsDispatcher>();
-        services.AddScoped<INotificationDispatcher, MsTeamsDispatcher>();
-        services.AddScoped<INotificationDispatcher, OpsgenieDispatcher>();
-        services.AddScoped<INotificationDispatcher, PushoverDispatcher>();
         services.AddScoped<INotificationDispatcher, NtfyDispatcher>();
 
         // Worker repositories

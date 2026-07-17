@@ -35,9 +35,9 @@ public class IntegrationSecretMaskingTests
         var integration = new Integration
         {
             Id = IntegrationId1,
-            Name = "Prod PagerDuty",
-            Type = IntegrationType.PagerDuty,
-            ConfigJson = """{"routingKey":"real-secret-value"}""",
+            Name = "Prod Jira",
+            Type = IntegrationType.Jira,
+            ConfigJson = """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
 
@@ -69,22 +69,22 @@ public class IntegrationSecretMaskingTests
         var integration = new Integration
         {
             Id = IntegrationId1,
-            Name = "Opsgenie",
-            Type = IntegrationType.Opsgenie,
-            ConfigJson = """{"apiKey":"real-secret-value","region":"US"}""",
+            Name = "Jira",
+            Type = IntegrationType.Jira,
+            ConfigJson = """{"apiToken":"real-secret-value","projectKey":"OLD"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
         // Client fetched the masked DTO, changed nothing about the secret, and resubmitted the sentinel.
-        var maskedConfigJson = $$"""{"apiKey":"{{IntegrationAppService.MaskedSecretValue}}","region":"EU"}""";
+        var maskedConfigJson = $$"""{"apiToken":"{{IntegrationAppService.MaskedSecretValue}}","projectKey":"NEW"}""";
         var request = new UpdateIntegrationRequest(null, null, maskedConfigJson);
 
         await _sut.UpdateAsync(IntegrationId1, request);
 
         await _repo.Received(1).UpdateAsync(
-            Arg.Is<Integration>(i => i.ConfigJson.Contains("real-secret-value") && i.ConfigJson.Contains("\"region\":\"EU\"")),
+            Arg.Is<Integration>(i => i.ConfigJson.Contains("real-secret-value") && i.ConfigJson.Contains("\"projectKey\":\"NEW\"")),
             Arg.Any<CancellationToken>());
     }
 
@@ -94,15 +94,15 @@ public class IntegrationSecretMaskingTests
         var integration = new Integration
         {
             Id = IntegrationId1,
-            Name = "Opsgenie",
-            Type = IntegrationType.Opsgenie,
-            ConfigJson = """{"apiKey":"old-secret","region":"US"}""",
+            Name = "Jira",
+            Type = IntegrationType.Jira,
+            ConfigJson = """{"apiToken":"old-secret","projectKey":"KEY"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
-        var request = new UpdateIntegrationRequest(null, null, """{"apiKey":"new-secret","region":"US"}""");
+        var request = new UpdateIntegrationRequest(null, null, """{"apiToken":"new-secret","projectKey":"KEY"}""");
 
         await _sut.UpdateAsync(IntegrationId1, request);
 
