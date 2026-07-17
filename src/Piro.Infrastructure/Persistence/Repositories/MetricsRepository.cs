@@ -67,10 +67,13 @@ internal class MetricsRepository(PiroDbContext db) : IMetricsRepository
                 ? null
                 : (double)alertRows.Count(r => r.IncidentId is not null) / alertRows.Count,
             AlertCount: alertRows.Count,
-            DailyAlertCounts: alertRows
-                .GroupBy(r => DateOnly.FromDateTime(r.FiredAt.UtcDateTime))
-                .Select(g => new DailyAlertCountDto(g.Key, g.Count()))
-                .OrderBy(d => d.Date)
+            // Volume counts distinct Alert rows (instances), NOT Alert.OccurrenceCount. Repeated
+            // failing evaluations with the same fingerprint fold into one row's OccurrenceCount
+            // (see AlertLifecycleService) — those repeats must not inflate the volume, so this is
+            // one per row, never a sum of OccurrenceCount. Zero-filled across every day in range so
+            // the chart shows the whole month, not only days that happened to have alerts.
+            DailyAlertCounts: DailyCounts(from, to, alertRows, r => r.FiredAt.UtcDateTime)
+                .Select(d => new DailyAlertCountDto(d.Date, d.Count))
                 .ToList(),
             // Both exclude external/orphan alerts (RFC 0001) — no Service/Severity to attribute them to.
             AlertsByService: alertRows
@@ -87,10 +90,9 @@ internal class MetricsRepository(PiroDbContext db) : IMetricsRepository
                 .ToList()
         );
 
-        var dailyIncidentCounts = incidentRows
-            .GroupBy(r => DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(r.StartDateTime).UtcDateTime))
-            .Select(g => new DailyIncidentCountDto(g.Key, g.Count()))
-            .OrderBy(d => d.Date)
+        // Zero-filled across every day in range (see DailyAlertCounts) so the chart shows the whole month.
+        var dailyIncidentCounts = DailyCounts(from, to, incidentRows, r => DateTimeOffset.FromUnixTimeSeconds(r.StartDateTime).UtcDateTime)
+            .Select(d => new DailyIncidentCountDto(d.Date, d.Count))
             .ToList();
 
         var incidentsByService = incidentRows
@@ -113,5 +115,25 @@ internal class MetricsRepository(PiroDbContext db) : IMetricsRepository
     {
         var list = values.ToList();
         return list.Count == 0 ? null : list.Average();
+    }
+
+    /// <summary>
+    /// Buckets <paramref name="rows"/> into one entry per calendar day (UTC) across the whole
+    /// [<paramref name="from"/>, <paramref name="to"/>) range, ordered ascending — days with no rows
+    /// get a count of 0 so the caller renders a continuous series, not just the days that had data.
+    /// </summary>
+    private static List<(DateOnly Date, int Count)> DailyCounts<T>(
+        DateTimeOffset from, DateTimeOffset to, IEnumerable<T> rows, Func<T, DateTime> dayOf)
+    {
+        var counts = rows
+            .GroupBy(r => DateOnly.FromDateTime(dayOf(r)))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var result = new List<(DateOnly, int)>();
+        // `to` is exclusive (see currentMonthRange in the admin), so iterate up to but not including it.
+        for (var day = DateOnly.FromDateTime(from.UtcDateTime); day < DateOnly.FromDateTime(to.UtcDateTime); day = day.AddDays(1))
+            result.Add((day, counts.GetValueOrDefault(day)));
+
+        return result;
     }
 }

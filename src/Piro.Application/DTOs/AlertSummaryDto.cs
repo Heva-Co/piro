@@ -100,6 +100,16 @@ public record AlertDetailDto(
 /// </summary>
 public record LinkAlertToIncidentRequest(int? IncidentId, IReadOnlyList<int>? ServiceIds = null);
 
+/// <summary>
+/// Request for the Data Retention "delete resolved alerts up to a date" action. Deletes only
+/// resolved alerts (ResolvedAt strictly before <see cref="ResolvedBefore"/>) that are not linked to
+/// an Incident — active and incident-linked alerts are always preserved.
+/// </summary>
+public record DeleteAlertsRequest(DateTimeOffset ResolvedBefore);
+
+/// <summary>Result of a retention preview/delete — how many resolved alerts match the cutoff.</summary>
+public record AlertRetentionResultDto(int Count);
+
 /// <summary>A single on-call delivery attempt in an alert's escalation history — see <see cref="Piro.Domain.Entities.EscalationDeliveryLog"/>.</summary>
 public record EscalationDeliveryLogDto(
     int StepIndex,

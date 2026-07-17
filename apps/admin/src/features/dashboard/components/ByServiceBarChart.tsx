@@ -1,18 +1,24 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import MetricInfo from "@/features/dashboard/components/MetricInfo";
 
 interface Props {
   title: string;
   data: { serviceName: string; count: number }[];
   emptyLabel: string;
   seriesName: string;
+  /** Optional explanation of how the metric is generated/calculated, shown via a "?" tooltip. */
+  info?: string;
 }
 
 function ByServiceBarChart(props: Props) {
-  const { title, data, emptyLabel, seriesName } = props;
+  const { title, data, emptyLabel, seriesName, info } = props;
 
   return (
     <div className="flex-1 bg-card rounded-lg border border-border shadow-sm p-5">
-      <h3 className="text-sm font-medium text-foreground mb-3">{title}</h3>
+      <div className="flex items-center gap-1.5 mb-3">
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        {info && <MetricInfo text={info} />}
+      </div>
       {data.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">{emptyLabel}</p>
       ) : (
@@ -32,7 +38,8 @@ function ByServiceBarChart(props: Props) {
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--color-border)" }}
               labelStyle={{ color: "var(--color-foreground)" }}
             />
-            <Bar dataKey="count" name={seriesName} fill="var(--color-chart-2)" radius={[0, 4, 4, 0]} />
+            {/* Cap thickness so a chart with only one or two services doesn't render huge bars. */}
+            <Bar dataKey="count" name={seriesName} fill="var(--color-chart-2)" radius={[0, 4, 4, 0]} maxBarSize={32} />
           </BarChart>
         </ResponsiveContainer>
       )}
