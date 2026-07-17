@@ -47,6 +47,7 @@ import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import ImportPage from "@/features/configuration/pages/ImportPage";
 import JobsPage from "@/features/configuration/pages/JobsPage";
+import DataRetentionPage from "@/features/configuration/pages/DataRetentionPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 import EscalationPoliciesPage from "@/features/escalation/pages/EscalationPoliciesPage";
@@ -145,6 +146,7 @@ export default function App() {
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
               <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
               <Route path={ROUTES.CONFIG.JOBS} element={<JobsPage />} />
+              <Route path={ROUTES.CONFIG.DATA_RETENTION} element={<DataRetentionPage />} />
 
               {/* On-Call */}
               <Route path={ROUTES.ONCALL.LIST} element={<OnCallSchedulesPage />} />

@@ -67,6 +67,7 @@ export const ROUTES = {
     WORKERS_NEW: "/admin/configuration/workers/new",
     IMPORT: "/admin/configuration/import",
     JOBS: "/admin/configuration/jobs",
+    DATA_RETENTION: "/admin/configuration/data-retention",
   },
 
   // On-call schedules
