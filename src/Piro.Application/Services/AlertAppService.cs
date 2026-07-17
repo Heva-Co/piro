@@ -7,8 +7,10 @@ using Piro.Domain.Exceptions;
 
 namespace Piro.Application.Services;
 
-/// <summary>Application service for the global Alerts overview list, and manual Alert lifecycle actions
-/// (linking to an Incident, acknowledging) — Piro no longer correlates Alerts into Incidents automatically.</summary>
+/// <summary>
+/// Application service for the global Alerts overview list, and manual Alert lifecycle actions
+/// (linking to an Incident, acknowledging) — Piro no longer correlates Alerts into Incidents automatically.
+/// </summary>
 public class AlertAppService(
     IAlertRepository alertRepository,
     IIncidentRepository incidentRepository,
@@ -17,10 +19,7 @@ public class AlertAppService(
     public async Task<AlertPageDto> GetPagedAsync(AlertQueryParams query, CancellationToken ct = default)
     {
         var (rows, total, allTimeTotal) = await alertRepository.GetPagedSummaryAsync(query, ct);
-        var items = rows.Select(r => new AlertSummaryDto(
-            r.Id, r.CheckSlug, r.CheckName, r.ServiceSlug, r.ServiceName,
-            r.AlertConfigDescription, r.Message, r.ImpactAtFireTime,
-            r.FiredAt, r.ResolvedAt, r.OccurrenceCount, r.IncidentId, r.HasEscalationPolicy));
+        var items = rows.Select(r => r.ToDto());
         return new AlertPageDto(items, total, Math.Max(1, query.Page), Math.Clamp(query.PageSize, 10, 200), allTimeTotal);
     }
 
@@ -28,12 +27,7 @@ public class AlertAppService(
     {
         var row = await alertRepository.GetDetailByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Alert), id.ToString());
-        return new AlertDetailDto(
-            row.Id, row.CheckSlug, row.CheckName, row.ServiceSlug, row.ServiceName,
-            row.AlertConfigId, row.AlertFor, row.AlertValue, row.FailureThreshold, row.SuccessThreshold,
-            row.AlertConfigDescription, row.Message, row.ImpactAtFireTime, row.Severity,
-            row.FiredAt, row.ResolvedAt, row.OccurrenceCount, row.IncidentId, row.IncidentTitle,
-            row.EscalationCurrentStep, row.AcknowledgedAt, row.AcknowledgedBy);
+        return row.ToDto();
     }
 
     /// <summary>Returns the full on-call delivery history for this alert's escalation, most recent first.</summary>
@@ -64,33 +58,51 @@ public class AlertAppService(
         if (alert.IncidentId is not null)
             throw new DomainValidationException("This alert is already linked to an incident.");
 
+        // Orphan alerts (RFC 0001 §4.2/§4.9) have no ServiceId of their own — the admin picks which
+        // Service(s), if any, this promotion should affect. A request with no ServiceIds is valid
+        // and produces an Incident with no IncidentService rows.
+        var serviceIds = alert.ServiceId is int ownServiceId
+            ? [ownServiceId]
+            : request.ServiceIds ?? [];
+
         Incident incident;
         if (request.IncidentId is int existingId)
         {
             incident = await incidentRepository.GetByIdAsync(existingId, ct)
                 ?? throw new NotFoundException(nameof(Incident), existingId.ToString());
 
-            if (!incident.IncidentServices.Any(s => s.ServiceId == alert.ServiceId))
+            var changed = false;
+            foreach (var serviceId in serviceIds)
             {
+                if (incident.IncidentServices.Any(s => s.ServiceId == serviceId))
+                    continue;
+
                 incident.IncidentServices.Add(new IncidentService
                 {
-                    ServiceId = alert.ServiceId,
+                    ServiceId = serviceId,
                     Impact = alert.ImpactAtFireTime,
                     TriggeringCheckId = alert.CheckId,
                 });
-                await incidentRepository.UpdateAsync(incident, ct);
+                changed = true;
             }
+            if (changed)
+                await incidentRepository.UpdateAsync(incident, ct);
         }
         else
         {
-            var created = await incidentAppService.CreateAlertIncidentAsync(
-                IncidentTitleFactory.Build(alert.Check.Type), ct);
-            created.IncidentServices.Add(new IncidentService
+            var title = alert.Check is not null
+                ? IncidentTitleFactory.Build(alert.Check.Type)
+                : "Alert-sourced incident";
+            var created = await incidentAppService.CreateAlertIncidentAsync(title, ct);
+            foreach (var serviceId in serviceIds)
             {
-                ServiceId = alert.ServiceId,
-                Impact = alert.ImpactAtFireTime,
-                TriggeringCheckId = alert.CheckId,
-            });
+                created.IncidentServices.Add(new IncidentService
+                {
+                    ServiceId = serviceId,
+                    Impact = alert.ImpactAtFireTime,
+                    TriggeringCheckId = alert.CheckId,
+                });
+            }
             incident = await incidentRepository.CreateAsync(created, ct);
             await incidentRepository.AddTimelineEventAsync(new IncidentTimelineEvent
             {
@@ -120,6 +132,9 @@ public class AlertAppService(
     {
         var alert = await alertRepository.GetByIdAsync(alertId, ct)
             ?? throw new NotFoundException(nameof(Alert), alertId.ToString());
+
+        if (alert.ResolvedAt is not null)
+            throw new DomainValidationException("This alert is already resolved — nothing to acknowledge.");
 
         if (alert.AcknowledgedAt is null)
         {

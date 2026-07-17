@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MASKED_SECRET_VALUE } from "@/constants/integrations";
 import type { ConfigFieldSchema } from "@/lib/actions/integrations";
+import { GeneratedConfigField } from "./GeneratedConfigField";
 
 /** Visual-only stand-in shown in a masked password input — never sent to the server as-is. */
 const MASKED_PASSWORD_PLACEHOLDER = "••••••••••••";
@@ -14,11 +15,27 @@ interface Props {
   value: string;
   error?: string;
   onChange: (value: string) => void;
+  /** True while creating a new Integration — a generated field has no value yet to show. */
+  isCreating: boolean;
+  /** Regenerates this field's value server-side — undefined while creating (nothing to regenerate yet). */
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
 export function DynamicConfigField(props: Props) {
-  const { field, value, error, onChange } = props;
+  const { field, value, error, onChange, isCreating, onRegenerate, isRegenerating } = props;
   const isMasked = field.isSecret && value === MASKED_SECRET_VALUE;
+
+  if (field.isGenerated)
+    return (
+      <GeneratedConfigField
+        field={field}
+        value={value}
+        isCreating={isCreating}
+        onRegenerate={onRegenerate}
+        isRegenerating={isRegenerating}
+      />
+    );
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

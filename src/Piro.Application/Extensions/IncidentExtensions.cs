@@ -17,7 +17,7 @@ public static class IncidentExtensions
             s.Impact,
             s.TriggeringCheck?.Slug)),
         i.Alerts.Select(a => new AlertDto(
-            a.Id, a.Check?.Slug ?? a.CheckId.ToString(), a.AlertConfig?.Description,
+            a.Id, a.Check?.Slug ?? a.CheckId?.ToString(), a.AlertConfig?.Description,
             a.Message, a.ImpactAtFireTime, a.FiredAt, a.ResolvedAt, a.OccurrenceCount,
             a.AcknowledgedAt, a.AcknowledgedBy, a.EscalationCurrentStep)),
         i.CreatedAt, i.UpdatedAt,

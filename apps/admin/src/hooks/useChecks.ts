@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { alertsApi } from "@/lib/api";
+import { alertsApi } from "@/lib/actions/alerts";
 import { checksApi } from "@/lib/actions/checks";
 import type { CreateCheckRequest, UpdateCheckRequest } from "@/lib/actions/checks";
 import { alertConfigsApi } from "@/lib/actions/alert-configs";

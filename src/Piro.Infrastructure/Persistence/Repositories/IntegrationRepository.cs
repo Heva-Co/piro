@@ -8,15 +8,19 @@ namespace Piro.Infrastructure.Persistence.Repositories;
 public class IntegrationRepository(PiroDbContext db) : IIntegrationRepository
 {
     public async Task<IEnumerable<Integration>> GetAllAsync(CancellationToken ct = default)
-        => await db.Integrations
+    {
+        return await db.Integrations
             .Include(i => i.Checks)
             .OrderBy(i => i.Name)
             .ToListAsync(ct);
+    }
 
-    public async Task<Integration?> GetByIdAsync(int id, CancellationToken ct = default)
-        => await db.Integrations
+    public async Task<Integration?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await db.Integrations
             .Include(i => i.Checks)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
+    }
 
     public async Task<Integration> CreateAsync(Integration integration, CancellationToken ct = default)
     {

@@ -1,6 +1,6 @@
 # RFC 0001 — Third-party alert ingestion (GCP Cloud Monitoring)
 
-Status: proposal
+Status: implemented (Phases 1–3; PR #173)
 Author: Arael Espinosa (assisted draft)
 Date: 2026-07-13 (revised 2026-07-14, 2026-07-15, 2026-07-16)
 

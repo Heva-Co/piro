@@ -79,7 +79,7 @@ const baseCheckSchema = z.object({
   // Heartbeat
   gracePeriodSeconds: z.number(),
   // GCP Cloud Run Job
-  integrationId: z.union([z.number(), z.literal("")]),
+  integrationId: z.union([z.string(), z.literal("")]),
   projectId: z.string(),
   region: z.string(),
   jobName: z.string(),

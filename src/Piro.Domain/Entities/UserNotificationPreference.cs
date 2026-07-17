@@ -21,7 +21,7 @@ public class UserNotificationPreference
     public PersonalNotificationChannel Channel { get; set; }
 
     /// <summary>Required when <see cref="Channel"/> needs platform credentials — the Integration providing them.</summary>
-    public int? IntegrationId { get; set; }
+    public Guid? IntegrationId { get; set; }
     public Integration? Integration { get; set; }
 
     /// <summary>Personal handle for this channel: TelegramChatId, phone number, email address, etc.</summary>
