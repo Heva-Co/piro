@@ -79,6 +79,9 @@ public record AlertDetailDto(
     int? IncidentId,
     string? IncidentTitle,
     int? EscalationCurrentStep,
+    /// <summary>Set when escalation stopped after the last step exhausted its retries (RFC 0006). Terminal
+    /// escalation state — distinct from ResolvedAt (the problem is still open); acknowledging clears it.</summary>
+    DateTimeOffset? EscalationExhaustedAt,
     long? AcknowledgedAt,
     string? AcknowledgedBy,
     AlertSource Source,

@@ -22,7 +22,7 @@ public static class AlertExtensions
         row.AlertConfigId, row.AlertFor, row.AlertValue, row.FailureThreshold, row.SuccessThreshold,
         row.AlertConfigDescription, row.Message, row.ImpactAtFireTime, row.Severity,
         row.FiredAt, row.ResolvedAt, row.OccurrenceCount, row.IncidentId, row.IncidentTitle,
-        row.EscalationCurrentStep, row.AcknowledgedAt, row.AcknowledgedBy, row.Source,
+        row.EscalationCurrentStep, row.EscalationExhaustedAt, row.AcknowledgedAt, row.AcknowledgedBy, row.Source,
         row.Source.GetSourceLabel(), row.Source.GetSourceIconifyIcon(),
         row.SourceRawPayload, row.SourceUrl);
 

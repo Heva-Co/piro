@@ -771,30 +771,8 @@ export const onCallApi = {
     api.put<OnCallSchedule>(ENDPOINTS.ONCALL_SCHEDULE_ROTATIONS(scheduleId), batch).then((r) => r.data),
 };
 
-// ─── Escalation ──────────────────────────────────────────────────────────────
-
-export interface EscalationStep {
-  id: number;
-  order: number;
-  delayMinutes: number;
-  scheduleId: number;
-  scheduleName: string;
-}
-
-export interface EscalationPolicy {
-  id: number;
-  name: string;
-  description?: string;
-  reEscalateAfterInactivityMinutes: number;
-  steps: EscalationStep[];
-}
-
-export interface UpsertEscalationPolicyRequest {
-  name: string;
-  description?: string;
-  reEscalateAfterInactivityMinutes: number;
-  steps: { order: number; delayMinutes: number; scheduleId: number }[];
-}
+// ─── Escalation ────────────────────────────────────────────────────────────────
+// Migrated to generated API types — see @/lib/actions/escalation.
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 
@@ -809,19 +787,4 @@ export const utilsApi = {
   timezones: () => api.get<TimezoneOption[]>("/api/v1/utils/timezones").then((r) => r.data),
 };
 
-export const escalationApi = {
-  list: (params?: { page?: number; pageSize?: number }) =>
-    api
-      .get<{ items: EscalationPolicy[]; totalCount: number; page: number; pageSize: number }>(
-        ENDPOINTS.ESCALATION_POLICIES,
-        { params }
-      )
-      .then((r) => r.data),
-  get: (id: number | string) =>
-    api.get<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id)).then((r) => r.data),
-  create: (data: UpsertEscalationPolicyRequest) =>
-    api.post<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICIES, data).then((r) => r.data),
-  update: (id: number | string, data: UpsertEscalationPolicyRequest) =>
-    api.put<EscalationPolicy>(ENDPOINTS.ESCALATION_POLICY(id), data).then((r) => r.data),
-  delete: (id: number | string) => api.delete(ENDPOINTS.ESCALATION_POLICY(id)),
-};
+// escalationApi migrated to @/lib/actions/escalation.

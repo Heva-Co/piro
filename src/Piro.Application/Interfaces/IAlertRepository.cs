@@ -86,6 +86,8 @@ public record AlertDetailRow(
     int? IncidentId,
     string? IncidentTitle,
     int? EscalationCurrentStep,
+    /// <summary>Set when escalation stopped after the last step exhausted its retries (RFC 0006) — terminal, distinct from ResolvedAt.</summary>
+    DateTimeOffset? EscalationExhaustedAt,
     long? AcknowledgedAt,
     string? AcknowledgedBy,
     Piro.Domain.Enums.AlertSource Source,
