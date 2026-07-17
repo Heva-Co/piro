@@ -1,7 +1,7 @@
 # RFC 0003 — Integration manifest
 
-Status: proposal
-Author: Arael Espinosa (assisted draft)
+Status: Implemented
+Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-15
 
 ## 1. Problem

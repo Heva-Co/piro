@@ -1,7 +1,7 @@
 # RFC 0006 — Escalation limits: per-step retries with a terminal state
 
 Status: proposal
-Author: Arael Espinosa (assisted draft)
+Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-17
 
 ## 1. Problem
