@@ -60,6 +60,15 @@ public class EscalationCheckerService(
         var steps = policy.Steps.OrderBy(s => s.Order).ToList();
         if (steps.Count == 0) return;
 
+        // Terminal state: the last step exhausted its retries with no ACK/resolution. Stays in the
+        // active query (still ResolvedAt == null) and visible to the UI, but generates no more
+        // notifications until ACK clears it (AlertAppService.AcknowledgeAsync) or the check recovers.
+        if (alert.EscalationExhaustedAt.HasValue)
+        {
+            logger.LogDebug("Escalation halted for alert #{AlertId} — last step exhausted its retries.", alert.Id);
+            return;
+        }
+
         // Initialize on first encounter — fall through immediately so step 0 fires in the same tick
         if (alert.EscalationCurrentStep is null)
         {
@@ -94,51 +103,30 @@ public class EscalationCheckerService(
             currentStepIndex = 0;
             alert.EscalationCurrentStep = 0;
             alert.EscalationStepStartedAt = now;
+            alert.EscalationStepAttempts = 0; // fresh retry budget per step on the restarted ladder
             alert.AcknowledgedAt = null;
             alert.AcknowledgedBy = null;
             logger.LogInformation(
                 "Escalation re-started for alert #{AlertId} — no activity for {Minutes} min since ACK, resetting to step 1.",
                 alert.Id, policy.ReEscalateAfterInactivityMinutes);
         }
-        // Case 1: mid-policy, never acknowledged — the normal step/delay mechanism governs, inactivity never interrupts it.
-        else if (currentStepIndex < steps.Count)
-        {
-            // fall through to normal step dispatch below
-        }
-        // Case 2: policy exhausted (all steps fired) and never acknowledged. EscalationStepStartedAt
-        // marks when a step last fired — the first tick after exhaustion, that's also "since exhausted".
-        else
-        {
-            var exhaustedSince = alert.EscalationStepStartedAt ?? now;
-            var reEscalate = policy.ReEscalateAfterInactivityMinutes > 0
-                && (now - exhaustedSince).TotalMinutes >= policy.ReEscalateAfterInactivityMinutes;
-
-            if (!reEscalate)
-            {
-                logger.LogDebug(
-                    "Escalation exhausted for alert #{AlertId} — all {Total} step(s) already fired.",
-                    alert.Id, steps.Count);
-                await alertRepo.UpdateAsync(alert, ct);
-                return;
-            }
-
-            currentStepIndex = 0;
-            alert.EscalationCurrentStep = 0;
-            alert.EscalationStepStartedAt = now;
-            logger.LogInformation(
-                "Escalation re-started for alert #{AlertId} — exhausted with no activity for {Minutes} min, resetting to step 1.",
-                alert.Id, policy.ReEscalateAfterInactivityMinutes);
-        }
+        // Otherwise: mid-policy, never acknowledged — the normal step/retry mechanism governs below.
+        // (There is no longer an "exhausted, re-escalate the whole ladder" branch: reaching the end
+        // of the ladder now sets EscalationExhaustedAt and the alert goes quiet — see RFC 0006 §4.4.)
 
         var step = steps[currentStepIndex];
-        var stepStart = alert.EscalationStepStartedAt ?? now;
-        var elapsed = (now - stepStart).TotalMinutes;
+        var lastEvent = alert.EscalationStepStartedAt ?? now;
 
-        if (elapsed < step.DelayMinutes)
+        // Before the step's first attempt, honor DelayMinutes (the pre-step hand-off wait); between
+        // attempts of the same step, honor RetryIntervalMinutes (the intra-step spacing).
+        var firstAttempt = alert.EscalationStepAttempts == 0;
+        var requiredWait = firstAttempt ? step.DelayMinutes : step.RetryIntervalMinutes;
+        var elapsed = (now - lastEvent).TotalMinutes;
+        if (elapsed < requiredWait)
         {
             logger.LogDebug(
-                "Escalation waiting for alert #{AlertId} — step {StepNum}/{Total}, {Elapsed:F1}/{Delay} min elapsed.",
-                alert.Id, currentStepIndex + 1, steps.Count, elapsed, step.DelayMinutes);
+                "Escalation waiting for alert #{AlertId} — step {StepNum}/{Total}, attempt {Attempt}/{MaxRetries}, {Elapsed:F1}/{Wait} min elapsed.",
+                alert.Id, currentStepIndex + 1, steps.Count, alert.EscalationStepAttempts + 1, step.MaxRetries, elapsed, requiredWait);
             await alertRepo.UpdateAsync(alert, ct);
             return;
         }
@@ -227,23 +215,33 @@ public class EscalationCheckerService(
             }
         }
 
-        // Advance step
-        var nextIndex = currentStepIndex + 1;
-        if (nextIndex < steps.Count)
+        // Record this attempt. EscalationStepStartedAt doubles as the last-attempt timestamp that
+        // gates RetryIntervalMinutes (and, once we advance, marks the previous step's end for the
+        // next step's DelayMinutes).
+        alert.EscalationStepAttempts++;
+        alert.EscalationStepStartedAt = now;
+
+        // Hand off only after this step has insisted its full retry budget.
+        if (alert.EscalationStepAttempts >= step.MaxRetries)
         {
-            alert.EscalationCurrentStep = nextIndex;
-            logger.LogInformation(
-                "Escalation advanced to step {NextStep}/{Total} for alert #{AlertId} ({Service}/{Check}).",
-                nextIndex + 1, steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel());
-        }
-        else
-        {
-            logger.LogInformation(
-                "Escalation completed all {Total} step(s) for alert #{AlertId} ({Service}/{Check}) — no further steps.",
-                steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel());
+            var nextIndex = currentStepIndex + 1;
+            if (nextIndex < steps.Count)
+            {
+                alert.EscalationCurrentStep = nextIndex;
+                alert.EscalationStepAttempts = 0;
+                logger.LogInformation(
+                    "Escalation advanced to step {NextStep}/{Total} for alert #{AlertId} ({Service}/{Check}).",
+                    nextIndex + 1, steps.Count, alert.Id, alert.ServiceLabel(), alert.CheckLabel());
+            }
+            else
+            {
+                alert.EscalationExhaustedAt = now; // last step done insisting — escalation stops (terminal).
+                logger.LogInformation(
+                    "Escalation exhausted for alert #{AlertId} ({Service}/{Check}) — last step insisted {MaxRetries} time(s), no ACK. Halting.",
+                    alert.Id, alert.ServiceLabel(), alert.CheckLabel(), step.MaxRetries);
+            }
         }
 
-        alert.EscalationStepStartedAt = now;
         await alertRepo.UpdateAsync(alert, ct);
     }
 

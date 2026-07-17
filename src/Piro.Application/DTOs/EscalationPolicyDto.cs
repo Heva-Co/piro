@@ -14,6 +14,8 @@ public record EscalationStepDto(
     int Id,
     int Order,
     int DelayMinutes,
+    int MaxRetries,
+    int RetryIntervalMinutes,
     int ScheduleId,
     string ScheduleName
 );
@@ -28,6 +30,8 @@ public record UpsertEscalationPolicyRequest(
 public record UpsertEscalationStepRequest(
     int Order,
     [Range(0, int.MaxValue)] int DelayMinutes,
+    [Range(1, int.MaxValue)] int MaxRetries,
+    [Range(0, int.MaxValue)] int RetryIntervalMinutes,
     int ScheduleId
 );
 

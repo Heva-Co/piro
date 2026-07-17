@@ -6424,6 +6424,8 @@ export interface components {
             incidentTitle: null | string;
             /** Format: int32 */
             escalationCurrentStep: null | number;
+            /** Format: date-time */
+            escalationExhaustedAt: null | string;
             /** Format: int64 */
             acknowledgedAt: null | number;
             acknowledgedBy: null | string;
@@ -6889,6 +6891,10 @@ export interface components {
             order: number;
             /** Format: int32 */
             delayMinutes: number;
+            /** Format: int32 */
+            maxRetries: number;
+            /** Format: int32 */
+            retryIntervalMinutes: number;
             /** Format: int32 */
             scheduleId: number;
             scheduleName: string;
@@ -7619,6 +7625,10 @@ export interface components {
             order: number;
             /** Format: int32 */
             delayMinutes: number;
+            /** Format: int32 */
+            maxRetries: number;
+            /** Format: int32 */
+            retryIntervalMinutes: number;
             /** Format: int32 */
             scheduleId: number;
         };

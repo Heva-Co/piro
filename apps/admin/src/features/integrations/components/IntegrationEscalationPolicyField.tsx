@@ -3,7 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { escalationApi } from "@/lib/api";
+import { escalationApi } from "@/lib/actions/escalation";
 import { QUERY_KEYS } from "@/constants/api";
 
 const NO_POLICY = "__none__";

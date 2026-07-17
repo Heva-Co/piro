@@ -162,6 +162,10 @@ public class AlertAppService(
             alert.AcknowledgedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             alert.AcknowledgedBy = acknowledgedBy;
             alert.LastUserActivityAt = DateTimeOffset.UtcNow;
+            // Clear any terminal escalation state and give the current step a fresh retry budget, so a
+            // human taking over an exhausted alert can still drive escalation (RFC 0006 §4.3).
+            alert.EscalationExhaustedAt = null;
+            alert.EscalationStepAttempts = 0;
             await alertRepository.UpdateAsync(alert, ct);
         }
 

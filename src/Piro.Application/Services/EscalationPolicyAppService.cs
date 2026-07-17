@@ -39,6 +39,8 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo, IOnCal
             {
                 Order = s.Order,
                 DelayMinutes = s.DelayMinutes,
+                MaxRetries = s.MaxRetries,
+                RetryIntervalMinutes = s.RetryIntervalMinutes,
                 ScheduleId = s.ScheduleId,
             }).ToList()
         };
@@ -64,6 +66,8 @@ public class EscalationPolicyAppService(IEscalationPolicyRepository repo, IOnCal
             {
                 Order = s.Order,
                 DelayMinutes = s.DelayMinutes,
+                MaxRetries = s.MaxRetries,
+                RetryIntervalMinutes = s.RetryIntervalMinutes,
                 ScheduleId = s.ScheduleId,
             }).ToList()
         };
