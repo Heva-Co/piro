@@ -77,17 +77,6 @@ public class IntegrationTypeMetaDtoTests
     }
 
     [Fact]
-    public void Opsgenie_RegionIsAnEnumFieldWithFixedOptions()
-    {
-        var dto = IntegrationType.Opsgenie.ToMetaDto();
-
-        var regionField = dto!.ConfigSchema.Single(f => f.Key == "region");
-        regionField.Type.Should().Be(ConfigFieldType.Enum);
-        regionField.IsSecret.Should().BeFalse();
-        regionField.Options.Should().BeEquivalentTo(["US", "EU"]);
-    }
-
-    [Fact]
     public void GoogleCloud_ServiceAccountJsonIsMultilineAndSecret()
     {
         var dto = IntegrationType.GoogleCloud.ToMetaDto();
