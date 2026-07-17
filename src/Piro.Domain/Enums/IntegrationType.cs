@@ -56,15 +56,12 @@ public enum IntegrationType
     [Obsolete("Not supported for now.")]
     Slack = 4,
 
-    [IntegrationManifest(
-        IntegrationCategory.Notification,
-        IntegrationDirection.Outbound,
-        IntegrationCapability.None,
-        typeof(PagerDutyConfig),
-        Label = "PagerDuty",
-        Description = "Page your on-call team through PagerDuty.",
-        IconifyIcon = "logos:pagerduty"
-    )]
+    /// <summary>
+    /// Not supported for now — no notification dispatcher exists for this type (it would never
+    /// send). Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt
+    /// any existing DB rows. See RFC 0004 for the planned implementation.
+    /// </summary>
+    [Obsolete("Not supported for now.")]
     PagerDuty = 5,
 
     [IntegrationManifest(
@@ -79,15 +76,12 @@ public enum IntegrationType
     )]
     GcpCloudMonitoringWebhook = 6,
 
-    [IntegrationManifest(
-        IntegrationCategory.Notification,
-        IntegrationDirection.Outbound,
-        IntegrationCapability.SendsPersonalNotification,
-        typeof(MSTeamsConfig),
-        Label = "Microsoft Teams",
-        Description = "Post alert notifications to a Microsoft Teams channel.",
-        IconifyIcon = "logos:microsoft-teams"
-    )]
+    /// <summary>
+    /// Not supported for now — its dispatcher's DispatchPersonalAsync is a stub (always returns
+    /// false). Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt
+    /// any existing DB rows.
+    /// </summary>
+    [Obsolete("Not supported for now.")]
     MSTeams = 7,
 
     [IntegrationManifest(
@@ -126,26 +120,20 @@ public enum IntegrationType
     [Obsolete("Not supported for now.")]
     Discord = 11,
 
-    [IntegrationManifest(
-        IntegrationCategory.Notification,
-        IntegrationDirection.Outbound,
-        IntegrationCapability.SendsPersonalNotification,
-        typeof(OpsgenieConfig),
-        Label = "Opsgenie",
-        Description = "Route alerts into Opsgenie's on-call escalation.",
-        IconifyIcon = "simple-icons:opsgenie"
-    )]
+    /// <summary>
+    /// Not supported for now — its dispatcher's DispatchPersonalAsync is a stub (always returns
+    /// false). Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt
+    /// any existing DB rows.
+    /// </summary>
+    [Obsolete("Not supported for now.")]
     Opsgenie = 12,
 
-    [IntegrationManifest(
-        IntegrationCategory.Notification,
-        IntegrationDirection.Outbound,
-        IntegrationCapability.SendsPersonalNotification,
-        typeof(PushoverConfig),
-        Label = "Pushover",
-        Description = "Send push notifications via Pushover.",
-        IconifyIcon = "tabler:brand-pushover"
-    )]
+    /// <summary>
+    /// Not supported for now — its dispatcher only partially implements the contract
+    /// (SendPersonalMessageAsync is a stub, so verification codes can't be delivered). Kept in place
+    /// (not removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
+    /// </summary>
+    [Obsolete("Not supported for now.")]
     Pushover = 13,
 
     [IntegrationManifest(

@@ -20,9 +20,6 @@ public class IntegrationManifestTests
         IntegrationType.Email,
         IntegrationType.Telegram,
         IntegrationType.Twilio,
-        IntegrationType.MSTeams,
-        IntegrationType.Opsgenie,
-        IntegrationType.Pushover,
         IntegrationType.Ntfy,
     ];
 
@@ -70,12 +67,8 @@ public class IntegrationManifestTests
     [Theory]
     [InlineData(IntegrationType.Jira, "ApiToken")]
     [InlineData(IntegrationType.GoogleCloud, "ServiceAccountJson")]
-    [InlineData(IntegrationType.PagerDuty, "RoutingKey")]
-    [InlineData(IntegrationType.MSTeams, "WebhookUrl")]
     [InlineData(IntegrationType.Telegram, "BotToken")]
     [InlineData(IntegrationType.Twilio, "AuthToken")]
-    [InlineData(IntegrationType.Opsgenie, "ApiKey")]
-    [InlineData(IntegrationType.Pushover, "AppToken")]
     [InlineData(IntegrationType.Ntfy, "Token")]
     public void SecretFieldAttribute_IsPresentOnExpectedProperty(IntegrationType type, string propertyName)
     {
