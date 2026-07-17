@@ -1,5 +1,6 @@
 using Piro.Application.DTOs;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -9,13 +10,22 @@ public interface IAlertRepository
     /// <summary>Returns the currently active (ResolvedAt == null) Alert for the given AlertConfig, if any.</summary>
     Task<Alert?> GetActiveForConfigAsync(int alertConfigId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns the Alert (active or resolved) matching this webhook source's own occurrence
+    /// identifier — see <see cref="Alert.ExternalId"/> and RFC 0001 §4.8. Used for idempotent
+    /// re-delivery/renotify handling, not just active-alert dedup: a GCP "closed" event for an
+    /// already-resolved incident_id must still be recognized, not create a duplicate Alert.
+    /// </summary>
+    Task<Alert?> GetByExternalIdAsync(AlertSource source, string externalId, CancellationToken ct = default);
+
     /// <summary>Returns the full Alert entity (with Service/Check) by id, for mutation (link to incident, ack). Null if not found.</summary>
     Task<Alert?> GetByIdAsync(int id, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns all active (ResolvedAt == null) Alerts whose Service has an EscalationPolicy assigned —
-    /// the working set for <see cref="Services.EscalationCheckerService"/>. Includes Check, Service,
-    /// and the Service's EscalationPolicy with its Steps (and each Step's Schedule).
+    /// Returns all active (ResolvedAt == null) Alerts with an EscalationPolicyId snapshot — the
+    /// working set for <see cref="Services.EscalationCheckerService"/>. Includes Check, Service
+    /// (both nullable — an orphan alert has neither, RFC 0001 §4.2), and the snapshotted
+    /// EscalationPolicy with its Steps (and each Step's Schedule).
     /// </summary>
     Task<List<Alert>> GetActiveWithServiceEscalationAsync(CancellationToken ct = default);
 
@@ -42,19 +52,19 @@ public interface IAlertRepository
 /// <summary>Flat projection of an Alert plus the AlertConfig criteria and linked incident title — no full entity load.</summary>
 public record AlertDetailRow(
     int Id,
-    string CheckSlug,
-    string CheckName,
-    string ServiceSlug,
-    string ServiceName,
-    int AlertConfigId,
-    Piro.Domain.Enums.AlertFor AlertFor,
-    string AlertValue,
-    int FailureThreshold,
-    int SuccessThreshold,
+    string? CheckSlug,
+    string? CheckName,
+    string? ServiceSlug,
+    string? ServiceName,
+    int? AlertConfigId,
+    Piro.Domain.Enums.AlertFor? AlertFor,
+    string? AlertValue,
+    int? FailureThreshold,
+    int? SuccessThreshold,
     string? AlertConfigDescription,
     string? Message,
     Piro.Domain.Enums.ServiceStatus ImpactAtFireTime,
-    Piro.Domain.Enums.AlertSeverity Severity,
+    Piro.Domain.Enums.AlertSeverity? Severity,
     DateTimeOffset FiredAt,
     DateTimeOffset? ResolvedAt,
     int OccurrenceCount,
@@ -62,16 +72,21 @@ public record AlertDetailRow(
     string? IncidentTitle,
     int? EscalationCurrentStep,
     long? AcknowledgedAt,
-    string? AcknowledgedBy
+    string? AcknowledgedBy,
+    Piro.Domain.Enums.AlertSource Source,
+    /// <summary>The exact webhook request body that created this alert, via SourceRequestLogId — null for Internal.</summary>
+    string? SourceRawPayload,
+    /// <summary>Deep link into the source system's own console for this occurrence — null for Internal.</summary>
+    string? SourceUrl
 );
 
 /// <summary>Flat projection of an Alert plus the display fields needed for a list view — no full entity load.</summary>
 public record AlertSummaryRow(
     int Id,
-    string CheckSlug,
-    string CheckName,
-    string ServiceSlug,
-    string ServiceName,
+    string? CheckSlug,
+    string? CheckName,
+    string? ServiceSlug,
+    string? ServiceName,
     string? AlertConfigDescription,
     string? Message,
     Piro.Domain.Enums.ServiceStatus ImpactAtFireTime,
@@ -79,5 +94,6 @@ public record AlertSummaryRow(
     DateTimeOffset? ResolvedAt,
     int OccurrenceCount,
     int? IncidentId,
-    bool HasEscalationPolicy
+    bool HasEscalationPolicy,
+    Piro.Domain.Enums.AlertSource Source
 );

@@ -15,7 +15,9 @@ public record ConfigFieldSchemaDto(
     bool SupportsFileUpload,
     string? Placeholder,
     string? HelpText,
-    IReadOnlyList<string>? Options
+    IReadOnlyList<string>? Options,
+    /// <summary>True for a field the server generates itself (e.g. a webhook auth token) — see GeneratedFieldAttribute. The admin form never renders an input for it before creation.</summary>
+    bool IsGenerated
 );
 
 /// <summary>
@@ -31,5 +33,7 @@ public record IntegrationTypeMetaDto(
     bool Creatable,
     IntegrationDirection Direction,
     IReadOnlyList<string> Capabilities,
-    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema
+    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema,
+    /// <summary>Path segment under <c>/api/v1/webhooks/</c> this type's inbound endpoint listens on — see IntegrationManifestAttribute.WebhookPath. Null for a non-webhook type.</summary>
+    string? WebhookPath
 );

@@ -5,29 +5,47 @@ using Piro.Domain.Entities;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
-/// <summary>EF Core implementation of <see cref="IAlertRepository"/>.</summary>
+/// <summary>
+/// EF Core implementation of <see cref="IAlertRepository"/>.
+/// </summary>
 internal class AlertRepository(PiroDbContext db) : IAlertRepository
 {
-    public async Task<Alert?> GetActiveForConfigAsync(int alertConfigId, CancellationToken ct = default) =>
-        await db.Alerts.FirstOrDefaultAsync(a => a.AlertConfigId == alertConfigId && a.ResolvedAt == null, ct);
+    public async Task<Alert?> GetActiveForConfigAsync(int alertConfigId, CancellationToken ct = default)
+    {
+        return await db.Alerts.FirstOrDefaultAsync(a => a.AlertConfigId == alertConfigId && a.ResolvedAt == null, ct);
+    }
+        
+    public async Task<Alert?> GetByExternalIdAsync(Piro.Domain.Enums.AlertSource source, string externalId, CancellationToken ct = default)
+    {
+        return  await db.Alerts.FirstOrDefaultAsync(a => a.Source == source && a.ExternalId == externalId, ct);
+    }
 
-    public async Task<Alert?> GetByIdAsync(int id, CancellationToken ct = default) =>
-        await db.Alerts
+    public async Task<Alert?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        return await db.Alerts
             .Include(a => a.Check)
             .Include(a => a.Service)
             .FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
+        
 
-    public async Task<List<Alert>> GetActiveWithServiceEscalationAsync(CancellationToken ct = default) =>
-        await db.Alerts
+    public async Task<List<Alert>> GetActiveWithServiceEscalationAsync(CancellationToken ct = default)
+    {
+        return await db.Alerts
             .Include(a => a.Check)
-            .Include(a => a.AlertConfig)
             .Include(a => a.Service)
-                .ThenInclude(s => s.EscalationPolicy)
-                    .ThenInclude(p => p!.Steps)
-                        .ThenInclude(s => s.Schedule)
-            .Where(a => a.ResolvedAt == null && a.Service.EscalationPolicyId != null)
+            .Include(a => a.AlertConfig)
+            .Include(a => a.EscalationPolicy)
+                .ThenInclude(p => p!.Steps)
+                    .ThenInclude(s => s.Schedule)
+            // EscalationPolicyId is a snapshot on Alert itself (RFC 0001 §4.6) — no longer needs to
+            // navigate through Service, which also means this now naturally includes orphan alerts
+            // (no Service, but an EscalationPolicyId copied from their Integration).
+            .Where(a => a.ResolvedAt == null && a.EscalationPolicyId != null)
             .OrderBy(a => a.Id)
             .ToListAsync(ct);
+    }
+        
 
     public async Task<Alert> CreateAsync(Alert alert, CancellationToken ct = default)
     {
@@ -80,50 +98,18 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
             .ThenByDescending(a => a.FiredAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(a => new AlertSummaryRow(
-                a.Id,
-                a.Check.Slug,
-                a.Check.Name,
-                a.Service.Slug,
-                a.Service.Name,
-                a.AlertConfig.Description,
-                a.Message,
-                a.ImpactAtFireTime,
-                a.FiredAt,
-                a.ResolvedAt,
-                a.OccurrenceCount,
-                a.IncidentId,
-                a.Service.EscalationPolicyId != null))
+            .Select(AlertProjections.ToSummaryRow)
             .ToListAsync(ct);
 
         return (items, total, allTimeTotal);
     }
 
-    public async Task<AlertDetailRow?> GetDetailByIdAsync(int id, CancellationToken ct = default) =>
-        await db.Alerts
+    public async Task<AlertDetailRow?> GetDetailByIdAsync(int id, CancellationToken ct = default)
+    {
+        return await db.Alerts
             .Where(a => a.Id == id)
-            .Select(a => new AlertDetailRow(
-                a.Id,
-                a.Check.Slug,
-                a.Check.Name,
-                a.Service.Slug,
-                a.Service.Name,
-                a.AlertConfigId,
-                a.AlertConfig.AlertFor,
-                a.AlertConfig.AlertValue,
-                a.AlertConfig.FailureThreshold,
-                a.AlertConfig.SuccessThreshold,
-                a.AlertConfig.Description,
-                a.Message,
-                a.ImpactAtFireTime,
-                a.AlertConfig.Severity,
-                a.FiredAt,
-                a.ResolvedAt,
-                a.OccurrenceCount,
-                a.IncidentId,
-                a.Incident != null ? a.Incident.Title : null,
-                a.EscalationCurrentStep,
-                a.AcknowledgedAt,
-                a.AcknowledgedBy))
+            .Select(AlertProjections.ToDetailRow)
             .FirstOrDefaultAsync(ct);
+    }
+        
 }

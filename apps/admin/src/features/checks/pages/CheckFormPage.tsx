@@ -6,7 +6,8 @@ import { Settings, Wrench, Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
-import { checkTypesApi, integrationsApi } from "@/lib/api";
+import { checkTypesApi } from "@/lib/api";
+import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,7 +72,7 @@ export default function CheckFormPage() {
   async function createTheCheck(values: CheckConfigFormValues) {
     setSubmitError("");
     try {
-      const integrationId = values.integrationId ? Number(values.integrationId) : undefined;
+      const integrationId = values.integrationId ? values.integrationId : undefined;
       const check = await createCheck.mutateAsync({
         slug: values.slug,
         name: values.name,

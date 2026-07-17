@@ -44,7 +44,8 @@ public static class IntegrationManifestExtensions
             manifest.Creatable,
             manifest.Direction,
             CapabilityNames(manifest.Capabilities),
-            SchemaCache.GetOrAdd(manifest.ConfigType, BuildConfigSchema)
+            SchemaCache.GetOrAdd(manifest.ConfigType, BuildConfigSchema),
+            manifest.WebhookPath
         );
     }
 
@@ -89,7 +90,8 @@ public static class IntegrationManifestExtensions
             property.GetCustomAttribute<SupportsFileUploadAttribute>() is not null,
             display?.Placeholder,
             display?.HelpText,
-            options
+            options,
+            property.GetCustomAttribute<GeneratedFieldAttribute>() is not null
         );
     }
 

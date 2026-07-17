@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@iconify/react";
-import { AlertTriangle, Save, Settings } from "lucide-react";
+import { AlertTriangle, Save, Settings, Webhook } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone/DangerZone";
-import { integrationsApi, type Integration } from "@/lib/api";
-import type { IntegrationTypeMeta } from "@/lib/actions/integrations";
+import { integrationsApi, type Integration, type IntegrationTypeMeta, type CreateIntegrationRequest } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { MASKED_SECRET_VALUE } from "@/constants/integrations";
 import { DynamicConfigField } from "./DynamicConfigField";
+import { IntegrationWebhookUrlField } from "./IntegrationWebhookUrlField";
+import { WebhookRequestLogViewer } from "./WebhookRequestLogViewer";
+import WebhookRequestLogActions from "./WebhookRequestLogActions";
+import { IntegrationEscalationPolicyField } from "./IntegrationEscalationPolicyField";
 
 interface GeneralFormValues {
   name: string;
   description: string;
+  escalationPolicyId: number | null;
 }
 
 /** Parses an Integration's ConfigJson into the flat string-map DynamicConfigField expects. */
@@ -58,8 +62,12 @@ export function IntegrationConfigForm(props: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<GeneralFormValues>({
-    defaultValues: { name: existing?.name ?? "", description: existing?.description ?? "" },
+  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<GeneralFormValues>({
+    defaultValues: {
+      name: existing?.name ?? "",
+      description: existing?.description ?? "",
+      escalationPolicyId: existing?.escalationPolicyId ?? null,
+    },
     mode: "all"
   });
   const [configValues, setConfigValues] = useState<Record<string, string>>(() =>
@@ -67,18 +75,24 @@ export function IntegrationConfigForm(props: Props) {
   );
   const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
+  /** Set once, right after creation — holds the response with any generated field unmasked (see GeneratedConfigField). Navigation to the detail page waits until the admin dismisses this. */
+  const [createdIntegration, setCreatedIntegration] = useState<Integration | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: (values: GeneralFormValues) => {
       const configJson = JSON.stringify(configValues);
-      const payload = { name: values.name, type: resolvedType, description: values.description || undefined, configJson };
-      if (isEdit) return integrationsApi.update(Number(id), payload);
-      return integrationsApi.create(payload);
+      const description = values.description || null;
+      const escalationPolicyId = values.escalationPolicyId;
+      if (isEdit) return integrationsApi.update(id!, { name: values.name, description, configJson, escalationPolicyId });
+      return integrationsApi.create({ name: values.name, type: resolvedType as CreateIntegrationRequest["type"], description, configJson, escalationPolicyId });
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATIONS });
       if (!isEdit && data && "id" in (data as object)) {
-        navigate(ROUTES.INTEGRATIONS.DETAIL((data as { id: number }).id));
+        // The create response is the one time a server-generated field (e.g. a webhook auth
+        // token) comes back unmasked — stash it so the confirmation view can show/copy it.
+        setConfigValues(parseConfigJson(data.configJson));
+        setCreatedIntegration(data);
         return;
       }
       setSaved(true);
@@ -87,8 +101,17 @@ export function IntegrationConfigForm(props: Props) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => integrationsApi.delete(Number(id)),
+    mutationFn: () => integrationsApi.delete(id!),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATIONS }); navigate(ROUTES.INTEGRATIONS.LIST); },
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => integrationsApi.regenerateGeneratedFields(id!),
+    onSuccess: (data) => {
+      // Same one-time-reveal shape as the create response — the new value is only visible here.
+      setConfigValues(parseConfigJson(data.configJson));
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATIONS });
+    },
   });
 
   async function handleDelete() {
@@ -98,6 +121,7 @@ export function IntegrationConfigForm(props: Props) {
   function submit(values: GeneralFormValues) {
     const nextErrors: Record<string, string> = {};
     for (const field of typeMeta?.configSchema ?? []) {
+      if (field.isGenerated) continue; // the server fills this in — nothing to validate here
       const value = configValues[field.key] ?? "";
       const isMasked = field.isSecret && value === MASKED_SECRET_VALUE;
       if (field.required && !isMasked && value.trim() === "") {
@@ -108,6 +132,10 @@ export function IntegrationConfigForm(props: Props) {
     if (Object.keys(nextErrors).length > 0) return;
 
     saveMutation.mutate(values);
+  }
+
+  function handleContinue() {
+    if (createdIntegration) navigate(ROUTES.INTEGRATIONS.DETAIL(createdIntegration.id));
   }
 
   const pageTitle = isEdit ? (existing?.name ?? "Edit Integration") : "New Integration";
@@ -122,10 +150,14 @@ export function IntegrationConfigForm(props: Props) {
           { label: pageTitle },
         ]}
         actions={
-          <Button type="submit" disabled={isSubmitting}>
-            <Save size={14} />
-            {isSubmitting ? "Saving…" : saved ? "Saved!" : isEdit ? "Save changes" : "Create Integration"}
-          </Button>
+          createdIntegration ? (
+            <Button type="button" onClick={handleContinue}>Continue</Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitting}>
+              <Save size={14} />
+              {isSubmitting ? "Saving…" : saved ? "Saved!" : isEdit ? "Save changes" : "Create Integration"}
+            </Button>
+          )
         }
       />
 
@@ -162,6 +194,16 @@ export function IntegrationConfigForm(props: Props) {
             <Label>Description</Label>
             <Input {...register("description")} placeholder="Optional description" />
           </div>
+
+          {typeMeta?.capabilities.includes("SupportsEscalationPolicy") && (
+            <Controller
+              name="escalationPolicyId"
+              control={control}
+              render={({ field }) => (
+                <IntegrationEscalationPolicyField value={field.value} onChange={field.onChange} />
+              )}
+            />
+          )}
         </>
       </SectionAccordion>
 
@@ -173,6 +215,11 @@ export function IntegrationConfigForm(props: Props) {
           defaultOpen
         >
           <>
+            {createdIntegration && (
+              <p className="text-sm text-muted-foreground">
+                Integration created. Save any generated credentials below before continuing.
+              </p>
+            )}
             {typeMeta?.configSchema.map((field) => (
               <DynamicConfigField
                 key={field.key}
@@ -180,9 +227,31 @@ export function IntegrationConfigForm(props: Props) {
                 value={configValues[field.key] ?? ""}
                 error={configErrors[field.key]}
                 onChange={(v) => setConfigValues((prev) => ({ ...prev, [field.key]: v }))}
+                isCreating={!isEdit && !createdIntegration}
+                onRegenerate={isEdit ? () => regenerateMutation.mutate() : undefined}
+                isRegenerating={regenerateMutation.isPending}
               />
             ))}
+            {typeMeta && (id || createdIntegration) && (
+              <IntegrationWebhookUrlField
+                integrationId={id ?? createdIntegration!.id}
+                typeMeta={typeMeta}
+                configValues={configValues}
+              />
+            )}
           </>
+        </SectionAccordion>
+      )}
+
+      {isEdit && typeMeta?.webhookPath && (
+        <SectionAccordion
+          title="Webhook Requests"
+          description="Recent inbound requests to this integration's webhook"
+          icon={<Webhook size={16} className="text-muted-foreground" />}
+          actions={<WebhookRequestLogActions integrationId={id!} />}
+          disableCard
+        >
+          <WebhookRequestLogViewer integrationId={id!} />
         </SectionAccordion>
       )}
 

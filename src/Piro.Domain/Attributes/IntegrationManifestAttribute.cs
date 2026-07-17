@@ -73,4 +73,13 @@ public sealed class IntegrationManifestAttribute(
     /// about where credentials live, not whether the type is creatable here.
     /// </summary>
     public bool Creatable { get; init; } = true;
+
+    /// <summary>
+    /// Path segment (relative to <c>/api/v1/webhooks/</c>) this type's inbound endpoint listens on,
+    /// e.g. <c>"gcp"</c> for <see cref="IntegrationType.GcpCloudMonitoringWebhook"/> — see
+    /// <c>WebhooksController</c>. Only meaningful when <see cref="IntegrationCapability.CreatesAlerts"/>
+    /// is set; null for every other type. Lets the admin form build the full webhook URL generically,
+    /// without hardcoding a per-provider path.
+    /// </summary>
+    public string? WebhookPath { get; init; }
 }

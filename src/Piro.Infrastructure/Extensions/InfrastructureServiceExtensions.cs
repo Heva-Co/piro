@@ -185,6 +185,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();
+        services.AddScoped<IWebhookRequestLogRepository, WebhookRequestLogRepository>();
 
         // Dashboard metrics
         services.AddScoped<IMetricsRepository, MetricsRepository>();

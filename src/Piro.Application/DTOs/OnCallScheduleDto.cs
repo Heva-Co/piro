@@ -178,7 +178,7 @@ public record CoverageGapDto(
 public record UserNotificationPreferenceDto(
     int Id,
     string Channel,
-    int? IntegrationId,
+    Guid? IntegrationId,
     string? IntegrationName,
     string Handle,
     int Priority,
@@ -188,7 +188,7 @@ public record UserNotificationPreferenceDto(
 
 public record UpsertUserNotificationPreferenceRequest(
     string Channel,
-    int? IntegrationId,
+    Guid? IntegrationId,
     string Handle
 );
 

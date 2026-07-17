@@ -20,7 +20,7 @@ public record CheckDto(
     int? HistoryDaysMobile,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    int? IntegrationId
+    Guid? IntegrationId
 );
 
 /// <summary>
@@ -38,7 +38,7 @@ public record CreateCheckRequest(
     [Required] string TypeDataJson,
     bool IsActive = true,
     bool IsMultiRegion = false,
-    int? IntegrationId = null,
+    Guid? IntegrationId = null,
     IReadOnlyList<CreateAlertConfigRequest>? AlertConfigs = null
 );
 
@@ -54,7 +54,7 @@ public record UpdateCheckRequest(
     int? HistoryDaysDesktop,
     [property: Obsolete]
     int? HistoryDaysMobile,
-    int? IntegrationId = null
+    Guid? IntegrationId = null
 );
 
 /// <summary>Check with its parent service info — used in the global checks list.</summary>

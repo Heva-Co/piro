@@ -2624,7 +2624,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2655,7 +2655,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2693,7 +2693,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2728,6 +2728,104 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/webhook-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the most recent inbound webhook requests for this Integration — RFC 0001 §4.4. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WebhookRequestLogDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/regenerate-generated-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerates this Integration's server-generated fields (e.g. a lost/leaked webhook auth
+         *     token) and invalidates the old value immediately. Response's ConfigJson is unmasked, the one
+         *     time the new value is visible.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5920,6 +6018,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/gcp/{integrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receives a GCP Cloud Monitoring alerting policy notification — RFC 0001 §4.8. Auth is a
+         *     query-string token (`auth_token`), since GCP's webhook notification channel supports
+         *     no custom headers. Always returns 200 for a request that was at least parseable, even if it
+         *     didn't produce an Alert, to avoid GCP retry-storming an endpoint that will never accept it;
+         *     only a wrong/missing token or an unknown Integration get a non-2xx.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    auth_token?: string;
+                };
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workers": {
         parameters: {
             query?: never;
@@ -6168,22 +6310,22 @@ export interface components {
         AlertDetailDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
-            checkName: string;
-            serviceSlug: string;
-            serviceName: string;
+            checkSlug: null | string;
+            checkName: null | string;
+            serviceSlug: null | string;
+            serviceName: null | string;
             /** Format: int32 */
-            alertConfigId: number;
-            alertFor: components["schemas"]["AlertFor"];
-            alertValue: string;
+            alertConfigId: null | number;
+            alertFor: null | components["schemas"]["AlertFor"];
+            alertValue: null | string;
             /** Format: int32 */
-            failureThreshold: number;
+            failureThreshold: null | number;
             /** Format: int32 */
-            successThreshold: number;
+            successThreshold: null | number;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
-            severity: components["schemas"]["AlertSeverity"];
+            severity: null | components["schemas"]["AlertSeverity"];
             /** Format: date-time */
             firedAt: string;
             /** Format: date-time */
@@ -6198,11 +6340,16 @@ export interface components {
             /** Format: int64 */
             acknowledgedAt: null | number;
             acknowledgedBy: null | string;
+            source: components["schemas"]["AlertSource"];
+            sourceLabel: null | string;
+            sourceIconifyIcon: null | string;
+            sourceRawPayload: null | string;
+            sourceUrl: null | string;
         };
         AlertDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
+            checkSlug: null | string;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
@@ -6248,13 +6395,15 @@ export interface components {
         };
         /** @enum {unknown} */
         AlertSeverity: "Warning" | "Critical";
+        /** @enum {unknown} */
+        AlertSource: "Internal" | "GcpCloudMonitoring";
         AlertSummaryDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
-            checkName: string;
-            serviceSlug: string;
-            serviceName: string;
+            checkSlug: null | string;
+            checkName: null | string;
+            serviceSlug: null | string;
+            serviceName: null | string;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
@@ -6267,6 +6416,9 @@ export interface components {
             /** Format: int32 */
             incidentId: null | number;
             hasEscalationPolicy: boolean;
+            source: components["schemas"]["AlertSource"];
+            sourceLabel: null | string;
+            sourceIconifyIcon: null | string;
         };
         ApiKeyCreatedResponse: {
             /** Format: int32 */
@@ -6345,8 +6497,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
         };
         CheckRefDto: {
             /** Format: int32 */
@@ -6407,6 +6559,7 @@ export interface components {
             placeholder: null | string;
             helpText: null | string;
             options: null | string[];
+            isGenerated: boolean;
         };
         /** @enum {unknown} */
         ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline";
@@ -6456,8 +6609,8 @@ export interface components {
             isActive: boolean;
             /** @default false */
             isMultiRegion: boolean;
-            /** Format: int32 */
-            integrationId?: null | number;
+            /** Format: uuid */
+            integrationId?: null | string;
             alertConfigs?: null | components["schemas"]["CreateAlertConfigRequest"][];
         };
         CreateIncidentRequest: {
@@ -6472,6 +6625,8 @@ export interface components {
             type: components["schemas"]["IntegrationType"];
             description: null | string;
             configJson: string;
+            /** Format: int32 */
+            escalationPolicyId?: null | number;
         };
         CreateMaintenanceRequest: {
             title: string;
@@ -6733,8 +6888,8 @@ export interface components {
         /** @enum {unknown} */
         IntegrationDirection: "Outbound" | "Inbound" | "Both";
         IntegrationDto: {
-            /** Format: int32 */
-            id: number;
+            /** Format: uuid */
+            id: string;
             name: string;
             type: components["schemas"]["IntegrationType"];
             category: components["schemas"]["IntegrationCategory"];
@@ -6746,9 +6901,11 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: int32 */
+            escalationPolicyId: null | number;
         };
         /** @enum {unknown} */
-        IntegrationType: "GoogleCloud" | "Jira" | "Email" | "Webhook" | "Slack" | "PagerDuty" | "MSTeams" | "Telegram" | "Twilio" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
+        IntegrationType: "GoogleCloud" | "Jira" | "Email" | "Webhook" | "Slack" | "PagerDuty" | "GcpCloudMonitoringWebhook" | "MSTeams" | "Telegram" | "Twilio" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
         IntegrationTypeMetaDto: {
             type: string;
             label: null | string;
@@ -6760,6 +6917,7 @@ export interface components {
             direction: components["schemas"]["IntegrationDirection"];
             capabilities: string[];
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+            webhookPath: null | string;
         };
         InviteUserRequest: {
             email: string;
@@ -6781,6 +6939,7 @@ export interface components {
         LinkAlertToIncidentRequest: {
             /** Format: int32 */
             incidentId: null | number;
+            serviceIds?: null | number[];
         };
         LogDto: {
             /** Format: int64 */
@@ -7245,8 +7404,8 @@ export interface components {
             historyDaysDesktop: null | number;
             /** Format: int32 */
             historyDaysMobile: null | number;
-            /** Format: int32 */
-            integrationId?: null | number;
+            /** Format: uuid */
+            integrationId?: null | string;
         };
         UpdateEmailConfigRequest: {
             provider: null | string;
@@ -7283,6 +7442,8 @@ export interface components {
             name: null | string;
             description: null | string;
             configJson: null | string;
+            /** Format: int32 */
+            escalationPolicyId?: null | number;
         };
         UpdateMaintenanceRequest: {
             title: null | string;
@@ -7380,8 +7541,8 @@ export interface components {
         };
         UpsertUserNotificationPreferenceRequest: {
             channel: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
             handle: string;
         };
         UserDto: {
@@ -7406,8 +7567,8 @@ export interface components {
             /** Format: int32 */
             id: number;
             channel: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
             integrationName: null | string;
             handle: string;
             /** Format: int32 */
@@ -7426,6 +7587,18 @@ export interface components {
             isOidc: boolean;
             hasSeenShowcase: boolean;
         };
+        WebhookRequestLogDto: {
+            /** Format: int32 */
+            id: number;
+            /** Format: date-time */
+            receivedAt: string;
+            rawPayload: string;
+            outcome: components["schemas"]["WebhookRequestOutcome"];
+            /** Format: int32 */
+            alertId: null | number;
+        };
+        /** @enum {unknown} */
+        WebhookRequestOutcome: "Accepted" | "AcceptedOrphan" | "CorrelationMismatch" | "AuthFailed" | "ParseError" | "Deduplicated";
         WorkerDto: {
             /** Format: uuid */
             id: string;

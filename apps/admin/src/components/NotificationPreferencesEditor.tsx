@@ -7,10 +7,10 @@ import { Plus } from "lucide-react";
 import { NotificationPreferenceRow } from "@/components/notification-preferences/NotificationPreferenceRow";
 import {
   usersApi,
-  integrationsApi,
   type UserNotificationPreference,
   type UpsertNotificationPreference,
 } from "@/lib/api";
+import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 
 interface Props {

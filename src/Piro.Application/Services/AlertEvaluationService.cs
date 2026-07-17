@@ -81,7 +81,8 @@ public class AlertEvaluationService(
             }
 
             var message = BuildMessage(config, recentPoints);
-            await alertLifecycleService.RecordOccurrenceAsync(config, check, service, message, ct);
+            await alertLifecycleService.RecordOccurrenceAsync(
+                config, check, service, message, ct, escalationPolicyId: service.EscalationPolicyId);
         }
         else if (shouldRecover)
         {

@@ -33,10 +33,13 @@ public record IncidentTimelinePageDto(
     int PageSize
 );
 
-/// <summary>Alert history entry attached to an incident — purely informational.</summary>
+/// <summary>
+/// Alert history entry attached to an incident — purely informational. CheckSlug is null for an
+/// orphan alert (RFC 0001 §4.2) — no Check to correlate against.
+/// </summary>
 public record AlertDto(
     int Id,
-    string CheckSlug,
+    string? CheckSlug,
     string? AlertConfigDescription,
     string? Message,
     ServiceStatus ImpactAtFireTime,
