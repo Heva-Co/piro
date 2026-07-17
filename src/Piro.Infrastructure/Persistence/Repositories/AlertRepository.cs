@@ -111,5 +111,26 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
             .Select(AlertProjections.ToDetailRow)
             .FirstOrDefaultAsync(ct);
     }
+
+    public async Task<int> CountResolvedBeforeAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default)
+    {
+        return await ResolvedBeforeQuery(resolvedBefore).CountAsync(ct);
+    }
+        
+
+    public async Task<int> DeleteResolvedBeforeAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default)
+    {
+        // EscalationDeliveryLog → Alert is ON DELETE CASCADE at the DB level (see AlertConfiguration/
+        // EscalationDeliveryLogConfiguration), so a set-based ExecuteDelete cleans up logs too.
+        return await ResolvedBeforeQuery(resolvedBefore).ExecuteDeleteAsync(ct);
+    }
+        
+
+    // Retention predicate shared by count (preview) and delete: resolved strictly before the cutoff
+    // and never linked to an Incident — active or incident-linked alerts are always preserved.
+    private IQueryable<Alert> ResolvedBeforeQuery(DateTimeOffset resolvedBefore)
+    {
+        return db.Alerts.Where(a => a.ResolvedAt != null && a.ResolvedAt < resolvedBefore && a.IncidentId == null);
+    }
         
 }

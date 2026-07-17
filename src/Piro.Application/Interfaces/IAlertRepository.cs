@@ -47,6 +47,21 @@ public interface IAlertRepository
 
     /// <summary>Returns the full detail row for a single Alert, including its AlertConfig criteria and linked incident title, if any.</summary>
     Task<AlertDetailRow?> GetDetailByIdAsync(int id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Counts alerts eligible for retention cleanup: resolved (ResolvedAt != null) strictly before
+    /// <paramref name="resolvedBefore"/> and not linked to an Incident (IncidentId == null). Preview
+    /// for the destructive delete — same predicate as <see cref="DeleteResolvedBeforeAsync"/>.
+    /// </summary>
+    Task<int> CountResolvedBeforeAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default);
+
+    /// <summary>
+    /// Permanently deletes resolved alerts (ResolvedAt != null) resolved strictly before
+    /// <paramref name="resolvedBefore"/> that are not linked to an Incident (IncidentId == null) —
+    /// their EscalationDeliveryLogs cascade. Active alerts and incident-linked alerts are never
+    /// touched. Returns the number of alerts deleted.
+    /// </summary>
+    Task<int> DeleteResolvedBeforeAsync(DateTimeOffset resolvedBefore, CancellationToken ct = default);
 }
 
 /// <summary>Flat projection of an Alert plus the AlertConfig criteria and linked incident title — no full entity load.</summary>
