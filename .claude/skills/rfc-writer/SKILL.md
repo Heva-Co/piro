@@ -14,12 +14,29 @@ Never write structural claims from memory or general SaaS-architecture intuition
 
 Before drafting a single section:
 
-1. **Dispatch one or more research agents** (via the Agent tool, `general-purpose` type) to read the parts of `src/Piro.Domain`, `src/Piro.Application`, and `src/Piro.Infrastructure` relevant to the proposal. Ask them to report back file paths and line numbers, not summaries without citations — you need to be able to write `Alert.CheckId` (`src/Piro.Domain/Entities/Alert.cs:14`) in the RFC, not "Alert has a Check reference."
+1. **Dispatch one or more research agents** (via the Agent tool, `general-purpose` type) to read the parts of `src/Piro.Domain`, `src/Piro.Application`, and `src/Piro.Infrastructure` relevant to the proposal. Ask them to report back file paths and line numbers, not summaries without citations — you need to be able to write `Alert.CheckId` (`src/Piro.Domain/Entities/Alert.cs:14`) in the RFC, not "Alert has a Check reference." This report is your working material, not RFC content — the grep patterns, the "I looked and found nothing" phrasing, the "the agent confirmed" framing all stay in your notes; the RFC states only the resulting facts (see "Voice" below).
 2. **Ask each agent to check for existing partial work or precedent** — a related open GitHub issue, a half-implemented enum value, a TODO comment, a naming convention already established for a similar feature. This is often where the sharpest insight comes from (e.g. discovering `CheckType.Heartbeat` is planned-but-unimplemented completely changes how a new "passive check" proposal should be framed relative to it).
 3. **If the proposal has more than one plausible integration point**, spawn parallel research agents rather than one broad one — e.g. one on the domain model, one on the existing controller/auth patterns, one on a specific service you suspect you'll need to hook into. Run independent research agents in the same message so they execute in parallel.
 4. **Re-research when the user corrects a structural assumption mid-conversation.** If the user says something like "this should create X, not Y," don't just patch the prose — go re-verify how X actually works and what constraints it has before rewriting the affected sections. A number of correctness bugs in earlier RFC drafts come from patching a paragraph without re-checking the model underneath it.
 
 Only start writing once you can back every structural claim in the RFC with a real file reference.
+
+## Voice: write the finding, not the search
+
+The research is *how you know*, not *what the RFC says*. An RFC is a design document written by an engineer who understands the codebase — it must read as a human stating conclusions, never as a machine narrating its own investigation. This is the single most common way a draft betrays that it was generated rather than written, and it must be actively avoided.
+
+Concretely — **state the fact, never the mechanism that found it:**
+
+- ❌ "A grep across `src/Piro.Domain` … for `postmortem|rca|review` returns only incidental docstring matches, so no precedent exists."
+- ✅ "Piro has no postmortem concept today: no entity, no enum, no DTO, not even a half-implemented field. This is greenfield."
+- ❌ "following the modern-entity conventions confirmed in research" / "the CRUD pattern confirmed in research"
+- ✅ "following Piro's modern-entity conventions" / "following Piro's established CRUD pattern"
+- ❌ "Research surfaced that …" / "the agent reported back that …" / "per design discussion" / "per the design decision"
+- ✅ just assert the thing, with its file:line citation
+
+Banned in RFC prose (not in your working notes): `grep`, `search(ed) for`, `returns … matches`, `confirmed in research`, `research surfaced/showed`, `the agent(s) reported`, `per design discussion`, `per (the) design decision`, `as we discovered`, and any regex/term-list that only existed to *find* something. Citing a real symbol at `file.cs:NN` is the evidence — the reader trusts the citation, they do not need to watch you run the query. Likewise, decisions the user made in conversation are simply the design; write them as the design's rationale ("Rejected — a review often spans several incidents …"), not as a meeting recap ("Rejected per design discussion").
+
+Before finishing, re-read the draft once specifically for this: any sentence that describes *how you learned* something rather than *what is true* is a defect — rewrite it to state the conclusion.
 
 ## Document structure
 
