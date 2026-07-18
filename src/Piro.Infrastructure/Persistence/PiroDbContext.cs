@@ -40,6 +40,7 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<PiroLog> PiroLogs => Set<PiroLog>();
     public DbSet<OidcProviderConfig> OidcProviderConfigs => Set<OidcProviderConfig>();
     public DbSet<Integration> Integrations => Set<Integration>();
+    public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
 
     // On-call scheduling
     public DbSet<OnCallSchedule> OnCallSchedules => Set<OnCallSchedule>();

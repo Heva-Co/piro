@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
+using Piro.Application.Interfaces;
 using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -73,6 +74,55 @@ public static class IntegrationExtensions
 
             if (obj[key] is JsonValue value && value.GetValueKind() == JsonValueKind.String && !string.IsNullOrEmpty(value.GetValue<string>()))
                 obj[key] = MaskedSecretValue;
+        }
+
+        return obj.ToJsonString();
+    }
+
+    /// <summary>
+    /// Encrypts every <see cref="SecretFieldAttribute"/> value in <paramref name="configJson"/> at rest,
+    /// discovering which keys are secret by reflection (the same <see cref="GetSecretKeys"/> set masking
+    /// uses). Already-protected values and the masked sentinel are left untouched, so re-saving is safe.
+    /// Returns the config unchanged if the type has no secret fields.
+    /// </summary>
+    public static string ProtectSecrets(IntegrationType type, string configJson, ISecretProtector protector) =>
+        TransformSecrets(type, configJson, (protector, plaintext: true));
+
+    /// <summary>Reverses <see cref="ProtectSecrets"/> — decrypts protected secret values for in-process use.</summary>
+    public static string UnprotectSecrets(IntegrationType type, string configJson, ISecretProtector protector) =>
+        TransformSecrets(type, configJson, (protector, plaintext: false));
+
+    private static string TransformSecrets(IntegrationType type, string configJson, (ISecretProtector Protector, bool Protecting) op)
+    {
+        var secretKeys = GetSecretKeys(type);
+        if (secretKeys.Length == 0)
+            return configJson;
+
+        JsonNode? node;
+        try { node = JsonNode.Parse(configJson); }
+        catch (JsonException) { return configJson; }
+
+        if (node is not JsonObject obj)
+            return configJson;
+
+        foreach (var key in secretKeys)
+        {
+            if (obj[key] is not JsonValue value || value.GetValueKind() != JsonValueKind.String)
+                continue;
+            var current = value.GetValue<string>();
+            if (string.IsNullOrEmpty(current) || current == MaskedSecretValue)
+                continue;
+
+            if (op.Protecting)
+            {
+                if (!op.Protector.IsProtected(current))
+                    obj[key] = op.Protector.Protect(current);
+            }
+            else
+            {
+                if (op.Protector.IsProtected(current))
+                    obj[key] = op.Protector.Unprotect(current);
+            }
         }
 
         return obj.ToJsonString();

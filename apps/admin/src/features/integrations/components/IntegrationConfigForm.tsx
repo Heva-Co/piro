@@ -19,6 +19,8 @@ import { IntegrationWebhookUrlField } from "./IntegrationWebhookUrlField";
 import { WebhookRequestLogViewer } from "./WebhookRequestLogViewer";
 import WebhookRequestLogActions from "./WebhookRequestLogActions";
 import { IntegrationEscalationPolicyField } from "./IntegrationEscalationPolicyField";
+import { IntegrationOAuthConnect } from "./IntegrationOAuthConnect";
+import { IntegrationOAuthRedirectUrlField } from "./IntegrationOAuthRedirectUrlField";
 
 interface GeneralFormValues {
   name: string;
@@ -232,6 +234,9 @@ export function IntegrationConfigForm(props: Props) {
                 isRegenerating={regenerateMutation.isPending}
               />
             ))}
+            {typeMeta?.capabilities.includes("RequiresOAuthConnection") && (
+              <IntegrationOAuthRedirectUrlField typeMeta={typeMeta} />
+            )}
             {typeMeta && (id || createdIntegration) && (
               <IntegrationWebhookUrlField
                 integrationId={id ?? createdIntegration!.id}
@@ -240,6 +245,21 @@ export function IntegrationConfigForm(props: Props) {
               />
             )}
           </>
+        </SectionAccordion>
+      )}
+
+      {isEdit && id && typeMeta?.capabilities.includes("RequiresOAuthConnection") && (
+        <SectionAccordion
+          title="Connection"
+          description={`Connect Piro to ${typeMeta?.label ?? resolvedType} via OAuth`}
+          icon={<Icon icon={typeMeta?.iconifyIcon ?? "lucide:plug"} className="size-4" />}
+          defaultOpen
+        >
+          <IntegrationOAuthConnect
+            integrationId={id}
+            iconifyIcon={typeMeta?.iconifyIcon}
+            label={typeMeta?.label}
+          />
         </SectionAccordion>
       )}
 
