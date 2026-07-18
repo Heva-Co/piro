@@ -62,10 +62,10 @@ internal class DnsCheckExecutor : ICheckExecutor
 
         // Single query (system resolver)
         if (nameServers.Count == 0)
-            return await QuerySingleAsync(new LookupClient(), data.Host, queryType, data.ExpectedValue, data.RecordType, ct);
+            return await QuerySingleAsync(new LookupClient(), data.Host, queryType, data, ct);
 
         // Parallel queries across all name servers
-        var tasks = nameServers.Select(ns => QueryNameServerAsync(ns, data.Host, queryType, data.ExpectedValue, data.RecordType, ct)).ToList();
+        var tasks = nameServers.Select(ns => QueryNameServerAsync(ns, data.Host, queryType, data, ct)).ToList();
         var results = await Task.WhenAll(tasks);
 
         return ClassifyNsResults(results, nameServers, data);
@@ -98,7 +98,7 @@ internal class DnsCheckExecutor : ICheckExecutor
     }
 
     private static async Task<CheckExecutionResult> QueryNameServerAsync(
-        string nameServer, string host, QueryType queryType, string? expectedValue, string recordType, CancellationToken ct)
+        string nameServer, string host, QueryType queryType, DnsCheckConfig data, CancellationToken ct)
     {
         LookupClient client;
         if (IPAddress.TryParse(nameServer, out var ip))
@@ -112,11 +112,11 @@ internal class DnsCheckExecutor : ICheckExecutor
                 : new LookupClient();
         }
 
-        return await QuerySingleAsync(client, host, queryType, expectedValue, recordType, ct);
+        return await QuerySingleAsync(client, host, queryType, data, ct);
     }
 
     private static async Task<CheckExecutionResult> QuerySingleAsync(
-        LookupClient client, string host, QueryType queryType, string? expectedValue, string recordType, CancellationToken ct)
+        LookupClient client, string host, QueryType queryType, DnsCheckConfig data, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -130,12 +130,9 @@ internal class DnsCheckExecutor : ICheckExecutor
             if (!result.Answers.Any())
                 return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, "No DNS records returned.");
 
-            if (!string.IsNullOrWhiteSpace(expectedValue))
-            {
-                var matchError = CheckExpectedValue(result, expectedValue, recordType);
-                if (matchError is not null)
-                    return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, matchError);
-            }
+            var matchError = CheckExpectedValue(result, data);
+            if (matchError is not null)
+                return new CheckExecutionResult(ServiceStatus.DOWN, sw.Elapsed.TotalMilliseconds, matchError);
 
             return new CheckExecutionResult(ServiceStatus.UP, sw.Elapsed.TotalMilliseconds, null);
         }
@@ -146,26 +143,106 @@ internal class DnsCheckExecutor : ICheckExecutor
         }
     }
 
-    private static string? CheckExpectedValue(IDnsQueryResponse result, string expectedValue, string recordType)
+    /// <summary>
+    /// Compares a query response against the configured expectations. MX uses the structured
+    /// <see cref="DnsCheckConfig.ExpectedMxRecords"/>; every other type uses the scalar
+    /// <see cref="DnsCheckConfig.ExpectedValue"/>. Returns null when nothing is configured (any
+    /// resolution is UP) or when the expectation is satisfied, otherwise a human-readable error.
+    /// The actual comparison is delegated to pure, unit-testable helpers that take plain strings.
+    /// </summary>
+    private static string? CheckExpectedValue(IDnsQueryResponse result, DnsCheckConfig data)
+    {
+        var recordType = data.RecordType.ToUpperInvariant();
+
+        if (recordType == "MX")
+        {
+            var expected = (data.ExpectedMxRecords ?? [])
+                .Where(m => !string.IsNullOrWhiteSpace(m.Exchange))
+                .ToList();
+            if (expected.Count == 0)
+                return null; // any successful MX resolution is UP
+
+            var actual = result.Answers.OfType<MxRecord>()
+                .Select(r => (Exchange: r.Exchange.Value, Priority: (int)r.Preference))
+                .ToList();
+            return MatchMxRecords(expected, actual);
+        }
+
+        if (string.IsNullOrWhiteSpace(data.ExpectedValue))
+            return null; // any successful resolution is UP
+
+        var values = ExtractValues(result, recordType);
+        return MatchScalar(recordType, data.ExpectedValue, values);
+    }
+
+    /// <summary>
+    /// Projects a response's answers into the comparable string values for a given record type.
+    /// Trailing dots are stripped for name-valued records so <c>mx1.example.com</c> and
+    /// <c>mx1.example.com.</c> compare equal. TXT flattens every text string across all answers.
+    /// Unknown/other types fall back to <see cref="DnsResourceRecord.ToString"/> of each answer.
+    /// </summary>
+    internal static IReadOnlyList<string> ExtractValues(IDnsQueryResponse result, string recordType) =>
+        recordType.ToUpperInvariant() switch
+        {
+            "A" => result.Answers.OfType<ARecord>().Select(r => r.Address.ToString()).ToList(),
+            "AAAA" => result.Answers.OfType<AaaaRecord>().Select(r => r.Address.ToString()).ToList(),
+            "CNAME" => result.Answers.OfType<CNameRecord>().Select(r => r.CanonicalName.Value.TrimEnd('.')).ToList(),
+            "NS" => result.Answers.OfType<NsRecord>().Select(r => r.NSDName.Value.TrimEnd('.')).ToList(),
+            "PTR" => result.Answers.OfType<PtrRecord>().Select(r => r.PtrDomainName.Value.TrimEnd('.')).ToList(),
+            "TXT" => result.Answers.OfType<TxtRecord>().SelectMany(r => r.EscapedText).ToList(),
+            _ => result.Answers.Select(r => r.ToString() ?? string.Empty).ToList(),
+        };
+
+    /// <summary>
+    /// Pure scalar match: does <paramref name="expectedValue"/> appear among <paramref name="actualValues"/>?
+    /// IP types (A/AAAA) compare exactly; name and text types compare case-insensitively with trailing
+    /// dots already stripped by <see cref="ExtractValues"/>. Returns null on a hit, else a typed error.
+    /// </summary>
+    internal static string? MatchScalar(string recordType, string expectedValue, IReadOnlyList<string> actualValues)
     {
         var upper = recordType.ToUpperInvariant();
+        var expected = upper is "A" or "AAAA" ? expectedValue : expectedValue.TrimEnd('.');
+        var comparison = upper is "A" or "AAAA" ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        if (actualValues.Any(v => v.Equals(expected, comparison)))
+            return null;
+
         return upper switch
         {
-            "A" => result.Answers.OfType<ARecord>().Any(r => r.Address.ToString() == expectedValue)
-                ? null
-                : $"Expected IP {expectedValue} not found in A records.",
-
-            "AAAA" => result.Answers.OfType<AaaaRecord>().Any(r => r.Address.ToString() == expectedValue)
-                ? null
-                : $"Expected IP {expectedValue} not found in AAAA records.",
-
-            "CNAME" => result.Answers.OfType<CNameRecord>()
-                .Any(r => r.CanonicalName.Value.TrimEnd('.').Equals(expectedValue.TrimEnd('.'), StringComparison.OrdinalIgnoreCase))
-                ? null
-                : $"Expected CNAME target {expectedValue} not found.",
-
-            _ => null // unsupported types: any resolution = UP
+            "A" => $"Expected IP {expectedValue} not found in A records.",
+            "AAAA" => $"Expected IP {expectedValue} not found in AAAA records.",
+            "CNAME" => $"Expected CNAME target {expectedValue} not found.",
+            "NS" => $"Expected name server {expectedValue} not found.",
+            "PTR" => $"Expected PTR target {expectedValue} not found.",
+            "TXT" => $"Expected TXT value \"{expectedValue}\" not found.",
+            _ => $"Expected value {expectedValue} not found in {upper} records.",
         };
+    }
+
+    /// <summary>
+    /// Pure MX match: every expected entry must be present in <paramref name="actual"/>. The exchange
+    /// host compares case-insensitively (trailing dots stripped); priority is compared only when the
+    /// expectation sets one. Returns null when all entries match, else an error naming the first miss.
+    /// </summary>
+    internal static string? MatchMxRecords(
+        IReadOnlyList<MxExpectation> expected, IReadOnlyList<(string Exchange, int Priority)> actual)
+    {
+        foreach (var want in expected)
+        {
+            var wantHost = want.Exchange.TrimEnd('.');
+            var hit = actual.Any(a =>
+                a.Exchange.TrimEnd('.').Equals(wantHost, StringComparison.OrdinalIgnoreCase)
+                && (want.Priority is null || a.Priority == want.Priority));
+
+            if (!hit)
+            {
+                return want.Priority is null
+                    ? $"Expected MX host {want.Exchange} not found."
+                    : $"Expected MX host {want.Exchange} with priority {want.Priority} not found.";
+            }
+        }
+
+        return null;
     }
 
     private static string? ValidateExpectedValue(string value, string recordType) =>
@@ -179,11 +256,11 @@ internal class DnsCheckExecutor : ICheckExecutor
                 ? null
                 : "must be a valid IPv6 address.",
 
-            "CNAME" => IsValidHostname(value)
+            "CNAME" or "NS" or "PTR" => IsValidHostname(value)
                 ? null
                 : "must be a valid hostname or FQDN.",
 
-            _ => null
+            _ => null // TXT: free text — no format constraint
         };
 
     private static bool IsValidNameServer(string value)

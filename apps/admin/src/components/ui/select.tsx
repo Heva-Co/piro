@@ -23,11 +23,7 @@ function SelectValue({ className, children, ...props }: SelectPrimitive.Value.Pr
       className={cn("flex flex-1 text-left", className)}
       {...props}
     >
-      {children ?? ((value: string | null) =>
-        value
-          ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
-          : props.placeholder
-      )}
+      {children ?? ((value: string | null) => value || props.placeholder)}
     </SelectPrimitive.Value>
   )
 }
