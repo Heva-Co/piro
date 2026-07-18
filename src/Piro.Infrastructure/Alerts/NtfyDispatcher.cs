@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -9,7 +10,7 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via ntfy.sh or a self-hosted ntfy instance.</summary>
-public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDispatcher> logger)
+public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDispatcher> logger, ISecretProtector secretProtector)
     : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Ntfy;
@@ -17,7 +18,7 @@ public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDi
     public async Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
-        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ConfigJson);
+        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector));
 
         await SendAsync(config?.ServerUrl, handle, config?.Token, null, context, ct);
         logger.LogInformation("ntfy personal alert sent to topic {Topic}.", handle);
@@ -27,7 +28,7 @@ public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDi
     public async Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
-        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ConfigJson);
+        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector));
 
         var url = $"{config?.ServerUrl?.TrimEnd('/') ?? "https://ntfy.sh"}/{handle}";
         var client = httpClientFactory.CreateClient("piro-webhook");

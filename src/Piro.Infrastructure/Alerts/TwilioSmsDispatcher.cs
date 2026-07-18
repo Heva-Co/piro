@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -10,7 +11,7 @@ using Twilio.Rest.Api.V2010.Account;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications as SMS via the Twilio API.</summary>
-public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger) : INotificationDispatcher
+public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger, ISecretProtector secretProtector) : INotificationDispatcher
 {
     public IntegrationType Type => IntegrationType.Twilio;
 
@@ -18,7 +19,7 @@ public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger) : INotific
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TwilioIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TwilioIntegrationConfig>(integration.ConfigJson); }
+        try { config = JsonUtils.DeserializeAndValidate<TwilioIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
         TwilioClient.Init(config.AccountSid, config.AuthToken);
@@ -35,7 +36,7 @@ public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger) : INotific
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TwilioIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TwilioIntegrationConfig>(integration.ConfigJson); }
+        try { config = JsonUtils.DeserializeAndValidate<TwilioIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
         TwilioClient.Init(config.AccountSid, config.AuthToken);

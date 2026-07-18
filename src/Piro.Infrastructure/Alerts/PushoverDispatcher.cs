@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -10,7 +11,7 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via the Pushover API.</summary>
-public class PushoverDispatcher(IHttpClientFactory httpClientFactory, ILogger<PushoverDispatcher> logger)
+public class PushoverDispatcher(IHttpClientFactory httpClientFactory, ILogger<PushoverDispatcher> logger, ISecretProtector secretProtector)
     : INotificationDispatcher
 {
     private const string ApiUrl = "https://api.pushover.net/1/messages.json";
@@ -21,7 +22,7 @@ public class PushoverDispatcher(IHttpClientFactory httpClientFactory, ILogger<Pu
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         PushoverIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<PushoverIntegrationConfig>(integration.ConfigJson); }
+        try { config = JsonUtils.DeserializeAndValidate<PushoverIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
         await SendAsync(config.AppToken, handle, null, context, ct);
