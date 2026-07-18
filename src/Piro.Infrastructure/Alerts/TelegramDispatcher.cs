@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
@@ -10,7 +11,7 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications via the Telegram Bot API (sendMessage).</summary>
-public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramDispatcher> logger)
+public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramDispatcher> logger, ISecretProtector secretProtector)
     : INotificationDispatcher
 {
     private const string ApiBase = "https://api.telegram.org";
@@ -21,7 +22,7 @@ public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<Te
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TelegramIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ConfigJson); }
+        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
         await SendMessageAsync(config.BotToken, handle, AlertMessageTemplates.Telegram(context), ct);
@@ -33,7 +34,7 @@ public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<Te
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TelegramIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ConfigJson); }
+        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
         await SendMessageAsync(config.BotToken, handle, message, ct);

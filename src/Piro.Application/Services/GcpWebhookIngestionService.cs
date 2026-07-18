@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -19,7 +20,8 @@ namespace Piro.Application.Services;
 public class GcpWebhookIngestionService(
     IIntegrationRepository integrationRepository,
     IWebhookRequestLogRepository webhookLogRepository,
-    AlertLifecycleService alertLifecycleService)
+    AlertLifecycleService alertLifecycleService,
+    ISecretProtector secretProtector)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -50,7 +52,7 @@ public class GcpWebhookIngestionService(
             return WebhookRequestOutcome.AuthFailed;
         }
 
-        if (!TryValidateToken(integration.ConfigJson, authToken))
+        if (!TryValidateToken(integration.ReadDecryptedConfigJson(secretProtector), authToken))
         {
             log.Outcome = WebhookRequestOutcome.AuthFailed;
             await webhookLogRepository.CreateAsync(log, ct);

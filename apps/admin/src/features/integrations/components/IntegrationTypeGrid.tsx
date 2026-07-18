@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plug } from "lucide-react";
-import { integrationTypesApi } from "@/lib/actions/integrations";
+import { integrationTypesApi, type IntegrationTypeMeta } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { IntegrationTypeCard } from "./IntegrationTypeCard";
 import { IntegrationTypeGridSkeleton } from "./IntegrationTypeGridSkeleton";
+import IntegrationManifestDialog from "./IntegrationManifestDialog";
 
 interface Props {
   onSelect: (type: string) => void;
@@ -11,6 +13,7 @@ interface Props {
 
 export function IntegrationTypeGrid(props: Props) {
   const { onSelect } = props;
+  const [manifestType, setManifestType] = useState<IntegrationTypeMeta | null>(null);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: QUERY_KEYS.INTEGRATION_TYPES,
@@ -41,7 +44,7 @@ export function IntegrationTypeGrid(props: Props) {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Third-party</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {thirdParty.map((t) => (
-              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} />
+              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} onViewManifest={setManifestType} />
             ))}
           </div>
         </section>
@@ -51,11 +54,19 @@ export function IntegrationTypeGrid(props: Props) {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notification</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {notification.map((t) => (
-              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} />
+              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} onViewManifest={setManifestType} />
             ))}
           </div>
         </section>
       )}
+
+      <IntegrationManifestDialog
+        typeMeta={manifestType}
+        open={manifestType !== null}
+        onOpenChange={(open) => {
+          if (!open) setManifestType(null);
+        }}
+      />
     </div>
   );
 }

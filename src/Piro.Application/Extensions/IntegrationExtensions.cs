@@ -92,6 +92,20 @@ public static class IntegrationExtensions
     public static string UnprotectSecrets(IntegrationType type, string configJson, ISecretProtector protector) =>
         TransformSecrets(type, configJson, (protector, plaintext: false));
 
+    /// <summary>
+    /// The centralized consumption read: returns this integration's ConfigJson with every secret field
+    /// decrypted, ready to deserialize into a consumer's config record. This is the ONLY path a
+    /// dispatcher/executor/token-provider should use to read a config it intends to act on — reading
+    /// <see cref="Integration.ConfigJson"/> directly yields ciphertext (secrets are encrypted at rest).
+    /// Legacy plaintext values pass through unchanged (see <see cref="ISecretProtector.IsProtected"/>),
+    /// so this is safe for rows written before encryption was applied. Never used for the outbound DTO,
+    /// which masks instead of decrypts (see <see cref="ToDto"/>).
+    /// </summary>
+    public static string ReadDecryptedConfigJson(this Integration integration, ISecretProtector protector)
+    {
+        return UnprotectSecrets(integration.Type, integration.ConfigJson, protector);
+    }
+
     private static string TransformSecrets(IntegrationType type, string configJson, (ISecretProtector Protector, bool Protecting) op)
     {
         var secretKeys = GetSecretKeys(type);
