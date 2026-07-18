@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Checks;
 
@@ -11,7 +11,7 @@ public class DnsCheckExecutorTests
     private static CheckExecutionResult Up(double latency = 20) => new(ServiceStatus.UP, latency, null);
     private static CheckExecutionResult Down(double latency = 20) => new(ServiceStatus.DOWN, latency, "timeout");
 
-    private static DnsCheckData Data() => new() { Host = "example.com" };
+    private static DnsCheckConfig Data() => new() { Host = "example.com" };
 
     [Fact]
     public void AllNsUp_ReturnsUp_WithZeroFailedNameServers()

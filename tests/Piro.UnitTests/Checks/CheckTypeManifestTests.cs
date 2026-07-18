@@ -15,7 +15,7 @@ public class CheckTypeManifestTests
     [Fact]
     public void RunnableTypes_DeclareDisplayNameDescriptionConfigAndInterval()
     {
-        foreach (var type in new[] { CheckType.HTTP, CheckType.DNS, CheckType.TCP, CheckType.Ping, CheckType.SSL, CheckType.GCP_CloudRunJob })
+        foreach (var type in new[] { CheckType.HTTP, CheckType.DNS, CheckType.TCP, CheckType.Ping, CheckType.SSL, CheckType.GRPC, CheckType.GCP_CloudRunJob })
         {
             var manifest = type.GetManifest();
             manifest.Should().NotBeNull($"{type} should declare a manifest");
@@ -28,7 +28,6 @@ public class CheckTypeManifestTests
 
     [Theory]
     [InlineData(CheckType.Heartbeat)]
-    [InlineData(CheckType.GRPC)]
     public void NotYetImplementedTypes_HaveNoManifest(CheckType type)
     {
         type.GetManifest().Should().BeNull();
