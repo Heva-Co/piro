@@ -178,6 +178,8 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IOAuthClient, OAuthClient>();
         services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
         services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
+        services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
+        services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
         services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
         // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).

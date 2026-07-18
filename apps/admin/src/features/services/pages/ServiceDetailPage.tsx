@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import ChecksSection from "../components/ChecksSection";
 import GeneralSettingsSection from "../components/GeneralSettingsSection";
+import { AlertRoutingSection } from "../components/AlertRoutingSection";
 
 export default function ServiceDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -62,6 +63,14 @@ export default function ServiceDetailPage() {
           defaultOpen
         >
           <GeneralSettingsSection slug={slug!} />
+        </SectionAccordion>
+
+        <SectionAccordion
+          title="Alert Routing"
+          description="Route this service's alerts to third-party systems"
+          icon={<Settings size={16} className="text-muted-foreground" />}
+        >
+          <AlertRoutingSection serviceId={service.id} />
         </SectionAccordion>
 
         <SectionAccordion
