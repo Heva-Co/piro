@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,88 +11,39 @@ import {
   useDeleteCheck,
   useRunCheck,
 } from "@/hooks/useChecks";
-import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { SectionAccordion } from "@/components/ui/section-accordion";
-import { CheckTypeConfigFields } from "@/features/checks/components/CheckTypeConfigFields";
+import DynamicConfigForm from "@/components/config-form/DynamicConfigForm";
+import { seedFromTypeData } from "@/components/config-form/seedDefaults";
+import { validateConfig } from "@/components/config-form/validators";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
+import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
 import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
-import { checkConfigSchema, CHECK_CONFIG_DEFAULTS, type CheckConfigFormValues } from "@/features/checks/validations";
-import { CRON_PRESETS, CHECK_TYPE_LABELS } from "@/constants/checks";
-import { buildTypeDataJson } from "@/features/checks/utils/typeDataJson";
+import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
+import { CRON_PRESETS } from "@/constants/checks";
+import { checkTypesApi } from "@/lib/actions/checks";
 import StatusHistorySection from "../components/StatusHistorySection";
 import RecentLogsSection from "../components/RecentLogsSection";
 import DangerZone from "@/components/DangerZone";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import RecentLogsActions from "../components/RecentLogsActions";
-import type { Check } from "@/lib/actions/checks";
-
-/** Maps a persisted check's typeDataJson back into the flat CheckConfigFormValues shape. */
-function parseTypeDataJson(check: Check): Partial<CheckConfigFormValues> {
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = check.typeDataJson ? JSON.parse(check.typeDataJson) : {};
-  } catch {
-    parsed = {};
-  }
-
-  switch (check.type) {
-    case "HTTP": {
-      const rawHeaders = parsed.headers;
-      const headers = rawHeaders && typeof rawHeaders === "object"
-        ? Object.entries(rawHeaders as Record<string, string>).map(([key, value]) => ({ key, value }))
-        : [];
-      const rawCodes = parsed.expectedStatusCodes;
-      const expectedStatusCodes = Array.isArray(rawCodes) ? rawCodes.join(", ") : String(rawCodes ?? "200");
-      return {
-        url: (parsed.url as string) ?? "",
-        method: (parsed.method as string) ?? "GET",
-        timeout: (parsed.timeout as number) ?? 5000,
-        expectedStatusCodes,
-        followRedirects: (parsed.followRedirects as boolean) ?? true,
-        body: (parsed.body as string) ?? "",
-        headers,
-        responseRules: (parsed.responseRules as CheckConfigFormValues["responseRules"]) ?? [],
-      };
-    }
-    case "DNS":
-      return {
-        host: (parsed.host as string) ?? "",
-        recordType: (parsed.recordType as string) ?? "A",
-        expectedValue: (parsed.expectedValue as string) ?? "",
-        nameServers: (parsed.nameServers as string[]) ?? [],
-      };
-    case "TCP":
-      return { host: (parsed.host as string) ?? "", port: (parsed.port as number) ?? 80 };
-    case "Ping":
-      return { host: (parsed.host as string) ?? "" };
-    case "SSL":
-      return { host: (parsed.host as string) ?? "", port: (parsed.port as number) ?? 443 };
-    case "Heartbeat":
-      return { gracePeriodSeconds: (parsed.gracePeriodSeconds as number) ?? 60 };
-    case "GCP_CloudRunJob":
-      return {
-        projectId: (parsed.projectId as string) ?? "",
-        region: (parsed.region as string) ?? "",
-        jobName: (parsed.jobName as string) ?? "",
-        maxAgeHours: (parsed.maxAgeHours as number) ?? 25,
-        integrationId: check.integrationId ?? "",
-      };
-    default:
-      return {};
-  }
-}
 
 // ── General Settings ──────────────────────────────────────────────────────────
 
 function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
+  const { data: checkTypes = [] } = useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
+  });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
+  // This section edits only the type-general fields; per-type config lives in ConfigurationSection,
+  // so `config` stays an empty object here (never read on this form).
   const methods = useForm<CheckConfigFormValues>({
     resolver: zodResolver(checkConfigSchema),
     defaultValues: {
@@ -104,7 +55,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       isActive: true,
       isMultiRegion: false,
       type: "HTTP",
-      ...CHECK_CONFIG_DEFAULTS,
+      config: {},
     },
   });
 
@@ -120,8 +71,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       isActive: check.isActive,
       isMultiRegion: check.isMultiRegion,
       type: check.type,
-      ...CHECK_CONFIG_DEFAULTS,
-      ...parseTypeDataJson(check),
+      config: {},
     });
   }, [check, methods]);
 
@@ -142,8 +92,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
     }
   }
 
+  const typeLabel = check ? (checkTypes.find((t) => t.type === check.type)?.displayName ?? check.type) : "";
   const typeNode = (
-    <input value={check ? (CHECK_TYPE_LABELS[check.type] ?? check.type) : ""} readOnly
+    <input value={typeLabel} readOnly
       className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground outline-none h-9 w-full" />
   );
 
@@ -173,51 +124,44 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
 function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
   const { data: check } = useCheck(serviceSlug, checkSlug);
   const updateCheck = useUpdateCheck(serviceSlug, checkSlug);
-  const { data: integrations = [] } = useQuery({
-    queryKey: QUERY_KEYS.INTEGRATIONS,
-    queryFn: integrationsApi.list,
+  const { data: checkTypes = [] } = useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
   });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
+  const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
+  const [integrationId, setIntegrationId] = useState("");
+  const [integrationError, setIntegrationError] = useState("");
 
-  const methods = useForm<CheckConfigFormValues>({
-    resolver: zodResolver(checkConfigSchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      cron: "* * * * *",
-      showCustomCron: false,
-      isActive: true,
-      isMultiRegion: false,
-      type: "HTTP",
-      ...CHECK_CONFIG_DEFAULTS,
-    },
-  });
+  const typeMeta = check ? checkTypes.find((t) => t.type === check.type) : undefined;
+  const requiredIntegration = typeMeta?.requiredIntegrationType;
 
+  // Seed the config + integration once both the check and its type manifest are available.
+  const seeded = useRef(false);
   useEffect(() => {
-    if (!check) return;
-    methods.reset({
-      name: check.name,
-      slug: check.slug,
-      description: check.description ?? "",
-      cron: check.cron,
-      showCustomCron: false,
-      isActive: check.isActive,
-      isMultiRegion: check.isMultiRegion,
-      type: check.type,
-      ...CHECK_CONFIG_DEFAULTS,
-      ...parseTypeDataJson(check),
-    });
-  }, [check, methods]);
+    if (check && typeMeta && !seeded.current) {
+      seeded.current = true;
+      setConfigValues(seedFromTypeData(typeMeta.configSchema, check.typeDataJson));
+      setIntegrationId(check.integrationId ?? "");
+    }
+  }, [check, typeMeta]);
 
-  async function handleSave(values: CheckConfigFormValues) {
+  async function handleSave() {
     setError("");
+    const errors = validateConfig(typeMeta?.configSchema ?? [], configValues);
+    setConfigErrors(errors);
+    const missingIntegration = !!requiredIntegration && !integrationId;
+    setIntegrationError(missingIntegration ? `A ${requiredIntegration} integration is required.` : "");
+    if (Object.keys(errors).length > 0 || missingIntegration) {
+      setError("Fix the highlighted configuration fields before saving.");
+      return;
+    }
     try {
-      const integrationId = values.integrationId ? values.integrationId : undefined;
       await updateCheck.mutateAsync({
-        typeDataJson: buildTypeDataJson(values),
-        ...(integrationId != null ? { integrationId } : {}),
+        typeDataJson: JSON.stringify(configValues),
+        ...(requiredIntegration ? { integrationId } : {}),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -226,25 +170,36 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
     }
   }
 
-  const rawType = check?.type ?? "HTTP";
+  const schema = typeMeta?.configSchema ?? [];
 
   return (
-    <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(handleSave)} className="flex flex-col gap-5">
-        {error && (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
-        )}
+    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-5">
+      {error && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>
+      )}
 
-        <CheckTypeConfigFields type={rawType} integrations={integrations} />
+      {requiredIntegration && (
+        <RequiredIntegrationPicker
+          integrationType={requiredIntegration}
+          value={integrationId}
+          onChange={setIntegrationId}
+          error={integrationError}
+        />
+      )}
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={updateCheck.isPending}>
-            <Save size={14} />
-            {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
-      </form>
-    </FormProvider>
+      {schema.length === 0 && !requiredIntegration ? (
+        <p className="text-sm text-muted-foreground">This check type has no configuration.</p>
+      ) : schema.length > 0 ? (
+        <DynamicConfigForm schema={schema} values={configValues} errors={configErrors} onChange={setConfigValues} />
+      ) : null}
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={updateCheck.isPending}>
+          <Save size={14} />
+          {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -256,6 +211,11 @@ export default function CheckDetailPage() {
   const { data: check, isLoading } = useCheck(serviceSlug!, checkSlug!);
   const runCheck = useRunCheck(serviceSlug!, checkSlug!);
   const deleteCheck = useDeleteCheck(serviceSlug!, checkSlug!);
+  const { data: checkTypes = [] } = useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
+  });
+  const typeLabel = check ? (checkTypes.find((t) => t.type === check.type)?.displayName ?? check.type) : "";
 
   async function handleDelete() {
     await deleteCheck.mutateAsync();
@@ -288,7 +248,7 @@ export default function CheckDetailPage() {
         ]}
         actions={
           <>
-            <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{CHECK_TYPE_LABELS[check.type] ?? check.type}</span>
+            <span className="rounded-lg border px-3 py-1.5 text-sm text-muted-foreground">{typeLabel}</span>
             <StatusPill status={check.currentStatus}/>
             <Button
               onClick={() => runCheck.mutate()}
@@ -313,7 +273,7 @@ export default function CheckDetailPage() {
 
       <SectionAccordion
         title="Configuration"
-        description={`Settings for the ${CHECK_TYPE_LABELS[check.type] ?? check.type} check`}
+        description={`Settings for the ${typeLabel} check`}
         icon={<Wrench size={16} className="text-muted-foreground" />}
       >
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />

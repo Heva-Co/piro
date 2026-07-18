@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,8 +6,7 @@ import { Settings, Wrench, Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
-import { checkTypesApi } from "@/lib/api";
-import { integrationsApi } from "@/lib/actions/integrations";
+import { checkTypesApi } from "@/lib/actions/checks";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +14,13 @@ import { SectionAccordion } from "@/components/ui/section-accordion";
 import { PageHeader } from "@/components/PageHeader";
 import { WarningConfirmDialog } from "@/components/ui/warning-confirm-dialog";
 import FormActions from "@/components/ui/form-actions";
-import { CheckTypeConfigFields } from "@/features/checks/components/CheckTypeConfigFields";
+import { seedDefaults } from "@/components/config-form/seedDefaults";
+import { validateConfig } from "@/components/config-form/validators";
+import SchemaConfigSection from "@/features/checks/components/SchemaConfigSection";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
 import { AlertConfigListEditor, type AlertConfigListEditorHandle } from "@/features/checks/components/AlertConfigListEditor";
 import type { AlertConfigDraft } from "@/features/checks/components/AlertConfigRow";
-import { checkConfigSchema, CHECK_CONFIG_DEFAULTS, type CheckConfigFormValues } from "@/features/checks/validations";
-import { CHECK_TYPE_LABELS } from "@/constants/checks";
-import { buildTypeDataJson } from "@/features/checks/utils/typeDataJson";
+import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
 import type { components } from "@/lib/api-types";
 
 type CheckType = components["schemas"]["CheckType"];
@@ -36,13 +35,11 @@ export default function CheckFormPage() {
     queryKey: QUERY_KEYS.CHECK_TYPES,
     queryFn: checkTypesApi.list,
   });
-  const { data: integrations = [] } = useQuery({
-    queryKey: QUERY_KEYS.INTEGRATIONS,
-    queryFn: integrationsApi.list,
-  });
 
   const [alertDrafts, setAlertDrafts] = useState<AlertConfigDraft[]>([]);
   const [submitError, setSubmitError] = useState("");
+  const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
+  const [integrationError, setIntegrationError] = useState("");
   const [showNoAlertsWarning, setShowNoAlertsWarning] = useState(false);
   const [pendingValues, setPendingValues] = useState<CheckConfigFormValues | null>(null);
   const alertConfigEditorRef = useRef<AlertConfigListEditorHandle>(null);
@@ -58,31 +55,44 @@ export default function CheckFormPage() {
       isActive: true,
       isMultiRegion: false,
       type: "HTTP",
-      ...CHECK_CONFIG_DEFAULTS,
+      config: {},
+      integrationId: "",
     },
   });
 
   const { watch, setValue, handleSubmit } = methods;
   const type = watch("type") as CheckType;
 
+  const typeMeta = useMemo(() => checkTypes.find((t) => t.type === type), [checkTypes, type]);
+
+  // Seed the config defaults for the initially-selected type once its manifest arrives.
+  const seededFor = useRef<string | null>(null);
+  if (typeMeta && seededFor.current !== type) {
+    seededFor.current = type;
+    setValue("config", seedDefaults(typeMeta.configSchema));
+  }
+
   function handleTypeChange(t: CheckType) {
     setValue("type", t);
+    const meta = checkTypes.find((ct) => ct.type === t);
+    seededFor.current = t;
+    setValue("config", meta ? seedDefaults(meta.configSchema) : {});
+    setConfigErrors({});
   }
 
   async function createTheCheck(values: CheckConfigFormValues) {
     setSubmitError("");
     try {
-      const integrationId = values.integrationId ? values.integrationId : undefined;
       const check = await createCheck.mutateAsync({
         slug: values.slug,
         name: values.name,
         description: values.description || null,
         type: values.type as CheckType,
         cron: values.cron,
-        typeDataJson: buildTypeDataJson(values),
+        typeDataJson: JSON.stringify(values.config ?? {}),
         isActive: values.isActive,
         isMultiRegion: values.isMultiRegion,
-        integrationId,
+        integrationId: values.integrationId || undefined,
         alertConfigs: alertDrafts,
       });
       navigate(ROUTES.CHECKS.DETAIL(serviceSlug!, check.slug));
@@ -92,6 +102,15 @@ export default function CheckFormPage() {
   }
 
   async function onSubmit(values: CheckConfigFormValues) {
+    const errors = validateConfig(typeMeta?.configSchema ?? [], (values.config ?? {}) as Record<string, unknown>);
+    setConfigErrors(errors);
+    const missingIntegration = !!typeMeta?.requiredIntegrationType && !values.integrationId;
+    setIntegrationError(missingIntegration ? `A ${typeMeta!.requiredIntegrationType} integration is required.` : "");
+    if (Object.keys(errors).length > 0 || missingIntegration) {
+      setSubmitError("Fix the highlighted configuration fields before creating this check.");
+      return;
+    }
+
     const alertConfigsValid = await alertConfigEditorRef.current?.validateAll() ?? true;
     if (!alertConfigsValid) {
       setSubmitError("Fix the invalid alert configuration(s) before creating this check.");
@@ -115,11 +134,11 @@ export default function CheckFormPage() {
   const typeSelect = (
     <Select value={type} onValueChange={(v) => v && handleTypeChange(v as CheckType)}>
       <SelectTrigger className="w-full">
-        <SelectValue>{(v: string) => CHECK_TYPE_LABELS[v] ?? v}</SelectValue>
+        <SelectValue>{(v: string) => checkTypes.find((t) => t.type === v)?.displayName ?? v}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {checkTypes.map((t) => (
-          <SelectItem key={t.type} value={t.type}>{CHECK_TYPE_LABELS[t.type] ?? t.type}</SelectItem>
+        {checkTypes.filter((t) => t.hasExecutor).map((t) => (
+          <SelectItem key={t.type} value={t.type}>{t.displayName}</SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -154,11 +173,11 @@ export default function CheckFormPage() {
 
           <SectionAccordion
             title="Configuration"
-            description={`Settings for the ${CHECK_TYPE_LABELS[type] ?? type} check`}
+            description={`Settings for the ${typeMeta?.displayName ?? type} check`}
             icon={<Wrench size={16} className="text-muted-foreground" />}
             defaultOpen
           >
-            <CheckTypeConfigFields type={type} integrations={integrations} />
+            <SchemaConfigSection typeMeta={typeMeta} errors={configErrors} integrationError={integrationError} />
           </SectionAccordion>
 
           <SectionAccordion

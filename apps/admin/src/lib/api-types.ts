@@ -1411,8 +1411,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Returns all registered check types with their integration requirements.
-         *     Types with `requiredIntegrationType != null` are only usable when an Integration of that type exists.
+         * Returns all manifested check types with their display metadata, minimum interval, allowed
+         *     alert-fors, required integration, and reflected config schema. Types with
+         *     `requiredIntegrationType != null` need that Integration to exist; types with
+         *     `hasExecutor == false` are declared but not yet runnable.
          */
         get: {
             parameters: {
@@ -6621,7 +6623,14 @@ export interface components {
         CheckType: "HTTP" | "DNS" | "TCP" | "Ping" | "SSL" | "Heartbeat" | "GRPC" | "GCP_CloudRunJob";
         CheckTypeMetaDto: {
             type: string;
+            displayName: string;
+            description: string;
+            /** Format: int32 */
+            minIntervalSeconds: number;
+            allowedAlertFors: string[];
+            configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
             requiredIntegrationType: null | string;
+            hasExecutor: boolean;
         };
         CompleteSetupRequest: {
             email: string;
@@ -6653,9 +6662,17 @@ export interface components {
             helpText: null | string;
             options: null | string[];
             isGenerated: boolean;
+            default?: unknown;
+            itemSchema?: null | components["schemas"]["ConfigFieldSchemaDto"][];
+            visibleWhen?: null | components["schemas"]["ConfigFieldVisibilityDto"];
+            validator?: null | string;
         };
         /** @enum {unknown} */
-        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline";
+        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code";
+        ConfigFieldVisibilityDto: {
+            field: string;
+            values: string[];
+        };
         ConfirmNotificationPreferenceCodeRequest: {
             code: string;
         };
