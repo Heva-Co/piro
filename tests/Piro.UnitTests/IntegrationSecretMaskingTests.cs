@@ -1,6 +1,7 @@
 using FluentAssertions;
 using NSubstitute;
 using Piro.Application.DTOs;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
@@ -9,10 +10,12 @@ using Piro.Domain.Enums;
 namespace Piro.UnitTests;
 
 /// <summary>
-/// Verifies that <see cref="IntegrationAppService"/> never returns plaintext credentials and that
-/// updates don't clobber a stored secret when the client resubmits the masked placeholder unchanged —
-/// found during the RC audit: ConfigJson (Slack bot tokens, PagerDuty routing keys, Jira API tokens,
-/// GoogleCloud service account JSON, etc.) was previously returned in plaintext to any authenticated user.
+/// Verifies that <see cref="IntegrationAppService"/> never returns plaintext credentials (masking on
+/// read), encrypts every <c>[SecretField]</c> at rest for every type (not just PagerDuty), lets consumers
+/// round-trip the ciphertext back to plaintext via <c>ReadDecryptedConfigJson</c>, and doesn't clobber a
+/// stored secret when the client resubmits the masked placeholder unchanged — found during the RC audit:
+/// ConfigJson (Slack bot tokens, PagerDuty routing keys, Jira API tokens, GoogleCloud service account
+/// JSON, etc.) was previously returned in plaintext to any authenticated user and stored unencrypted.
 /// </summary>
 public class IntegrationSecretMaskingTests
 {
@@ -119,5 +122,46 @@ public class IntegrationSecretMaskingTests
         await _repo.Received(1).UpdateAsync(
             Arg.Is<Integration>(i => i.ConfigJson.Contains("new-secret") && !i.ConfigJson.Contains("old-secret")),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Create_EncryptsSecretAtRest_ForEveryType_NotJustPagerDuty()
+    {
+        // Regression guard: encryption at rest used to be gated to PagerDuty only. Now every type
+        // with a [SecretField] must have its secret encrypted before it reaches the repository.
+        Integration? persisted = null;
+        _repo.CreateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Integration>())
+            .AndDoes(ci => persisted = ci.Arg<Integration>());
+
+        var request = new CreateIntegrationRequest(
+            "Prod Jira", IntegrationType.Jira, null,
+            """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""", null);
+
+        await _sut.CreateAsync(request);
+
+        persisted.Should().NotBeNull();
+        // Stored ciphertext: the secret is protected, the non-secret field stays plaintext.
+        persisted!.ConfigJson.Should().NotContain("\"real-secret-value\"");
+        persisted.ConfigJson.Should().Contain("enc:real-secret-value");
+        persisted.ConfigJson.Should().Contain("https://x.atlassian.net");
+    }
+
+    [Fact]
+    public void ReadDecryptedConfigJson_RoundTripsStoredSecret_ForConsumers()
+    {
+        // The centralized consumption read a dispatcher/executor uses: encrypted at rest → plaintext in-process.
+        var stored = IntegrationExtensions.ProtectSecrets(
+            IntegrationType.Jira,
+            """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""",
+            _secretProtector);
+        stored.Should().Contain("enc:real-secret-value");
+
+        var integration = new Integration { Type = IntegrationType.Jira, ConfigJson = stored };
+
+        var decrypted = integration.ReadDecryptedConfigJson(_secretProtector);
+
+        decrypted.Should().Contain("\"real-secret-value\"");
+        decrypted.Should().NotContain("enc:");
     }
 }

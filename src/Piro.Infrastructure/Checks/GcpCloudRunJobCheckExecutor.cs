@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Checks.Config;
@@ -15,7 +16,8 @@ namespace Piro.Infrastructure.Checks;
 /// <see href="https://docs.cloud.google.com/run/docs/reference/rest"/>
 internal class GcpCloudRunJobCheckExecutor(
     IHttpClientFactory httpClientFactory,
-    IGcpTokenProvider tokenProvider) : ICheckExecutor
+    IGcpTokenProvider tokenProvider,
+    ISecretProtector secretProtector) : ICheckExecutor
 {
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
@@ -47,7 +49,7 @@ internal class GcpCloudRunJobCheckExecutor(
         string accessToken;
         try
         {
-            accessToken = await tokenProvider.GetAccessTokenAsync(check.IntegrationId.Value, check.Integration.ConfigJson, ct);
+            accessToken = await tokenProvider.GetAccessTokenAsync(check.IntegrationId.Value, check.Integration.ReadDecryptedConfigJson(secretProtector), ct);
         }
         catch (Exception ex)
         {

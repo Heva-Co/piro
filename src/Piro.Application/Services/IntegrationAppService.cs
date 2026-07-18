@@ -18,14 +18,17 @@ public class IntegrationAppService(
     ISecretProtector secretProtector)
 {
     /// <summary>
-    /// Integration types whose config secrets are encrypted at rest (RFC 0004 Phase 1: PagerDuty
-    /// only — its OAuth client secret is an app credential worth encrypting beyond plain masking).
-    /// Other types keep the repo-wide masked-but-plaintext posture until that's revisited transversally.
+    /// Encrypts every <see cref="SecretFieldAttribute"/> value in the config at rest, for every
+    /// integration type. <see cref="IntegrationExtensions.ProtectSecrets"/> is a no-op for a type
+    /// with no secret fields and idempotent for already-protected values, so this applies
+    /// unconditionally — legacy plaintext rows migrate lazily on their next save. Consumers that
+    /// actually need a secret decrypt it via <see cref="IntegrationExtensions.UnprotectSecrets"/>;
+    /// the outbound DTO keeps masking (never decrypting) untouched.
     /// </summary>
-    private static bool EncryptsConfigSecrets(IntegrationType type) => type == IntegrationType.PagerDuty;
-
-    private string ProtectSecretsIfNeeded(IntegrationType type, string configJson) =>
-        EncryptsConfigSecrets(type) ? IntegrationExtensions.ProtectSecrets(type, configJson, secretProtector) : configJson;
+    private string ProtectSecretsIfNeeded(IntegrationType type, string configJson)
+    {
+        return IntegrationExtensions.ProtectSecrets(type, configJson, secretProtector);
+    }
 
     /// <summary>Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep the existing secret".</summary>
     public const string MaskedSecretValue = IntegrationExtensions.MaskedSecretValue;
