@@ -1,0 +1,50 @@
+name: RFC accept
+
+# When a PR labeled `rfc` that touches docs/rfcs/NNNN-*.md is merged into main,
+# mark the RFC(s) accepted, open a tracking issue, regenerate the index, and
+# commit the result back to main. All the logic lives in scripts/rfc-accept.mjs
+# so it can be run and tested locally (`node scripts/rfc-accept.mjs <pr> --dry-run`).
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  accept:
+    name: Accept merged RFCs
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'rfc')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Accept RFC(s) and open tracking issue(s)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/rfc-accept.mjs "${{ github.event.pull_request.number }}"
+
+      - name: Commit acceptance
+        run: |
+          if git diff --quiet -- docs/rfcs; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/rfcs
+          git commit -m "docs(rfc): accept RFC(s) from #${{ github.event.pull_request.number }}"
+          git push origin HEAD:main

@@ -1,3 +1,11 @@
+---
+rfc: 10
+title: "Script check type (sandboxed JavaScript, operator-driven HTTP)"
+status: proposed
+created: 2026-07-17
+depends-on: ["0011"]
+---
+
 # RFC 0010 — Script check type (sandboxed JavaScript, operator-driven HTTP)
 
 Status: proposal
