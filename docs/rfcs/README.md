@@ -22,7 +22,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0006](0006-escalation-limits.md) | Escalation limits: per-step retries with a terminal state | **Implemented** (PR #182, #178) | — |
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
 | [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Proposed (PR #184, #185) | 0001 |
-| [0009](0009-system-notifications.md) | Notification system revamp: delivery contracts, a push engine for non-paging notifications, and group broadcast | Proposed (PR #186, #187) | 0008 |
+| [0009](0009-system-notifications.md) | Notification system revamp: an event catalog, contracted payloads, and a durable push engine | Proposed (PR #186, #187) | 0008 |
 | [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | Proposed | 0011 |
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | Proposed | 0003, 0004, 0011 |
