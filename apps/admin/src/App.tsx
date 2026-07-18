@@ -33,6 +33,7 @@ import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
 import IncidentTimelinePage from "@/features/incidents/pages/IncidentTimelinePage";
 import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
 import IntegrationFormPage from "@/features/integrations/pages/IntegrationFormPage";
+import IntegrationOAuthCallbackPage from "@/features/integrations/pages/IntegrationOAuthCallbackPage";
 import MaintenancesPage from "@/features/maintenances/pages/MaintenancesPage";
 import MaintenanceFormPage from "@/features/maintenances/pages/MaintenanceFormPage";
 import MaintenanceDetailPage from "@/features/maintenances/pages/MaintenanceDetailPage";
@@ -125,6 +126,7 @@ export default function App() {
               <Route path={ROUTES.INTEGRATIONS.LIST} element={<IntegrationsPage />} />
               <Route path={ROUTES.INTEGRATIONS.NEW} element={<IntegrationFormPage />} />
               <Route path="/admin/settings/integrations/:id" element={<IntegrationFormPage />} />
+              <Route path={ROUTES.INTEGRATIONS.OAUTH_CALLBACK} element={<IntegrationOAuthCallbackPage />} />
 
               {/* Maintenances */}
               <Route path={ROUTES.MAINTENANCES.LIST} element={<MaintenancesPage />} />
