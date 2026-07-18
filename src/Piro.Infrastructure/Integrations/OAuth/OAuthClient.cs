@@ -146,6 +146,8 @@ internal class OAuthClient(
         return new OAuthCredentials(clientId, clientSecret);
     }
 
+    public Task<string> GetRedirectUriAsync(CancellationToken ct = default) => ResolveRedirectUriAsync(ct);
+
     private IOAuthProviderDescriptor ResolveDescriptor(string providerId) =>
         _descriptors.TryGetValue(providerId, out var d)
             ? d

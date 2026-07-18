@@ -24,6 +24,12 @@ public interface IOAuthClient
 
     /// <summary>Exchanges a refresh token for a fresh token set (<c>grant_type=refresh_token</c>), using the integration's stored credentials.</summary>
     Task<OAuthTokenSet> RefreshAsync(Guid integrationId, string providerId, string refreshToken, CancellationToken ct = default);
+
+    /// <summary>
+    /// The exact redirect URL this client sends to the provider — the same value the admin must
+    /// register in the provider's OAuth app. Exposed so the UI can display it instead of guessing.
+    /// </summary>
+    Task<string> GetRedirectUriAsync(CancellationToken ct = default);
 }
 
 /// <summary>Result of a completed authorization-code exchange.</summary>

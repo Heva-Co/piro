@@ -15,6 +15,7 @@ public sealed class PagerDutyOAuthProviderDescriptor : IOAuthProviderDescriptor
     public string AuthorizationEndpoint => "https://identity.pagerduty.com/oauth/authorize";
     public string TokenEndpoint => "https://identity.pagerduty.com/oauth/token";
 
-    // services.read lets Piro list services and read each service's Events API v2 integration_key.
-    public string DefaultScopes => "services.read";
+    // services.read lists services and reads each service's Events API v2 integration_key;
+    // services.write lets Piro provision a fresh Events API v2 integration on a service that has none.
+    public string DefaultScopes => "services.read services.write";
 }

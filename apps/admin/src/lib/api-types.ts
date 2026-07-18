@@ -2591,6 +2591,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/oauth/{integrationId}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the remote resources (PagerDuty services) discoverable for an OAuth-connected integration,
+         *     live from the provider (RFC 0004 §4.4a) — never cached, so a service renamed/deleted upstream is
+         *     reflected immediately. Only the admin's chosen mapping is persisted.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscoveredResourceDto"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/oauth/{integrationId}/connect": {
         parameters: {
             query?: never;
@@ -5095,6 +5146,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/{serviceId}/integration-mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the shared-channel integration mappings configured for a service. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"][];
+                    };
+                };
+            };
+        };
+        /** Maps a service to a discovered remote resource, resolving/provisioning its routing key. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                    "text/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                    "application/*+json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceId}/integration-mappings/{integrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a service's mapping to an integration. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services": {
         parameters: {
             query?: never;
@@ -7089,6 +7263,11 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
+        DiscoveredResourceDto: {
+            remoteId: string;
+            label: string;
+            routingKey: null | string;
+        };
         EmailConfigResponse: {
             provider: string;
             smtpHost: null | string;
@@ -7655,6 +7834,14 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        ServiceIntegrationMappingDto: {
+            /** Format: int32 */
+            serviceId: number;
+            /** Format: uuid */
+            integrationId: string;
+            remoteId: null | string;
+            remoteLabel: null | string;
+        };
         ServiceOverviewDto: {
             slug: string;
             name: string;
@@ -7901,6 +8088,11 @@ export interface components {
             allowedDomains: null | string;
             defaultRole: string;
             isEnabled: boolean;
+        };
+        UpsertServiceIntegrationMappingRequest: {
+            /** Format: uuid */
+            integrationId: string;
+            remoteId: string;
         };
         UpsertUserNotificationPreferenceRequest: {
             channel: string;
