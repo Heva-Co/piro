@@ -36,7 +36,6 @@ public class CheckTypeMetaDtoTests
 
     [Theory]
     [InlineData(CheckType.Heartbeat)]
-    [InlineData(CheckType.GRPC)]
     public void NotYetImplementedTypes_ProjectToNull(CheckType type)
     {
         type.ToMetaDto(hasExecutor: false).Should().BeNull();
