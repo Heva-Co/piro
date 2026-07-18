@@ -68,4 +68,4 @@ public record AlertNotificationContext(
     string? SourceLabel = null,
     /// <summary>Deep link into the source system's own console for this occurrence, if the source provided one.</summary>
     string? SourceUrl = null
-);
+) : INotificationContent;

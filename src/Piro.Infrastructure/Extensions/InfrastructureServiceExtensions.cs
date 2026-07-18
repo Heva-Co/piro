@@ -234,14 +234,21 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
         services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
-        // Alert dispatchers — registered as IEnumerable<INotificationDispatcher>.
-        // Webhook/Slack/GoogleChat/Discord/MsTeams/Opsgenie/Pushover/PagerDuty are not registered:
-        // their DispatchPersonalAsync is a stub (always returns false) or has no dispatcher at all,
-        // and they're not supported for now — see the [Obsolete] IntegrationType enum values.
-        services.AddScoped<INotificationDispatcher, EmailDispatcher>();
-        services.AddScoped<INotificationDispatcher, TelegramDispatcher>();
-        services.AddScoped<INotificationDispatcher, TwilioSmsDispatcher>();
-        services.AddScoped<INotificationDispatcher, NtfyDispatcher>();
+        // Personal notification dispatchers (RFC 0009 mode 1) — registered as
+        // IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>>. The group-only
+        // types (Slack/GoogleChat/Discord/MsTeams/Webhook/Opsgenie) are not registered here: their
+        // IGroupNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
+        // unregistered exactly as before (phase 1 preserves behavior — it is wired in a later phase).
+        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, EmailDispatcher>();
+        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TelegramDispatcher>();
+        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TwilioSmsDispatcher>();
+        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, NtfyDispatcher>();
+
+        // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
+        services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
+        services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
+        services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
+        services.AddScoped<IVerificationCodeSender, NtfyDispatcher>();
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
