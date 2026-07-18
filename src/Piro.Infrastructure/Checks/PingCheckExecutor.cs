@@ -2,7 +2,7 @@ using System.Net.NetworkInformation;
 using System.Text.Json;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -19,8 +19,8 @@ internal class PingCheckExecutor : ICheckExecutor
     {
         try
         {
-            var data = JsonSerializer.Deserialize<PingCheckData>(check.TypeDataJson, _json)
-                       ?? new PingCheckData();
+            var data = JsonSerializer.Deserialize<PingCheckConfig>(check.TypeDataJson, _json)
+                       ?? new PingCheckConfig();
 
             if (string.IsNullOrWhiteSpace(data.Host))
                 return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host is not configured.");

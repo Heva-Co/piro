@@ -1,18 +1,18 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Piro.Application.Attributes;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Integrations.GoogleCloud;
 
 namespace Piro.Infrastructure.Checks;
 
+// The GoogleCloud Integration requirement is declared on CheckType.GCP_CloudRunJob's manifest
+// (CheckTypeManifestAttribute.RequiresIntegration, RFC 0011), not here.
 /// <see href="https://docs.cloud.google.com/run/docs/reference/rest"/>
-[RequiresIntegration(IntegrationType.GoogleCloud)]
 internal class GcpCloudRunJobCheckExecutor(
     IHttpClientFactory httpClientFactory,
     IGcpTokenProvider tokenProvider) : ICheckExecutor
@@ -35,8 +35,8 @@ internal class GcpCloudRunJobCheckExecutor(
 
     private async Task<CheckExecutionResult> ExecuteInternalAsync(Check check, CancellationToken ct)
     {
-        var data = JsonSerializer.Deserialize<GcpCloudRunJobCheckData>(check.TypeDataJson, _json)
-                   ?? new GcpCloudRunJobCheckData();
+        var data = JsonSerializer.Deserialize<GcpCloudRunJobCheckConfig>(check.TypeDataJson, _json)
+                   ?? new GcpCloudRunJobCheckConfig();
 
         if (string.IsNullOrWhiteSpace(data.ProjectId) || string.IsNullOrWhiteSpace(data.Region) || string.IsNullOrWhiteSpace(data.JobName))
             return new CheckExecutionResult(ServiceStatus.FAILURE, null, "ProjectId, Region and JobName are required.");

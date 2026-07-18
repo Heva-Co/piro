@@ -6,7 +6,7 @@ using DnsClient;
 using DnsClient.Protocol;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -33,8 +33,8 @@ internal class DnsCheckExecutor : ICheckExecutor
 
     private async Task<CheckExecutionResult> ExecuteInternalAsync(Check check, CancellationToken ct)
     {
-        var data = JsonSerializer.Deserialize<DnsCheckData>(check.TypeDataJson, _json)
-                   ?? new DnsCheckData();
+        var data = JsonSerializer.Deserialize<DnsCheckConfig>(check.TypeDataJson, _json)
+                   ?? new DnsCheckConfig();
 
         if (string.IsNullOrWhiteSpace(data.Host))
             return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host is not configured.");
@@ -78,7 +78,7 @@ internal class DnsCheckExecutor : ICheckExecutor
     /// is an <see cref="Piro.Domain.Entities.AlertConfig"/> decision, not the check's own (RFC 0002).
     /// </summary>
     internal static CheckExecutionResult ClassifyNsResults(
-        CheckExecutionResult[] results, List<string> nameServers, DnsCheckData data)
+        CheckExecutionResult[] results, List<string> nameServers, DnsCheckConfig data)
     {
         var failures = results.Count(r => r.Status != ServiceStatus.UP);
         var maxLatency = results.Max(r => r.LatencyMs);

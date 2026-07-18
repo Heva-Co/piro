@@ -29,7 +29,7 @@ internal class CheckSchedulerService(
         var trigger = TriggerBuilder.Create()
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
-            .WithCronSchedule(ToQuartzCron(check.Cron))
+            .WithCronSchedule(QuartzCron.ToQuartzCron(check.Cron))
             .Build();
 
         if (await scheduler.CheckExists(jobKey, ct))
@@ -65,20 +65,4 @@ internal class CheckSchedulerService(
 
     private static Quartz.JobKey JobKey(int checkId) => new($"check-{checkId}", "checks");
     private static Quartz.TriggerKey TriggerKey(int checkId) => new($"trigger-{checkId}", "checks");
-
-    /// <summary>
-    /// Converts a standard 5-field cron expression to Quartz 6-field format (prepends seconds=0).
-    /// If already 6 fields, returns as-is.
-    /// </summary>
-    private static string ToQuartzCron(string cron)
-    {
-        var parts = cron.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 6) return cron;
-
-        // Standard 5-field: min hour dom month dow
-        // Quartz 6-field:   sec min hour dom month dow
-        // When day-of-week is '*', Quartz requires '?' when day-of-month is also '*'
-        var dow = parts[4] == "*" ? "?" : parts[4];
-        return $"0 {parts[0]} {parts[1]} {parts[2]} {parts[3]} {dow}";
-    }
 }

@@ -7,7 +7,7 @@ using System.Xml.XPath;
 using Json.Path;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -24,8 +24,8 @@ internal class HttpCheckExecutor(IHttpClientFactory httpClientFactory) : ICheckE
     {
         try
         {
-            var data = JsonSerializer.Deserialize<HttpCheckData>(check.TypeDataJson, _json)
-                       ?? new HttpCheckData();
+            var data = JsonSerializer.Deserialize<HttpCheckConfig>(check.TypeDataJson, _json)
+                       ?? new HttpCheckConfig();
 
             if (string.IsNullOrWhiteSpace(data.Url))
                 return new CheckExecutionResult(ServiceStatus.FAILURE, null, "URL is not configured.");
