@@ -3,7 +3,7 @@
   <h1>Piro</h1>
   <p><strong>Enterprise-grade open-source status page and uptime monitoring</strong></p>
   <p>
-    <a href="https://github.com/Heva-Co/piro/releases"><img src="https://img.shields.io/github/v/release/Heva-Co/piro?label=release&color=0ea5e9&logo=docker" alt="Release" /></a>
+    <a href="https://github.com/Heva-Co/piro/releases"><img src="https://img.shields.io/github/v/release/Heva-Co/piro?include_prereleases&label=release&color=0ea5e9&logo=docker" alt="Release" /></a>
     <a href="https://github.com/Heva-Co/piro/actions/workflows/release.yml"><img src="https://github.com/Heva-Co/piro/actions/workflows/release.yml/badge.svg" alt="Release build" /></a>
     <a href="https://github.com/Heva-Co/piro/actions/workflows/ci.yml"><img src="https://github.com/Heva-Co/piro/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-22c55e" alt="License" /></a>
@@ -19,66 +19,66 @@
 
 ---
 
-Piro is a **self-hosted, enterprise-grade status page, uptime monitoring platform and incident response platform** built for engineering teams that demand full control over their infrastructure. Run it on your own servers, connect distributed workers from any region, and give your users real-time visibility into your services — without sending your data to a third party.
+Piro is a **self-hosted, enterprise-grade status page, uptime monitoring, and incident-response platform** built for engineering teams that demand full control over their infrastructure. Run checks from any region, page the right on-call engineer, and give your users a real-time status page — all on servers you own, with no data leaving your infrastructure.
 
-Built by [Heva](https://heva.co) and released as open source to give every team access to the kind of monitoring tooling that was previously only available in expensive SaaS platforms.
+It pairs active monitoring (HTTP, DNS, SSL, TCP, Ping, gRPC, and more) with the operational layer most status pages leave out: on-call rotations, escalation policies, verified personal alert channels, incidents, and maintenance windows — in one self-hostable stack.
 
-## Why open source?
+Built by [heva](https://heva.co) and released under the AGPL. Read the story and the reasoning behind it in **[MOTIVATION.md](MOTIVATION.md)**.
 
-Monitoring and status pages are critical infrastructure. We believe teams shouldn't have to choose between vendor lock-in and building from scratch. Piro is our contribution to the community — a production-ready, self-hostable alternative to StatusPage, Instatus, or Betterstack that you own completely.
+## Why it exists
 
-We built this for ourselves first, running it internally at Heva to monitor our own services. After reaching a stable, feature-complete core, we decided to open it up. We welcome contributions, bug reports, and the kind of real-world feedback that makes software better.
+Monitoring and status pages are critical infrastructure, yet the good tooling has long sat behind expensive per-seat SaaS. We believe teams shouldn't have to choose between vendor lock-in and building it all from scratch. Piro is our contribution to the community — a production-ready, self-hostable alternative to StatusPage, Instatus, or Better Stack that you own completely.
+
+We built it for ourselves first, running it internally at heva to monitor our own services, and we dogfood it in production. We welcome contributions, bug reports, and the kind of real-world feedback that makes software better. The full backstory is in **[MOTIVATION.md](MOTIVATION.md)**.
 
 ## Features
 
 ### Core platform
-- **Multi-region monitoring** — Deploy lightweight workers to any cloud, on-prem server, or bare metal machine. Workers connect back to the API over SignalR and can be scaled independently across regions
-- **Public status page** — Fully branded, real-time status page with uptime history, latency trends, and incident timeline
+- **Multi-region monitoring** — Deploy lightweight workers to any cloud, on-prem server, or bare-metal machine. Workers connect back to the API over SignalR and scale independently across regions; single-region setups run checks in-process with no separate worker
+- **Many check types** — HTTP, DNS (with expected-value matching), SSL certificate expiry, TCP, Ping, gRPC health, and GCP Cloud Run Job checks — each with tunable intervals and per-region assignment
+- **Public status page** — Branded, real-time status page with uptime history, latency trends, incidents, and scheduled maintenances
 - **Incident management** — Structured incidents with timeline updates, severity levels, and manual alert-to-incident linking — you decide when an alert becomes a customer-facing incident, never automatically
-- **Maintenance windows** — Schedule maintenance windows with automatic notifications and status suppression during the window
-- **Config-as-code** — Define your entire monitoring setup in YAML and import via the admin panel or API; version-control your observability config
+- **Maintenance windows** — Schedule maintenance windows that automatically suppress a service's public status during the window
 
 ### On-call & escalation
 - **On-call schedules** — RRULE-based rotation layers with overrides, timezone-aware, visualized on a Gantt-style calendar
-- **Escalation policies** — Per-service policies with ordered steps, delays, and re-escalation after inactivity; a policy can be reused across any number of services
+- **Escalation policies** — Per-service policies with ordered steps, delays, per-step retries, and re-escalation after inactivity; a policy can be reused across any number of services
 - **Personal on-call calendar** — Every user sees their own upcoming shifts and an "on-call now" indicator in their profile
 - **Verified notification channels** — Personal alert channels (Email, Telegram, SMS via Twilio, ntfy) require a one-time code confirmation before they're used for paging, so a typo never means a missed page
 
 ### Alerting
-- **Flexible alert rules** — Configure thresholds on status, latency, or uptime percentage with tunable failure/success thresholds to reduce noise
+- **Flexible alert rules** — Configure thresholds on status, latency, certificate expiry, or failed name servers, with tunable failure/success thresholds to reduce noise
 - **Personal, prioritized delivery** — Each on-call user configures their own ordered list of notification channels; escalation tries them in priority order and falls back to email if every configured channel fails
-- **Custom templates** — Scriban-based message templates per channel (Email, Telegram, SMS, Pushover, ntfy, and more)
+- **Per-channel message formatting** — Built-in Scriban templates render each channel's messages appropriately (Email, Telegram, SMS, ntfy)
+
+### Integrations
+- **Outbound alerting** — Email, Telegram, Twilio SMS, and ntfy for personal paging
+- **PagerDuty** — Events API v2 dispatcher with service discovery and OAuth connection; map Piro services to PagerDuty services
+- **GCP Cloud Monitoring** — Ingest Google Cloud Monitoring alert webhooks as Piro alerts
 
 ### Enterprise & security
-- **OIDC / SSO** — Single sign-on with Google, Microsoft, or any standard OIDC/OAuth2 provider; enforce SSO-only login policy
-- **RBAC** — Owner, Admin, and Member roles with email-based invitations; audit-ready permission model
-- **API-first** — Full REST API with OpenAPI 3.1 spec; every admin operation is available programmatically
-- **Self-hosted** — Your data stays on your infrastructure; no telemetry required (opt-out in settings)
+- **OIDC / SSO** — Single sign-on with Google, Microsoft, GitHub, or any standard OIDC/OAuth2 provider; enforce an SSO-only login policy
+- **RBAC** — Owner, Admin, Member, and Viewer roles with email-based invitations
+- **Encrypted secrets at rest** — Integration credentials and secret fields are encrypted in the database
+- **API-first** — Full REST API with an OpenAPI 3.1 spec; every admin operation is available programmatically
+- **Self-hosted** — Your data stays on your infrastructure. No product telemetry, tracking, or phone-home
 - **Branding** — Upload logo, favicon, and social preview image; customize site name, URL, and meta tags
-
-### Roadmap
-The following capabilities are planned for upcoming releases:
-
-- **Voice call alerts** — Direct phone paging via Twilio Programmable Voice for critical incidents, alongside the existing SMS channel
-- **SLA / uptime reports** — Exportable uptime SLA reports per service, per time range
-- **Synthetic transaction monitoring** — Multi-step HTTP sequences (login → action → assert) for end-to-end checks
-- **Status page subscriptions** — Email and webhook subscriptions for end-users to receive incident updates
-- **Audit log** — Full audit trail of admin actions for compliance requirements
-- **Two-factor authentication** — TOTP-based 2FA for local accounts
 
 ## Architecture
 
-```
-Browser ──▶ nginx (proxy) ──▶ Next.js public status page (apps/web)
-                          ──▶ Vite admin panel (apps/admin)
-                          ──▶ Piro API (ASP.NET Core 10) ──▶ PostgreSQL
-                                       │ SignalR
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                     Worker (EU)  Worker (US)  Worker (custom)
+```mermaid
+flowchart LR
+    B[Browser] --> P[nginx proxy]
+    P --> W["Public status page<br/>(Next.js · apps/web)"]
+    P --> A["Admin panel<br/>(Vite SPA · apps/admin)"]
+    P --> API["Piro API<br/>(ASP.NET Core 10)"]
+    API --> DB[(PostgreSQL)]
+    API -. SignalR .-> WK1["Worker (EU)"]
+    API -. SignalR .-> WK2["Worker (US)"]
+    API -. SignalR .-> WK3["Worker (custom)"]
 ```
 
-The API can execute checks in-process (single-region setups) or dispatch them to standalone Workers over SignalR for multi-region coverage. Workers are stateless, self-contained binaries — they receive check assignments, execute HTTP / DNS / SSL / TCP / heartbeat checks, and stream results back in real time.
+The API can execute checks in-process (single-region setups) or dispatch them to standalone Workers over SignalR for multi-region coverage. Workers are stateless, self-contained binaries — they receive check assignments, execute HTTP / DNS / SSL / TCP / Ping / gRPC / GCP Cloud Run Job checks, and stream results back in real time.
 
 ## Docker Images
 
@@ -89,7 +89,7 @@ The API can execute checks in-process (single-region setups) or dispatch them to
 | `ghcr.io/heva-co/piro-web` | `latest` | `linux/amd64` |
 | `ghcr.io/heva-co/piro-proxy` | `latest` | `linux/amd64` |
 
-Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](https://github.com/Heva-Co/piro/releases) page. Self-contained, no runtime required.
+All four images ship under the same version tag on every [release](https://github.com/Heva-Co/piro/releases), so there's a single `PIRO_VERSION` to pin. Each release also attaches a ready-to-run `docker-compose.release.yml` with the version resolved — `docker compose -f docker-compose.release.yml up` runs that exact release, no source checkout required.
 
 → **[Self-Hosting Guide](https://github.com/Heva-Co/piro/wiki/Self-Hosting)** — Docker Compose quickstart and full configuration reference.
 
@@ -111,10 +111,10 @@ Piro is open-source software released under the [GNU Affero General Public Licen
 
 **You may not:** host Piro as a paid or public managed service for third parties without publishing your modifications under the same license. If you offer Piro (modified or not) as a service to others, the AGPL requires you to make your source code available.
 
-Copyright © 2025 [Heva Inc.](https://heva.co)
+Copyright © 2025 [heva Inc.](https://heva.co)
 
 ---
 
 <div align="center">
-  <sub>Built with ♥ by <a href="https://heva.co">Heva</a> · <a href="mailto:devops@heva.co">devops@heva.co</a></sub>
+  <sub>Built with ♥ by <a href="https://heva.co">heva</a> · <a href="mailto:devops@heva.co">devops@heva.co</a></sub>
 </div>
