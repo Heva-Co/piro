@@ -65,7 +65,7 @@ public enum IntegrationType
     [IntegrationManifest(
         IntegrationCategory.ThirdParty,
         IntegrationDirection.Outbound,
-        IntegrationCapability.RequiresOAuthConnection,
+        IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.SendsAlertEvents,
         typeof(PagerDutyConfig),
         Label = "PagerDuty",
         Description = "Page your on-call team through PagerDuty.",

@@ -243,6 +243,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationDispatcher, TwilioSmsDispatcher>();
         services.AddScoped<INotificationDispatcher, NtfyDispatcher>();
 
+        // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
+        services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
+
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();
 
