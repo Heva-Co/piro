@@ -18,17 +18,21 @@ export function isValidIpOrHostname(value: string): boolean {
   return /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^[a-zA-Z0-9-]{1,63}$/.test(value.replace(/\.$/, ""));
 }
 
+const HOSTNAME_RE = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^[a-zA-Z0-9-]{1,63}$/;
+
 export function isValidDnsExpectedValue(value: string, recordType: string): boolean {
   if (!value.trim()) return true;
   if (recordType === "A") return /^(\d{1,3}\.){3}\d{1,3}$/.test(value) && value.split(".").every((o) => Number(o) <= 255);
   if (recordType === "AAAA") return /^[0-9a-fA-F:]+$/.test(value) && value.includes(":");
-  if (recordType === "CNAME") return /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^[a-zA-Z0-9-]{1,63}$/.test(value.replace(/\.$/, ""));
+  // CNAME/NS/PTR are name-valued; the trailing dot is optional. TXT (and anything else) is free text.
+  if (recordType === "CNAME" || recordType === "NS" || recordType === "PTR") return HOSTNAME_RE.test(value.replace(/\.$/, ""));
   return true;
 }
 
 export function dnsExpectedValueHint(recordType: string): string {
   if (recordType === "A") return "IPv4 address";
   if (recordType === "AAAA") return "IPv6 address";
+  if (recordType === "TXT") return "text value";
   return "hostname or FQDN";
 }
 
