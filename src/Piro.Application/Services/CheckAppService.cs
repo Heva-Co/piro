@@ -145,7 +145,7 @@ public class CheckAppService(
 
     /// <summary>
     /// Extracts the configured timeout from a check's TypeDataJson, or null for a type that has no
-    /// timeout field (DNS/SSL/GCP). Only HTTP/TCP/Ping carry a TimeoutMs.
+    /// timeout field (DNS/SSL/GCP). Only HTTP/TCP/Ping/gRPC carry a TimeoutMs.
     /// </summary>
     private static TimeSpan? TimeoutFromTypeData(CheckType type, string typeDataJson)
     {
@@ -154,6 +154,7 @@ public class CheckAppService(
             CheckType.HTTP => Deserialize<HttpCheckConfig>(typeDataJson)?.TimeoutMs,
             CheckType.TCP => Deserialize<TcpCheckConfig>(typeDataJson)?.TimeoutMs,
             CheckType.Ping => Deserialize<PingCheckConfig>(typeDataJson)?.TimeoutMs,
+            CheckType.GRPC => Deserialize<GrpcCheckConfig>(typeDataJson)?.TimeoutMs,
             _ => null
         };
         return ms is { } value ? TimeSpan.FromMilliseconds(value) : null;

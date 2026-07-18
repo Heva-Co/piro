@@ -121,6 +121,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
         services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
         services.AddScoped<ICheckExecutor, SslCheckExecutor>();
+        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
         services.AddScoped<ICheckExecutor, GcpCloudRunJobCheckExecutor>();
         services.AddSingleton<GcpTokenCache>();
         services.AddScoped<IGcpTokenProvider, GcpTokenProvider>();
@@ -277,6 +278,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
         services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
         services.AddScoped<ICheckExecutor, SslCheckExecutor>();
+        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
 
         return services;
     }
