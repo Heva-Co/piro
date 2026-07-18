@@ -29,7 +29,7 @@ Write the RFC in English regardless of the language of the conversation (Piro's 
 # RFC NNNN — <Title>
 
 Status: proposal
-Author: <name> (assisted draft)
+Author: <name> (<github-profile-url>)
 Date: <YYYY-MM-DD>
 
 ## 1. Problem
@@ -46,10 +46,12 @@ Date: <YYYY-MM-DD>
 
 Notes on each section:
 
+- **Author**: `<name> (<github-profile-url>)` — the author's real name followed by their GitHub profile URL in parentheses (e.g. `Author: Arael Espinosa (https://github.com/cl8dep)`). Resolve the real handle via `gh api user --jq .html_url` (or the known handle) — never write `(assisted draft)` or a placeholder.
 - **Problem**: state the concrete failure mode(s), not the feature request. "Piro can't do X" is weaker than "a check needs the target reachable from the worker; a fully private k8s pod without an Ingress can't be checked without exposing it."
 - **Non-goals**: name the adjacent thing you're deliberately *not* proposing, and say why — this pre-empts scope creep in review and is often the difference between a decidable RFC and one that sprawls.
 - **Design principle**: one or two sentences naming the constraint that shapes every choice that follows (e.g. "don't reinvent Alertmanager's routing/grouping — only receive what it already decided to send"). Everything in §4 should be traceable back to this.
 - **Design**: number a subsection per real component touched, each naming the actual interface/entity/dispatcher involved and how the new work plugs into it. Include a flow diagram as an ASCII/arrow diagram in a fenced code block — reviewers read the diagram before the prose. End with an explicit **"What does NOT change"** subsection — this is not filler, it's how a reviewer judges blast radius. List the interfaces/pipelines you are deliberately leaving untouched and why reusing them (instead of adding a parallel path) is the point.
+- **UI must be defined, not just named.** If the proposal touches any user-facing surface (admin panel form/page, public status page, a new field a user configures, a new state a user sees), the RFC must *define* that UI in its own §4 subsection — which app it lives in (`apps/admin` vs `apps/web`), which screen/form it extends, each new input with its control type and validation, and what the user sees for any new state. Naming it as a deferred "admin UX" phase without defining it is insufficient: an unspecified UI is an undecidable RFC (the reviewer can't judge whether it fits, and the implementer invents it). Deferring the *delivery* of the UI to a later phase is fine; deferring its *definition* is not — describe it now even if it ships later. Cite the real file/component it extends (e.g. the escalation-policy step editor in `apps/admin`), per the codebase-grounding rule above.
 - **Data/schema scope**: enumerate every enum value, column, and migration this requires — explicitly say "no changes to X, Y, Z" for anything a reviewer might otherwise assume is affected.
 - **Phased plan**: numbered phases, each independently shippable. Later phases should be the parts that are genuinely optional or need more validation (e.g. auto-promotion behavior, admin UX) — not an arbitrary split of one feature into steps.
 - **Alternatives considered**: for each rejected alternative, give the one-sentence reason, tied back to the design principle. This is what lets a future reader trust that the alternative wasn't just missed.
