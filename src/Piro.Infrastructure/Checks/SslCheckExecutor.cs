@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -22,8 +22,8 @@ internal class SslCheckExecutor : ICheckExecutor
     {
         try
         {
-            var data = JsonSerializer.Deserialize<SslCheckData>(check.TypeDataJson, _json)
-                       ?? new SslCheckData();
+            var data = JsonSerializer.Deserialize<SslCheckConfig>(check.TypeDataJson, _json)
+                       ?? new SslCheckConfig();
 
             if (string.IsNullOrWhiteSpace(data.Host))
                 return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host is not configured.");

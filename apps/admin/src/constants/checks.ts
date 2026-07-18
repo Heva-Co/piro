@@ -10,28 +10,14 @@ export const CRON_PRESETS = [
   { label: "Custom",           value: "custom" },
 ] as const;
 
-export const CHECK_TYPE_LABELS: Record<string, string> = {
-  HTTP:            "HTTP",
-  DNS:             "DNS",
-  TCP:             "TCP",
-  Ping:            "Ping",
-  SSL:             "SSL",
-  Heartbeat:       "Heartbeat",
-  GCP_CloudRunJob: "GCP Cloud Run Job",
-};
-
-export const CHECK_TYPE_DEFAULTS: Record<string, Record<string, unknown>> = {
-  HTTP:            { url: "", method: "GET", timeout: 5000, expectedStatusCodes: [200], followRedirects: true, body: "", headers: [] },
-  DNS:             { host: "", recordType: "A", expectedValue: "", nameServers: [] },
-  TCP:             { host: "", port: 80 },
-  Ping:            { host: "" },
-  SSL:             { host: "", port: 443 },
-  Heartbeat:       { gracePeriodSeconds: 60 },
-  GCP_CloudRunJob: { integrationId: "", projectId: "", region: "", jobName: "", maxAgeHours: 25 },
-};
+// CHECK_TYPE_LABELS and CHECK_TYPE_DEFAULTS were removed by RFC 0011 — the check-type display name
+// and each field's default now come from the backend manifest (CheckTypeMetaDto.displayName and the
+// per-field `default` on its configSchema), consumed by the schema-driven config form.
 
 // Mirrors CheckTypeExtensions.AllowedAlertFors() in the backend — the set of AlertFor values
 // that make sense for each CheckType (see RFC 0002 §4.4). Keep both in sync.
+// TODO(RFC 0011): the manifest already exposes allowedAlertFors per type — migrate the alert UI
+// (AlertConfigListEditor / AlertConfigsSection) to read meta.allowedAlertFors and drop this table.
 export const ALLOWED_ALERT_FORS: Record<string, readonly AlertFor[]> = {
   HTTP:            ["Status", "Latency"],
   DNS:             ["Status", "Latency", "FailedNameServers"],

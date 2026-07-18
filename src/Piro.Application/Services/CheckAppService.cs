@@ -1,6 +1,7 @@
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
@@ -20,6 +21,7 @@ public class CheckAppService(
     ICheckSchedulerService scheduler,
     ICheckDataPointRepository dataPointRepository,
     IAlertConfigRepository alertConfigRepository,
+    ICronIntervalCalculator cronInterval,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -59,6 +61,8 @@ public class CheckAppService(
 
         foreach (var alertConfigRequest in request.AlertConfigs ?? [])
             EnsureAlertForAllowed(request.Type, alertConfigRequest.AlertFor);
+
+        EnsureScheduleWithinBounds(request.Type, request.Cron, request.TypeDataJson);
 
         var check = new Check
         {
@@ -117,6 +121,53 @@ public class CheckAppService(
             throw new DomainValidationException($"{alertFor} is not a valid alert metric for a {type} check.");
     }
 
+    /// <summary>
+    /// Enforces the schedule bounds from the check manifest (RFC 0011): the interval must be at
+    /// least 1 minute globally, at least the type's declared minimum, and strictly greater than the
+    /// check's own timeout (so a run always finishes before its next fire). An un-derivable cron is
+    /// left to the scheduler to reject.
+    /// </summary>
+    private void EnsureScheduleWithinBounds(CheckType type, string cron, string typeDataJson)
+    {
+        if (cronInterval.SmallestInterval(cron) is not { } interval)
+            return; // invalid/too-rare cron — not this guard's concern
+
+        if (interval < TimeSpan.FromMinutes(1))
+            throw new DomainValidationException("Check interval must be at least 1 minute.");
+
+        type.EnsureIntervalAllowed(interval);
+
+        var timeout = TimeoutFromTypeData(type, typeDataJson);
+        if (timeout is { } t && t >= interval)
+            throw new DomainValidationException(
+                $"The check timeout ({t.TotalSeconds:0}s) must be shorter than its interval ({interval.TotalSeconds:0}s).");
+    }
+
+    /// <summary>
+    /// Extracts the configured timeout from a check's TypeDataJson, or null for a type that has no
+    /// timeout field (DNS/SSL/GCP). Only HTTP/TCP/Ping carry a TimeoutMs.
+    /// </summary>
+    private static TimeSpan? TimeoutFromTypeData(CheckType type, string typeDataJson)
+    {
+        var ms = type switch
+        {
+            CheckType.HTTP => Deserialize<HttpCheckConfig>(typeDataJson)?.TimeoutMs,
+            CheckType.TCP => Deserialize<TcpCheckConfig>(typeDataJson)?.TimeoutMs,
+            CheckType.Ping => Deserialize<PingCheckConfig>(typeDataJson)?.TimeoutMs,
+            _ => null
+        };
+        return ms is { } value ? TimeSpan.FromMilliseconds(value) : null;
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions _typeDataJson =
+        new() { PropertyNameCaseInsensitive = true };
+
+    private static T? Deserialize<T>(string json)
+    {
+        try { return System.Text.Json.JsonSerializer.Deserialize<T>(json, _typeDataJson); }
+        catch (System.Text.Json.JsonException) { return default; }
+    }
+
     public async Task<CheckDto> UpdateAsync(string serviceSlug, string checkSlug, UpdateCheckRequest request, CancellationToken ct = default)
     {
         var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
@@ -133,6 +184,9 @@ public class CheckAppService(
         if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
         if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
+
+        // Type is immutable on update; validate the resulting cron/config against the check's own type.
+        EnsureScheduleWithinBounds(check.Type, check.Cron, check.TypeDataJson);
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);

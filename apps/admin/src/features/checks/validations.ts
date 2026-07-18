@@ -1,17 +1,5 @@
 import { z } from "zod";
 
-const httpHeaderSchema = z.object({
-  key: z.string(),
-  value: z.string(),
-});
-
-const httpResponseRuleSchema = z.object({
-  type: z.enum(["contains", "not_contains", "regex", "json_path", "xml_path"]),
-  value: z.string(),
-  expected: z.string().optional(),
-  degraded: z.boolean(),
-});
-
 function isValidStatusCodePattern(pattern: string): boolean {
   if (/^[1-5]xx$/.test(pattern)) return true;
   return /^\d{3}$/.test(pattern) && Number(pattern) >= 100 && Number(pattern) <= 599;
@@ -52,6 +40,12 @@ export function dnsExpectedValueHint(recordType: string): string {
  * a single source of truth instead of scattered `register(field, { required })`
  * calls across each *Config.tsx component.
  */
+/**
+ * Check form: the type-general fields (name/slug/cron/…) validated by zod here, plus `config` — the
+ * schema-driven per-type configuration, an opaque structured object. Config's own required/format
+ * validation is derived from the type's ConfigFieldSchema and applied by `validateConfig` at submit
+ * (see components/config-form/validators), not encoded here — one source of truth (RFC 0011).
+ */
 const baseCheckSchema = z.object({
   name: z.string(),
   slug: z.string(),
@@ -61,29 +55,9 @@ const baseCheckSchema = z.object({
   isActive: z.boolean(),
   isMultiRegion: z.boolean(),
   type: z.string(),
-  // HTTP
-  url: z.string(),
-  method: z.string(),
-  timeout: z.number(),
-  expectedStatusCodes: z.string(),
-  followRedirects: z.boolean(),
-  body: z.string(),
-  headers: z.array(httpHeaderSchema),
-  responseRules: z.array(httpResponseRuleSchema),
-  // DNS / TCP / Ping / SSL (shared "host")
-  host: z.string(),
-  recordType: z.string(),
-  expectedValue: z.string(),
-  nameServers: z.array(z.string()),
-  port: z.number(),
-  // Heartbeat
-  gracePeriodSeconds: z.number(),
-  // GCP Cloud Run Job
-  integrationId: z.union([z.string(), z.literal("")]),
-  projectId: z.string(),
-  region: z.string(),
-  jobName: z.string(),
-  maxAgeHours: z.number(),
+  config: z.record(z.string(), z.unknown()),
+  /** The chosen provider Integration id — only used by types whose manifest requires one (e.g. GCP). "" when none. */
+  integrationId: z.string(),
 });
 
 export const checkConfigSchema = baseCheckSchema.superRefine((values, ctx) => {
@@ -98,113 +72,9 @@ export const checkConfigSchema = baseCheckSchema.superRefine((values, ctx) => {
   if (!values.cron.trim()) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cron schedule is required.", path: ["cron"] });
   }
-
-  switch (values.type) {
-    case "HTTP":
-      if (!values.url.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL is required.", path: ["url"] });
-      } else if (!/^https?:\/\/.+/i.test(values.url)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must be a valid http(s) URL.", path: ["url"] });
-      }
-      if (!isValidStatusCodesInput(values.expectedStatusCodes)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Must be valid status codes (e.g. 200) or classes (e.g. 2xx).",
-          path: ["expectedStatusCodes"],
-        });
-      }
-      break;
-
-    case "DNS":
-      if (!values.host.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Host is required.", path: ["host"] });
-      }
-      if (values.expectedValue && !isValidDnsExpectedValue(values.expectedValue, values.recordType)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Must be a valid ${dnsExpectedValueHint(values.recordType)}.`,
-          path: ["expectedValue"],
-        });
-      }
-      values.nameServers.forEach((ns, i) => {
-        if (ns && !isValidIpOrHostname(ns)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Must be a valid IP address or hostname.",
-            path: ["nameServers", i],
-          });
-        }
-      });
-      break;
-
-    case "TCP":
-      if (!values.host.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Host is required.", path: ["host"] });
-      }
-      if (!values.port || values.port < 1 || values.port > 65535) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Port must be between 1 and 65535.", path: ["port"] });
-      }
-      break;
-
-    case "Ping":
-      if (!values.host.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Host is required.", path: ["host"] });
-      }
-      break;
-
-    case "SSL":
-      if (!values.host.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Host is required.", path: ["host"] });
-      }
-      if (!values.port || values.port < 1 || values.port > 65535) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Port must be between 1 and 65535.", path: ["port"] });
-      }
-      break;
-
-    case "GCP_CloudRunJob":
-      if (values.integrationId === "") {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A Google Cloud integration is required.", path: ["integrationId"] });
-      }
-      if (!values.projectId.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Project ID is required.", path: ["projectId"] });
-      }
-      if (!values.region.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Region is required.", path: ["region"] });
-      }
-      if (!values.jobName.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Job name is required.", path: ["jobName"] });
-      }
-      break;
-
-    // Heartbeat has no required fields.
-    default:
-      break;
-  }
 });
 
 export type CheckConfigFormValues = z.infer<typeof baseCheckSchema>;
-
-export const CHECK_CONFIG_DEFAULTS: Omit<CheckConfigFormValues, "type" | "name" | "slug" | "description" | "cron" | "showCustomCron" | "isActive" | "isMultiRegion"> = {
-  url: "",
-  method: "GET",
-  timeout: 5000,
-  expectedStatusCodes: "200",
-  followRedirects: true,
-  body: "",
-  headers: [],
-  responseRules: [],
-  host: "",
-  recordType: "A",
-  expectedValue: "",
-  nameServers: [],
-  port: 443,
-  gracePeriodSeconds: 60,
-  integrationId: "",
-  projectId: "",
-  region: "",
-  jobName: "",
-  maxAgeHours: 25,
-};
 
 const NUMERIC_ALERT_FORS = new Set(["Latency", "FailedNameServers", "CertExpiry"]);
 
