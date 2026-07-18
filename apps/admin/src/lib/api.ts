@@ -592,15 +592,7 @@ export type NotificationCategoryType = keyof typeof INTEGRATION_CATEGORIES;
 
 
 // ─── Check Types ──────────────────────────────────────────────────────────────
-
-export interface CheckTypeMeta {
-  type: string;
-  requiredIntegrationType: string | null;
-}
-
-export const checkTypesApi = {
-  list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
-};
+// Moved to lib/actions/checks (aliases the generated CheckTypeMetaDto, RFC 0011).
 
 // ─── On-Call Schedules ────────────────────────────────────────────────────────
 

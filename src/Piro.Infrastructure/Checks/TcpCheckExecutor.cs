@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
-using Piro.Application.Models.TypeData;
+using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -20,8 +20,8 @@ internal class TcpCheckExecutor : ICheckExecutor
     {
         try
         {
-            var data = JsonSerializer.Deserialize<TcpCheckData>(check.TypeDataJson, _json)
-                       ?? new TcpCheckData();
+            var data = JsonSerializer.Deserialize<TcpCheckConfig>(check.TypeDataJson, _json)
+                       ?? new TcpCheckConfig();
 
             if (string.IsNullOrWhiteSpace(data.Host) || data.Port <= 0)
                 return new CheckExecutionResult(ServiceStatus.FAILURE, null, "Host or port is not configured.");

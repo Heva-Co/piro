@@ -9,6 +9,15 @@ export type CheckDailyStats = components["schemas"]["CheckDailyStatsDto"];
 export type CreateCheckRequest = components["schemas"]["CreateCheckRequest"];
 export type UpdateCheckRequest = components["schemas"]["UpdateCheckRequest"];
 
+/** Full per-CheckType manifest (RFC 0011): display metadata, min interval, allowed alert-fors, and the reflected config schema. */
+export type CheckTypeMeta = components["schemas"]["CheckTypeMetaDto"];
+/** A single config field's schema — shared with integrations (see lib/actions/integrations). */
+export type ConfigFieldSchema = components["schemas"]["ConfigFieldSchemaDto"];
+
+export const checkTypesApi = {
+  list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
+};
+
 export const checksApi = {
   listAll: () => api.get<CheckSummary[]>(ENDPOINTS.CHECKS).then((r) => r.data),
 
