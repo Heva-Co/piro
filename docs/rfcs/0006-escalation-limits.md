@@ -1,3 +1,14 @@
+---
+rfc: 6
+title: "Escalation limits: per-step retries with a terminal state"
+status: implemented
+created: 2026-07-17
+tracking-issue: 178
+depends-on: []
+proposal-pr: 177
+implementation-pr: 182
+---
+
 # RFC 0006 — Escalation limits: per-step retries with a terminal state
 
 Status: Implemented

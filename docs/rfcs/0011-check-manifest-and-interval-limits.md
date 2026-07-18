@@ -1,3 +1,14 @@
+---
+rfc: 11
+title: "Check manifest, config-as-schema, and interval/timeout limits"
+status: implemented
+created: 2026-07-17
+tracking-issue: 188
+depends-on: ["0003"]
+proposal-pr: null
+implementation-pr: 189
+---
+
 # RFC 0011 — Check manifest, config-as-schema, and interval/timeout limits
 
 Status: proposal

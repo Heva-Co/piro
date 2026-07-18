@@ -43,10 +43,12 @@ See [AGENTS.md](AGENTS.md) for prerequisites and running each part of the stack 
 
 3. **Test your changes**
    ```bash
-   dotnet test                              # backend tests
-   cd apps/web && pnpm exec tsc --noEmit     # public status page type checking
-   cd apps/admin && pnpm exec tsc --noEmit   # admin panel type checking
+   dotnet test                          # backend tests
+   cd apps/web && pnpm exec tsc -b       # public status page type checking
+   cd apps/admin && pnpm exec tsc -b     # admin panel type checking
    ```
+   Use `tsc -b` (not `tsc --noEmit`) — it respects the project references CI
+   builds and catches errors a plain `--noEmit` run can miss.
 
 4. **Open a pull request** against `main` with:
    - A clear title (e.g. `feat: add Ntfy alert template support`)
@@ -69,6 +71,41 @@ refactor: simplify W
 test: add coverage for V
 chore: bump dependency
 ```
+
+## Proposing substantial changes: the RFC process
+
+Small changes — bug fixes, refactors, docs, an option on an existing extension
+point — just need an issue and a PR. **Substantial** changes go through an
+**RFC** (Request for Comments) first, so the design is reviewed before code:
+
+- A new subsystem, domain concept, or public API surface
+- A change to a contract other components depend on (a dispatcher interface, the
+  check pipeline, the config-as-schema engine, auth)
+- A new external integration or check/alert type
+- A non-trivial database migration or data-model change
+
+RFCs live at `docs/rfcs/NNNN-kebab-title.md` and move through a
+`draft → proposed → accepted → implemented` lifecycle:
+
+1. **Draft** the RFC on a `docs/rfc-NNNN-*` branch (`status: draft`). Write it
+   against the real codebase — cite actual files and interfaces.
+2. **Propose** it by opening a PR labeled `rfc` (`status: proposed`). The PR is
+   where the design is discussed — this is the "request for comments".
+3. On merge the RFC is **accepted**; a maintainer opens a tracking issue labeled
+   `implements-rfc`.
+4. **Implement** it in separate `implements-rfc/NNNN-*` PRs, one per phase, each
+   ticking a box on the tracking issue. Mark `status: implemented` when the last
+   phase lands on `main`.
+
+The full process (when an RFC is required, the status meanings, front-matter
+fields, tracking issues, and the automated index) is in
+**[docs/rfcs/PROCESS.md](docs/rfcs/PROCESS.md)**. The current list of RFCs and
+their dependency graph is in [docs/rfcs/README.md](docs/rfcs/README.md) — a
+generated index, so if you touch an RFC's front-matter, run
+`node scripts/rfc-index.mjs` and commit the result.
+
+RFC numbers are permanent identifiers, never a ranking — assigned once and never
+reused or changed.
 
 ## Project structure
 
