@@ -2591,6 +2591,285 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/oauth/{integrationId}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the remote resources (PagerDuty services) discoverable for an OAuth-connected integration,
+         *     live from the provider (RFC 0004 §4.4a) — never cached, so a service renamed/deleted upstream is
+         *     reflected immediately. Only the admin's chosen mapping is persisted.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscoveredResourceDto"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/{integrationId}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Starts the OAuth authorization-code flow for an integration and returns the provider
+         *     authorization URL the admin's browser should be sent to.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * OAuth callback: exchanges the authorization code for tokens and stores them (encrypted)
+         *     against the integration the connection was started for.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OAuthCallbackRequest"];
+                    "text/json": components["schemas"]["OAuthCallbackRequest"];
+                    "application/*+json": components["schemas"]["OAuthCallbackRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/redirect-uri": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The redirect URL the admin must register in the provider's OAuth app — resolved by the backend
+         *     (from the site URL) so it's always exactly what the OAuth flow will send, never guessed by the UI.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OAuthRedirectUriDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/{integrationId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns whether an integration currently has a stored OAuth connection. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OAuthConnectionStatusDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/{integrationId}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disconnects an integration by removing its stored OAuth tokens. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/types": {
         parameters: {
             query?: never;
@@ -4867,6 +5146,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/{serviceId}/integration-mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the shared-channel integration mappings configured for a service. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"][];
+                    };
+                };
+            };
+        };
+        /** Maps a service to a discovered remote resource, resolving/provisioning its routing key. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                    "text/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                    "application/*+json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceId}/integration-mappings/{integrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a service's mapping to an integration. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceId: number;
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services": {
         parameters: {
             query?: never;
@@ -6861,6 +7263,11 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
+        DiscoveredResourceDto: {
+            remoteId: string;
+            label: string;
+            routingKey: null | string;
+        };
         EmailConfigResponse: {
             provider: string;
             smtpHost: null | string;
@@ -7127,6 +7534,19 @@ export interface components {
         };
         /** @enum {unknown} */
         MaintenanceStatus: "Active" | "Cancelled";
+        OAuthCallbackRequest: {
+            code: string;
+            state: string;
+        };
+        OAuthConnectionStatusDto: {
+            connected: boolean;
+            /** Format: date-time */
+            expiresAt: null | string;
+            scopes: null | string;
+        };
+        OAuthRedirectUriDto: {
+            redirectUri: string;
+        };
         OidcCallbackRequest: {
             code: string;
             state: string;
@@ -7414,6 +7834,14 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        ServiceIntegrationMappingDto: {
+            /** Format: int32 */
+            serviceId: number;
+            /** Format: uuid */
+            integrationId: string;
+            remoteId: null | string;
+            remoteLabel: null | string;
+        };
         ServiceOverviewDto: {
             slug: string;
             name: string;
@@ -7660,6 +8088,11 @@ export interface components {
             allowedDomains: null | string;
             defaultRole: string;
             isEnabled: boolean;
+        };
+        UpsertServiceIntegrationMappingRequest: {
+            /** Format: uuid */
+            integrationId: string;
+            remoteId: string;
         };
         UpsertUserNotificationPreferenceRequest: {
             channel: string;

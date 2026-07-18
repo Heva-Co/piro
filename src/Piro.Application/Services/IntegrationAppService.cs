@@ -14,8 +14,19 @@ namespace Piro.Application.Services;
 public class IntegrationAppService(
     IIntegrationRepository repository,
     IWebhookRequestLogRepository webhookLogRepository,
-    IEscalationPolicyRepository escalationPolicyRepository)
+    IEscalationPolicyRepository escalationPolicyRepository,
+    ISecretProtector secretProtector)
 {
+    /// <summary>
+    /// Integration types whose config secrets are encrypted at rest (RFC 0004 Phase 1: PagerDuty
+    /// only — its OAuth client secret is an app credential worth encrypting beyond plain masking).
+    /// Other types keep the repo-wide masked-but-plaintext posture until that's revisited transversally.
+    /// </summary>
+    private static bool EncryptsConfigSecrets(IntegrationType type) => type == IntegrationType.PagerDuty;
+
+    private string ProtectSecretsIfNeeded(IntegrationType type, string configJson) =>
+        EncryptsConfigSecrets(type) ? IntegrationExtensions.ProtectSecrets(type, configJson, secretProtector) : configJson;
+
     /// <summary>Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep the existing secret".</summary>
     public const string MaskedSecretValue = IntegrationExtensions.MaskedSecretValue;
 
@@ -43,7 +54,7 @@ public class IntegrationAppService(
             Name = request.Name,
             Type = request.Type,
             Description = request.Description,
-            ConfigJson = InjectAuthTokenIfNeeded(request.Type, request.ConfigJson),
+            ConfigJson = ProtectSecretsIfNeeded(request.Type, InjectAuthTokenIfNeeded(request.Type, request.ConfigJson)),
             EscalationPolicyId = request.EscalationPolicyId
         };
         var created = await repository.CreateAsync(integration, ct);
@@ -113,7 +124,9 @@ public class IntegrationAppService(
         if (request.Name is not null) integration.Name = request.Name;
         if (request.Description is not null) integration.Description = request.Description;
         if (request.ConfigJson is not null)
-            integration.ConfigJson = MergeConfigJson(integration.Type, integration.ConfigJson, request.ConfigJson);
+            integration.ConfigJson = ProtectSecretsIfNeeded(
+                integration.Type,
+                MergeConfigJson(integration.Type, integration.ConfigJson, request.ConfigJson));
 
         // Always applies (unlike the fields above) — the admin form always has an opinion on this,
         // same convention as Service.EscalationPolicyId: null explicitly clears the assignment.

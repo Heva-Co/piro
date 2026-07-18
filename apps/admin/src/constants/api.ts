@@ -127,6 +127,15 @@ export const ENDPOINTS = {
   INTEGRATION_TYPES: `${API_BASE}/integrations/types`,
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => `${API_BASE}/integrations/${id}/webhook-logs`,
   INTEGRATION_REGENERATE_GENERATED_FIELDS: (id: number | string) => `${API_BASE}/integrations/${id}/regenerate-generated-fields`,
+  INTEGRATION_OAUTH_CONNECT: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/connect`,
+  INTEGRATION_OAUTH_STATUS: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/status`,
+  INTEGRATION_OAUTH_DISCONNECT: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/disconnect`,
+  INTEGRATION_OAUTH_CALLBACK: `${API_BASE}/integrations/oauth/callback`,
+  INTEGRATION_OAUTH_REDIRECT_URI: `${API_BASE}/integrations/oauth/redirect-uri`,
+  INTEGRATION_OAUTH_DISCOVER: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/discover`,
+  SERVICE_INTEGRATION_MAPPINGS: (serviceId: number | string) => `${API_BASE}/services/${serviceId}/integration-mappings`,
+  SERVICE_INTEGRATION_MAPPING: (serviceId: number | string, integrationId: string) =>
+    `${API_BASE}/services/${serviceId}/integration-mappings/${integrationId}`,
 
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
@@ -203,6 +212,7 @@ export const QUERY_KEYS = {
   INTEGRATION: (id: number | string) => ["integrations", id] as const,
   INTEGRATION_TYPES: ["integration-types"] as const,
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => ["integrations", id, "webhook-logs"] as const,
+  INTEGRATION_OAUTH_STATUS: (id: number | string) => ["integrations", id, "oauth-status"] as const,
   CHECK_TYPES: ["check-types"] as const,
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
   ONCALL_SCHEDULES_MEMBERS: ["oncall-schedules", "members"] as const,

@@ -14,6 +14,8 @@ using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
 using Piro.Infrastructure.Integrations.GoogleCloud;
+using Piro.Infrastructure.Integrations.OAuth;
+using Piro.Infrastructure.Security;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -171,6 +173,35 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Integration repository
         services.AddScoped<IIntegrationRepository, IntegrationRepository>();
 
+        // OAuth integration framework (RFC 0004) — generic OAuth client + encrypted token store.
+        services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
+        services.AddScoped<IOAuthClient, OAuthClient>();
+        services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
+        services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
+        services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
+        services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
+        // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
+        services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
+        // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
+        services.AddHttpClient("oauth-integration-http", c =>
+            {
+                c.Timeout = TimeSpan.FromSeconds(15);
+                c.DefaultRequestVersion = System.Net.HttpVersion.Version11;
+                c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectTimeout = TimeSpan.FromSeconds(10),
+                ConnectCallback = async (context, ct) =>
+                {
+                    var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
+                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                    await socket.ConnectAsync(new IPEndPoint(addresses[0], context.DnsEndPoint.Port), ct);
+                    return new NetworkStream(socket, ownsSocket: true);
+                },
+            });
+
         // On-call scheduling
         services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
         services.AddScoped<OnCallService>();
@@ -211,6 +242,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationDispatcher, TelegramDispatcher>();
         services.AddScoped<INotificationDispatcher, TwilioSmsDispatcher>();
         services.AddScoped<INotificationDispatcher, NtfyDispatcher>();
+
+        // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
+        services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
 
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();

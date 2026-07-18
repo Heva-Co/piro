@@ -95,7 +95,7 @@ export function DynamicConfigField(props: Props) {
       )}
 
       {isMasked && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
+        <p className="text-xs text-muted-foreground">
           A value is already configured and hidden for security. Leave blank to keep it, or enter a new one to replace it.
         </p>
       )}

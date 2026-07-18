@@ -57,11 +57,20 @@ public enum IntegrationType
     Slack = 4,
 
     /// <summary>
-    /// Not supported for now — no notification dispatcher exists for this type (it would never
-    /// send). Kept in place (not removed/reordered) so its ordinal value doesn't shift and corrupt
-    /// any existing DB rows. See RFC 0004 for the planned implementation.
+    /// PagerDuty (RFC 0004). Phase 1: the integration is OAuth-connectable — the admin connects Piro
+    /// to their PagerDuty account so services and routing keys can later be discovered. The alert
+    /// dispatcher itself (SendsAlertEvents) is a later phase, so the manifest declares only
+    /// RequiresOAuthConnection today — an honest statement of what actually works.
     /// </summary>
-    [Obsolete("Not supported for now.")]
+    [IntegrationManifest(
+        IntegrationCategory.ThirdParty,
+        IntegrationDirection.Outbound,
+        IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.SendsAlertEvents,
+        typeof(PagerDutyConfig),
+        Label = "PagerDuty",
+        Description = "Page your on-call team through PagerDuty.",
+        IconifyIcon = "logos:pagerduty"
+    )]
     PagerDuty = 5,
 
     [IntegrationManifest(
