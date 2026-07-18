@@ -11,7 +11,8 @@ public class AlertConfig
 
     /// <summary>
     /// Threshold value: a <see cref="ServiceStatus"/> name for Status alerts,
-    /// a latency in ms for Latency alerts, or an uptime percentage for Uptime alerts.
+    /// a latency in ms for Latency alerts, days-until-expiry for CertExpiry alerts,
+    /// or a failed-name-server count for FailedNameServers alerts.
     /// </summary>
     public string AlertValue { get; set; } = string.Empty;
 
