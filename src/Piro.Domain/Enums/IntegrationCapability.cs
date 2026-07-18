@@ -32,4 +32,7 @@ public enum IntegrationCapability
     /// Connect/Disconnect UI.
     /// </summary>
     RequiresOAuthConnection = 1 << 5,
+
+    /// <summary>Has a registered ISystemEventDispatcher — sends trigger/resolve alert events to a shared incident channel (RFC 0004).</summary>
+    SendsAlertEvents = 1 << 6,
 }

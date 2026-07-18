@@ -23,6 +23,12 @@ public class IntegrationManifestTests
         IntegrationType.Ntfy,
     ];
 
+    /// <summary>Mirrors the ISystemEventDispatcher registrations in InfrastructureServiceExtensions (RFC 0004).</summary>
+    private static readonly HashSet<IntegrationType> RegisteredSystemEventDispatcherTypes =
+    [
+        IntegrationType.PagerDuty,
+    ];
+
     private static IEnumerable<IntegrationType> NonObsoleteTypes() =>
         Enum.GetValues<IntegrationType>().Where(t => !IsObsolete(t));
 
@@ -61,6 +67,20 @@ public class IntegrationManifestTests
             declaresCapability.Should().Be(isRegistered,
                 $"{type}'s manifest {(declaresCapability ? "declares" : "does not declare")} SendsPersonalNotification, " +
                 $"but a dispatcher is {(isRegistered ? "" : "not ")}registered for it — these must stay in sync");
+        }
+    }
+
+    [Fact]
+    public void SendsAlertEventsCapability_MatchesActualDispatcherRegistrations()
+    {
+        foreach (var type in NonObsoleteTypes())
+        {
+            var declaresCapability = type.GetManifest()!.Capabilities.HasFlag(IntegrationCapability.SendsAlertEvents);
+            var isRegistered = RegisteredSystemEventDispatcherTypes.Contains(type);
+
+            declaresCapability.Should().Be(isRegistered,
+                $"{type}'s manifest {(declaresCapability ? "declares" : "does not declare")} SendsAlertEvents, " +
+                $"but an ISystemEventDispatcher is {(isRegistered ? "" : "not ")}registered for it — these must stay in sync");
         }
     }
 
