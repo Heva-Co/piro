@@ -6,8 +6,8 @@ namespace Piro.Domain.Enums;
 /// <summary>
 /// Protocol or mechanism used to probe a service. Each runnable value carries a
 /// <see cref="CheckTypeManifestAttribute"/> declaring its metadata and config shape (RFC 0011).
-/// <see cref="Heartbeat"/> and <see cref="GRPC"/> are declared but not yet implemented — they have
-/// no executor and no manifest, so <c>GetManifest()</c> returns null for them.
+/// <see cref="Heartbeat"/> is declared but not yet implemented — it has no executor and no manifest,
+/// so <c>GetManifest()</c> returns null for it.
 /// </summary>
 public enum CheckType
 {
@@ -44,7 +44,10 @@ public enum CheckType
     /// <summary>Declared but not implemented — no executor, no manifest (RFC 0011 §8).</summary>
     Heartbeat,
 
-    /// <summary>Declared but not implemented — no executor, no manifest (RFC 0011 §8).</summary>
+    [CheckTypeManifest("gRPC",
+        "Probe a gRPC server via the standard health checking protocol.",
+        typeof(GrpcCheckConfig), 60,
+        [AlertFor.Status, AlertFor.Latency])]
     GRPC,
 
     [CheckTypeManifest("GCP Cloud Run Job",
