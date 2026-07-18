@@ -94,5 +94,6 @@ export const ROUTES = {
     LIST: "/admin/settings/integrations",
     NEW: "/admin/settings/integrations/new",
     DETAIL: (id: number | string) => `/admin/settings/integrations/${id}`,
+    OAUTH_CALLBACK: "/admin/integrations/oauth/callback",
   },
 } as const;

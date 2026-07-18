@@ -25,4 +25,14 @@ public enum IntegrationCapability
 
     /// <summary>An inbound type that can optionally anchor an incoming signal to a Check.</summary>
     SupportsCheckCorrelation = 1 << 4,
+
+    /// <summary>
+    /// Piro connects to this provider via OAuth before it can be used — the admin must
+    /// complete a "Connect" flow that stores an encrypted token against the integration. Drives the
+    /// Connect/Disconnect UI.
+    /// </summary>
+    RequiresOAuthConnection = 1 << 5,
+
+    /// <summary>Has a registered ISystemEventDispatcher — sends trigger/resolve alert events to a shared incident channel (RFC 0004).</summary>
+    SendsAlertEvents = 1 << 6,
 }

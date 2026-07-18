@@ -22,11 +22,21 @@ public class IntegrationSecretMaskingTests
     private readonly IIntegrationRepository _repo = Substitute.For<IIntegrationRepository>();
     private readonly IWebhookRequestLogRepository _webhookLogRepo = Substitute.For<IWebhookRequestLogRepository>();
     private readonly IEscalationPolicyRepository _escalationPolicyRepo = Substitute.For<IEscalationPolicyRepository>();
+    private readonly ISecretProtector _secretProtector = new FakeSecretProtector();
     private readonly IntegrationAppService _sut;
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector);
+    }
+
+    /// <summary>Deterministic protector for tests: prefixes ciphertext so round-trips are observable.</summary>
+    private sealed class FakeSecretProtector : ISecretProtector
+    {
+        private const string Prefix = "enc:";
+        public string Protect(string plaintext) => Prefix + plaintext;
+        public string Unprotect(string ciphertext) => IsProtected(ciphertext) ? ciphertext[Prefix.Length..] : ciphertext;
+        public bool IsProtected(string value) => value.StartsWith(Prefix, StringComparison.Ordinal);
     }
 
     [Fact]
