@@ -1,3 +1,13 @@
+---
+rfc: 4
+title: "OAuth integration framework with resource discovery (PagerDuty as first consumer)"
+status: implemented
+created: 2026-07-16
+depends-on: ["0001", "0003"]
+proposal-pr: null
+implementation-pr: 193
+---
+
 # RFC 0004 — OAuth integration framework with resource discovery (PagerDuty as first consumer)
 
 Status: proposal

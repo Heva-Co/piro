@@ -1,3 +1,11 @@
+---
+rfc: 12
+title: "Integration actions with dynamic UI (Jira ticket creation as first consumer)"
+status: proposed
+created: 2026-07-18
+depends-on: ["0003", "0004", "0011"]
+---
+
 # RFC 0012 — Integration actions with dynamic UI (Jira ticket creation as first consumer)
 
 Status: proposal

@@ -1,3 +1,13 @@
+---
+rfc: 1
+title: "Third-party alert ingestion (GCP Cloud Monitoring)"
+status: implemented
+created: 2026-07-13
+proposal-pr: null
+depends-on: []
+implementation-pr: 173
+---
+
 # RFC 0001 — Third-party alert ingestion (GCP Cloud Monitoring)
 
 Status: implemented (Phases 1–3; PR #173)

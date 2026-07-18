@@ -1,3 +1,13 @@
+---
+rfc: 3
+title: "Integration manifest"
+status: implemented
+created: 2026-07-15
+depends-on: []
+proposal-pr: null
+implementation-pr: 172
+---
+
 # RFC 0003 — Integration manifest
 
 Status: Implemented
