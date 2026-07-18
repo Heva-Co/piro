@@ -27,6 +27,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | Proposed | 0003, 0004, 0011 |
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | **Implemented** | 0011 |
+| [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | proposal (#84) | — |
 
 Implemented (frozen): **0001, 0002, 0003, 0004, 0006, 0011, 0013**.
 
@@ -49,6 +50,7 @@ graph LR
   n0011["0011 ✓"]
   n0012["0012"]
   n0013["0013 ✓"]
+  n0014["0014"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
