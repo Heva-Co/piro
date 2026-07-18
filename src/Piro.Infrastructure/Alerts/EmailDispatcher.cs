@@ -13,22 +13,22 @@ public class EmailDispatcher(
     IConfiguration configuration,
     ISiteConfigRepository siteConfigRepo,
     ILogger<EmailDispatcher> logger)
-    : INotificationDispatcher
+    : IPersonalNotificationDispatcher<AlertNotificationContext>, IVerificationCodeSender
 {
     public IntegrationType Type => IntegrationType.Email;
 
-    public async Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle)) return false;
-        await emailService.SendAsync(handle, AlertMessageTemplates.EmailSubject(context), AlertMessageTemplates.EmailBody(context), ct);
+        await emailService.SendAsync(handle, AlertMessageTemplates.EmailSubject(content), AlertMessageTemplates.EmailBody(content), ct);
         logger.LogInformation("Email personal alert sent to {To}.", handle);
         return true;
     }
 
-    public async Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default)
+    public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle)) return false;
-        await emailService.SendAsync(handle, "Your Piro verification code", $"<p>{message}</p>", ct);
+        await emailService.SendAsync(handle, "Your Piro verification code", $"<p>{code}</p>", ct);
         logger.LogInformation("Email verification message sent to {To}.", handle);
         return true;
     }

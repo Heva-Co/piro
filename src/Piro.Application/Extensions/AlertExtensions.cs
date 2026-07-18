@@ -33,7 +33,7 @@ public static class AlertExtensions
     public static string CheckLabel(this Alert alert) => alert.Check?.Name ?? "External";
 
     /// <summary>
-    /// Builds the notification context passed to an <see cref="Piro.Application.Interfaces.INotificationDispatcher"/>
+    /// Builds the notification context passed to an <see cref="Piro.Application.Interfaces.IPersonalNotificationDispatcher{TContent}"/>
     /// for this alert's on-call escalation (see EscalationCheckerService). <paramref name="firedAtDisplay"/>
     /// is pre-formatted for the specific recipient's time zone by the caller — each on-call user may
     /// have a different <see cref="Domain.Entities.AppUser.TimeZone"/>, so it can't be derived here.

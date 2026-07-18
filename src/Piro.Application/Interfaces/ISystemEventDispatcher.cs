@@ -5,7 +5,7 @@ namespace Piro.Application.Interfaces;
 
 /// <summary>
 /// Sends an alert lifecycle event (trigger / resolve) to a shared, team-wide incident-management
-/// channel — as opposed to <see cref="INotificationDispatcher"/>, which targets one individual's
+/// channel — as opposed to <see cref="IPersonalNotificationDispatcher{TContent}"/>, which targets one individual's
 /// personal handle. The target platform (PagerDuty, later Opsgenie/etc.) owns escalation and paging
 /// once it receives a trigger; Piro only opens and closes the event (RFC 0004 §3).
 /// <para>

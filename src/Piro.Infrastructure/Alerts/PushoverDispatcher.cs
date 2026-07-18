@@ -12,26 +12,23 @@ namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via the Pushover API.</summary>
 public class PushoverDispatcher(IHttpClientFactory httpClientFactory, ILogger<PushoverDispatcher> logger, ISecretProtector secretProtector)
-    : INotificationDispatcher
+    : IPersonalNotificationDispatcher<AlertNotificationContext>
 {
     private const string ApiUrl = "https://api.pushover.net/1/messages.json";
 
     public IntegrationType Type => IntegrationType.Pushover;
 
-    public async Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         PushoverIntegrationConfig config;
         try { config = JsonUtils.DeserializeAndValidate<PushoverIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
-        await SendAsync(config.AppToken, handle, null, context, ct);
+        await SendAsync(config.AppToken, handle, null, content, ct);
         logger.LogInformation("Pushover personal alert sent to {UserKey}.", handle);
         return true;
     }
-
-    public Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default) =>
-        Task.FromResult(false);
 
     private async Task SendAsync(string appToken, string userKey, int? priorityOverride, AlertNotificationContext context, CancellationToken ct)
     {

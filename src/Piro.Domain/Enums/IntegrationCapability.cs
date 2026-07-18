@@ -11,7 +11,7 @@ public enum IntegrationCapability
 {
     None = 0,
 
-    /// <summary>Has a registered INotificationDispatcher for this IntegrationType.</summary>
+    /// <summary>Has a registered IPersonalNotificationDispatcher for this IntegrationType.</summary>
     SendsPersonalNotification = 1 << 0,
 
     /// <summary>Some ICheckExecutor requires an Integration of this type (see RequiresIntegrationAttribute).</summary>

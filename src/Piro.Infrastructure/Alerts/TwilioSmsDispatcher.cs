@@ -11,11 +11,12 @@ using Twilio.Rest.Api.V2010.Account;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications as SMS via the Twilio API.</summary>
-public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger, ISecretProtector secretProtector) : INotificationDispatcher
+public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger, ISecretProtector secretProtector)
+    : IPersonalNotificationDispatcher<AlertNotificationContext>, IVerificationCodeSender
 {
     public IntegrationType Type => IntegrationType.Twilio;
 
-    public async Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TwilioIntegrationConfig config;
@@ -26,13 +27,13 @@ public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger, ISecretPro
         var message = await MessageResource.CreateAsync(
             to: new Twilio.Types.PhoneNumber(handle),
             from: new Twilio.Types.PhoneNumber(config.FromNumber),
-            body: AlertMessageTemplates.TwilioSms(context));
+            body: AlertMessageTemplates.TwilioSms(content));
 
         logger.LogInformation("Twilio SMS personal alert sent (SID: {Sid}) to {To}.", message.Sid, handle);
         return true;
     }
 
-    public async Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default)
+    public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TwilioIntegrationConfig config;
@@ -43,7 +44,7 @@ public class TwilioSmsDispatcher(ILogger<TwilioSmsDispatcher> logger, ISecretPro
         var sms = await MessageResource.CreateAsync(
             to: new Twilio.Types.PhoneNumber(handle),
             from: new Twilio.Types.PhoneNumber(config.FromNumber),
-            body: message);
+            body: code);
 
         logger.LogInformation("Twilio SMS verification message sent (SID: {Sid}) to {To}.", sms.Sid, handle);
         return true;
