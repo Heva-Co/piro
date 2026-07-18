@@ -1,3 +1,12 @@
+---
+rfc: 7
+title: "Service impact analysis (blast radius & propagation reasons)"
+status: proposed
+created: 2026-07-17
+depends-on: ["0001"]
+proposal-pr: 183
+---
+
 # RFC 0007 — Service impact analysis (blast radius & propagation reasons)
 
 Status: proposal

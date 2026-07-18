@@ -1,3 +1,13 @@
+---
+rfc: 9
+title: "Notification system revamp: delivery contracts, a push engine for non-paging notifications, and group broadcast"
+status: proposed
+created: 2026-07-18
+tracking-issue: 187
+depends-on: ["0008"]
+proposal-pr: 186
+---
+
 # RFC 0009 — Notification system revamp: delivery contracts, a push engine for non-paging notifications, and group broadcast
 
 Status: proposal

@@ -1,3 +1,12 @@
+---
+rfc: 5
+title: "Postmortems (standalone post-incident review reports)"
+status: proposed
+created: 2026-07-16
+proposal-pr: 176
+depends-on: []
+---
+
 # RFC 0005 — Postmortems (standalone post-incident review reports)
 
 Status: proposal
