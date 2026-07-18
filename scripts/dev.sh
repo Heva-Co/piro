@@ -5,6 +5,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+WEB_PORT = 3000;
+ADMIN_PORT = 5174
+
 build_api() {
   echo "▶  Building API..."
   cd "$REPO_ROOT"
@@ -22,15 +25,15 @@ start_api() {
 start_web() {
   echo "▶  Starting web (http://localhost:3000)..."
   cd "$REPO_ROOT/apps/web"
-  pnpm dev &
+  pnpm dev -p $WEB_PORT &
   WEB_PID=$!
   echo "   Web PID: $WEB_PID"
 }
 
 start_admin() {
-  echo "▶  Starting admin (http://localhost:5173)..."
+  echo "▶  Starting admin (http://localhost:5174)..."
   cd "$REPO_ROOT/apps/admin"
-  pnpm dev &
+  pnpm dev --port $ADMIN_PORT &
   ADMIN_PID=$!
   echo "   Admin PID: $ADMIN_PID"
 }
@@ -60,8 +63,8 @@ echo ""
 echo "✓  Services started. Press Ctrl+C to stop."
 echo ""
 [[ -z "${1:-}" || "${1:-}" == "--api-only"                        ]] && echo "   API   → http://localhost:5117"
-[[ -z "${1:-}" || "${1:-}" == "--web-only"   || "${1:-}" == "--frontend-only" ]] && echo "   Web   → http://localhost:3000"
-[[ -z "${1:-}" || "${1:-}" == "--admin-only" || "${1:-}" == "--frontend-only" ]] && echo "   Admin → http://localhost:5173/admin"
+[[ -z "${1:-}" || "${1:-}" == "--web-only"   || "${1:-}" == "--frontend-only" ]] && echo "   Web   → http://localhost:${WEB_PORT}"
+[[ -z "${1:-}" || "${1:-}" == "--admin-only" || "${1:-}" == "--frontend-only" ]] && echo "   Admin → http://localhost:${ADMIN_PORT}/admin"
 echo ""
 
 wait
