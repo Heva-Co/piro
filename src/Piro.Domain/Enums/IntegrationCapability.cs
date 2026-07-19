@@ -35,4 +35,7 @@ public enum IntegrationCapability
 
     /// <summary>Has a registered ISystemEventDispatcher — sends trigger/resolve alert events to a shared incident channel (RFC 0004).</summary>
     SendsAlertEvents = 1 << 6,
+
+    /// <summary>Has a registered IChannelNotificationDispatcher — posts notifications to a shared team channel (RFC 0009).</summary>
+    SendsChannelNotification = 1 << 7,
 }

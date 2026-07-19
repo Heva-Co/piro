@@ -25,7 +25,7 @@ internal class NotificationSubscriptionConfiguration : IEntityTypeConfiguration<
             .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Group/Integration destination — delete the subscription if its integration is removed.
+        // Channel/Integration destination — delete the subscription if its integration is removed.
         builder.HasOne(s => s.Integration)
             .WithMany()
             .HasForeignKey(s => s.IntegrationId)

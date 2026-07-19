@@ -80,19 +80,19 @@ public class NotificationEventCatalogTests
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
             "Tags:IReadOnlyList`1", "IsExternal:Boolean", "SourceLabel:String", "FiredAt:DateTimeOffset",
-            "EventType:String", "Version:Int32",
+            "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["alert:acknowledged"] =
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
             "Tags:IReadOnlyList`1", "AcknowledgedBy:String", "AcknowledgedAt:DateTimeOffset",
-            "EventType:String", "Version:Int32",
+            "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["alert:resolved"] =
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
             "Tags:IReadOnlyList`1", "ResolvedAt:DateTimeOffset",
-            "EventType:String", "Version:Int32",
+            "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["incident:created"] =
         [

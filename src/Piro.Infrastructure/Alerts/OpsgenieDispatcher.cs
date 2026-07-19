@@ -8,7 +8,7 @@ namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Opens and closes Opsgenie alerts via the REST API.</summary>
 public class OpsgenieDispatcher(IHttpClientFactory httpClientFactory, ILogger<OpsgenieDispatcher> logger)
-    : IGroupNotificationDispatcher<AlertNotificationContext>
+    : IChannelNotificationDispatcher<AlertNotificationContext>
 {
     public IntegrationType Type => IntegrationType.Opsgenie;
 

@@ -10,8 +10,8 @@ public enum NotificationTargetKind
     /// <summary>Reaches one person at their own handle (email, chat id, phone) — mode 1.</summary>
     Personal,
 
-    /// <summary>Posts to a shared team space (a channel/room/topic) — mode 2.</summary>
-    Group,
+    /// <summary>Posts to a shared team channel/space/room/topic — mode 2.</summary>
+    Channel,
 
     /// <summary>Hands the event to an integration that decides what to do (e.g. PagerDuty) — mode 3.</summary>
     Integration,

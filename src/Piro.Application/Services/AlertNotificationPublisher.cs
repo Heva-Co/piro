@@ -19,7 +19,7 @@ public class AlertNotificationPublisher(INotificationEventPublisher publisher) :
     {
         INotificationEvent payload = evt switch
         {
-            NotificationEventType.AlertCreated => new AlertCreatedPayloadV1(
+            NotificationEventType.AlertCreated => new AlertCreatedPayload(
                 alert.Id,
                 alert.ServiceLabel(),
                 alert.CheckLabel(),
@@ -27,26 +27,29 @@ public class AlertNotificationPublisher(INotificationEventPublisher publisher) :
                 Tags: [],
                 alert.IsExternal(),
                 alert.ExternalSourceLabel(),
-                alert.FiredAt
+                alert.FiredAt,
+                ServiceId: alert.ServiceId
             ),
 
-            NotificationEventType.AlertAcknowledged => new AlertAcknowledgedPayloadV1(
+            NotificationEventType.AlertAcknowledged => new AlertAcknowledgedPayload(
                 alert.Id,
                 alert.ServiceLabel(),
                 alert.CheckLabel(),
                 alert.SeverityOrDefault(),
                 Tags: [],
                 alert.AcknowledgedBy,
-                DateTimeOffset.UtcNow
+                DateTimeOffset.UtcNow,
+                ServiceId: alert.ServiceId
             ),
 
-            NotificationEventType.AlertResolved => new AlertResolvedPayloadV1(
+            NotificationEventType.AlertResolved => new AlertResolvedPayload(
                 alert.Id,
                 alert.ServiceLabel(),
                 alert.CheckLabel(),
                 alert.SeverityOrDefault(),
                 Tags: [],
-                alert.ResolvedAt ?? DateTimeOffset.UtcNow
+                alert.ResolvedAt ?? DateTimeOffset.UtcNow,
+                ServiceId: alert.ServiceId
             ),
 
             _ => throw new ArgumentOutOfRangeException(nameof(evt), evt, "Not an alert lifecycle event."),

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Entities;
@@ -12,7 +13,7 @@ namespace Piro.Infrastructure.Notifications;
 /// event's concrete runtime type so the full contracted payload is persisted; the auto-increment
 /// <see cref="NotificationEventOutbox.Id"/> assigned on save is the event's ordering sequence number.
 /// </summary>
-internal class NotificationEventPublisher(PiroDbContext db) : INotificationEventPublisher
+internal class NotificationEventPublisher(PiroDbContext db, ILogger<NotificationEventPublisher> logger) : INotificationEventPublisher
 {
     public async Task<long> PublishAsync(INotificationEvent evt, string orderingKey, CancellationToken ct = default)
     {
@@ -31,6 +32,9 @@ internal class NotificationEventPublisher(PiroDbContext db) : INotificationEvent
 
         db.NotificationEventOutbox.Add(row);
         await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("[notify] event {EventType} published to outbox #{Id} (ordering {OrderingKey}).",
+            evt.EventType, row.Id, orderingKey);
         return row.Id;
     }
 }
