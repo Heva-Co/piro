@@ -21,6 +21,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Piro.Infrastructure.Hubs;
 using Piro.Infrastructure.Jobs;
+using Piro.Infrastructure.Notifications;
 using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
 using Piro.Infrastructure.Workers;
@@ -249,6 +250,12 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
         services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
         services.AddScoped<IVerificationCodeSender, NtfyDispatcher>();
+
+        // Notification push engine (RFC 0009 phase 3) — durable outbox + drain worker. The processor
+        // is a no-op until subscription matching lands in phases 4–5; the transport is complete now.
+        services.AddScoped<INotificationEventPublisher, NotificationEventPublisher>();
+        services.AddScoped<INotificationEventProcessor, NoOpNotificationEventProcessor>();
+        services.AddHostedService<NotificationDispatchWorker>();
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
