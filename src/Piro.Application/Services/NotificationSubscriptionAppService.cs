@@ -107,7 +107,7 @@ public class NotificationSubscriptionAppService(
                     throw new DomainValidationException("A personal subscription requires a target user.");
                 break;
 
-            case NotificationTargetKind.Group:
+            case NotificationTargetKind.Channel:
             case NotificationTargetKind.Integration:
                 if (request.IntegrationId is null)
                     throw new DomainValidationException($"A {request.TargetKind} subscription requires a target integration.");

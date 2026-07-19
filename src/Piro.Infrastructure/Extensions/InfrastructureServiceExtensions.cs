@@ -240,12 +240,15 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Personal notification dispatchers (RFC 0009 mode 1) — registered as
         // IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>>. The group-only
         // types (Slack/GoogleChat/Discord/MsTeams/Webhook/Opsgenie) are not registered here: their
-        // IGroupNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
+        // IChannelNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
         // unregistered exactly as before (phase 1 preserves behavior — it is wired in a later phase).
         services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, EmailDispatcher>();
         services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TelegramDispatcher>();
         services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TwilioSmsDispatcher>();
         services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, NtfyDispatcher>();
+
+        // Channel notification dispatchers (RFC 0009 mode 2) — post to a shared team channel.
+        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, GoogleChatDispatcher>();
 
         // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
         services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
@@ -265,12 +268,14 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationDeliveryLogRepository, NotificationDeliveryLogRepository>();
         services.AddScoped<NotificationSubscriptionAppService>();
 
-        // Subscriber declarations (RFC 0009 §4.4) — the personal alert channels declare the alert
-        // events they support. Registered per type; group/integration subscribers arrive in phase 5.
-        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Email));
-        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Telegram));
-        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Twilio));
-        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Ntfy));
+        // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which alert events it
+        // handles and in which delivery mode. This is the menu the subscription UI offers per destination.
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Email, NotificationTargetKind.Personal));
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Telegram, NotificationTargetKind.Personal));
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal));
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal));
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel));
+        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration));
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();

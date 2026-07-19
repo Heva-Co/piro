@@ -7,7 +7,7 @@ namespace Piro.Application.Models.NotificationEvents;
 /// the incident's visibility — subscribing to <c>incident:*</c> receives all incidents, private
 /// included; that is the admin's explicit, warned-about choice (RFC 0009 §4.3). Additive-only.
 /// </summary>
-public record IncidentCreatedPayloadV1(
+public record IncidentCreatedPayload(
     int IncidentId,
     string Title,
     IncidentStatus Status,
@@ -23,9 +23,9 @@ public record IncidentCreatedPayloadV1(
 
 /// <summary>
 /// Payload for <c>incident:resolved</c> — the incident reached a final state (Resolved or Merged).
-/// Same visibility caveat as <see cref="IncidentCreatedPayloadV1"/>.
+/// Same visibility caveat as <see cref="IncidentCreatedPayload"/>.
 /// </summary>
-public record IncidentResolvedPayloadV1(
+public record IncidentResolvedPayload(
     int IncidentId,
     string Title,
     /// <summary>The final status: Resolved, or Merged when absorbed into another incident.</summary>

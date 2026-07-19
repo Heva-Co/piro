@@ -25,7 +25,7 @@ public class NotificationDeliveryLog
     /// <summary>The subscription that routed this delivery. Nullable for engine-level deliveries with no subscription.</summary>
     public Guid? SubscriptionId { get; set; }
 
-    /// <summary>Personal | Group | Integration — which delivery contract carried it.</summary>
+    /// <summary>Personal | Channel | Integration — which delivery contract carried it.</summary>
     public string TargetKind { get; set; } = string.Empty;
 
     /// <summary>Human-readable destination for the admin (e.g. "Slack #ops", "email:jane@…").</summary>

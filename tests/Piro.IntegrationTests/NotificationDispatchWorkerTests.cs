@@ -180,8 +180,8 @@ public class NotificationDispatchWorkerTests : IAsyncLifetime
     [Fact]
     public async Task Publisher_WritesPendingRow_WithOrderingKeyAndPayload()
     {
-        var publisher = new NotificationEventPublisher(_db);
-        var evt = new Piro.Application.Models.NotificationEvents.AlertResolvedPayloadV1(
+        var publisher = new NotificationEventPublisher(_db, NullLogger<NotificationEventPublisher>.Instance);
+        var evt = new Piro.Application.Models.NotificationEvents.AlertResolvedPayload(
             AlertId: 42, ServiceName: "api", CheckName: "http", Severity: AlertSeverity.Critical,
             Tags: [], ResolvedAt: DateTimeOffset.UtcNow);
 

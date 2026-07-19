@@ -35,7 +35,7 @@ public class NotificationSubscription
     public int? UserId { get; set; }
     public AppUser? User { get; set; }
 
-    /// <summary>Group/Integration destination: the integration carrying credentials. Set for Group/Integration.</summary>
+    /// <summary>Channel/Integration destination: the integration carrying credentials. Set for Channel/Integration.</summary>
     public Guid? IntegrationId { get; set; }
     public Integration? Integration { get; set; }
 

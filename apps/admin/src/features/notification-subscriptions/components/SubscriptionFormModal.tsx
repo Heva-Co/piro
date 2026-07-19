@@ -25,7 +25,7 @@ import { usersApi } from "@/lib/api";
 
 // Capabilities that make an integration a valid notification destination (outbound). Inbound types
 // (e.g. GoogleCloud, GcpCloudMonitoringWebhook — CreatesAlerts) must not appear as a destination.
-const OUTBOUND_CAPABILITIES = ["SendsPersonalNotification", "SendsGroupNotification", "SendsAlertEvents"];
+const OUTBOUND_CAPABILITIES = ["SendsPersonalNotification", "SendsChannelNotification", "SendsAlertEvents"];
 
 // Destination is a single encoded value ("person:3" / "integration:<guid>"); the target kind is
 // derived from it — a person is Personal, a notification integration posts to a Group, a third-party
@@ -112,7 +112,7 @@ function SubscriptionFormModal(props: Props) {
   const [destKind, destId] = destination ? destination.split(":") : ["", ""];
   const selectedIntegration =
     destKind === "integration" ? notifiableIntegrations.find((i) => i.id === destId) : undefined;
-  const integrationTargetKind = selectedIntegration?.category === "ThirdParty" ? "Integration" : "Group";
+  const integrationTargetKind = selectedIntegration?.category === "ThirdParty" ? "Integration" : "Channel";
 
   // Human label for the currently selected destination — SelectValue would otherwise show the raw
   // encoded value ("person:3").

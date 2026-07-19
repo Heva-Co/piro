@@ -7,7 +7,7 @@ namespace Piro.Application.Models.NotificationEvents;
 /// expired or was disconnected and it can no longer be used until reconnected. A platform-health
 /// event about Piro itself, not about a monitored service. Additive-only.
 /// </summary>
-public record IntegrationExpiredPayloadV1(
+public record IntegrationExpiredPayload(
     Guid IntegrationId,
     string IntegrationName,
     IntegrationType Type,

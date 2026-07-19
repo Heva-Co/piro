@@ -115,11 +115,15 @@ public enum IntegrationType
     )]
     Twilio = 9,
 
-    /// <summary>
-    /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
-    /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
-    /// </summary>
-    [Obsolete("Not supported for now.")]
+    [IntegrationManifest(
+        IntegrationCategory.Notification,
+        IntegrationDirection.Outbound,
+        IntegrationCapability.SendsChannelNotification,
+        typeof(GoogleChatConfig),
+        Label = "Google Chat",
+        Description = "Post alert notifications to a Google Chat space via an incoming webhook.",
+        IconifyIcon = "logos:google-meet"
+    )]
     GoogleChat = 10,
 
     /// <summary>

@@ -7748,7 +7748,7 @@ export interface components {
             pageSize: number;
         };
         /** @enum {unknown} */
-        NotificationTargetKind: "Personal" | "Group" | "Integration";
+        NotificationTargetKind: "Personal" | "Channel" | "Integration";
         OAuthCallbackRequest: {
             code: string;
             state: string;

@@ -119,12 +119,15 @@ internal class NotificationDispatchWorker(
         row.NextAttemptAt = now.Add(ProcessingLease);
         await db.SaveChangesAsync(ct);
 
+        logger.LogInformation("[notify] draining outbox #{Id} ({EventType}), attempt {Attempt}.",
+            row.Id, row.EventType, row.Attempts);
         try
         {
             await processor.ProcessAsync(row, ct);
             row.Status = OutboxStatus.Done;
             row.NextAttemptAt = null;
             row.ProcessedAt = now;
+            logger.LogInformation("[notify] outbox #{Id} ({EventType}) done.", row.Id, row.EventType);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

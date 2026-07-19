@@ -10,7 +10,7 @@ namespace Piro.Application.Interfaces;
 /// the same reason as <see cref="IPersonalNotificationDispatcher{TContent}"/>.
 /// </summary>
 /// <typeparam name="TContent">The content this dispatcher renders and posts.</typeparam>
-public interface IGroupNotificationDispatcher<in TContent> where TContent : INotificationContent
+public interface IChannelNotificationDispatcher<in TContent> where TContent : INotificationContent
 {
     IntegrationType Type { get; }
 
