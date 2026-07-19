@@ -3558,6 +3558,190 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/event-subscriptions/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The closed catalog of events a subscription can fire on (RFC 0009 §4.2). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationEventCatalogDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionPageDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "text/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "application/*+json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "text/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "application/*+json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oidc/config": {
         parameters: {
             query?: never;
@@ -7534,6 +7718,37 @@ export interface components {
         };
         /** @enum {unknown} */
         MaintenanceStatus: "Active" | "Cancelled";
+        NotificationEventCatalogDto: {
+            name: string;
+            description: string;
+        };
+        NotificationSubscriptionDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            events: string[];
+            minSeverity: components["schemas"]["AlertSeverity"];
+            targetKind: components["schemas"]["NotificationTargetKind"];
+            /** Format: int32 */
+            userId: null | number;
+            userName: null | string;
+            /** Format: uuid */
+            integrationId: null | string;
+            integrationName: null | string;
+            target: null | string;
+            enabled: boolean;
+        };
+        NotificationSubscriptionPageDto: {
+            items: components["schemas"]["NotificationSubscriptionDto"][];
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        /** @enum {unknown} */
+        NotificationTargetKind: "Personal" | "Group" | "Integration";
         OAuthCallbackRequest: {
             code: string;
             state: string;
@@ -8076,6 +8291,18 @@ export interface components {
             retryIntervalMinutes: number;
             /** Format: int32 */
             scheduleId: number;
+        };
+        UpsertNotificationSubscriptionRequest: {
+            name: string;
+            events: string[];
+            minSeverity: components["schemas"]["AlertSeverity"];
+            targetKind: components["schemas"]["NotificationTargetKind"];
+            /** Format: int32 */
+            userId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
+            target: null | string;
+            enabled: boolean;
         };
         UpsertOidcProviderRequest: {
             id: string;

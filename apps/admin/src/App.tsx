@@ -52,6 +52,7 @@ import DataRetentionPage from "@/features/configuration/pages/DataRetentionPage"
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 import EscalationPoliciesPage from "@/features/escalation/pages/EscalationPoliciesPage";
+import SubscriptionsPage from "@/features/notification-subscriptions/pages/SubscriptionsPage";
 import EscalationPolicyDetailPage from "@/features/escalation/pages/EscalationPolicyDetailPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import { ToastContainer } from 'react-toastify';
@@ -157,6 +158,9 @@ export default function App() {
               {/* Escalation policies */}
               <Route path={ROUTES.ESCALATION.LIST} element={<EscalationPoliciesPage />} />
               <Route path={ROUTES.ESCALATION.DETAIL(":policyId")} element={<EscalationPolicyDetailPage />} />
+
+              {/* Notification subscriptions (RFC 0009) */}
+              <Route path={ROUTES.NOTIFICATION_SUBSCRIPTIONS.LIST} element={<SubscriptionsPage />} />
               <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
             </Route>
 

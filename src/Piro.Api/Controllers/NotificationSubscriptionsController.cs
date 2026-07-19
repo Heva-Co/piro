@@ -6,7 +6,7 @@ using Piro.Application.Services;
 namespace Piro.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/notification-subscriptions")]
+[Route("api/v1/event-subscriptions")]
 [Produces("application/json")]
 [Authorize(Roles = "Owner,Admin")]
 public class NotificationSubscriptionsController(NotificationSubscriptionAppService service) : ControllerBase

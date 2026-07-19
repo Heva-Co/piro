@@ -159,6 +159,11 @@ export const ENDPOINTS = {
   ESCALATION_POLICIES: `${API_BASE}/escalation-policies`,
   ESCALATION_POLICY: (id: number | string) => `${API_BASE}/escalation-policies/${id}`,
 
+  // Event subscriptions (RFC 0009)
+  NOTIFICATION_SUBSCRIPTIONS: `${API_BASE}/event-subscriptions`,
+  NOTIFICATION_SUBSCRIPTION: (id: string) => `${API_BASE}/event-subscriptions/${id}`,
+  NOTIFICATION_EVENT_CATALOG: `${API_BASE}/event-subscriptions/events`,
+
   // User notification preferences
   USER_NOTIFICATION_PREFERENCES: (userId: number | string) => `${API_BASE}/users/${userId}/notification-preferences`,
   USER_NOTIFICATION_PREFERENCE: (userId: number | string, preferenceId: number) =>
@@ -222,6 +227,9 @@ export const QUERY_KEYS = {
   ONCALL_MY_CURRENT: ["oncall-schedules", "me", "current"] as const,
   ESCALATION_POLICIES: ["escalation-policies"] as const,
   ESCALATION_POLICY: (id: number | string) => ["escalation-policies", id] as const,
+  NOTIFICATION_SUBSCRIPTIONS: ["notification-subscriptions"] as const,
+  NOTIFICATION_SUBSCRIPTION: (id: string) => ["notification-subscriptions", id] as const,
+  NOTIFICATION_EVENT_CATALOG: ["notification-subscriptions", "events"] as const,
   TIMEZONES: ["timezones"] as const,
   MY_PROFILE: ["my-profile"] as const,
   USER_NOTIFICATION_PREFERENCES: (userId: number | string) => ["user-notification-preferences", userId] as const,
