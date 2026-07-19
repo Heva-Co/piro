@@ -1,6 +1,7 @@
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
@@ -14,7 +15,8 @@ namespace Piro.Application.Services;
 public class AlertAppService(
     IAlertRepository alertRepository,
     IIncidentRepository incidentRepository,
-    IncidentAppService incidentAppService)
+    IncidentAppService incidentAppService,
+    IAlertNotificationPublisher alertPublisher)
 {
     public async Task<AlertPageDto> GetPagedAsync(AlertQueryParams query, CancellationToken ct = default)
     {
@@ -167,6 +169,9 @@ public class AlertAppService(
             alert.EscalationExhaustedAt = null;
             alert.EscalationStepAttempts = 0;
             await alertRepository.UpdateAsync(alert, ct);
+
+            // GetByIdAsync loaded Service/Check; the publisher builds the snapshot from this live alert.
+            await alertPublisher.PublishAsync(alert, NotificationEventType.AlertAcknowledged, ct);
         }
 
         return await GetByIdAsync(alertId, ct);

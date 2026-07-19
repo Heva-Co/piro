@@ -9,6 +9,7 @@ using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
 using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Email;
@@ -22,6 +23,7 @@ using Microsoft.Extensions.Logging;
 using Piro.Infrastructure.Hubs;
 using Piro.Infrastructure.Jobs;
 using Piro.Infrastructure.Notifications;
+using Piro.Infrastructure.Notifications.Subscribers;
 using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
 using Piro.Infrastructure.Workers;
@@ -251,11 +253,24 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
         services.AddScoped<IVerificationCodeSender, NtfyDispatcher>();
 
-        // Notification push engine (RFC 0009 phase 3) — durable outbox + drain worker. The processor
-        // is a no-op until subscription matching lands in phases 4–5; the transport is complete now.
+        // Notification push engine (RFC 0009) — durable outbox + drain worker (phase 3) and the
+        // subscription-matching processor (phase 4) that replaces the phase-3 no-op.
         services.AddScoped<INotificationEventPublisher, NotificationEventPublisher>();
-        services.AddScoped<INotificationEventProcessor, NoOpNotificationEventProcessor>();
+        services.AddScoped<IAlertNotificationPublisher, AlertNotificationPublisher>();
+        services.AddScoped<INotificationEventProcessor, SubscriptionMatchingProcessor>();
         services.AddHostedService<NotificationDispatchWorker>();
+
+        // Subscriptions (RFC 0009 §4.4): repository, delivery-log repository, and CRUD app service.
+        services.AddScoped<INotificationSubscriptionRepository, NotificationSubscriptionRepository>();
+        services.AddScoped<INotificationDeliveryLogRepository, NotificationDeliveryLogRepository>();
+        services.AddScoped<NotificationSubscriptionAppService>();
+
+        // Subscriber declarations (RFC 0009 §4.4) — the personal alert channels declare the alert
+        // events they support. Registered per type; group/integration subscribers arrive in phase 5.
+        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Email));
+        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Telegram));
+        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Twilio));
+        services.AddScoped<INotificationSubscriber>(_ => new PersonalAlertSubscriber(IntegrationType.Ntfy));
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();

@@ -12,12 +12,21 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
 {
     public async Task<Alert?> GetActiveForConfigAsync(int alertConfigId, CancellationToken ct = default)
     {
-        return await db.Alerts.FirstOrDefaultAsync(a => a.AlertConfigId == alertConfigId && a.ResolvedAt == null, ct);
+        // Navigations are loaded so a resolve can build its notification snapshot from live data
+        // (RFC 0009 §4.3) without a second reload.
+        return await db.Alerts
+            .Include(a => a.AlertConfig)
+            .Include(a => a.Service)
+            .Include(a => a.Check)
+            .FirstOrDefaultAsync(a => a.AlertConfigId == alertConfigId && a.ResolvedAt == null, ct);
     }
-        
+
     public async Task<Alert?> GetByExternalIdAsync(Piro.Domain.Enums.AlertSource source, string externalId, CancellationToken ct = default)
     {
-        return  await db.Alerts.FirstOrDefaultAsync(a => a.Source == source && a.ExternalId == externalId, ct);
+        return await db.Alerts
+            .Include(a => a.Service)
+            .Include(a => a.Check)
+            .FirstOrDefaultAsync(a => a.Source == source && a.ExternalId == externalId, ct);
     }
 
     public async Task<Alert?> GetByIdAsync(int id, CancellationToken ct = default)
@@ -25,6 +34,7 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
         return await db.Alerts
             .Include(a => a.Check)
             .Include(a => a.Service)
+            .Include(a => a.AlertConfig)
             .FirstOrDefaultAsync(a => a.Id == id, ct);
     }
         

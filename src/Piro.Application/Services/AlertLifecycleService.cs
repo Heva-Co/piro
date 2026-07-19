@@ -1,4 +1,5 @@
 using Piro.Application.Interfaces;
+using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 
@@ -11,7 +12,7 @@ namespace Piro.Application.Services;
 /// This is the single point that would need to change if deduplication is later refined
 /// (e.g. fuzzy similarity instead of exact match).
 /// </summary>
-public class AlertLifecycleService(IAlertRepository alertRepository)
+public class AlertLifecycleService(IAlertRepository alertRepository, IAlertNotificationPublisher alertPublisher)
 {
     /// <summary>
     /// Records a failing occurrence for the given AlertConfig. Creates a new Alert if none is active,
@@ -46,6 +47,11 @@ public class AlertLifecycleService(IAlertRepository alertRepository)
         {
             active.ResolvedAt = DateTimeOffset.UtcNow;
             await alertRepository.UpdateAsync(active, ct);
+            // Attach the moment's data so the snapshot is built without a reload.
+            active.AlertConfig ??= config;
+            active.Service ??= service;
+            active.Check ??= check;
+            await alertPublisher.PublishAsync(active, NotificationEventType.AlertResolved, ct);
         }
 
         var created = new Alert
@@ -63,7 +69,13 @@ public class AlertLifecycleService(IAlertRepository alertRepository)
             SourceRequestLogId = sourceRequestLogId,
         };
 
-        return await alertRepository.CreateAsync(created, ct);
+        var saved = await alertRepository.CreateAsync(created, ct);
+        // The moment's data — the created Alert only has FKs, not navigations.
+        saved.AlertConfig ??= config;
+        saved.Service ??= service;
+        saved.Check ??= check;
+        await alertPublisher.PublishAsync(saved, NotificationEventType.AlertCreated, ct);
+        return saved;
     }
 
     /// <summary>Closes the active Alert for the given AlertConfig, if one exists.</summary>
@@ -74,6 +86,8 @@ public class AlertLifecycleService(IAlertRepository alertRepository)
 
         active.ResolvedAt = DateTimeOffset.UtcNow;
         await alertRepository.UpdateAsync(active, ct);
+        // GetActiveForConfigAsync loads Service/Check/AlertConfig, so the snapshot has live data.
+        await alertPublisher.PublishAsync(active, NotificationEventType.AlertResolved, ct);
     }
 
     /// <summary>
@@ -121,7 +135,12 @@ public class AlertLifecycleService(IAlertRepository alertRepository)
             SourceUrl = sourceUrl,
         };
 
-        return await alertRepository.CreateAsync(created, ct);
+        var saved = await alertRepository.CreateAsync(created, ct);
+        // External alerts have no AlertConfig (severity defaults to Critical); attach the moment's data.
+        saved.Service ??= service;
+        saved.Check ??= check;
+        await alertPublisher.PublishAsync(saved, NotificationEventType.AlertCreated, ct);
+        return saved;
     }
 
     /// <summary>
@@ -136,7 +155,10 @@ public class AlertLifecycleService(IAlertRepository alertRepository)
         if (active.ResolvedAt is not null) return active;
 
         active.ResolvedAt = DateTimeOffset.UtcNow;
-        return await alertRepository.UpdateAsync(active, ct);
+        var saved = await alertRepository.UpdateAsync(active, ct);
+        // GetByExternalIdAsync loads Service/Check, so the snapshot has live data.
+        await alertPublisher.PublishAsync(saved, NotificationEventType.AlertResolved, ct);
+        return saved;
     }
 
     /// <summary>Deterministic exact-match normalization: trim, lowercase, collapse whitespace. Not fuzzy similarity.</summary>

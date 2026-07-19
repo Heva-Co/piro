@@ -57,6 +57,7 @@ public DbSet<Page> Pages => Set<Page>();
     // Notification push engine (RFC 0009)
     public DbSet<NotificationEventOutbox> NotificationEventOutbox => Set<NotificationEventOutbox>();
     public DbSet<NotificationDeliveryLog> NotificationDeliveryLogs => Set<NotificationDeliveryLog>();
+    public DbSet<NotificationSubscription> NotificationSubscriptions => Set<NotificationSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
