@@ -28,6 +28,7 @@ import {
   Moon,
   CalendarClock,
   Siren,
+  BellRing,
   User,
   Clock,
   TriangleAlert,
@@ -73,6 +74,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const configNavItems: NavItem[] = [
+  { label: "Event Subscriptions", to: ROUTES.NOTIFICATION_SUBSCRIPTIONS.LIST, icon: <BellRing size={18} /> },
   { label: "Integrations", to: ROUTES.INTEGRATIONS.LIST, icon: <Plug size={18} /> },
   { label: "API Keys", to: ROUTES.CONFIG.API_KEYS, icon: <Key size={18} /> },
   { label: "Workers", to: ROUTES.CONFIG.WORKERS, icon: <Server size={18} /> },

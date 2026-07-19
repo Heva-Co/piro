@@ -83,6 +83,11 @@ export const ROUTES = {
     DETAIL: (id: number | string) => `/admin/escalation-policies/${id}`,
   },
 
+  // Notification subscriptions (RFC 0009)
+  NOTIFICATION_SUBSCRIPTIONS: {
+    LIST: "/admin/notification-subscriptions",
+  },
+
   // User profile
   PROFILE: "/admin/profile",
 
