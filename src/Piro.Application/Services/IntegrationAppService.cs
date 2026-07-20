@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -61,6 +62,67 @@ public class IntegrationAppService(
         }
 
         return descriptors;
+    }
+
+    /// <summary>
+    /// Builds a pre-filled draft input for an action + target (RFC 0012 §4.6), shaped like the action's
+    /// InputType so the dialog round-trips. Null if the action doesn't support drafts or the target is gone.
+    /// </summary>
+    public async Task<object?> BuildActionDraftAsync(
+        Guid integrationId, string actionId, ActionContext context, int targetId, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var action = actionRegistry.Resolve(integration.Type, actionId)
+            ?? throw new NotFoundException("IntegrationAction", $"{integration.Type}/{actionId}");
+
+        if (!action.Descriptor.SupportsDraft)
+            return null;
+
+        var ctx = new ActionExecutionContext(integrationId, context, targetId, Input: null);
+        return await action.Handler.BuildDraftAsync(actionHost, ctx, ct);
+    }
+
+    /// <summary>
+    /// Executes a user-initiated integration action (RFC 0012 §4.4): resolve the action, deserialize and
+    /// validate the input against the same DataAnnotations that drove the dialog, run it, and persist the
+    /// external reference it created (via the host). Returns that reference to the client.
+    /// </summary>
+    public async Task<IntegrationActionResultDto> ExecuteActionAsync(
+        Guid integrationId, string actionId, ExecuteIntegrationActionRequest request, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var action = actionRegistry.Resolve(integration.Type, actionId)
+            ?? throw new NotFoundException("IntegrationAction", $"{integration.Type}/{actionId}");
+
+        object? input = null;
+        if (action.Handler.InputType is not null)
+        {
+            if (request.Input is not { } rawInput)
+                throw new DomainValidationException($"Action '{actionId}' requires input.");
+
+            input = rawInput.Deserialize(action.Handler.InputType, JsonSerializerOptions.Web)
+                ?? throw new DomainValidationException($"Action '{actionId}' input could not be parsed.");
+
+            var results = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(input, new ValidationContext(input), results, validateAllProperties: true))
+                throw new DomainValidationException(
+                    string.Join("; ", results.Select(r => r.ErrorMessage)));
+        }
+
+        var ctx = new ActionExecutionContext(integrationId, request.Context, request.TargetId, input);
+        var result = await action.Handler.ExecuteAsync(actionHost, ctx, ct);
+
+        await actionHost.LinkExternalAsync(
+            new ExternalReferenceRequest(
+                request.Context, request.TargetId, integrationId, actionId,
+                result.ExternalId, result.Url, result.Label, result.Metadata),
+            ct);
+
+        return new IntegrationActionResultDto(result.ExternalId, result.Url, result.Label);
     }
 
     /// <summary>

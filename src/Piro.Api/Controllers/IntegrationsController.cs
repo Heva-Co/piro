@@ -54,6 +54,24 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
         [FromQuery] Domain.Enums.ActionContext context, CancellationToken ct) =>
         Ok(await integrationApp.GetActionsAsync(context, ct));
 
+    /// <summary>Pre-fills an action's input dialog for a specific target (RFC 0012 §4.6).</summary>
+    [HttpGet("{id:guid}/actions/{actionId}/draft")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetActionDraft(
+        Guid id, string actionId,
+        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        Ok(await integrationApp.BuildActionDraftAsync(id, actionId, context, targetId, ct));
+
+    /// <summary>Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4).</summary>
+    [HttpPost("{id:guid}/actions/{actionId}/execute")]
+    [ProducesResponseType<IntegrationActionResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExecuteAction(
+        Guid id, string actionId, [FromBody] ExecuteIntegrationActionRequest request, CancellationToken ct) =>
+        Ok(await integrationApp.ExecuteActionAsync(id, actionId, request, ct));
+
     /// <summary>
     /// Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
     /// have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page

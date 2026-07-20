@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, Settings } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import ActionButtons from "@/components/integration-actions/ActionButtons";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone";
 import { maintenancesApi } from "@/lib/api";
@@ -71,9 +72,12 @@ export default function MaintenanceDetailPage() {
           { label: maintenance.title },
         ]}
         actions={
-          <span className={`inline-flex items-center rounded-lg px-3 py-1.5 border text-sm font-semibold ${DISPLAY_STATUS_BADGE[maintenance.displayStatus] ?? "bg-muted text-muted-foreground"}`}>
-            {maintenance.displayStatus}
-          </span>
+          <>
+            <span className={`inline-flex items-center rounded-lg px-3 py-1.5 border text-sm font-semibold ${DISPLAY_STATUS_BADGE[maintenance.displayStatus] ?? "bg-muted text-muted-foreground"}`}>
+              {maintenance.displayStatus}
+            </span>
+            <ActionButtons context="Maintenance" targetId={maintenance.id} />
+          </>
         }
       />
 

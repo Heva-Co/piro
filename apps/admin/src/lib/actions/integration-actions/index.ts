@@ -5,6 +5,7 @@ import type { components } from "@/lib/api-types";
 export type IntegrationActionDescriptor = components["schemas"]["IntegrationActionDescriptorDto"];
 export type ExternalReference = components["schemas"]["ExternalReferenceDto"];
 export type ActionContext = components["schemas"]["ActionContext"];
+export type IntegrationActionResult = components["schemas"]["IntegrationActionResultDto"];
 
 export const integrationActionsApi = {
   /** Discovery: which action buttons to render for an object of this context (RFC 0012 §4.4). */
@@ -17,5 +18,26 @@ export const integrationActionsApi = {
   references: (context: ActionContext, targetId: number) =>
     api
       .get<ExternalReference[]>(ENDPOINTS.INTEGRATION_REFERENCES(context, targetId))
+      .then((r) => r.data),
+
+  /** Pre-fill an action's dialog for a target (RFC 0012 §4.6). Shaped like the action's input. */
+  draft: (integrationId: string, actionId: string, context: ActionContext, targetId: number) =>
+    api
+      .get<Record<string, unknown>>(
+        ENDPOINTS.INTEGRATION_ACTION_DRAFT(integrationId, actionId, context, targetId),
+      )
+      .then((r) => r.data),
+
+  /** Execute an action and get back the external reference it created (RFC 0012 §4.4). */
+  execute: (
+    integrationId: string,
+    actionId: string,
+    body: { context: ActionContext; targetId: number; input: Record<string, unknown> },
+  ) =>
+    api
+      .post<IntegrationActionResult>(
+        ENDPOINTS.INTEGRATION_ACTION_EXECUTE(integrationId, actionId),
+        body,
+      )
       .then((r) => r.data),
 };

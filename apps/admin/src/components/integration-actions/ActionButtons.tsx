@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@iconify/react";
 import { ExternalLink, MoreVertical } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
   type ActionContext,
   type IntegrationActionDescriptor,
 } from "@/lib/actions/integration-actions";
+import ActionDialog from "./ActionDialog";
 
 interface Props {
   context: ActionContext;
@@ -26,12 +27,13 @@ interface Props {
  * context (RFC 0012 §4.3–4.4). The backend decides *which* actions apply; the page decides *where*
  * this container goes. Actions are collapsed under a kebab (⋮) menu so the page header stays clean as
  * more integrations contribute actions (RFC 0012 §8). External references already created for the
- * object are shown inline as outbound links.
- *
- * Execution (the dialog + POST) lands in a later commit — for now selecting an action acknowledges intent.
+ * object are shown inline as outbound links. Selecting an action with input opens ActionDialog.
  */
 function ActionButtons(props: Props) {
   const { context, targetId } = props;
+
+  const qc = useQueryClient();
+  const [activeDescriptor, setActiveDescriptor] = useState<IntegrationActionDescriptor | null>(null);
 
   const { data: descriptors = [] } = useQuery({
     queryKey: ["integration-actions", context],
@@ -45,9 +47,9 @@ function ActionButtons(props: Props) {
 
   if (descriptors.length === 0 && references.length === 0) return null;
 
-  function onSelect(descriptor: IntegrationActionDescriptor) {
-    // TODO(execute commit): open ActionDialog (draft + DynamicConfigForm) and POST to .../execute.
-    toast.info(`${descriptor.label} — coming soon`);
+  function onExecuted() {
+    // The action created a new external reference — refresh the inline links.
+    qc.invalidateQueries({ queryKey: ["integration-references", context, targetId] });
   }
 
   return (
@@ -68,9 +70,7 @@ function ActionButtons(props: Props) {
       {descriptors.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="icon" aria-label="Integration actions" />
-            }
+            render={<Button variant="outline" size="icon" aria-label="Integration actions" />}
           >
             <MoreVertical size={16} />
           </DropdownMenuTrigger>
@@ -79,7 +79,7 @@ function ActionButtons(props: Props) {
               {descriptors.map((descriptor) => (
                 <DropdownMenuItem
                   key={`${descriptor.integrationId}:${descriptor.actionId}`}
-                  onClick={() => onSelect(descriptor)}
+                  onClick={() => setActiveDescriptor(descriptor)}
                 >
                   {descriptor.iconifyIcon && <Icon icon={descriptor.iconifyIcon} className="size-4" />}
                   {descriptor.label}
@@ -88,6 +88,17 @@ function ActionButtons(props: Props) {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+      )}
+
+      {activeDescriptor && (
+        <ActionDialog
+          descriptor={activeDescriptor}
+          context={context}
+          targetId={targetId}
+          open={activeDescriptor !== null}
+          onOpenChange={(open) => !open && setActiveDescriptor(null)}
+          onExecuted={onExecuted}
+        />
       )}
     </div>
   );
