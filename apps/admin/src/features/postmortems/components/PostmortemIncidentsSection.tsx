@@ -36,7 +36,10 @@ function PostmortemIncidentsSection(props: Props) {
     () => new Set(postmortem.incidents.map((i) => i.incidentId)),
     [postmortem.incidents]
   );
-  const available = (incidents ?? []).filter((i) => !linkedIds.has(i.id));
+  // Only resolved/merged incidents can be linked; a postmortem reviews incidents that are over
+  // (matches the backend guard). isResolved is true for both Resolved and Merged.
+  const available = (incidents ?? []).filter((i) => !linkedIds.has(i.id) && i.isResolved);
+  const hasUnresolved = (incidents ?? []).some((i) => !linkedIds.has(i.id) && !i.isResolved);
 
   function handleLink() {
     if (!selected) return;
@@ -54,23 +57,44 @@ function PostmortemIncidentsSection(props: Props) {
       </div>
 
       <div className="flex flex-col gap-4 p-5">
-        <div className="flex items-center gap-2">
-          <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Select an incident to link…" />
-            </SelectTrigger>
-            <SelectContent>
-              {available.map((i) => (
-                <SelectItem key={i.id} value={String(i.id)}>
-                  #{i.id} · {i.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" onClick={handleLink} disabled={!selected || linking}>
-            <Link2 size={13} /> Link
-          </Button>
-        </div>
+        {available.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            {hasUnresolved
+              ? "No resolved incidents to link. In-progress incidents can be linked once they're resolved."
+              : "No resolved incidents available to link."}
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select an incident to link…">
+                    {(v: string | null) => {
+                      const inc = available.find((i) => String(i.id) === v);
+                      return inc ? `#${inc.id} · ${inc.title}` : "Select an incident to link…";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((i) => (
+                    <SelectItem key={i.id} value={String(i.id)}>
+                      #{i.id} · {i.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={handleLink} disabled={!selected || linking}>
+                <Link2 size={13} /> Link
+              </Button>
+            </div>
+
+            {hasUnresolved && (
+              <p className="text-xs text-muted-foreground">
+                Only resolved incidents can be linked. In-progress incidents are hidden until they're resolved.
+              </p>
+            )}
+          </>
+        )}
 
         {postmortem.incidents.length === 0 ? (
           <p className="text-sm text-muted-foreground">No incidents linked yet.</p>

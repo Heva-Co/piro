@@ -1,4 +1,5 @@
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -18,19 +19,19 @@ public interface IPostmortemRepository
     Task<Postmortem> UpdateAsync(Postmortem postmortem, CancellationToken ct = default);
     Task DeleteAsync(Postmortem postmortem, CancellationToken ct = default);
 
-    /// <summary>Returns the active (IsActive) field definitions, ordered by SortOrder — the analysis template.</summary>
+    /// <summary>Returns the active (IsActive) field definitions, ordered by SortOrder. This is the analysis template.</summary>
     Task<List<PostmortemFieldDefinition>> GetActiveFieldDefinitionsAsync(CancellationToken ct = default);
 
-    /// <summary>Returns every field definition (active and deactivated), ordered by SortOrder — for template management.</summary>
+    /// <summary>Returns every field definition (active and deactivated), ordered by SortOrder, for template management.</summary>
     Task<List<PostmortemFieldDefinition>> GetAllFieldDefinitionsAsync(CancellationToken ct = default);
 
     /// <summary>Loads a single field definition; null if it doesn't exist.</summary>
     Task<PostmortemFieldDefinition?> GetFieldDefinitionAsync(int id, CancellationToken ct = default);
 
-    /// <summary>True if any definition already uses <paramref name="key"/> (optionally excluding one id) — enforces uniqueness.</summary>
+    /// <summary>True if any definition already uses <paramref name="key"/> (optionally excluding one id), enforcing uniqueness.</summary>
     Task<bool> FieldDefinitionKeyExistsAsync(string key, int? excludingId = null, CancellationToken ct = default);
 
-    /// <summary>Returns the highest SortOrder among definitions, or -1 if there are none — for appending a new custom field.</summary>
+    /// <summary>Returns the highest SortOrder among definitions, or -1 if there are none, for appending a new custom field.</summary>
     Task<int> GetMaxFieldDefinitionSortOrderAsync(CancellationToken ct = default);
 
     Task<PostmortemFieldDefinition> CreateFieldDefinitionAsync(PostmortemFieldDefinition definition, CancellationToken ct = default);
@@ -40,7 +41,7 @@ public interface IPostmortemRepository
     /// <summary>Persists SortOrder changes across a batch of already-tracked definitions in one save (reorder).</summary>
     Task SaveFieldDefinitionOrderAsync(CancellationToken ct = default);
 
-    /// <summary>True if any postmortem has a value row for this definition — a definition in use can't be hard-deleted.</summary>
+    /// <summary>True if any postmortem has a value row for this definition. A definition in use can't be hard-deleted.</summary>
     Task<bool> FieldDefinitionHasValuesAsync(int definitionId, CancellationToken ct = default);
 
     /// <summary>
@@ -56,10 +57,13 @@ public interface IPostmortemRepository
     /// <summary>Removes an incident link. Returns false if the link didn't exist.</summary>
     Task<bool> UnlinkIncidentAsync(int postmortemId, int incidentId, CancellationToken ct = default);
 
-    /// <summary>True if the incident exists — used to validate a link request.</summary>
+    /// <summary>True if the incident exists. Used to validate a link request.</summary>
     Task<bool> IncidentExistsAsync(int incidentId, CancellationToken ct = default);
 
-    /// <summary>Adds an author annotation to the report's timeline (RFC 0005 §4.4).</summary>
+    /// <summary>Returns the incident's status for link validation; null if the incident doesn't exist.</summary>
+    Task<IncidentStatus?> GetIncidentStatusAsync(int incidentId, CancellationToken ct = default);
+
+    /// <summary>Adds an author annotation to the report's timeline (RFC 0005 section 4.4).</summary>
     Task<PostmortemTimelineEntry> AddTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default);
 
     /// <summary>Loads a single annotation scoped to its parent report; null if it doesn't exist.</summary>
@@ -70,7 +74,7 @@ public interface IPostmortemRepository
 
     /// <summary>
     /// Returns incidents whose active window overlaps [<paramref name="from"/>, <paramref name="to"/>] and
-    /// aren't already linked to the report — the impact-window suggestion set (RFC 0005 §4.6).
+    /// aren't already linked to the report. This is the impact-window suggestion set (RFC 0005 section 4.6).
     /// </summary>
     Task<List<Incident>> GetIncidentSuggestionsAsync(int postmortemId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }

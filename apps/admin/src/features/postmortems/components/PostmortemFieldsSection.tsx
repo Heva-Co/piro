@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
 import type { Postmortem, PostmortemFieldValueUpdate } from "@/lib/actions/postmortems";
 
 interface Props {
@@ -11,9 +11,9 @@ interface Props {
 }
 
 // Renders each analysis section from its field definition (heading, help text, type) and lets the
-// author edit the value. LongText → textarea, everything else → single-line input for now.
+// author edit the value. LongText uses a textarea, everything else uses a single-line input for now.
 // The parent keys this component by the postmortem's updatedAt, so a save remounts it and the
-// lazy initial state re-hydrates from the freshly-saved values — no prop-sync effect needed.
+// lazy initial state re-hydrates from the freshly-saved values, so no prop-sync effect is needed.
 function PostmortemFieldsSection(props: Props) {
   const { postmortem, saving, onSave } = props;
   const [values, setValues] = useState<Record<number, string>>(() => {
@@ -47,12 +47,12 @@ function PostmortemFieldsSection(props: Props) {
             <label className="text-sm font-semibold">{f.heading}</label>
             {f.helpText && <p className="text-xs text-muted-foreground">{f.helpText}</p>}
             {f.fieldType === "LongText" ? (
-              <Textarea
-                rows={4}
+              <MarkdownEditor
                 value={values[f.fieldDefinitionId] ?? ""}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [f.fieldDefinitionId]: e.target.value }))
+                onChange={(value) =>
+                  setValues((v) => ({ ...v, [f.fieldDefinitionId]: value }))
                 }
+                placeholder={f.helpText ?? undefined}
               />
             ) : (
               <Input

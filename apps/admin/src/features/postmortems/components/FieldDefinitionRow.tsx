@@ -1,46 +1,49 @@
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import type { PostmortemFieldDefinition } from "@/lib/actions/postmortems";
 
 interface Props {
   definition: PostmortemFieldDefinition;
-  isFirst: boolean;
-  isLast: boolean;
   busy: boolean;
-  onMove: (direction: "up" | "down") => void;
   onToggleActive: (isActive: boolean) => void;
   onDelete: () => void;
 }
 
-// One row of the analysis template. System fields (the eight seeded sections) can be reordered and
-// toggled active but never deleted; custom fields can also be deleted (or deactivated if in use).
+// One row of the analysis template, drag-reorderable via dnd-kit (grab the handle). System fields
+// (the eight seeded sections) can be reordered and toggled active but never deleted; custom fields
+// can also be deleted (or deactivated if in use).
 function FieldDefinitionRow(props: Props) {
-  const { definition, isFirst, isLast, busy, onMove, onToggleActive, onDelete } = props;
+  const { definition, busy, onToggleActive, onDelete } = props;
+
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
+    id: definition.id,
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
-      <div className="flex flex-col">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onMove("up")}
-          disabled={busy || isFirst}
-          aria-label="Move up"
-        >
-          <ArrowUp size={12} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onMove("down")}
-          disabled={busy || isLast}
-          aria-label="Move down"
-        >
-          <ArrowDown size={12} />
-        </Button>
-      </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 border-b bg-card px-4 py-3 last:border-b-0",
+        isDragging && "relative z-10 shadow-lg"
+      )}
+    >
+      <button
+        type="button"
+        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing disabled:opacity-50"
+        aria-label="Drag to reorder"
+        disabled={busy}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={16} />
+      </button>
 
       <div className="flex flex-1 flex-col">
         <div className="flex items-center gap-2">
@@ -61,11 +64,7 @@ function FieldDefinitionRow(props: Props) {
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Active
-          <Switch
-            checked={definition.isActive}
-            onCheckedChange={onToggleActive}
-            disabled={busy}
-          />
+          <Switch checked={definition.isActive} onCheckedChange={onToggleActive} disabled={busy} />
         </label>
         {!definition.isSystem && (
           <Button

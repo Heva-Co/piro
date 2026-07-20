@@ -4,7 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +97,13 @@ function PostmortemFormPage() {
                   onValueChange={(v) => field.onChange(!v || v === "none" ? "" : v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue>
+                      {(v: string | null) =>
+                        !v || v === "none"
+                          ? "Unassigned"
+                          : (users ?? []).find((u) => String(u.id) === v)?.name ?? "Unassigned"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Unassigned</SelectItem>
@@ -113,6 +119,11 @@ function PostmortemFormPage() {
             <p className="text-xs text-muted-foreground">
               The person accountable for running the review and driving action items to done.
             </p>
+          </div>
+
+          <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+            You'll link the incidents this review covers, fill in the analysis, and add timeline notes in
+            the editor after creating the report.
           </div>
 
           <div className="flex items-center gap-3 pt-2">

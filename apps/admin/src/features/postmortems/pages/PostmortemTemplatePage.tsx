@@ -1,6 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import AddFieldDefinitionForm from "@/features/postmortems/components/AddFieldDefinitionForm";
@@ -23,6 +32,7 @@ function apiErrorMessage(err: unknown, fallback: string) {
 function PostmortemTemplatePage() {
   const navigate = useNavigate();
   const confirm = useConfirmDialog();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const { data: definitions, isLoading } = usePostmortemFieldDefinitions(true);
   const createField = useCreateFieldDefinition();
   const updateField = useUpdateFieldDefinition();
@@ -46,13 +56,16 @@ function PostmortemTemplatePage() {
     }
   }
 
-  async function handleMove(index: number, direction: "up" | "down") {
-    const target = direction === "up" ? index - 1 : index + 1;
-    if (target < 0 || target >= fields.length) return;
-    const orderedIds = fields.map((f) => f.id);
-    [orderedIds[index], orderedIds[target]] = [orderedIds[target], orderedIds[index]];
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = fields.findIndex((f) => f.id === active.id);
+    const newIndex = fields.findIndex((f) => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const orderedIds = arrayMove(fields, oldIndex, newIndex).map((f) => f.id);
     try {
       await reorderFields.mutateAsync(orderedIds);
+      toast.success("Template reordered.");
     } catch (err) {
       toast.error(apiErrorMessage(err, "Failed to reorder fields."));
     }
@@ -113,18 +126,19 @@ function PostmortemTemplatePage() {
               ))}
             </div>
           ) : (
-            fields.map((f, i) => (
-              <FieldDefinitionRow
-                key={f.id}
-                definition={f}
-                isFirst={i === 0}
-                isLast={i === fields.length - 1}
-                busy={busy}
-                onMove={(direction) => handleMove(i, direction)}
-                onToggleActive={(isActive) => handleToggleActive(f.id, isActive)}
-                onDelete={() => handleDelete(f.id, f.heading)}
-              />
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                {fields.map((f) => (
+                  <FieldDefinitionRow
+                    key={f.id}
+                    definition={f}
+                    busy={busy}
+                    onToggleActive={(isActive) => handleToggleActive(f.id, isActive)}
+                    onDelete={() => handleDelete(f.id, f.heading)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 

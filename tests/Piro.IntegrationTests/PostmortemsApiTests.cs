@@ -195,7 +195,7 @@ public class PostmortemsApiTests : IAsyncLifetime
         var created = await CreatePostmortemAsync("Ordering", _ownerUserId);
         await _client.PostAsJsonAsync($"/api/v1/postmortems/{created!.Id}/incidents", new { incidentId });
 
-        // Annotation dated far in the past — must sort before the incident's "Created" event (seeded ~now).
+        // Annotation dated far in the past, so it must sort before the incident's "Created" event (seeded ~now).
         await _client.PostAsJsonAsync(
             $"/api/v1/postmortems/{created.Id}/timeline",
             new { occurredAt = "2020-01-01T00:00:00Z", body = "Earliest note" });
@@ -234,6 +234,22 @@ public class PostmortemsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LinkInProgressIncident_Returns400()
+    {
+        // An incident still under investigation cannot be reviewed yet.
+        int incidentId = await SeedIncidentAsync("Still investigating", IncidentStatus.Investigating);
+        var created = await CreatePostmortemAsync("Too early", _ownerUserId);
+
+        var resp = await _client.PostAsJsonAsync(
+            $"/api/v1/postmortems/{created!.Id}/incidents", new { incidentId });
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        // And it isn't offered as a suggestion either.
+        var pm = await _client.GetFromJsonAsync<PostmortemResponse>($"/api/v1/postmortems/{created.Id}", Json);
+        Assert.Empty(pm!.Incidents);
+    }
+
+    [Fact]
     public async Task CustomField_AppearsInNewAndExistingPostmortems()
     {
         // A postmortem created BEFORE the custom field exists.
@@ -250,7 +266,7 @@ public class PostmortemsApiTests : IAsyncLifetime
         var field = await createField.Content.ReadFromJsonAsync<FieldDefinitionResponse>(Json);
         Assert.False(field!.IsSystem);
 
-        // A postmortem created AFTER — gets the field at creation.
+        // A postmortem created AFTER gets the field at creation.
         var after = await CreatePostmortemAsync("After custom field", _ownerUserId);
         Assert.Contains(after!.Fields, f => f.Key == "customer_comms");
 
@@ -288,7 +304,7 @@ public class PostmortemsApiTests : IAsyncLifetime
         var del = await _client.DeleteAsync($"/api/v1/postmortems/field-definitions/{field!.Id}");
         del.EnsureSuccessStatusCode();
 
-        // Still present but deactivated — historical values preserved.
+        // Still present but deactivated, with historical values preserved.
         var all = await _client.GetFromJsonAsync<List<FieldDefinitionResponse>>(
             "/api/v1/postmortems/field-definitions?includeInactive=true", Json);
         var stillThere = all!.SingleOrDefault(d => d.Id == field.Id);
@@ -316,7 +332,28 @@ public class PostmortemsApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, dup.StatusCode);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────
+    [Fact]
+    public async Task Pdf_DraftReturns400_PublishedReturnsPdfBytes()
+    {
+        var created = await CreatePostmortemAsync("PDF export", _ownerUserId);
+
+        // Draft: not exportable.
+        var draftResp = await _client.GetAsync($"/api/v1/postmortems/{created!.Id}/pdf");
+        Assert.Equal(HttpStatusCode.BadRequest, draftResp.StatusCode);
+
+        // Finalize, then export.
+        (await _client.PostAsync($"/api/v1/postmortems/{created.Id}/publish", null)).EnsureSuccessStatusCode();
+        var pdfResp = await _client.GetAsync($"/api/v1/postmortems/{created.Id}/pdf");
+        pdfResp.EnsureSuccessStatusCode();
+        Assert.Equal("application/pdf", pdfResp.Content.Headers.ContentType?.MediaType);
+
+        var bytes = await pdfResp.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 500, "expected a non-trivial PDF payload");
+        // PDF magic number: "%PDF".
+        Assert.Equal(new byte[] { 0x25, 0x50, 0x44, 0x46 }, bytes.Take(4).ToArray());
+    }
+
+    // Helpers
 
     private async Task<PostmortemResponse?> CreatePostmortemAsync(string name, int? ownerId)
     {
@@ -362,7 +399,9 @@ public class PostmortemsApiTests : IAsyncLifetime
         {
             Title = title,
             StartDateTime = startedAt.ToUnixTimeSeconds(),
-            Status = IncidentStatus.Investigating,
+            // Resolved so it's eligible to be linked/suggested (only resolved incidents qualify).
+            Status = IncidentStatus.Resolved,
+            EndDateTime = startedAt.AddHours(1).ToUnixTimeSeconds(),
             Source = "MANUAL",
         };
         db.Incidents.Add(incident);
