@@ -85,7 +85,7 @@ public class IntegrationManifestTests
     }
 
     [Theory]
-    [InlineData(IntegrationType.Jira, "ApiToken")]
+    [InlineData(IntegrationType.Jira, "ClientSecret")]
     [InlineData(IntegrationType.GoogleCloud, "ServiceAccountJson")]
     [InlineData(IntegrationType.Telegram, "BotToken")]
     [InlineData(IntegrationType.Twilio, "AuthToken")]
@@ -102,11 +102,11 @@ public class IntegrationManifestTests
     [Fact]
     public void RequiredConfigProperties_AreMarkedWithRequiredAttribute()
     {
-        // Spot-check: Jira's non-secret identifying fields must still be required, matching the
+        // Spot-check: Jira's non-secret identifying field must still be required, matching the
         // frontend form's validation (JiraConfig.tsx / integrationFormSchema).
         var jiraConfigType = IntegrationType.Jira.GetManifest()!.ConfigType;
-        var baseUrl = jiraConfigType.GetProperty("BaseUrl")!;
+        var clientId = jiraConfigType.GetProperty("ClientId")!;
 
-        baseUrl.GetCustomAttributes(typeof(RequiredAttribute), false).Should().NotBeEmpty();
+        clientId.GetCustomAttributes(typeof(RequiredAttribute), false).Should().NotBeEmpty();
     }
 }

@@ -53,7 +53,7 @@ public class IntegrationSecretMaskingTests
             Id = IntegrationId1,
             Name = "Prod Jira",
             Type = IntegrationType.Jira,
-            ConfigJson = """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""",
+            ConfigJson = """{"clientId":"client-abc","clientSecret":"real-secret-value"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
 
@@ -68,7 +68,7 @@ public class IntegrationSecretMaskingTests
     {
         var integrations = new[]
         {
-            new Integration { Id = IntegrationId1, Name = "Jira", Type = IntegrationType.Jira, ConfigJson = """{"baseUrl":"https://x.atlassian.net","apiToken":"secret-token"}""" },
+            new Integration { Id = IntegrationId1, Name = "Jira", Type = IntegrationType.Jira, ConfigJson = """{"clientId":"client-abc","clientSecret":"secret-token"}""" },
             new Integration { Id = IntegrationId2, Name = "GCP", Type = IntegrationType.GoogleCloud, ConfigJson = """{"serviceAccountJson":"{\"private_key\":\"secret\"}"}""" },
         };
         _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(integrations);
@@ -76,7 +76,7 @@ public class IntegrationSecretMaskingTests
         var dtos = (await _sut.GetAllAsync()).ToList();
 
         dtos.Should().AllSatisfy(d => d.ConfigJson.Should().NotContain("secret"));
-        dtos.Single(d => d.Id == IntegrationId1).ConfigJson.Should().Contain("https://x.atlassian.net"); // non-secret field preserved
+        dtos.Single(d => d.Id == IntegrationId1).ConfigJson.Should().Contain("client-abc"); // non-secret field preserved
     }
 
     [Fact]
@@ -87,20 +87,20 @@ public class IntegrationSecretMaskingTests
             Id = IntegrationId1,
             Name = "Jira",
             Type = IntegrationType.Jira,
-            ConfigJson = """{"apiToken":"real-secret-value","projectKey":"OLD"}""",
+            ConfigJson = """{"clientSecret":"real-secret-value","defaultProjectKey":"OLD"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
         // Client fetched the masked DTO, changed nothing about the secret, and resubmitted the sentinel.
-        var maskedConfigJson = $$"""{"apiToken":"{{IntegrationAppService.MaskedSecretValue}}","projectKey":"NEW"}""";
+        var maskedConfigJson = $$"""{"clientSecret":"{{IntegrationAppService.MaskedSecretValue}}","defaultProjectKey":"NEW"}""";
         var request = new UpdateIntegrationRequest(null, null, maskedConfigJson);
 
         await _sut.UpdateAsync(IntegrationId1, request);
 
         await _repo.Received(1).UpdateAsync(
-            Arg.Is<Integration>(i => i.ConfigJson.Contains("real-secret-value") && i.ConfigJson.Contains("\"projectKey\":\"NEW\"")),
+            Arg.Is<Integration>(i => i.ConfigJson.Contains("real-secret-value") && i.ConfigJson.Contains("\"defaultProjectKey\":\"NEW\"")),
             Arg.Any<CancellationToken>());
     }
 
@@ -112,13 +112,13 @@ public class IntegrationSecretMaskingTests
             Id = IntegrationId1,
             Name = "Jira",
             Type = IntegrationType.Jira,
-            ConfigJson = """{"apiToken":"old-secret","projectKey":"KEY"}""",
+            ConfigJson = """{"clientSecret":"old-secret","defaultProjectKey":"KEY"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
         _repo.UpdateAsync(Arg.Any<Integration>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Integration>());
 
-        var request = new UpdateIntegrationRequest(null, null, """{"apiToken":"new-secret","projectKey":"KEY"}""");
+        var request = new UpdateIntegrationRequest(null, null, """{"clientSecret":"new-secret","defaultProjectKey":"KEY"}""");
 
         await _sut.UpdateAsync(IntegrationId1, request);
 
@@ -139,7 +139,7 @@ public class IntegrationSecretMaskingTests
 
         var request = new CreateIntegrationRequest(
             "Prod Jira", IntegrationType.Jira, null,
-            """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""", null);
+            """{"clientId":"client-abc","clientSecret":"real-secret-value"}""", null);
 
         await _sut.CreateAsync(request);
 
@@ -147,7 +147,7 @@ public class IntegrationSecretMaskingTests
         // Stored ciphertext: the secret is protected, the non-secret field stays plaintext.
         persisted!.ConfigJson.Should().NotContain("\"real-secret-value\"");
         persisted.ConfigJson.Should().Contain("enc:real-secret-value");
-        persisted.ConfigJson.Should().Contain("https://x.atlassian.net");
+        persisted.ConfigJson.Should().Contain("client-abc");
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public class IntegrationSecretMaskingTests
         // The centralized consumption read a dispatcher/executor uses: encrypted at rest → plaintext in-process.
         var stored = IntegrationExtensions.ProtectSecrets(
             IntegrationType.Jira,
-            """{"baseUrl":"https://x.atlassian.net","apiToken":"real-secret-value"}""",
+            """{"clientId":"client-abc","clientSecret":"real-secret-value"}""",
             _secretProtector);
         stored.Should().Contain("enc:real-secret-value");
 
