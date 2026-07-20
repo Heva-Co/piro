@@ -48,6 +48,13 @@ export const ROUTES = {
     TIMELINE: (id: number | string) => `/admin/incidents/${id}/timeline`,
   },
 
+  // Postmortems
+  POSTMORTEMS: {
+    LIST: "/admin/postmortems",
+    NEW: "/admin/postmortems/new",
+    DETAIL: (id: number | string) => `/admin/postmortems/${id}`,
+  },
+
   // Maintenances
   MAINTENANCES: {
     LIST: "/admin/maintenances",
