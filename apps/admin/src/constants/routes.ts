@@ -52,6 +52,7 @@ export const ROUTES = {
   POSTMORTEMS: {
     LIST: "/admin/postmortems",
     NEW: "/admin/postmortems/new",
+    TEMPLATE: "/admin/postmortems/template",
     DETAIL: (id: number | string) => `/admin/postmortems/${id}`,
   },
 

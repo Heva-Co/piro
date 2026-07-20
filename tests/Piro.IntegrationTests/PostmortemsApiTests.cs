@@ -233,6 +233,89 @@ public class PostmortemsApiTests : IAsyncLifetime
         Assert.DoesNotContain(after!, s => s.IncidentId == incidentId);
     }
 
+    [Fact]
+    public async Task CustomField_AppearsInNewAndExistingPostmortems()
+    {
+        // A postmortem created BEFORE the custom field exists.
+        var before = await CreatePostmortemAsync("Before custom field", _ownerUserId);
+
+        var createField = await _client.PostAsJsonAsync("/api/v1/postmortems/field-definitions", new
+        {
+            key = "customer_comms",
+            heading = "Customer Communications",
+            helpText = "What we told customers and when.",
+            fieldType = "LongText",
+        });
+        createField.EnsureSuccessStatusCode();
+        var field = await createField.Content.ReadFromJsonAsync<FieldDefinitionResponse>(Json);
+        Assert.False(field!.IsSystem);
+
+        // A postmortem created AFTER — gets the field at creation.
+        var after = await CreatePostmortemAsync("After custom field", _ownerUserId);
+        Assert.Contains(after!.Fields, f => f.Key == "customer_comms");
+
+        // The pre-existing one is backfilled on read.
+        var backfilled = await _client.GetFromJsonAsync<PostmortemResponse>($"/api/v1/postmortems/{before!.Id}", Json);
+        Assert.Contains(backfilled!.Fields, f => f.Key == "customer_comms");
+    }
+
+    [Fact]
+    public async Task SystemField_CannotBeDeleted()
+    {
+        var defs = await _client.GetFromJsonAsync<List<FieldDefinitionResponse>>(
+            "/api/v1/postmortems/field-definitions?includeInactive=true", Json);
+        var systemField = defs!.First(d => d.IsSystem);
+
+        var resp = await _client.DeleteAsync($"/api/v1/postmortems/field-definitions/{systemField.Id}");
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task CustomFieldInUse_IsDeactivatedNotDeleted()
+    {
+        var createField = await _client.PostAsJsonAsync("/api/v1/postmortems/field-definitions", new
+        {
+            key = "followups",
+            heading = "Follow-ups",
+            helpText = (string?)null,
+            fieldType = "LongText",
+        });
+        var field = await createField.Content.ReadFromJsonAsync<FieldDefinitionResponse>(Json);
+
+        // Referencing it from a report writes a value row (via create-time seeding).
+        await CreatePostmortemAsync("Uses followups", _ownerUserId);
+
+        var del = await _client.DeleteAsync($"/api/v1/postmortems/field-definitions/{field!.Id}");
+        del.EnsureSuccessStatusCode();
+
+        // Still present but deactivated — historical values preserved.
+        var all = await _client.GetFromJsonAsync<List<FieldDefinitionResponse>>(
+            "/api/v1/postmortems/field-definitions?includeInactive=true", Json);
+        var stillThere = all!.SingleOrDefault(d => d.Id == field.Id);
+        Assert.NotNull(stillThere);
+        Assert.False(stillThere!.IsActive);
+    }
+
+    [Fact]
+    public async Task DuplicateFieldKey_Returns400()
+    {
+        await _client.PostAsJsonAsync("/api/v1/postmortems/field-definitions", new
+        {
+            key = "unique_key_x",
+            heading = "First",
+            helpText = (string?)null,
+            fieldType = "LongText",
+        });
+        var dup = await _client.PostAsJsonAsync("/api/v1/postmortems/field-definitions", new
+        {
+            key = "unique_key_x",
+            heading = "Second",
+            helpText = (string?)null,
+            fieldType = "LongText",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, dup.StatusCode);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private async Task<PostmortemResponse?> CreatePostmortemAsync(string name, int? ownerId)
@@ -320,4 +403,5 @@ public class PostmortemsApiTests : IAsyncLifetime
         string? ActorName,
         string? Text);
     private record SuggestionResponse(int IncidentId, string Title, IncidentStatus Status);
+    private record FieldDefinitionResponse(int Id, string Key, string Heading, bool IsActive, bool IsSystem);
 }

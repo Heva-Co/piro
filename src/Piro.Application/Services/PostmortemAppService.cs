@@ -26,6 +26,14 @@ public class PostmortemAppService(
     {
         var postmortem = await postmortemRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Postmortem), id);
+
+        // A definition may have been added after this report was created (Phase 3a). Backfill an empty
+        // value row for any active definition the report is missing, then reload so it renders/edits.
+        var activeIds = (await postmortemRepo.GetActiveFieldDefinitionsAsync(ct)).Select(d => d.Id);
+        if (await postmortemRepo.BackfillFieldValuesAsync(id, activeIds, ct))
+            postmortem = await postmortemRepo.GetByIdAsync(id, ct)
+                ?? throw new NotFoundException(nameof(Postmortem), id);
+
         return postmortem.ToDto();
     }
 
@@ -33,8 +41,114 @@ public class PostmortemAppService(
     public async Task<IEnumerable<PostmortemFieldDefinitionDto>> GetFieldDefinitionsAsync(CancellationToken ct = default)
     {
         var defs = await postmortemRepo.GetActiveFieldDefinitionsAsync(ct);
-        return defs.Select(d => new PostmortemFieldDefinitionDto(
-            d.Id, d.Key, d.Heading, d.HelpText, d.FieldType, d.SortOrder, d.IsActive, d.IsSystem));
+        return defs.Select(d => d.ToDto());
+    }
+
+    /// <summary>Returns every field definition (active + deactivated) — for the template-management screen (Phase 3a).</summary>
+    public async Task<IEnumerable<PostmortemFieldDefinitionDto>> GetAllFieldDefinitionsAsync(CancellationToken ct = default)
+    {
+        var defs = await postmortemRepo.GetAllFieldDefinitionsAsync(ct);
+        return defs.Select(d => d.ToDto());
+    }
+
+    /// <summary>Creates a custom (non-system) analysis field, appended to the end of the template (Phase 3a).</summary>
+    public async Task<PostmortemFieldDefinitionDto> CreateFieldDefinitionAsync(CreateFieldDefinitionRequest request, CancellationToken ct = default)
+    {
+        var key = (request.Key ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(key))
+            throw new DomainValidationException("A field key is required.");
+        if (!System.Text.RegularExpressions.Regex.IsMatch(key, "^[a-z0-9]+(?:_[a-z0-9]+)*$"))
+            throw new DomainValidationException("Key must be lowercase letters, numbers, and underscores.");
+        if (string.IsNullOrWhiteSpace(request.Heading))
+            throw new DomainValidationException("A field heading is required.");
+        if (await postmortemRepo.FieldDefinitionKeyExistsAsync(key, null, ct))
+            throw new DomainValidationException($"A field with key '{key}' already exists.");
+
+        var sortOrder = await postmortemRepo.GetMaxFieldDefinitionSortOrderAsync(ct) + 1;
+        var created = await postmortemRepo.CreateFieldDefinitionAsync(new PostmortemFieldDefinition
+        {
+            Key = key,
+            Heading = request.Heading.Trim(),
+            HelpText = string.IsNullOrWhiteSpace(request.HelpText) ? null : request.HelpText.Trim(),
+            FieldType = request.FieldType,
+            SortOrder = sortOrder,
+            IsActive = true,
+            IsSystem = false,
+        }, ct);
+        return created.ToDto();
+    }
+
+    /// <summary>
+    /// Edits a field definition. System fields (the eight seeded sections) allow only heading/help-text/active
+    /// edits — their key and type are immutable so existing reports keep resolving them (Phase 3a).
+    /// </summary>
+    public async Task<PostmortemFieldDefinitionDto> UpdateFieldDefinitionAsync(int id, UpdateFieldDefinitionRequest request, CancellationToken ct = default)
+    {
+        var def = await postmortemRepo.GetFieldDefinitionAsync(id, ct)
+            ?? throw new NotFoundException(nameof(PostmortemFieldDefinition), id);
+
+        if (request.Heading is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.Heading))
+                throw new DomainValidationException("A field heading is required.");
+            def.Heading = request.Heading.Trim();
+        }
+        if (request.HelpText is not null)
+            def.HelpText = string.IsNullOrWhiteSpace(request.HelpText) ? null : request.HelpText.Trim();
+        if (request.SortOrder.HasValue)
+            def.SortOrder = request.SortOrder.Value;
+        if (request.IsActive.HasValue)
+            def.IsActive = request.IsActive.Value;
+
+        // The type is only mutable on custom fields — changing a system field's type would reinterpret
+        // the values existing reports already stored against it.
+        if (request.FieldType.HasValue && request.FieldType.Value != def.FieldType)
+        {
+            if (def.IsSystem)
+                throw new DomainValidationException("A system field's type cannot be changed.");
+            def.FieldType = request.FieldType.Value;
+        }
+
+        await postmortemRepo.UpdateFieldDefinitionAsync(def, ct);
+        return def.ToDto();
+    }
+
+    /// <summary>Reorders the template by assigning SortOrder from the given id sequence (Phase 3a).</summary>
+    public async Task<IEnumerable<PostmortemFieldDefinitionDto>> ReorderFieldDefinitionsAsync(ReorderFieldDefinitionsRequest request, CancellationToken ct = default)
+    {
+        var all = await postmortemRepo.GetAllFieldDefinitionsAsync(ct);
+        var byId = all.ToDictionary(d => d.Id);
+
+        var order = 0;
+        foreach (var defId in request.OrderedIds)
+        {
+            if (byId.TryGetValue(defId, out var def))
+                def.SortOrder = order++;
+        }
+        await postmortemRepo.SaveFieldDefinitionOrderAsync(ct);
+        return all.OrderBy(d => d.SortOrder).Select(d => d.ToDto());
+    }
+
+    /// <summary>
+    /// Deletes a custom field. System fields can never be deleted; a custom field that reports have written
+    /// values against is deactivated instead of hard-deleted, to preserve historical content (Phase 3a).
+    /// </summary>
+    public async Task DeleteFieldDefinitionAsync(int id, CancellationToken ct = default)
+    {
+        var def = await postmortemRepo.GetFieldDefinitionAsync(id, ct)
+            ?? throw new NotFoundException(nameof(PostmortemFieldDefinition), id);
+        if (def.IsSystem)
+            throw new DomainValidationException("A system field cannot be deleted.");
+
+        if (await postmortemRepo.FieldDefinitionHasValuesAsync(id, ct))
+        {
+            // In use — soft-disable to keep historical values (the value FK is RESTRICT anyway).
+            def.IsActive = false;
+            await postmortemRepo.UpdateFieldDefinitionAsync(def, ct);
+            return;
+        }
+
+        await postmortemRepo.DeleteFieldDefinitionAsync(def, ct);
     }
 
     /// <summary>
@@ -88,12 +202,19 @@ public class PostmortemAppService(
 
         if (request.Fields is not null)
         {
+            // Backfill any missing active-definition rows first (a definition may have been added after
+            // this report was created — Phase 3a), then reload so the new rows are tracked and writable.
+            var activeIds = (await postmortemRepo.GetActiveFieldDefinitionsAsync(ct)).Select(d => d.Id);
+            if (await postmortemRepo.BackfillFieldValuesAsync(id, activeIds, ct))
+                postmortem = await postmortemRepo.GetByIdAsync(id, ct)
+                    ?? throw new NotFoundException(nameof(Postmortem), id);
+
             foreach (var upd in request.Fields)
             {
                 var value = postmortem.FieldValues.FirstOrDefault(v => v.FieldDefinitionId == upd.FieldDefinitionId);
-                if (value is null)
-                    throw new DomainValidationException(
-                        $"Postmortem {id} has no field for definition {upd.FieldDefinitionId}.");
+                // A value can be missing only if the definition is inactive/deleted — skip silently
+                // rather than fail the whole save on a stale field the client sent.
+                if (value is null) continue;
                 value.Value = upd.Value ?? "";
             }
         }

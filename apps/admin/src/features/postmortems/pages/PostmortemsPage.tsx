@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,14 @@ function PostmortemsPage() {
       <PageHeader
         breadcrumbs={[{ label: "Postmortems" }]}
         actions={
-          <Button onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}>
-            <Plus size={14} /> New Postmortem
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate(ROUTES.POSTMORTEMS.TEMPLATE)}>
+              <SlidersHorizontal size={14} /> Template
+            </Button>
+            <Button onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}>
+              <Plus size={14} /> New Postmortem
+            </Button>
+          </div>
         }
       />
 

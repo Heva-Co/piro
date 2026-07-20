@@ -5044,10 +5044,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the analysis template (active field definitions) — for rendering an empty editor. */
+        /**
+         * Returns the analysis template. By default only active definitions (for rendering an empty editor);
+         *     pass includeInactive = true to include deactivated ones (template management).
+         */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    includeInactive?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -5066,6 +5071,158 @@ export interface paths {
             };
         };
         put?: never;
+        /** Creates a custom analysis field. Restricted to Owner/Admin (RFC 0005 Phase 3a). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateFieldDefinitionRequest"];
+                    "text/json": components["schemas"]["CreateFieldDefinitionRequest"];
+                    "application/*+json": components["schemas"]["CreateFieldDefinitionRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions/{defId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edits a field definition (heading/help/active for any; type only for custom). Owner/Admin only. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    defId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                    "text/json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                    "application/*+json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a custom field (or deactivates it if in use). System fields can't be deleted. Owner/Admin only. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    defId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorders the analysis template. Owner/Admin only. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                    "text/json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                    "application/*+json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"][];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -8039,6 +8196,12 @@ export interface components {
             integrationId?: null | string;
             alertConfigs?: null | components["schemas"]["CreateAlertConfigRequest"][];
         };
+        CreateFieldDefinitionRequest: {
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
+        };
         CreateIncidentRequest: {
             title: string;
             /** Format: int64 */
@@ -8856,6 +9019,9 @@ export interface components {
         RefreshRequest: {
             refreshToken: string;
         };
+        ReorderFieldDefinitionsRequest: {
+            orderedIds: number[];
+        };
         ReorderUserNotificationPreferencesRequest: {
             orderedIds: number[];
         };
@@ -9085,6 +9251,14 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+        };
+        UpdateFieldDefinitionRequest: {
+            heading: null | string;
+            helpText: null | string;
+            fieldType: null | components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: null | number;
+            isActive: null | boolean;
         };
         UpdateIncidentRequest: {
             title: null | string;

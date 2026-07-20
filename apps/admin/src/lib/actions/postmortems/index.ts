@@ -16,14 +16,38 @@ export type PostmortemFieldValueUpdate = components["schemas"]["PostmortemFieldV
 export type CreateTimelineEntryRequest = components["schemas"]["CreateTimelineEntryRequest"];
 export type UpdateTimelineEntryRequest = components["schemas"]["UpdateTimelineEntryRequest"];
 export type PostmortemIncidentSuggestion = components["schemas"]["PostmortemIncidentSuggestionDto"];
+export type CreateFieldDefinitionRequest = components["schemas"]["CreateFieldDefinitionRequest"];
+export type UpdateFieldDefinitionRequest = components["schemas"]["UpdateFieldDefinitionRequest"];
 
 export const postmortemsApi = {
   list: () => api.get<PostmortemListItem[]>(ENDPOINTS.POSTMORTEMS).then((r) => r.data),
 
   get: (id: number | string) => api.get<Postmortem>(ENDPOINTS.POSTMORTEM(id)).then((r) => r.data),
 
-  fieldDefinitions: () =>
-    api.get<PostmortemFieldDefinition[]>(ENDPOINTS.POSTMORTEM_FIELD_DEFINITIONS).then((r) => r.data),
+  fieldDefinitions: (includeInactive = false) =>
+    api
+      .get<PostmortemFieldDefinition[]>(ENDPOINTS.POSTMORTEM_FIELD_DEFINITIONS, {
+        params: includeInactive ? { includeInactive: true } : undefined,
+      })
+      .then((r) => r.data),
+
+  createFieldDefinition: (data: CreateFieldDefinitionRequest) =>
+    api
+      .post<PostmortemFieldDefinition>(ENDPOINTS.POSTMORTEM_FIELD_DEFINITIONS, data)
+      .then((r) => r.data),
+
+  updateFieldDefinition: (defId: number, data: UpdateFieldDefinitionRequest) =>
+    api
+      .put<PostmortemFieldDefinition>(ENDPOINTS.POSTMORTEM_FIELD_DEFINITION(defId), data)
+      .then((r) => r.data),
+
+  reorderFieldDefinitions: (orderedIds: number[]) =>
+    api
+      .put<PostmortemFieldDefinition[]>(ENDPOINTS.POSTMORTEM_FIELD_DEFINITIONS_ORDER, { orderedIds })
+      .then((r) => r.data),
+
+  deleteFieldDefinition: (defId: number) =>
+    api.delete(ENDPOINTS.POSTMORTEM_FIELD_DEFINITION(defId)),
 
   create: (data: CreatePostmortemRequest) =>
     api.post<Postmortem>(ENDPOINTS.POSTMORTEMS, data).then((r) => r.data),
