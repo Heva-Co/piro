@@ -1,0 +1,32 @@
+# Local development database only.
+#
+# Runs just Postgres, with its port published to the host, so you can run the API
+# with `dotnet run` against a local DB instead of a remote one. The full stack
+# (proxy/web/api) lives in docker-compose.yml / docker-compose.local.yml.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then point src/Piro.Api/appsettings.Development.json at:
+#   Host=localhost;Port=5433;Database=piro;Username=piro;Password=piro;SSL Mode=Disable
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: piro-dev-db
+    environment:
+      POSTGRES_DB: piro
+      POSTGRES_USER: piro
+      POSTGRES_PASSWORD: piro
+    ports:
+      # Host 5433 → container 5432, avoiding a clash with a native Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - piro_dev_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U piro -d piro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  piro_dev_pgdata:
