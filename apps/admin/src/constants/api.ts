@@ -128,6 +128,10 @@ export const ENDPOINTS = {
   INTEGRATION: (id: number | string) => `${API_BASE}/integrations/${id}`,
   INTEGRATION_TYPES: `${API_BASE}/integrations/types`,
   INTEGRATION_ACTIONS: (context: string) => `${API_BASE}/integrations/actions?context=${context}`,
+  INTEGRATION_ACTION_DRAFT: (id: string, actionId: string, context: string, targetId: number) =>
+    `${API_BASE}/integrations/${id}/actions/${actionId}/draft?context=${context}&targetId=${targetId}`,
+  INTEGRATION_ACTION_EXECUTE: (id: string, actionId: string) =>
+    `${API_BASE}/integrations/${id}/actions/${actionId}/execute`,
   INTEGRATION_REFERENCES: (context: string, targetId: number) =>
     `${API_BASE}/integrations/references?context=${context}&targetId=${targetId}`,
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => `${API_BASE}/integrations/${id}/webhook-logs`,

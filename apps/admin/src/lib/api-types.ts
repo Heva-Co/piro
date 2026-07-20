@@ -3279,6 +3279,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/{id}/actions/{actionId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pre-fills an action's input dialog for a specific target (RFC 0012 §4.6). */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                    targetId?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/actions/{actionId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "text/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "application/*+json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionResultDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/references": {
         parameters: {
             query?: never;
@@ -7734,6 +7848,12 @@ export interface components {
         };
         /** @enum {unknown} */
         EventVisibility: "Private" | "Public";
+        ExecuteIntegrationActionRequest: {
+            context: components["schemas"]["ActionContext"];
+            /** Format: int32 */
+            targetId: number;
+            input: null | components["schemas"]["JsonElement"];
+        };
         ExternalReferenceDto: {
             context: components["schemas"]["ActionContext"];
             /** Format: int32 */
@@ -7844,6 +7964,11 @@ export interface components {
             supportsDraft: boolean;
             inputSchema: components["schemas"]["ConfigFieldSchemaDto"][];
         };
+        IntegrationActionResultDto: {
+            externalId: string;
+            url: string;
+            label: string;
+        };
         /** @enum {unknown} */
         IntegrationCategory: "Notification" | "ThirdParty";
         /** @enum {unknown} */
@@ -7897,6 +8022,7 @@ export interface components {
             previousFireTimeUtc: null | string;
             check: null | components["schemas"]["CheckRefDto"];
         };
+        JsonElement: unknown;
         LinkAlertToIncidentRequest: {
             /** Format: int32 */
             incidentId: null | number;
