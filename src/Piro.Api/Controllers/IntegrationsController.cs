@@ -43,6 +43,17 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         Ok(await integrationApp.GetByIdAsync(id, ct));
 
+    /// <summary>
+    /// Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
+    /// have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page
+    /// renders these as "🔗 OPS-123" links alongside the action buttons.
+    /// </summary>
+    [HttpGet("references")]
+    [ProducesResponseType<IReadOnlyList<ExternalReferenceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetReferences(
+        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        Ok(await integrationApp.GetReferencesAsync(context, targetId, ct));
+
     [HttpPost]
     [ProducesResponseType<IntegrationDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
