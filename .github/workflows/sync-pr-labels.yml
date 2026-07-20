@@ -29,6 +29,11 @@ jobs:
               return;
             }
 
+            // Labels that describe an issue's own workflow, not the implementing PR, and must never
+            // be copied. "rfc" marks a proposal document/discussion issue; a PR that implements it
+            // carries "implements-rfc" instead, so copying "rfc" onto the PR would mislabel it.
+            const EXCLUDED_LABELS = new Set(["rfc"]);
+
             const labelSet = new Set();
             for (const number of issueNumbers) {
               try {
@@ -38,6 +43,7 @@ jobs:
                   issue_number: number,
                 });
                 for (const label of issue.labels) {
+                  if (EXCLUDED_LABELS.has(label.name)) continue;
                   labelSet.add(label.name);
                 }
                 console.log(`Issue #${number}: [${issue.labels.map(l => l.name).join(", ")}]`);
