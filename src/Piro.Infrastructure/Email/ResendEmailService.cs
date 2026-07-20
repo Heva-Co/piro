@@ -44,6 +44,9 @@ public class ResendEmailService(
     public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
         SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
 
+    public Task SendPasswordResetAsync(string to, string resetUrl, CancellationToken ct = default) =>
+        SendAsync(to, "Reset your Piro password", EmailTemplates.PasswordReset(resetUrl), ct);
+
     /// <summary>
     /// Sends using an explicit, not-yet-persisted API key — used by the setup wizard to verify
     /// a mailbox works before the config (or any user account) is saved to the database.

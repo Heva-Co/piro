@@ -1,9 +1,20 @@
+using System.ComponentModel.DataAnnotations;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
 
 /// <summary>Credentials for local sign-in.</summary>
 public record SignInRequest(string Email, string Password);
+
+/// <summary>Starts the self-service password-reset flow. Always answered with 200 to avoid revealing whether the email is registered.</summary>
+public record ForgotPasswordRequest([Required, EmailAddress] string Email);
+
+/// <summary>Completes a password reset using the token from the reset email.</summary>
+public record ResetPasswordRequest(
+    int UserId,
+    [Required] string Token,
+    [Required, MinLength(8)] string NewPassword
+);
 
 /// <summary>Tokens returned after successful authentication.</summary>
 public record SignInResponse(
