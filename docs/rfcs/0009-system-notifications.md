@@ -1,11 +1,12 @@
 ---
 rfc: 9
 title: "Notification system revamp: an event catalog, contracted payloads, and a durable push engine"
-status: accepted
+status: implemented
 created: 2026-07-18
 tracking-issue: 187
 depends-on: ["0008"]
 proposal-pr: 199
+implementation-pr: 200
 ---
 
 # RFC 0009 — Notification system revamp: an event catalog, contracted payloads, and a durable push engine
