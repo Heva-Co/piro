@@ -18,7 +18,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0002](0002-raw-measurement-vs-alert-severity.md) | Separate raw measurement from alert severity (Prometheus/Alertmanager-style) | **Implemented** (PR #165) | — |
 | [0003](0003-integration-manifest.md) | Integration manifest | **Implemented** (PR #172) | — |
 | [0004](0004-pagerduty-dispatcher.md) | OAuth integration framework with resource discovery (PagerDuty as first consumer) | **Implemented** (PR #193) | 0001, 0003 |
-| [0005](0005-incident-postmortems.md) | Postmortems (standalone post-incident review reports) | Accepted (PR #176) | — |
+| [0005](0005-incident-postmortems.md) | Postmortems (standalone post-incident review reports) | **Implemented** (PR #205) | — |
 | [0006](0006-escalation-limits.md) | Escalation limits: per-step retries with a terminal state | **Implemented** (PR #182, #178) | — |
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
 | [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Proposed (PR #184, #185) | 0001 |
@@ -29,7 +29,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 
-Implemented (frozen): **0001, 0002, 0003, 0004, 0006, 0009, 0011, 0012, 0014**.
+Implemented (frozen): **0001, 0002, 0003, 0004, 0005, 0006, 0009, 0011, 0012, 0014**.
 
 ## Dependency graph
 
@@ -41,7 +41,7 @@ graph LR
   n0002["0002 ✓"]
   n0003["0003 ✓"]
   n0004["0004 ✓"]
-  n0005["0005"]
+  n0005["0005 ✓"]
   n0006["0006 ✓"]
   n0007["0007"]
   n0008["0008"]
@@ -67,6 +67,7 @@ graph LR
   class n0002 done;
   class n0003 done;
   class n0004 done;
+  class n0005 done;
   class n0006 done;
   class n0009 done;
   class n0011 done;
