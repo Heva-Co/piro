@@ -19,7 +19,7 @@ public class IntegrationTypeMetaDtoTests
     }
 
     [Fact]
-    public void Jira_ExposesExpectedFieldsWithApiTokenMarkedSecret()
+    public void Jira_ExposesExpectedFieldsWithClientSecretMarkedSecret()
     {
         var dto = IntegrationType.Jira.ToMetaDto();
 
@@ -29,9 +29,10 @@ public class IntegrationTypeMetaDtoTests
         dto.Description.Should().NotBeNullOrEmpty();
         dto.IconifyIcon.Should().Be("logos:jira");
         dto.Direction.Should().Be(IntegrationDirection.Outbound);
-        dto.ConfigSchema.Should().Contain(f => f.Key == "baseUrl" && f.Type == ConfigFieldType.Url && f.Required);
-        dto.ConfigSchema.Should().Contain(f => f.Key == "apiToken" && f.IsSecret && f.Required);
-        dto.ConfigSchema.Should().Contain(f => f.Key == "projectKey" && f.Type == ConfigFieldType.String && !f.IsSecret);
+        // OAuth shape (RFC 0012): client credentials required, project/issue-type optional defaults.
+        dto.ConfigSchema.Should().Contain(f => f.Key == "clientId" && f.Type == ConfigFieldType.String && f.Required && !f.IsSecret);
+        dto.ConfigSchema.Should().Contain(f => f.Key == "clientSecret" && f.IsSecret && f.Required);
+        dto.ConfigSchema.Should().Contain(f => f.Key == "defaultProjectKey" && !f.Required && !f.IsSecret);
     }
 
     [Fact]
@@ -88,11 +89,11 @@ public class IntegrationTypeMetaDtoTests
     }
 
     [Fact]
-    public void Jira_ApiTokenDoesNotSupportFileUpload()
+    public void Jira_ClientSecretDoesNotSupportFileUpload()
     {
         var dto = IntegrationType.Jira.ToMetaDto();
 
-        var field = dto!.ConfigSchema.Single(f => f.Key == "apiToken");
+        var field = dto!.ConfigSchema.Single(f => f.Key == "clientSecret");
         field.SupportsFileUpload.Should().BeFalse();
     }
 }

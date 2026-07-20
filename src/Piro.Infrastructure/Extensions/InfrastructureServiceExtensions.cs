@@ -185,6 +185,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
         services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
         services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
+        services.AddScoped<IJiraDiscoveryService, JiraDiscoveryService>();
         services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
 
         // Integration actions (RFC 0012). The host is the sole DB/OAuth seam an action sees.
@@ -195,6 +196,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
         services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
+        services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();
         // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
         services.AddHttpClient("oauth-integration-http", c =>
             {
