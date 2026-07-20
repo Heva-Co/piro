@@ -5,8 +5,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-WEB_PORT = 3000;
-ADMIN_PORT = 5174
+WEB_PORT=3000
+ADMIN_PORT=5174
 
 build_api() {
   echo "▶  Building API..."
