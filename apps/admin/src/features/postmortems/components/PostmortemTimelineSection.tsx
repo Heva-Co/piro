@@ -1,9 +1,19 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleDot,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Timeline from "@/components/timeline/Timeline";
+import TimelineRow from "@/components/timeline/TimelineRow";
+import { timelineSourceLabel } from "@/components/timeline/timelineLabels";
 import PostmortemAnnotationForm from "@/features/postmortems/components/PostmortemAnnotationForm";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
-import type { Postmortem } from "@/lib/actions/postmortems";
+import type { Postmortem, PostmortemTimelineItem } from "@/lib/actions/postmortems";
 
 interface Props {
   postmortem: Postmortem;
@@ -13,8 +23,17 @@ interface Props {
   onDelete: (entryId: number) => void;
 }
 
+// Picks an icon per timeline item: annotations, alert events, and generic incident events each read
+// differently, mirroring the incident timeline's visual vocabulary.
+function itemIcon(item: PostmortemTimelineItem) {
+  if (item.isAnnotation) return <MessageSquareText />;
+  if (item.source.startsWith("alert:")) return <AlertTriangle />;
+  return <CircleDot />;
+}
+
 // The report's timeline: incident events / impact changes / alerts from every linked incident (derived,
 // read-only), merged chronologically with the author's own annotations (add/edit/delete-able here).
+// Renders through the shared Timeline/TimelineRow so it reads as one system with the incident timeline.
 function PostmortemTimelineSection(props: Props) {
   const { postmortem, saving, onAdd, onEdit, onDelete } = props;
   const { formatDateTime } = useFormattedDate();
@@ -62,64 +81,65 @@ function PostmortemTimelineSection(props: Props) {
             Link an incident or add a note to build the timeline.
           </p>
         ) : (
-          <ol className="flex flex-col gap-3">
+          <Timeline>
             {postmortem.timeline.map((item) => {
               const isEditing = item.isAnnotation && editingId === item.entryId;
+              if (isEditing) {
+                return (
+                  <PostmortemAnnotationForm
+                    key={`edit-${item.entryId}`}
+                    initialOccurredAt={item.occurredAt}
+                    initialBody={item.text ?? ""}
+                    saving={saving}
+                    submitLabel="Save note"
+                    onSubmit={(occurredAt, body) => handleEdit(item.entryId!, occurredAt, body)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                );
+              }
+
+              const meta = item.isAnnotation
+                ? `${formatDateTime(item.occurredAt)} · Note${item.actorName ? ` · ${item.actorName}` : ""}`
+                : `${formatDateTime(item.occurredAt)} · ${timelineSourceLabel(item.source)} · #${item.incidentId} ${item.incidentTitle}`;
+
               return (
-                <li key={item.isAnnotation ? `a-${item.entryId}` : `d-${item.source}-${item.occurredAt}`}>
-                  {isEditing ? (
-                    <PostmortemAnnotationForm
-                      initialOccurredAt={item.occurredAt}
-                      initialBody={item.text ?? ""}
-                      saving={saving}
-                      submitLabel="Save note"
-                      onSubmit={(occurredAt, body) => handleEdit(item.entryId!, occurredAt, body)}
-                      onCancel={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <div className="flex gap-3 text-sm">
-                      <span className="w-40 shrink-0 text-xs text-muted-foreground">
-                        {formatDateTime(item.occurredAt)}
-                      </span>
-                      <div className="flex flex-1 flex-col">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {item.isAnnotation
-                            ? `Note${item.actorName ? ` · ${item.actorName}` : ""}`
-                            : `${item.source} · #${item.incidentId} ${item.incidentTitle}`}
-                        </span>
-                        {item.text && <span>{item.text}</span>}
-                        {(item.oldStatus || item.newStatus) && (
-                          <span className="text-muted-foreground">
-                            {item.oldStatus ?? "—"} → {item.newStatus ?? "—"}
-                          </span>
-                        )}
-                      </div>
-                      {item.isAnnotation && (
-                        <div className="flex shrink-0 items-start gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setEditingId(item.entryId!)}
-                            aria-label="Edit note"
-                          >
-                            <Pencil size={13} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => onDelete(item.entryId!)}
-                            aria-label="Delete note"
-                          >
-                            <Trash2 size={13} />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                <TimelineRow
+                  key={item.isAnnotation ? `a-${item.entryId}` : `d-${item.source}-${item.occurredAt}`}
+                  icon={itemIcon(item)}
+                  meta={meta}
+                  actions={
+                    item.isAnnotation ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setEditingId(item.entryId!)}
+                          aria-label="Edit note"
+                        >
+                          <Pencil size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onDelete(item.entryId!)}
+                          aria-label="Delete note"
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </>
+                    ) : undefined
+                  }
+                >
+                  {item.text && <span>{item.text}</span>}
+                  {(item.oldStatus || item.newStatus) && (
+                    <span className="text-muted-foreground">
+                      {item.oldStatus ?? "—"} → {item.newStatus ?? "—"}
+                    </span>
                   )}
-                </li>
+                </TimelineRow>
               );
             })}
-          </ol>
+          </Timeline>
         )}
       </div>
     </div>

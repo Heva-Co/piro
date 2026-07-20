@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Trash2, Send, Undo2 } from "lucide-react";
+import { Download, Trash2, Send, Undo2 } from "lucide-react";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
+import { postmortemsApi } from "@/lib/actions/postmortems";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import PostmortemStatusBadge from "@/features/postmortems/components/PostmortemStatusBadge";
@@ -102,6 +103,22 @@ function PostmortemDetailPage() {
     }
   }
 
+  async function handleDownloadPdf() {
+    try {
+      const blob = await postmortemsApi.downloadPdf(postmortemId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `postmortem-${postmortemId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to download PDF."));
+    }
+  }
+
   async function handleDelete() {
     const ok = await confirm({
       title: "Delete this postmortem?",
@@ -177,6 +194,11 @@ function PostmortemDetailPage() {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            {isPublished && (
+              <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+                <Download size={13} /> Download PDF
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

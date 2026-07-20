@@ -49,6 +49,9 @@ export const postmortemsApi = {
   deleteFieldDefinition: (defId: number) =>
     api.delete(ENDPOINTS.POSTMORTEM_FIELD_DEFINITION(defId)),
 
+  downloadPdf: (id: number | string) =>
+    api.get<Blob>(ENDPOINTS.POSTMORTEM_PDF(id), { responseType: "blob" }).then((r) => r.data),
+
   create: (data: CreatePostmortemRequest) =>
     api.post<Postmortem>(ENDPOINTS.POSTMORTEMS, data).then((r) => r.data),
 

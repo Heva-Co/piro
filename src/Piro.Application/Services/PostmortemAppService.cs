@@ -10,10 +10,11 @@ namespace Piro.Application.Services;
 
 /// <summary>
 /// CRUD and lifecycle management for postmortem reports (RFC 0005). A pure aggregate over new tables
-/// that reads existing incident data for its derived timeline — no background job, dispatcher, or external I/O.
+/// that reads existing incident data for its derived timeline. No background job, dispatcher, or external I/O.
 /// </summary>
 public class PostmortemAppService(
     IPostmortemRepository postmortemRepo,
+    IPostmortemPdfGenerator pdfGenerator,
     UserManager<AppUser> userManager)
 {
     public async Task<IEnumerable<PostmortemListItemDto>> GetAllAsync(CancellationToken ct = default)
@@ -37,14 +38,14 @@ public class PostmortemAppService(
         return postmortem.ToDto();
     }
 
-    /// <summary>Returns the analysis template (active field definitions) — for rendering an empty editor.</summary>
+    /// <summary>Returns the analysis template (active field definitions), for rendering an empty editor.</summary>
     public async Task<IEnumerable<PostmortemFieldDefinitionDto>> GetFieldDefinitionsAsync(CancellationToken ct = default)
     {
         var defs = await postmortemRepo.GetActiveFieldDefinitionsAsync(ct);
         return defs.Select(d => d.ToDto());
     }
 
-    /// <summary>Returns every field definition (active + deactivated) — for the template-management screen (Phase 3a).</summary>
+    /// <summary>Returns every field definition (active + deactivated), for the template-management screen (Phase 3a).</summary>
     public async Task<IEnumerable<PostmortemFieldDefinitionDto>> GetAllFieldDefinitionsAsync(CancellationToken ct = default)
     {
         var defs = await postmortemRepo.GetAllFieldDefinitionsAsync(ct);
@@ -80,7 +81,7 @@ public class PostmortemAppService(
 
     /// <summary>
     /// Edits a field definition. System fields (the eight seeded sections) allow only heading/help-text/active
-    /// edits — their key and type are immutable so existing reports keep resolving them (Phase 3a).
+    /// edits. Their key and type are immutable so existing reports keep resolving them (Phase 3a).
     /// </summary>
     public async Task<PostmortemFieldDefinitionDto> UpdateFieldDefinitionAsync(int id, UpdateFieldDefinitionRequest request, CancellationToken ct = default)
     {
@@ -100,7 +101,7 @@ public class PostmortemAppService(
         if (request.IsActive.HasValue)
             def.IsActive = request.IsActive.Value;
 
-        // The type is only mutable on custom fields — changing a system field's type would reinterpret
+        // The type is only mutable on custom fields. Changing a system field's type would reinterpret
         // the values existing reports already stored against it.
         if (request.FieldType.HasValue && request.FieldType.Value != def.FieldType)
         {
@@ -142,7 +143,7 @@ public class PostmortemAppService(
 
         if (await postmortemRepo.FieldDefinitionHasValuesAsync(id, ct))
         {
-            // In use — soft-disable to keep historical values (the value FK is RESTRICT anyway).
+            // In use, so soft-disable to keep historical values (the value FK is RESTRICT anyway).
             def.IsActive = false;
             await postmortemRepo.UpdateFieldDefinitionAsync(def, ct);
             return;
@@ -153,7 +154,7 @@ public class PostmortemAppService(
 
     /// <summary>
     /// Creates a Draft report, snapshots the review owner's name, and seeds one empty field value per
-    /// active definition (RFC 0005 §4.5).
+    /// active definition (RFC 0005 section 4.5).
     /// </summary>
     public async Task<PostmortemDto> CreateAsync(CreatePostmortemRequest request, CancellationToken ct = default)
     {
@@ -196,14 +197,14 @@ public class PostmortemAppService(
         if (request.ImpactEndAt.HasValue) postmortem.ImpactEndAt = request.ImpactEndAt;
 
         // ReviewOwnerUserId is intentionally always applied when present in the request so the owner can
-        // be reassigned; the snapshot name is refreshed at the same time (RFC 0005 §4.7).
+        // be reassigned; the snapshot name is refreshed at the same time (RFC 0005 section 4.7).
         if (request.ReviewOwnerUserId.HasValue)
             await ApplyReviewOwnerAsync(postmortem, request.ReviewOwnerUserId.Value, ct);
 
         if (request.Fields is not null)
         {
             // Backfill any missing active-definition rows first (a definition may have been added after
-            // this report was created — Phase 3a), then reload so the new rows are tracked and writable.
+            // this report was created, Phase 3a), then reload so the new rows are tracked and writable.
             var activeIds = (await postmortemRepo.GetActiveFieldDefinitionsAsync(ct)).Select(d => d.Id);
             if (await postmortemRepo.BackfillFieldValuesAsync(id, activeIds, ct))
                 postmortem = await postmortemRepo.GetByIdAsync(id, ct)
@@ -212,7 +213,7 @@ public class PostmortemAppService(
             foreach (var upd in request.Fields)
             {
                 var value = postmortem.FieldValues.FirstOrDefault(v => v.FieldDefinitionId == upd.FieldDefinitionId);
-                // A value can be missing only if the definition is inactive/deleted — skip silently
+                // A value can be missing only if the definition is inactive/deleted, so skip silently
                 // rather than fail the whole save on a stale field the client sent.
                 if (value is null) continue;
                 value.Value = upd.Value ?? "";
@@ -255,12 +256,51 @@ public class PostmortemAppService(
         await postmortemRepo.DeleteAsync(postmortem, ct);
     }
 
+    /// <summary>
+    /// Renders the report to a downloadable PDF. Only a finalized (Published) report can be exported;
+    /// a Draft is still being written, so exporting it would produce a misleading "final" document.
+    /// </summary>
+    public async Task<(byte[] Bytes, string FileName)> GeneratePdfAsync(int id, CancellationToken ct = default)
+    {
+        var postmortem = await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id);
+        if (postmortem.Status != PostmortemStatus.Published)
+            throw new DomainValidationException("Only a finalized postmortem can be exported to PDF. Finalize it first.");
+
+        // GetByIdAsync backfills field-value rows for active definitions; do the same here so the PDF
+        // includes every current section, not just the ones present when the report was created.
+        var activeIds = (await postmortemRepo.GetActiveFieldDefinitionsAsync(ct)).Select(d => d.Id);
+        if (await postmortemRepo.BackfillFieldValuesAsync(id, activeIds, ct))
+            postmortem = await postmortemRepo.GetByIdAsync(id, ct)
+                ?? throw new NotFoundException(nameof(Postmortem), id);
+
+        var bytes = pdfGenerator.Generate(postmortem.ToDto(), DateTimeOffset.UtcNow);
+        var slug = Slugify(postmortem.Name);
+        return (bytes, $"postmortem-{slug}.pdf");
+    }
+
+    private static string Slugify(string name)
+    {
+        var lower = name.Trim().ToLowerInvariant();
+        var chars = lower.Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
+        var slug = new string(chars).Trim('-');
+        while (slug.Contains("--")) slug = slug.Replace("--", "-");
+        return string.IsNullOrEmpty(slug) ? "report" : slug;
+    }
+
     public async Task<PostmortemDto> LinkIncidentAsync(int id, LinkIncidentRequest request, CancellationToken ct = default)
     {
         _ = await postmortemRepo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Postmortem), id);
-        if (!await postmortemRepo.IncidentExistsAsync(request.IncidentId, ct))
-            throw new NotFoundException(nameof(Incident), request.IncidentId);
+
+        var status = await postmortemRepo.GetIncidentStatusAsync(request.IncidentId, ct)
+            ?? throw new NotFoundException(nameof(Incident), request.IncidentId);
+
+        // A postmortem is a post-incident review: only resolved/merged incidents can be referenced.
+        // An in-progress incident has no final timeline to analyze yet.
+        if (status is not (IncidentStatus.Resolved or IncidentStatus.Merged))
+            throw new DomainValidationException(
+                "Only resolved incidents can be linked to a postmortem. Resolve the incident first.");
 
         await postmortemRepo.LinkIncidentAsync(id, request.IncidentId, ct);
         return (await postmortemRepo.GetByIdAsync(id, ct)
@@ -324,7 +364,7 @@ public class PostmortemAppService(
     /// <summary>
     /// Suggests incidents to link, from those overlapping the report's impact window. When the window is
     /// unset, falls back to the span of already-linked incidents; if that's empty too, returns nothing
-    /// (nothing to anchor a suggestion on) — RFC 0005 §4.6, §8.
+    /// (nothing to anchor a suggestion on). See RFC 0005 section 4.6, section 8.
     /// </summary>
     public async Task<IEnumerable<PostmortemIncidentSuggestionDto>> GetIncidentSuggestionsAsync(int id, CancellationToken ct = default)
     {
@@ -363,7 +403,7 @@ public class PostmortemAppService(
 
     /// <summary>
     /// Sets the review owner FK and snapshots the display name. A null id clears the owner (and its snapshot).
-    /// Throws if a non-null id doesn't resolve to a user (RFC 0005 §4.2, §7).
+    /// Throws if a non-null id doesn't resolve to a user (RFC 0005 section 4.2, section 7).
     /// </summary>
     private async Task ApplyReviewOwnerAsync(Postmortem postmortem, int? reviewOwnerUserId, CancellationToken ct)
     {

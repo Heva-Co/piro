@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Persistence.Repositories;
 
@@ -40,7 +41,7 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
 
     public async Task<Postmortem> UpdateAsync(Postmortem postmortem, CancellationToken ct = default)
     {
-        // `postmortem` is already tracked (loaded via GetByIdAsync in this scope) — no explicit Update()
+        // `postmortem` is already tracked (loaded via GetByIdAsync in this scope), so no explicit Update()
         // so SaveChanges persists only the modified properties.
         await db.SaveChangesAsync(ct);
         return postmortem;
@@ -146,6 +147,12 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
     public async Task<bool> IncidentExistsAsync(int incidentId, CancellationToken ct = default) =>
         await db.Incidents.AnyAsync(i => i.Id == incidentId, ct);
 
+    public async Task<IncidentStatus?> GetIncidentStatusAsync(int incidentId, CancellationToken ct = default) =>
+        await db.Incidents
+            .Where(i => i.Id == incidentId)
+            .Select(i => (IncidentStatus?)i.Status)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<PostmortemTimelineEntry> AddTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default)
     {
         db.PostmortemTimelineEntries.Add(entry);
@@ -181,9 +188,11 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
             .ToListAsync(ct);
 
         // An incident overlaps the window when it started before the window ends AND either is still
-        // open (no EndDateTime) or ended after the window starts.
+        // open (no EndDateTime) or ended after the window starts. Only resolved/merged incidents are
+        // suggested; a postmortem can't reference an in-progress incident.
         return await db.Incidents
             .Where(i => !linkedIds.Contains(i.Id))
+            .Where(i => i.Status == IncidentStatus.Resolved || i.Status == IncidentStatus.Merged)
             .Where(i => i.StartDateTime <= toUnix && (i.EndDateTime == null || i.EndDateTime >= fromUnix))
             .OrderByDescending(i => i.StartDateTime)
             .ToListAsync(ct);

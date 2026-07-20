@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, Settings, SlidersHorizontal } from "lucide-react";
+import { FileText, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ function PostmortemsPage() {
           <div className="px-6 py-8 text-sm text-destructive">Failed to load postmortems.</div>
         ) : postmortems.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-20">
-            <img src="/piro.svg" alt="Piro" className="h-16 w-16 opacity-20" />
+            <FileText className="h-12 w-12 text-muted-foreground/30" strokeWidth={1.5} />
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">No postmortems yet</p>
               <p className="text-xs text-muted-foreground mt-1">

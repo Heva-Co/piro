@@ -8,7 +8,7 @@ namespace Piro.Api.Controllers;
 
 /// <summary>
 /// CRUD and lifecycle management for postmortem reports (RFC 0005). A free-standing resource that
-/// references incidents (N:M) — hence a top-level route rather than a sub-resource of incidents.
+/// references incidents (N:M), hence a top-level route rather than a sub-resource of incidents.
 /// </summary>
 [ApiController]
 [Route("api/v1/postmortems")]
@@ -110,6 +110,17 @@ public class PostmortemsController(PostmortemAppService postmortemService) : Con
     {
         await postmortemService.UnpublishAsync(id, ct);
         return NoContent();
+    }
+
+    /// <summary>Downloads the finalized report as a PDF. Only available once the report is Published.</summary>
+    [HttpGet("{id:int}/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadPdf(int id, CancellationToken ct)
+    {
+        var (bytes, fileName) = await postmortemService.GeneratePdfAsync(id, ct);
+        return File(bytes, "application/pdf", fileName);
     }
 
     /// <summary>Deletes a postmortem and its analysis content (referenced incidents are untouched).</summary>
