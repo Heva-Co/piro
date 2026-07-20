@@ -19,7 +19,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<ServiceDependency> ServiceDependencies => Set<ServiceDependency>();
     public DbSet<Check> Checks => Set<Check>();
     public DbSet<CheckDataPoint> CheckDataPoints => Set<CheckDataPoint>();
-public DbSet<Page> Pages => Set<Page>();
+    public DbSet<Page> Pages => Set<Page>();
     public DbSet<PageService> PageServices => Set<PageService>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentTimelineEvent> IncidentTimelineEvents => Set<IncidentTimelineEvent>();
@@ -42,6 +42,7 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<Integration> Integrations => Set<Integration>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
     public DbSet<ServiceIntegrationMapping> ServiceIntegrationMappings => Set<ServiceIntegrationMapping>();
+    public DbSet<ExternalReference> ExternalReferences => Set<ExternalReference>();
 
     // On-call scheduling
     public DbSet<OnCallSchedule> OnCallSchedules => Set<OnCallSchedule>();

@@ -10,6 +10,9 @@ internal static class JsonUtils
     public static T? Deserialize<T>(string json) =>
         JsonSerializer.Deserialize<T>(json, CaseInsensitive);
 
+    public static string Serialize<T>(T value) =>
+        JsonSerializer.Serialize(value, CaseInsensitive);
+
     /// <summary>
     /// Deserializes <paramref name="json"/> and validates all <see cref="RequiredAttribute"/> constraints.
     /// Throws <see cref="InvalidOperationException"/> if deserialization fails or any required field is missing/empty.

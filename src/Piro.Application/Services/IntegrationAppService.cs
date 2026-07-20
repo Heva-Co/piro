@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
+using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
@@ -15,8 +16,24 @@ public class IntegrationAppService(
     IIntegrationRepository repository,
     IWebhookRequestLogRepository webhookLogRepository,
     IEscalationPolicyRepository escalationPolicyRepository,
-    ISecretProtector secretProtector)
+    ISecretProtector secretProtector,
+    IActionHost actionHost)
 {
+    /// <summary>
+    /// Returns the outbound external references an integration action has created for a local object
+    /// (RFC 0012 §4.5) — read through the <see cref="IActionHost"/>, the same seam actions write
+    /// through, so this endpoint never touches the ExternalReferences table directly.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalReferenceDto>> GetReferencesAsync(
+        ActionContext context, int targetId, CancellationToken ct = default)
+    {
+        var links = await actionHost.GetLinksAsync(context, targetId, ct);
+        return links
+            .Select(l => new ExternalReferenceDto(
+                l.Context, l.TargetId, l.IntegrationId, l.ActionId, l.ExternalId, l.Url, l.Label, l.Metadata))
+            .ToList();
+    }
+
     /// <summary>
     /// Encrypts every <see cref="SecretFieldAttribute"/> value in the config at rest, for every
     /// integration type. <see cref="IntegrationExtensions.ProtectSecrets"/> is a no-op for a type

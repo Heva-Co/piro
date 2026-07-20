@@ -26,8 +26,18 @@ public sealed record ActionExecutionContext(
     int TargetId,
     object? Input);
 
-/// <summary>The outbound reference an action produced, persisted as an <c>ExternalReference</c> (RFC 0012 §4.5).</summary>
-public sealed record ActionResult(string ExternalId, string Url, string Label);
+/// <summary>
+/// The outbound reference an action produced, persisted as an <c>ExternalReference</c> (RFC 0012 §4.5).
+/// The three fixed fields are universal (any external thing has an id, a URL, a display label); provider-
+/// specific coordinates an integration needs to keep (e.g. Slack's message ts, Linear's team id) go in
+/// <see cref="Metadata"/> — an opaque blob Piro stores and hands back untouched, never interprets. This
+/// is the escape valve that keeps the table and the host contract from ever growing a per-provider field.
+/// </summary>
+public sealed record ActionResult(
+    string ExternalId,
+    string Url,
+    string Label,
+    IReadOnlyDictionary<string, object?>? Metadata = null);
 
 /// <summary>A request to attach an outbound external reference to a local object — the write side of <see cref="IActionHost.LinkExternalAsync"/>.</summary>
 public sealed record ExternalReferenceRequest(
@@ -37,9 +47,14 @@ public sealed record ExternalReferenceRequest(
     string ActionId,
     string ExternalId,
     string Url,
-    string Label);
+    string Label,
+    IReadOnlyDictionary<string, object?>? Metadata = null);
 
-/// <summary>A read-only view of a previously-created external reference (for gating and dedup, RFC 0012 §4.5).</summary>
+/// <summary>
+/// A read-only view of a previously-created external reference (for gating and dedup, RFC 0012 §4.5).
+/// <see cref="Metadata"/> is the provider-specific blob as stored — opaque to Piro, meaningful only to
+/// the integration that wrote it.
+/// </summary>
 public sealed record ExternalReferenceView(
     ActionContext Context,
     int TargetId,
@@ -47,4 +62,5 @@ public sealed record ExternalReferenceView(
     string ActionId,
     string ExternalId,
     string Url,
-    string Label);
+    string Label,
+    IReadOnlyDictionary<string, object?>? Metadata = null);
