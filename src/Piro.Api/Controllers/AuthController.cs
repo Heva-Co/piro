@@ -12,7 +12,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService, IUserManagementService userService) : ControllerBase
+public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService, IUserManagementService userService, IPasswordResetService passwordResetService) : ControllerBase
 {
     /// <summary>Authenticates with email and password, returns JWT + refresh token.</summary>
     [HttpPost("sign-in")]
@@ -43,6 +43,38 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct) =>
         Ok(await authService.RefreshAsync(request, ct));
+
+    // ── Password reset ─────────────────────────────────────────────────────────
+
+    /// <summary>Starts password recovery. Always returns 200 to avoid revealing whether an
+    /// account exists. No-op when SSO-only mode is on, the email is unknown, or the account
+    /// is SSO/inactive.</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+    {
+        await passwordResetService.RequestResetAsync(request.Email, ct);
+        return Ok();
+    }
+
+    /// <summary>Completes password recovery using a token from the reset email.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken ct)
+    {
+        try
+        {
+            await passwordResetService.ResetAsync(request.UserId, request.Token, request.NewPassword, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
+    }
 
     // ── Profile ──────────────────────────────────────────────────────────────
 
