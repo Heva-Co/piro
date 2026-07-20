@@ -250,6 +250,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Channel notification dispatchers (RFC 0009 mode 2) — post to a shared team channel.
         services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, GoogleChatDispatcher>();
 
+        // Incident notification dispatchers (RFC 0009 §4.2, phase 6) — Email (personal) and Google Chat
+        // (channel) can carry incident notifications as well as alerts.
+        services.AddScoped<IPersonalNotificationDispatcher<IncidentNotificationContext>, EmailDispatcher>();
+        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, GoogleChatDispatcher>();
+
         // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
         services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
         services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
@@ -260,6 +265,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // subscription-matching processor (phase 4) that replaces the phase-3 no-op.
         services.AddScoped<INotificationEventPublisher, NotificationEventPublisher>();
         services.AddScoped<IAlertNotificationPublisher, AlertNotificationPublisher>();
+        services.AddScoped<IIncidentNotificationPublisher, IncidentNotificationPublisher>();
         services.AddScoped<INotificationEventProcessor, SubscriptionMatchingProcessor>();
         services.AddHostedService<NotificationDispatchWorker>();
 
@@ -268,14 +274,15 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationDeliveryLogRepository, NotificationDeliveryLogRepository>();
         services.AddScoped<NotificationSubscriptionAppService>();
 
-        // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which alert events it
+        // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which catalog events it
         // handles and in which delivery mode. This is the menu the subscription UI offers per destination.
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Email, NotificationTargetKind.Personal));
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Telegram, NotificationTargetKind.Personal));
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal));
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal));
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel));
-        services.AddScoped<INotificationSubscriber>(_ => new AlertEventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration));
+        // Email and Google Chat carry incidents too; the others carry alerts only in v1.
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Email, NotificationTargetKind.Personal, EventSubscriber.AlertAndIncidentEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Telegram, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration, EventSubscriber.AlertEvents));
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();

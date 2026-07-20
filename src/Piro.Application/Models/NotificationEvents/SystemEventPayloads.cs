@@ -16,6 +16,6 @@ public record IntegrationExpiredPayload(
     DateTimeOffset ExpiredAt
 ) : INotificationEvent
 {
-    public string EventType => "system:integration:expired";
+    public string EventType => NotificationEventNames.SystemIntegrationExpired;
     public int Version => 1;
 }

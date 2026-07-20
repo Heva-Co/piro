@@ -11,23 +11,31 @@ using Piro.Domain.Enums;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>
-/// Posts an alert notification to a Google Chat space via its incoming-webhook URL (RFC 0009 mode 2).
-/// The whole space is the audience, so this is a group dispatcher — there is no per-person handle.
+/// Posts alert and incident notifications to a Google Chat space via its incoming-webhook URL
+/// (RFC 0009 mode 2). The whole space is the audience, so this is a channel dispatcher — there is no
+/// per-person handle.
 /// </summary>
 public class GoogleChatDispatcher(IHttpClientFactory httpClientFactory, ILogger<GoogleChatDispatcher> logger, ISecretProtector secretProtector)
-    : IChannelNotificationDispatcher<AlertNotificationContext>
+    : IChannelNotificationDispatcher<AlertNotificationContext>,
+      IChannelNotificationDispatcher<IncidentNotificationContext>
 {
     public IntegrationType Type => IntegrationType.GoogleChat;
 
-    public async Task<bool> SendAsync(Integration integration, string? target, AlertNotificationContext content, CancellationToken ct = default)
+    public Task<bool> SendAsync(Integration integration, string? target, AlertNotificationContext content, CancellationToken ct = default) =>
+        PostAsync(integration, BuildAlertMessage(content), ct);
+
+    public Task<bool> SendAsync(Integration integration, string? target, IncidentNotificationContext content, CancellationToken ct = default) =>
+        PostAsync(integration, BuildIncidentMessage(content), ct);
+
+    // Google Chat's simplest supported payload: a plain-text message to the space the webhook targets.
+    // `target` is unused — the incoming-webhook URL is already space-specific.
+    private async Task<bool> PostAsync(Integration integration, string text, CancellationToken ct)
     {
         GoogleChatIntegrationConfig config;
         try { config = JsonUtils.DeserializeAndValidate<GoogleChatIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
-        // Google Chat's simplest supported payload: a plain-text message to the space the webhook targets.
-        // `target` is unused — the incoming-webhook URL is already space-specific.
-        var payload = JsonSerializer.Serialize(new { text = BuildMessage(content) });
+        var payload = JsonSerializer.Serialize(new { text });
 
         var client = httpClientFactory.CreateClient("piro-webhook");
         using var request = new HttpRequestMessage(HttpMethod.Post, config.WebhookUrl)
@@ -54,7 +62,15 @@ public class GoogleChatDispatcher(IHttpClientFactory httpClientFactory, ILogger<
         return true;
     }
 
-    private static string BuildMessage(AlertNotificationContext c)
+    private static string BuildIncidentMessage(IncidentNotificationContext c)
+    {
+        var icon = c.IsResolved ? "✅" : "🔴";
+        var verb = c.IsResolved ? "resolved" : "opened";
+        var line = $"{icon} *Incident {verb}:* {c.Title} ({c.Status})";
+        return c.AffectedServices.Count > 0 ? $"{line}\nAffected: {string.Join(", ", c.AffectedServices)}" : line;
+    }
+
+    private static string BuildAlertMessage(AlertNotificationContext c)
     {
         var icon = c.IsRecovery ? "✅" : c.Severity == AlertSeverity.Critical ? "🔴" : "⚠️";
         var verb = c.IsRecovery ? "recovered" : "fired";

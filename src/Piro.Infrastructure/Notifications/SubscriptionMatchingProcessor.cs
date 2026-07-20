@@ -27,6 +27,8 @@ internal class SubscriptionMatchingProcessor(
     IServiceIntegrationMappingRepository mappingRepo,
     IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>> personalDispatchers,
     IEnumerable<IChannelNotificationDispatcher<AlertNotificationContext>> channelDispatchers,
+    IEnumerable<IPersonalNotificationDispatcher<IncidentNotificationContext>> incidentPersonalDispatchers,
+    IEnumerable<IChannelNotificationDispatcher<IncidentNotificationContext>> incidentChannelDispatchers,
     IEnumerable<ISystemEventDispatcher> systemEventDispatchers,
     ILogger<SubscriptionMatchingProcessor> logger) : INotificationEventProcessor
 {
@@ -34,6 +36,10 @@ internal class SubscriptionMatchingProcessor(
         personalDispatchers.ToDictionary(d => d.Type);
     private readonly Dictionary<IntegrationType, IChannelNotificationDispatcher<AlertNotificationContext>> _channel =
         channelDispatchers.ToDictionary(d => d.Type);
+    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<IncidentNotificationContext>> _incidentPersonal =
+        incidentPersonalDispatchers.ToDictionary(d => d.Type);
+    private readonly Dictionary<IntegrationType, IChannelNotificationDispatcher<IncidentNotificationContext>> _incidentChannel =
+        incidentChannelDispatchers.ToDictionary(d => d.Type);
     private readonly Dictionary<IntegrationType, ISystemEventDispatcher> _systemEvent =
         systemEventDispatchers.ToDictionary(d => d.Type);
 
@@ -46,11 +52,17 @@ internal class SubscriptionMatchingProcessor(
             return;
         }
 
-        // Phase 4 handles alert events (the ones with a severity). Other events drain to Done as no-ops
-        // until their handlers land in later phases.
+        // Route by event family. Alerts gate on severity; incidents don't (they have none). Other
+        // events (system:*) drain to Done as no-ops until their handlers land.
         var alert = TryDeserializeAlert(outboxRow);
-        if (alert is null) return;
+        if (alert is not null) { await ProcessAlertAsync(outboxRow, alert, ct); return; }
 
+        var incident = TryDeserializeIncident(outboxRow);
+        if (incident is not null) { await ProcessIncidentAsync(outboxRow, incident, ct); return; }
+    }
+
+    private async Task ProcessAlertAsync(NotificationEventOutbox outboxRow, AlertSnapshot alert, CancellationToken ct)
+    {
         var subscriptions = await subscriptionRepo.GetEnabledAsync(ct);
         var matched = subscriptions
             .Where(s => s.Events().Contains(outboxRow.EventType) && alert.Severity >= s.MinSeverity)
@@ -63,6 +75,102 @@ internal class SubscriptionMatchingProcessor(
         {
             if (ct.IsCancellationRequested) break;
             await DeliverAsync(sub, outboxRow, alert, ct);
+        }
+    }
+
+    private async Task ProcessIncidentAsync(NotificationEventOutbox outboxRow, IncidentSnapshot incident, CancellationToken ct)
+    {
+        // No severity gate for incidents — match on event membership only.
+        var subscriptions = await subscriptionRepo.GetEnabledAsync(ct);
+        var matched = subscriptions.Where(s => s.Events().Contains(outboxRow.EventType)).ToList();
+
+        logger.LogInformation("[notify] {EventType} (incident #{IncidentId}) matched {Count} subscription(s).",
+            outboxRow.EventType, incident.IncidentId, matched.Count);
+
+        var context = new IncidentNotificationContext(
+            incident.IncidentId, incident.Title, incident.Status, incident.IsResolved,
+            incident.Visibility, incident.AffectedServices, DateTimeOffset.UtcNow);
+
+        foreach (var sub in matched)
+        {
+            if (ct.IsCancellationRequested) break;
+            await DeliverIncidentAsync(sub, outboxRow, incident, context, ct);
+        }
+    }
+
+    private async Task DeliverIncidentAsync(NotificationSubscription sub, NotificationEventOutbox row, IncidentSnapshot incident, IncidentNotificationContext context, CancellationToken ct)
+    {
+        var idempotencyKey = $"{row.EventType}:{incident.IncidentId}:{sub.Id}";
+        if (await deliveryLogRepo.ExistsAsync(idempotencyKey, ct)) return;
+
+        // Incidents deliver to Personal and Channel destinations; Integration (paging platforms) is not
+        // wired for incidents in v1.
+        switch (sub.TargetKind)
+        {
+            case NotificationTargetKind.Personal:
+                await DeliverIncidentPersonalAsync(sub, row, context, idempotencyKey, ct);
+                break;
+            case NotificationTargetKind.Channel:
+                await DeliverIncidentChannelAsync(sub, row, context, idempotencyKey, ct);
+                break;
+            case NotificationTargetKind.Integration:
+                await RecordSkippedAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? "Integration",
+                    "Incident delivery to integration platforms is not supported in v1.", ct);
+                break;
+        }
+    }
+
+    private async Task DeliverIncidentPersonalAsync(NotificationSubscription sub, NotificationEventOutbox row, IncidentNotificationContext context, string idempotencyKey, CancellationToken ct)
+    {
+        if (sub.UserId is null) return;
+        var prefs = (await prefRepo.GetByUserIdsAsync([sub.UserId.Value], ct)).GetValueOrDefault(sub.UserId.Value, []);
+
+        foreach (var pref in prefs.OrderBy(p => p.Priority))
+        {
+            if (!pref.VerifiedAt.HasValue) continue;
+            if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
+            var channelType = pref.Channel.ToIntegrationType();
+            if (!_incidentPersonal.TryGetValue(channelType, out var dispatcher)) continue;
+
+            try
+            {
+                if (await dispatcher.SendAsync(pref.Integration, pref.Handle, context, ct))
+                {
+                    await RecordAsync(sub, row, idempotencyKey, $"{channelType}:{pref.Handle}", DeliveryStatus.Delivered, null, ct);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Incident personal delivery failed for sub {Sub} via {Channel}.", sub.Id, channelType);
+            }
+        }
+
+        await RecordAsync(sub, row, idempotencyKey, $"user:{sub.UserId}", DeliveryStatus.Failed,
+            "No verified personal preference could carry the incident.", ct);
+    }
+
+    private async Task DeliverIncidentChannelAsync(NotificationSubscription sub, NotificationEventOutbox row, IncidentNotificationContext context, string idempotencyKey, CancellationToken ct)
+    {
+        if (sub.Integration is null || !_incidentChannel.TryGetValue(sub.Integration.Type, out var dispatcher))
+        {
+            await RecordFailedAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? "Channel",
+                "No channel dispatcher registered for this integration type carries incidents.", ct);
+            return;
+        }
+
+        var descriptor = sub.Integration.Name + (sub.Target is { Length: > 0 } t ? $" · {t}" : "");
+        try
+        {
+            var sent = await dispatcher.SendAsync(sub.Integration, sub.Target, context, ct);
+            await RecordAsync(sub, row, idempotencyKey, descriptor,
+                sent ? DeliveryStatus.Delivered : DeliveryStatus.Failed,
+                sent ? null : "Channel dispatcher reported failure.", ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Incident channel delivery failed for sub {Sub} via {Type}.", sub.Id, sub.Integration.Type);
+            await RecordFailedAsync(sub, row, idempotencyKey, descriptor, ex.Message, ct);
         }
     }
 
@@ -258,21 +366,43 @@ internal class SubscriptionMatchingProcessor(
     // Minimal snapshot the matcher needs, unified across the three alert payload shapes.
     private sealed record AlertSnapshot(int AlertId, int? ServiceId, string ServiceName, string CheckName, AlertSeverity Severity, bool IsRecovery);
 
+    private sealed record IncidentSnapshot(int IncidentId, string Title, IncidentStatus Status, bool IsResolved,
+        IncidentVisibility Visibility, IReadOnlyList<string> AffectedServices);
+
+    private static IncidentSnapshot? TryDeserializeIncident(NotificationEventOutbox row)
+    {
+        switch (row.EventType)
+        {
+            case NotificationEventNames.IncidentCreated:
+            {
+                var p = JsonSerializer.Deserialize<IncidentCreatedPayload>(row.PayloadJson);
+                return p is null ? null : new IncidentSnapshot(p.IncidentId, p.Title, p.Status, IsResolved: false, p.Visibility, p.AffectedServices);
+            }
+            case NotificationEventNames.IncidentResolved:
+            {
+                var p = JsonSerializer.Deserialize<IncidentResolvedPayload>(row.PayloadJson);
+                return p is null ? null : new IncidentSnapshot(p.IncidentId, p.Title, p.Status, IsResolved: true, p.Visibility, p.AffectedServices);
+            }
+            default:
+                return null;
+        }
+    }
+
     private static AlertSnapshot? TryDeserializeAlert(NotificationEventOutbox row)
     {
         switch (row.EventType)
         {
-            case "alert:created":
+            case NotificationEventNames.AlertCreated:
             {
                 var p = JsonSerializer.Deserialize<AlertCreatedPayload>(row.PayloadJson);
                 return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false);
             }
-            case "alert:acknowledged":
+            case NotificationEventNames.AlertAcknowledged:
             {
                 var p = JsonSerializer.Deserialize<AlertAcknowledgedPayload>(row.PayloadJson);
                 return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false);
             }
-            case "alert:resolved":
+            case NotificationEventNames.AlertResolved:
             {
                 var p = JsonSerializer.Deserialize<AlertResolvedPayload>(row.PayloadJson);
                 return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: true);

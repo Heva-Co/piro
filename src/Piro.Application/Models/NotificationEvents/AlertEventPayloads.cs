@@ -22,7 +22,7 @@ public record AlertCreatedPayload(
     int? ServiceId = null
 ) : INotificationEvent
 {
-    public string EventType => "alert:created";
+    public string EventType => NotificationEventNames.AlertCreated;
     public int Version => 2;
 }
 
@@ -40,7 +40,7 @@ public record AlertAcknowledgedPayload(
     int? ServiceId = null
 ) : INotificationEvent
 {
-    public string EventType => "alert:acknowledged";
+    public string EventType => NotificationEventNames.AlertAcknowledged;
     public int Version => 2;
 }
 
@@ -56,6 +56,6 @@ public record AlertResolvedPayload(
     int? ServiceId = null
 ) : INotificationEvent
 {
-    public string EventType => "alert:resolved";
+    public string EventType => NotificationEventNames.AlertResolved;
     public int Version => 2;
 }
