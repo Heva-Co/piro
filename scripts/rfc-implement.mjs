@@ -92,6 +92,7 @@ for (const num of nums) {
   }
 
   set(num, "status", "implemented");
+  set(num, "implementation-pr", prNumber);
   if (fm["tracking-issue"]) closeTrackingIssue(fm["tracking-issue"], num);
   changed = true;
 }
