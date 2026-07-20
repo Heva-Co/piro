@@ -28,7 +28,7 @@ public sealed class JiraCreateIssueInput
     public string Title { get; set; } = string.Empty;
 
     [Required]
-    [MultilineField]
+    [MarkdownField]
     [ConfigField("Description", HelpText = "Markdown supported.")]
     public string Description { get; set; } = string.Empty;
 }
