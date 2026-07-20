@@ -54,6 +54,11 @@ public DbSet<Page> Pages => Set<Page>();
     public DbSet<EscalationPolicy> EscalationPolicies => Set<EscalationPolicy>();
     public DbSet<EscalationStep> EscalationSteps => Set<EscalationStep>();
 
+    // Notification push engine (RFC 0009)
+    public DbSet<NotificationEventOutbox> NotificationEventOutbox => Set<NotificationEventOutbox>();
+    public DbSet<NotificationDeliveryLog> NotificationDeliveryLogs => Set<NotificationDeliveryLog>();
+    public DbSet<NotificationSubscription> NotificationSubscriptions => Set<NotificationSubscription>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Identity must configure its tables before our custom configurations run

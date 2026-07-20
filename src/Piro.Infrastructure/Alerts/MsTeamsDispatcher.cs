@@ -8,13 +8,11 @@ namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Microsoft Teams Incoming Webhook using Adaptive Cards.</summary>
 public partial class MsTeamsDispatcher(IHttpClientFactory httpClientFactory, ILogger<MsTeamsDispatcher> logger)
-    : INotificationDispatcher
+    : IChannelNotificationDispatcher<AlertNotificationContext>
 {
     public IntegrationType Type => IntegrationType.MSTeams;
 
-    public Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
-        Task.FromResult(false);
-
-    public Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default) =>
+    // Channel delivery is implemented in RFC 0009 phase 5; not registered until then.
+    public Task<bool> SendAsync(Integration integration, string? target, AlertNotificationContext content, CancellationToken ct = default) =>
         Task.FromResult(false);
 }

@@ -32,8 +32,18 @@ public static class AlertExtensions
     /// <summary>The Check's display name — only meaningful for an internal, anchored alert. See <see cref="AlertNotificationContext.IsExternal"/>.</summary>
     public static string CheckLabel(this Alert alert) => alert.Check?.Name ?? "External";
 
+    /// <summary>The alert's severity, from its config; defaults to Critical for an orphan alert with no config.</summary>
+    public static AlertSeverity SeverityOrDefault(this Alert alert) => alert.AlertConfig?.Severity ?? AlertSeverity.Critical;
+
+    /// <summary>True for a third-party alert with no correlated Check/Service (RFC 0001).</summary>
+    public static bool IsExternal(this Alert alert) => alert.Service is null && alert.Check is null;
+
+    /// <summary>The origin label for an external alert (e.g. "GCP Cloud Monitoring"); null for an internal one.</summary>
+    public static string? ExternalSourceLabel(this Alert alert) =>
+        alert.Source == AlertSource.Internal ? null : alert.Source.GetSourceLabel();
+
     /// <summary>
-    /// Builds the notification context passed to an <see cref="Piro.Application.Interfaces.INotificationDispatcher"/>
+    /// Builds the notification context passed to an <see cref="Piro.Application.Interfaces.IPersonalNotificationDispatcher{TContent}"/>
     /// for this alert's on-call escalation (see EscalationCheckerService). <paramref name="firedAtDisplay"/>
     /// is pre-formatted for the specific recipient's time zone by the caller — each on-call user may
     /// have a different <see cref="Domain.Entities.AppUser.TimeZone"/>, so it can't be derived here.
