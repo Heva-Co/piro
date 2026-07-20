@@ -1,0 +1,63 @@
+name: RFC implement
+
+# When a PR labeled `implements-rfc` is merged into main, mark the RFC(s) it
+# implements as `implemented`, close the tracking issue, regenerate the index, and
+# commit the result back to main. The RFC number is taken from the PR branch
+# (`implements-rfc/NNNN-*`) or the referenced tracking issue — the PR itself need
+# not touch docs/rfcs. Logic lives in scripts/rfc-implement.mjs so it runs locally
+# too (`node scripts/rfc-implement.mjs <pr> --dry-run`).
+#
+# Also runnable manually (workflow_dispatch) with a PR number, to re-run it over a
+# PR that was already merged.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number of the merged implementation PR"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  implement:
+    name: Mark merged RFCs implemented
+    # On merge: only for implements-rfc PRs. On manual dispatch: always run.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'implements-rfc'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Mark RFC(s) implemented and close tracking issue(s)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/rfc-implement.mjs "${{ github.event.inputs.pr || github.event.pull_request.number }}"
+
+      - name: Commit implementation status
+        run: |
+          if git diff --quiet -- docs/rfcs; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/rfcs
+          git commit -m "docs(rfc): mark RFC(s) implemented from #${{ github.event.inputs.pr || github.event.pull_request.number }}"
+          git push origin HEAD:main
