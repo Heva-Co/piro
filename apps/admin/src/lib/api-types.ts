@@ -3237,6 +3237,258 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discovery — which integration action buttons to render for an object of the given context
+         *     (RFC 0012 §4.4). One descriptor per (configured integration × ready action). A not-ready action
+         *     is absent, never disabled.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionDescriptorDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/options/{sourceKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolves the runtime options for a dynamic-options field (RFC 0012) — e.g. the connected Jira
+         *     account's projects, or the issue types for a chosen project (pass its key as dependsOn).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    dependsOn?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    sourceKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OptionItem"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/actions/{actionId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pre-fills an action's input dialog for a specific target (RFC 0012 §4.6). */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                    targetId?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/actions/{actionId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "text/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "application/*+json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionResultDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
+         *     have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page
+         *     renders these as "🔗 OPS-123" links alongside the action buttons.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                    targetId?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalReferenceDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{id}/webhook-logs": {
         parameters: {
             query?: never;
@@ -7085,6 +7337,8 @@ export interface components {
             name: string;
             password: string;
         };
+        /** @enum {unknown} */
+        ActionContext: "Alert" | "Incident" | "Maintenance";
         AddDependencyRequest: {
             dependsOnSlug: string;
             propagationMode: components["schemas"]["DependencyPropagationMode"];
@@ -7388,9 +7642,11 @@ export interface components {
             itemSchema?: null | components["schemas"]["ConfigFieldSchemaDto"][];
             visibleWhen?: null | components["schemas"]["ConfigFieldVisibilityDto"];
             validator?: null | string;
+            optionsSource?: null | string;
+            optionsDependsOn?: null | string;
         };
         /** @enum {unknown} */
-        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code";
+        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code" | "Markdown";
         ConfigFieldVisibilityDto: {
             field: string;
             values: string[];
@@ -7647,6 +7903,24 @@ export interface components {
         };
         /** @enum {unknown} */
         EventVisibility: "Private" | "Public";
+        ExecuteIntegrationActionRequest: {
+            context: components["schemas"]["ActionContext"];
+            /** Format: int32 */
+            targetId: number;
+            input: null | components["schemas"]["JsonElement"];
+        };
+        ExternalReferenceDto: {
+            context: components["schemas"]["ActionContext"];
+            /** Format: int32 */
+            targetId: number;
+            /** Format: uuid */
+            integrationId: string;
+            actionId: string;
+            externalId: string;
+            url: string;
+            label: string;
+            metadata: null | Record<string, never>;
+        };
         ForgotPasswordRequest: {
             email: string;
         };
@@ -7733,6 +8007,23 @@ export interface components {
         };
         /** @enum {unknown} */
         IncidentVisibility: "Private" | "Public";
+        IntegrationActionDescriptorDto: {
+            /** Format: uuid */
+            integrationId: string;
+            integrationLabel: string;
+            actionId: string;
+            label: string;
+            description: null | string;
+            iconifyIcon: null | string;
+            hasInput: boolean;
+            supportsDraft: boolean;
+            inputSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+        };
+        IntegrationActionResultDto: {
+            externalId: string;
+            url: string;
+            label: string;
+        };
         /** @enum {unknown} */
         IntegrationCategory: "Notification" | "ThirdParty";
         /** @enum {unknown} */
@@ -7786,6 +8077,7 @@ export interface components {
             previousFireTimeUtc: null | string;
             check: null | components["schemas"]["CheckRefDto"];
         };
+        JsonElement: unknown;
         LinkAlertToIncidentRequest: {
             /** Format: int32 */
             incidentId: null | number;
@@ -8065,6 +8357,10 @@ export interface components {
             name: string;
             initials: string;
             color: string;
+        };
+        OptionItem: {
+            value: string;
+            label: string;
         };
         PaginatedResponseOfServiceDto: {
             items: components["schemas"]["ServiceDto"][];

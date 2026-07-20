@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Services;
@@ -12,6 +13,7 @@ using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
 using Piro.Infrastructure.Auth;
+using Piro.Infrastructure.Integrations.Actions;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
 using Piro.Infrastructure.Integrations.GoogleCloud;
@@ -183,9 +185,21 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
         services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
         services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
+        services.AddScoped<IJiraDiscoveryService, JiraDiscoveryService>();
         services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
+
+        // Integration actions (RFC 0012). The host is the sole DB/OAuth seam an action sees.
+        services.AddScoped<IActionHost, ActionHost>();
+        services.AddScoped<IActionRegistry, ActionRegistry>();
+        // Action handlers — one IIntegrationAction per declared [IntegrationAction], joined to its
+        // manifest metadata by (Type, ActionId) in the registry.
+        services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
+        // Dynamic-options providers — populate select fields from the connected account at runtime.
+        services.AddScoped<IOptionsProvider, JiraProjectsOptionsProvider>();
+        services.AddScoped<IOptionsProvider, JiraIssueTypesOptionsProvider>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
         services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
+        services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();
         // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
         services.AddHttpClient("oauth-integration-http", c =>
             {

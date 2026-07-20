@@ -12,8 +12,8 @@ namespace Piro.Domain.Attributes;
 public sealed class ConfigFieldAttribute(string label) : Attribute
 {
     /// <summary>
-    /// Human-readable field label shown above the input (e.g. "Base URL" for
-    /// <c>JiraConfig.BaseUrl</c>). Falls back to the property name when this attribute is absent.
+    /// Human-readable field label shown above the input (e.g. "Client ID" for
+    /// <c>JiraConfig.ClientId</c>). Falls back to the property name when this attribute is absent.
     /// </summary>
     public string Label { get; } = label;
 

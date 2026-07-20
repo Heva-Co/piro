@@ -44,7 +44,20 @@ public record ConfigFieldSchemaDto(
     /// ConfigValidationAttribute. Null when the field has only presence/type validation. The admin
     /// resolves it against its validator registry to produce inline errors.
     /// </summary>
-    string? Validator = null
+    string? Validator = null,
+    /// <summary>
+    /// Source key of a runtime-populated options list (RFC 0012) — see DynamicOptionsAttribute. When
+    /// set, the form fetches the field's select options from
+    /// <c>GET /integrations/{id}/options/{optionsSource}</c> instead of using static <see cref="Options"/>.
+    /// Null for a static/free-text field.
+    /// </summary>
+    string? OptionsSource = null,
+    /// <summary>
+    /// Sibling field name this field's dynamic options depend on — a cascade (e.g. Jira issue types
+    /// depend on the chosen project). The form re-fetches when it changes and passes its value along.
+    /// Null when the source is independent. Only meaningful with <see cref="OptionsSource"/>.
+    /// </summary>
+    string? OptionsDependsOn = null
 );
 
 /// <summary>A conditional-visibility rule for a config field — see ConfigFieldSchemaDto.VisibleWhen.</summary>

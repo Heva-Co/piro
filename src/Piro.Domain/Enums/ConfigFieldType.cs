@@ -7,7 +7,7 @@ namespace Piro.Domain.Enums;
 /// never hand-assigned. See IntegrationManifestAttribute and ConfigSchemaBuilder.
 /// Orthogonal to whether the field is secret (see ConfigFieldSchemaDto.IsSecret) — a field can be
 /// e.g. Multiline and secret at once (GoogleCloudConfig.ServiceAccountJson), or String and secret
-/// (JiraConfig.ApiToken), or Enum and not secret (OpsgenieConfig.Region).
+/// (JiraConfig.ClientSecret), or Enum and not secret (OpsgenieConfig.Region).
 /// </summary>
 public enum ConfigFieldType
 {
@@ -50,4 +50,12 @@ public enum ConfigFieldType
     /// A code editor — for a property carrying arbitrary source (e.g. a Script check's Script). See CodeFieldAttribute.
     /// </summary>
     Code,
+
+    /// <summary>
+    /// A rich Markdown editor (WYSIWYG that emits Markdown) — for long-form prose that will be rendered
+    /// as Markdown downstream (e.g. a Jira ticket description). See MarkdownFieldAttribute. Distinct
+    /// from <see cref="Multiline"/> (a plain textarea) so only fields that are actually Markdown get the
+    /// editor.
+    /// </summary>
+    Markdown,
 }

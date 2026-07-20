@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # dev.sh — start API + apps/web + apps/admin locally for development
-# Usage: ./scripts/dev.sh [--api-only | --web-only | --admin-only]
+# Usage: ./scripts/dev.sh [--api-only | --web-only | --admin-only | --frontend-only]
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-WEB_PORT = 3000;
-ADMIN_PORT = 5174
+WEB_PORT=3000
+ADMIN_PORT=5174
 
 build_api() {
   echo "▶  Building API..."

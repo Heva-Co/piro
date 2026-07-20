@@ -20,11 +20,20 @@ public enum IntegrationType
     [IntegrationManifest(
         IntegrationCategory.ThirdParty,
         IntegrationDirection.Outbound,
-        IntegrationCapability.None,
+        IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.ProvidesActions,
         typeof(JiraConfig),
         Label = "Jira",
-        Description = "Create and track Jira tickets from alerts.",
+        Description = "Create and track Jira tickets from alerts, incidents, and maintenances.",
         IconifyIcon = "logos:jira"
+    )]
+    [IntegrationAction(
+        "create-issue",
+        "Create Jira ticket",
+        new[] { ActionContext.Alert, ActionContext.Incident, ActionContext.Maintenance },
+        Description = "Create a Jira ticket and link it back to this object.",
+        IconifyIcon = "logos:jira",
+        HasInput = true,
+        SupportsDraft = true
     )]
     Jira = 1,
 

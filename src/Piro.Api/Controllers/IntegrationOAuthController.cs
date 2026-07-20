@@ -19,7 +19,8 @@ public class IntegrationOAuthController(
     IOAuthClient oauthClient,
     IOAuthTokenStore tokenStore,
     IIntegrationRepository integrationRepo,
-    IPagerDutyDiscoveryService pagerDutyDiscovery) : ControllerBase
+    IPagerDutyDiscoveryService pagerDutyDiscovery,
+    IJiraDiscoveryService jiraDiscovery) : ControllerBase
 {
     /// <summary>
     /// Lists the remote resources (PagerDuty services) discoverable for an OAuth-connected integration,
@@ -89,6 +90,12 @@ public class IntegrationOAuthController(
         {
             var result = await oauthClient.ExchangeCodeAsync(request.Code, request.State, ct);
             await tokenStore.SaveAsync(result.IntegrationId, result.Tokens, ct);
+
+            // Jira 3LO routes API calls through api.atlassian.com/ex/jira/{cloudId}; capture the
+            // cloudId/siteUrl once now that a token exists (RFC 0012).
+            if (string.Equals(result.ProviderId, "jira", StringComparison.OrdinalIgnoreCase))
+                await jiraDiscovery.DiscoverAndStoreCloudAsync(result.IntegrationId, ct);
+
             return Ok(new { integrationId = result.IntegrationId, provider = result.ProviderId, connected = true });
         }
         catch (Exception ex)
@@ -133,6 +140,7 @@ public class IntegrationOAuthController(
     private static string? ProviderIdFor(Domain.Enums.IntegrationType type) => type switch
     {
         Domain.Enums.IntegrationType.PagerDuty => "pagerduty",
+        Domain.Enums.IntegrationType.Jira => "jira",
         _ => null
     };
 }
