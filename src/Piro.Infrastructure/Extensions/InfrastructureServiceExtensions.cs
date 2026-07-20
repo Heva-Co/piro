@@ -64,6 +64,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ResendEmailService>();
         services.AddScoped<IEmailService, EmailServiceFactory>();
         services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
         services.AddDistributedMemoryCache();

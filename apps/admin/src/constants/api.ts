@@ -15,6 +15,8 @@ export const ENDPOINTS = {
     SIGN_IN: `${API_BASE}/auth/sign-in`,
     SIGN_OUT: `${API_BASE}/auth/sign-out`,
     REFRESH: `${API_BASE}/auth/refresh`,
+    FORGOT_PASSWORD: `${API_BASE}/auth/forgot-password`,
+    RESET_PASSWORD: `${API_BASE}/auth/reset-password`,
     OIDC_PROVIDERS: `${API_BASE}/auth/oidc/providers`,
     OIDC_SSO_MODE: `${API_BASE}/auth/oidc/sso-mode`,
     OIDC_START: (provider: string) => `${API_BASE}/auth/oidc/start?provider=${provider}`,

@@ -37,6 +37,9 @@ internal static class EmailTemplates
     public static string Invitation(string inviteUrl) =>
         Render("invitation", new { invite_url = inviteUrl });
 
+    public static string PasswordReset(string resetUrl) =>
+        Render("reset-password", new { reset_url = resetUrl });
+
     private static string Render(string templateKey, object model)
     {
         if (!Compiled.TryGetValue(templateKey, out var template))
