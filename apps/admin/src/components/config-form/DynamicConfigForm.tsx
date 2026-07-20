@@ -1,5 +1,6 @@
 import type { ConfigFieldSchema } from "@/lib/actions/checks";
 import DynamicConfigField from "./DynamicConfigField";
+import type { DynamicOptionsResolver } from "./DynamicOptionsSelect";
 
 interface Props {
   /** The reflected field schema for the selected type (RFC 0011). */
@@ -10,6 +11,8 @@ interface Props {
   errors?: Record<string, string>;
   /** Called with the full updated values map on any field change. */
   onChange: (values: Record<string, unknown>) => void;
+  /** Optional resolver for `[DynamicOptions]` fields (RFC 0012) — supplied by hosts that support them (e.g. ActionDialog). */
+  optionsResolver?: DynamicOptionsResolver;
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * (CheckFormPage / the future integrations wrapper); this component only renders the config fields.
  */
 function DynamicConfigForm(props: Props) {
-  const { schema, values, errors, onChange } = props;
+  const { schema, values, errors, onChange, optionsResolver } = props;
 
   function isVisible(field: ConfigFieldSchema): boolean {
     if (!field.visibleWhen) return true;
@@ -39,10 +42,18 @@ function DynamicConfigForm(props: Props) {
           value={values[field.key]}
           error={errors?.[field.key]}
           onChange={(v) => onChange({ ...values, [field.key]: v })}
+          optionsResolver={optionsResolver}
+          dependsOnValue={
+            field.optionsDependsOn ? asOptionalString(values[field.optionsDependsOn]) : undefined
+          }
         />
       ))}
     </div>
   );
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 export default DynamicConfigForm;

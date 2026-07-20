@@ -25,13 +25,15 @@ public sealed class JiraConfig
     [ConfigField("Client Secret", Placeholder = "Atlassian OAuth app client secret")]
     public string ClientSecret { get; set; } = string.Empty;
 
+    [DynamicOptions("jira-projects")]
     [ConfigField("Default project key",
-        Placeholder = "e.g. OPS",
+        Placeholder = "Select a default project",
         HelpText = "Optional — pre-selected when creating a ticket; can be changed per ticket.")]
     public string? DefaultProjectKey { get; set; }
 
+    [DynamicOptions("jira-issue-types", DependsOn = nameof(DefaultProjectKey))]
     [ConfigField("Default issue type",
-        Placeholder = "e.g. Task",
+        Placeholder = "Select a default issue type",
         HelpText = "Optional — pre-selected when creating a ticket; can be changed per ticket.")]
     public string? DefaultIssueType { get; set; }
 }

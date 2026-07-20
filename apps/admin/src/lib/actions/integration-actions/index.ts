@@ -28,6 +28,14 @@ export const integrationActionsApi = {
       )
       .then((r) => r.data),
 
+  /** Resolve runtime options for a [DynamicOptions] field (RFC 0012), e.g. Jira projects/issue types. */
+  options: (integrationId: string, sourceKey: string, dependsOn?: string) =>
+    api
+      .get<{ value: string; label: string }[]>(
+        ENDPOINTS.INTEGRATION_ACTION_OPTIONS(integrationId, sourceKey, dependsOn),
+      )
+      .then((r) => r.data),
+
   /** Execute an action and get back the external reference it created (RFC 0012 §4.4). */
   execute: (
     integrationId: string,

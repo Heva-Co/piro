@@ -132,6 +132,8 @@ export const ENDPOINTS = {
     `${API_BASE}/integrations/${id}/actions/${actionId}/draft?context=${context}&targetId=${targetId}`,
   INTEGRATION_ACTION_EXECUTE: (id: string, actionId: string) =>
     `${API_BASE}/integrations/${id}/actions/${actionId}/execute`,
+  INTEGRATION_ACTION_OPTIONS: (id: string, sourceKey: string, dependsOn?: string) =>
+    `${API_BASE}/integrations/${id}/options/${sourceKey}${dependsOn ? `?dependsOn=${encodeURIComponent(dependsOn)}` : ""}`,
   INTEGRATION_REFERENCES: (context: string, targetId: number) =>
     `${API_BASE}/integrations/references?context=${context}&targetId=${targetId}`,
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => `${API_BASE}/integrations/${id}/webhook-logs`,

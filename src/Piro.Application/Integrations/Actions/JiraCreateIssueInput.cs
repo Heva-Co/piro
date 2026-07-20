@@ -16,11 +16,13 @@ namespace Piro.Application.Integrations.Actions;
 public sealed class JiraCreateIssueInput
 {
     [Required]
-    [ConfigField("Project key", Placeholder = "e.g. OPS", HelpText = "The Jira project to create the ticket in.")]
+    [DynamicOptions("jira-projects")]
+    [ConfigField("Project key", Placeholder = "Select a project", HelpText = "The Jira project to create the ticket in.")]
     public string ProjectKey { get; set; } = string.Empty;
 
     [Required]
-    [ConfigField("Issue type", Placeholder = "e.g. Task")]
+    [DynamicOptions("jira-issue-types", DependsOn = nameof(ProjectKey))]
+    [ConfigField("Issue type", Placeholder = "Select an issue type")]
     public string IssueType { get; set; } = string.Empty;
 
     [Required]

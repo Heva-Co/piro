@@ -64,6 +64,7 @@ public static class ConfigSchemaBuilder
     {
         var display = property.GetCustomAttribute<ConfigFieldAttribute>();
         var options = property.GetCustomAttribute<ConfigFieldOptionsAttribute>()?.Options;
+        var dynamicOptions = property.GetCustomAttribute<DynamicOptionsAttribute>();
         var fieldType = InferFieldType(property, options);
 
         return new ConfigFieldSchemaDto(
@@ -82,7 +83,9 @@ public static class ConfigSchemaBuilder
             // a repeater of sub-forms (e.g. HttpResponseRule inside HttpCheckConfig.ResponseRules).
             fieldType == ConfigFieldType.ObjectArray ? For(ElementType(property.PropertyType)!) : null,
             VisibilityFrom(property),
-            property.GetCustomAttribute<ConfigValidationAttribute>()?.Validator
+            property.GetCustomAttribute<ConfigValidationAttribute>()?.Validator,
+            dynamicOptions?.SourceKey,
+            dynamicOptions?.DependsOn is { } dependsOn ? ConfigJsonNaming.ConvertName(dependsOn) : null
         );
     }
 
