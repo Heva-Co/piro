@@ -8,12 +8,21 @@ namespace Piro.Application.Integrations.Actions;
 /// §4.6): <c>ConfigSchemaBuilder.For(typeof(JiraCreateIssueInput))</c> renders the form, and the same
 /// DataAnnotations validate the POST — so the form and the accepted payload can't drift.
 /// <para>
-/// Only the per-ticket human decisions live here. ProjectKey/IssueType are connection-level settings the
-/// admin picks once (stored on the integration's OAuth mapping), deliberately not asked per ticket.
+/// Project and issue type are chosen <b>per ticket</b> (so one Jira integration serves every project),
+/// pre-filled from the integration's optional defaults. Title/Description are the always-per-ticket
+/// human decisions.
 /// </para>
 /// </summary>
 public sealed class JiraCreateIssueInput
 {
+    [Required]
+    [ConfigField("Project key", Placeholder = "e.g. OPS", HelpText = "The Jira project to create the ticket in.")]
+    public string ProjectKey { get; set; } = string.Empty;
+
+    [Required]
+    [ConfigField("Issue type", Placeholder = "e.g. Task")]
+    public string IssueType { get; set; } = string.Empty;
+
     [Required]
     [ConfigField("Title", Placeholder = "Short summary of the ticket")]
     public string Title { get; set; } = string.Empty;

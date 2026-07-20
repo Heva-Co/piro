@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
@@ -20,6 +21,8 @@ internal sealed class ActionHost(
     IAlertRepository alertRepo,
     IIncidentRepository incidentRepo,
     IMaintenanceRepository maintenanceRepo,
+    IIntegrationRepository integrationRepo,
+    IOAuthTokenStore tokenStore,
     IOAuthTokenProvider tokenProvider) : IActionHost
 {
     public async Task<ActionTarget?> GetTargetAsync(ActionContext context, int targetId, CancellationToken ct = default)
@@ -90,6 +93,23 @@ internal sealed class ActionHost(
 
     public Task<string> GetBearerTokenAsync(Guid integrationId, CancellationToken ct = default) =>
         tokenProvider.GetAccessTokenAsync(integrationId, ct);
+
+    public async Task<bool> IsOAuthConnectedAsync(Guid integrationId, CancellationToken ct = default) =>
+        await tokenStore.GetAsync(integrationId, ct) is not null;
+
+    public async Task<string?> GetConfigValueAsync(Guid integrationId, string key, CancellationToken ct = default)
+    {
+        var integration = await integrationRepo.GetByIdAsync(integrationId, ct);
+        if (integration is null || string.IsNullOrWhiteSpace(integration.ConfigJson))
+            return null;
+
+        // Read straight from stored ConfigJson: only non-secret keys are read through here, and
+        // secret values are stored encrypted, so they'd come back as ciphertext (never usable) anyway.
+        using var doc = JsonDocument.Parse(integration.ConfigJson);
+        return doc.RootElement.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
 
     private static ExternalReferenceView ToView(ExternalReference r) =>
         new(r.TargetType, r.TargetId, r.IntegrationId, r.ActionId, r.ExternalId, r.Url, r.Label, DeserializeMetadata(r.MetadataJson));
