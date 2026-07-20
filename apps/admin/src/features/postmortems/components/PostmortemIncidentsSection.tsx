@@ -2,6 +2,13 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { incidentsApi } from "@/lib/actions/incidents";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
 import type { Postmortem } from "@/lib/actions/postmortems";
@@ -48,18 +55,18 @@ function PostmortemIncidentsSection(props: Props) {
 
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-center gap-2">
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm"
-          >
-            <option value="">Select an incident to link…</option>
-            {available.map((i) => (
-              <option key={i.id} value={i.id}>
-                #{i.id} · {i.title}
-              </option>
-            ))}
-          </select>
+          <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Select an incident to link…" />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((i) => (
+                <SelectItem key={i.id} value={String(i.id)}>
+                  #{i.id} · {i.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button size="sm" onClick={handleLink} disabled={!selected || linking}>
             <Link2 size={13} /> Link
           </Button>
@@ -79,13 +86,9 @@ function PostmortemIncidentsSection(props: Props) {
                     {i.status} · started {formatTimestamp(i.startDateTime)}
                   </span>
                 </div>
-                <button
-                  onClick={() => onUnlink(i.incidentId)}
-                  disabled={linking}
-                  className="flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                >
+                <Button variant="outline" size="xs" onClick={() => onUnlink(i.incidentId)} disabled={linking}>
                   <X size={12} /> Unlink
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

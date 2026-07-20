@@ -154,6 +154,85 @@ public class PostmortemsApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
 
+    [Fact]
+    public async Task AddTimelineAnnotation_MergesIntoTimeline_AndIsEditableAndDeletable()
+    {
+        var created = await CreatePostmortemAsync("Annotated review", _ownerUserId);
+        var occurredAt = "2026-07-01T14:32:00Z";
+
+        var addResp = await _client.PostAsJsonAsync(
+            $"/api/v1/postmortems/{created!.Id}/timeline",
+            new { occurredAt, body = "Vendor confirmed the outage." });
+        addResp.EnsureSuccessStatusCode();
+        var withEntry = await addResp.Content.ReadFromJsonAsync<PostmortemResponse>(Json);
+
+        var annotation = withEntry!.Timeline.Single(t => t.IsAnnotation);
+        Assert.NotNull(annotation.EntryId);
+        Assert.Equal("Vendor confirmed the outage.", annotation.Text);
+        Assert.Equal("Test Owner", annotation.ActorName);
+
+        // Edit
+        var editResp = await _client.PutAsJsonAsync(
+            $"/api/v1/postmortems/{created.Id}/timeline/{annotation.EntryId}",
+            new { occurredAt, body = "Vendor confirmed the outage at 14:32." });
+        editResp.EnsureSuccessStatusCode();
+        var edited = await editResp.Content.ReadFromJsonAsync<PostmortemResponse>(Json);
+        Assert.Equal("Vendor confirmed the outage at 14:32.",
+            edited!.Timeline.Single(t => t.IsAnnotation).Text);
+
+        // Delete
+        var delResp = await _client.DeleteAsync(
+            $"/api/v1/postmortems/{created.Id}/timeline/{annotation.EntryId}");
+        delResp.EnsureSuccessStatusCode();
+        var afterDelete = await delResp.Content.ReadFromJsonAsync<PostmortemResponse>(Json);
+        Assert.DoesNotContain(afterDelete!.Timeline, t => t.IsAnnotation);
+    }
+
+    [Fact]
+    public async Task AnnotationAndDerivedEvents_SortChronologically()
+    {
+        int incidentId = await SeedIncidentAsync("Merge order", IncidentStatus.Resolved);
+        var created = await CreatePostmortemAsync("Ordering", _ownerUserId);
+        await _client.PostAsJsonAsync($"/api/v1/postmortems/{created!.Id}/incidents", new { incidentId });
+
+        // Annotation dated far in the past — must sort before the incident's "Created" event (seeded ~now).
+        await _client.PostAsJsonAsync(
+            $"/api/v1/postmortems/{created.Id}/timeline",
+            new { occurredAt = "2020-01-01T00:00:00Z", body = "Earliest note" });
+
+        var pm = await _client.GetFromJsonAsync<PostmortemResponse>($"/api/v1/postmortems/{created.Id}", Json);
+        var timeline = pm!.Timeline.ToList();
+        Assert.True(timeline.Count >= 2);
+        Assert.True(timeline[0].IsAnnotation, "the 2020 annotation should sort first");
+    }
+
+    [Fact]
+    public async Task IncidentSuggestions_ReturnsOverlappingUnlinkedIncidents()
+    {
+        // Incident anchored to a known time so we can build a window around it.
+        int incidentId = await SeedIncidentAtAsync("Windowed", DateTimeOffset.Parse("2026-06-15T12:00:00Z"));
+
+        var createResp = await _client.PostAsJsonAsync("/api/v1/postmortems", new
+        {
+            name = "Windowed review",
+            reviewOwnerUserId = _ownerUserId,
+            impactStartAt = "2026-06-15T00:00:00Z",
+            impactEndAt = "2026-06-16T00:00:00Z",
+        });
+        createResp.EnsureSuccessStatusCode();
+        var created = await createResp.Content.ReadFromJsonAsync<PostmortemResponse>(Json);
+
+        var suggestions = await _client.GetFromJsonAsync<List<SuggestionResponse>>(
+            $"/api/v1/postmortems/{created!.Id}/incident-suggestions", Json);
+        Assert.Contains(suggestions!, s => s.IncidentId == incidentId);
+
+        // Once linked, it drops out of the suggestions.
+        await _client.PostAsJsonAsync($"/api/v1/postmortems/{created.Id}/incidents", new { incidentId });
+        var after = await _client.GetFromJsonAsync<List<SuggestionResponse>>(
+            $"/api/v1/postmortems/{created.Id}/incident-suggestions", Json);
+        Assert.DoesNotContain(after!, s => s.IncidentId == incidentId);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private async Task<PostmortemResponse?> CreatePostmortemAsync(string name, int? ownerId)
@@ -192,6 +271,22 @@ public class PostmortemsApiTests : IAsyncLifetime
         return incident.Id;
     }
 
+    private async Task<int> SeedIncidentAtAsync(string title, DateTimeOffset startedAt)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Piro.Infrastructure.Persistence.PiroDbContext>();
+        var incident = new Incident
+        {
+            Title = title,
+            StartDateTime = startedAt.ToUnixTimeSeconds(),
+            Status = IncidentStatus.Investigating,
+            Source = "MANUAL",
+        };
+        db.Incidents.Add(incident);
+        await db.SaveChangesAsync();
+        return incident.Id;
+    }
+
     private async Task<string> SignInAndGetJwtAsync(string email)
     {
         var response = await _client.PostAsJsonAsync("/api/v1/auth/sign-in", new { email, password = "Sup3rSecret!Password" });
@@ -215,5 +310,14 @@ public class PostmortemsApiTests : IAsyncLifetime
 
     private record FieldResponse(int FieldDefinitionId, string Key, string Heading, bool IsSystem, string Value);
     private record IncidentRefResponse(int IncidentId, string Title, IncidentStatus Status);
-    private record TimelineItemResponse(int IncidentId, string IncidentTitle, string Source, DateTimeOffset OccurredAt);
+    private record TimelineItemResponse(
+        bool IsAnnotation,
+        int? EntryId,
+        int? IncidentId,
+        string? IncidentTitle,
+        string Source,
+        DateTimeOffset OccurredAt,
+        string? ActorName,
+        string? Text);
+    private record SuggestionResponse(int IncidentId, string Title, IncidentStatus Status);
 }

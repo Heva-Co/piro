@@ -156,6 +156,90 @@ public class PostmortemAppService(
             ?? throw new NotFoundException(nameof(Postmortem), id)).ToDto();
     }
 
+    public async Task<PostmortemDto> AddTimelineEntryAsync(int id, CreateTimelineEntryRequest request, string authorName, CancellationToken ct = default)
+    {
+        _ = await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id);
+        if (string.IsNullOrWhiteSpace(request.Body))
+            throw new DomainValidationException("An annotation must have a body.");
+
+        await postmortemRepo.AddTimelineEntryAsync(new PostmortemTimelineEntry
+        {
+            PostmortemId = id,
+            OccurredAt = request.OccurredAt,
+            Body = request.Body.Trim(),
+            AuthorName = authorName,
+        }, ct);
+
+        return (await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id)).ToDto();
+    }
+
+    public async Task<PostmortemDto> UpdateTimelineEntryAsync(int id, int entryId, UpdateTimelineEntryRequest request, CancellationToken ct = default)
+    {
+        var entry = await postmortemRepo.GetTimelineEntryAsync(id, entryId, ct)
+            ?? throw new NotFoundException(nameof(PostmortemTimelineEntry), entryId);
+        if (string.IsNullOrWhiteSpace(request.Body))
+            throw new DomainValidationException("An annotation must have a body.");
+
+        entry.OccurredAt = request.OccurredAt;
+        entry.Body = request.Body.Trim();
+        await postmortemRepo.UpdateTimelineEntryAsync(entry, ct);
+
+        return (await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id)).ToDto();
+    }
+
+    public async Task<PostmortemDto> DeleteTimelineEntryAsync(int id, int entryId, CancellationToken ct = default)
+    {
+        var entry = await postmortemRepo.GetTimelineEntryAsync(id, entryId, ct)
+            ?? throw new NotFoundException(nameof(PostmortemTimelineEntry), entryId);
+        await postmortemRepo.DeleteTimelineEntryAsync(entry, ct);
+
+        return (await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id)).ToDto();
+    }
+
+    /// <summary>
+    /// Suggests incidents to link, from those overlapping the report's impact window. When the window is
+    /// unset, falls back to the span of already-linked incidents; if that's empty too, returns nothing
+    /// (nothing to anchor a suggestion on) — RFC 0005 §4.6, §8.
+    /// </summary>
+    public async Task<IEnumerable<PostmortemIncidentSuggestionDto>> GetIncidentSuggestionsAsync(int id, CancellationToken ct = default)
+    {
+        var postmortem = await postmortemRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Postmortem), id);
+
+        var (from, to) = ResolveSuggestionWindow(postmortem);
+        if (from is null || to is null)
+            return [];
+
+        var incidents = await postmortemRepo.GetIncidentSuggestionsAsync(id, from.Value, to.Value, ct);
+        return incidents.Select(i => new PostmortemIncidentSuggestionDto(
+            i.Id, i.Title, i.Status, i.StartDateTime, i.EndDateTime));
+    }
+
+    /// <summary>
+    /// Resolves the window used to suggest incidents: the explicit impact window if set, else the span of
+    /// the linked incidents, else (null, null) meaning "no basis for a suggestion".
+    /// </summary>
+    private static (DateTimeOffset? From, DateTimeOffset? To) ResolveSuggestionWindow(Postmortem p)
+    {
+        if (p.ImpactStartAt.HasValue && p.ImpactEndAt.HasValue)
+            return (p.ImpactStartAt, p.ImpactEndAt);
+
+        var linked = p.PostmortemIncidents
+            .Select(pi => pi.Incident)
+            .Where(i => i is not null)
+            .ToList();
+        if (linked.Count == 0)
+            return (null, null);
+
+        var start = linked.Min(i => i!.StartDateTime);
+        var end = linked.Max(i => i!.EndDateTime ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        return (DateTimeOffset.FromUnixTimeSeconds(start), DateTimeOffset.FromUnixTimeSeconds(end));
+    }
+
     /// <summary>
     /// Sets the review owner FK and snapshots the display name. A null id clears the owner (and its snapshot).
     /// Throws if a non-null id doesn't resolve to a user (RFC 0005 §4.2, §7).

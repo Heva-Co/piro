@@ -87,6 +87,11 @@ export const ENDPOINTS = {
   POSTMORTEM_INCIDENTS: (id: number | string) => `${API_BASE}/postmortems/${id}/incidents`,
   POSTMORTEM_INCIDENT: (id: number | string, incidentId: number | string) =>
     `${API_BASE}/postmortems/${id}/incidents/${incidentId}`,
+  POSTMORTEM_INCIDENT_SUGGESTIONS: (id: number | string) =>
+    `${API_BASE}/postmortems/${id}/incident-suggestions`,
+  POSTMORTEM_TIMELINE: (id: number | string) => `${API_BASE}/postmortems/${id}/timeline`,
+  POSTMORTEM_TIMELINE_ENTRY: (id: number | string, entryId: number | string) =>
+    `${API_BASE}/postmortems/${id}/timeline/${entryId}`,
 
   // Alert configs
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>

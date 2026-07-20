@@ -36,8 +36,9 @@ public static class PostmortemExtensions
     );
 
     /// <summary>
-    /// Merges every referenced incident's timeline events, impact changes, and firing alerts into one
-    /// chronologically sorted, read-only list (RFC 0005 §4.4, Phase 1). Report-owned annotations are Phase 2.
+    /// Merges every referenced incident's timeline events, impact changes, and firing alerts (read-only,
+    /// derived) with the report's own author annotations into one chronologically sorted list
+    /// (RFC 0005 §4.4). Annotations carry <c>IsAnnotation = true</c> and an <c>EntryId</c>.
     /// </summary>
     private static IEnumerable<PostmortemTimelineItemDto> BuildDerivedTimeline(Postmortem p)
     {
@@ -50,25 +51,30 @@ public static class PostmortemExtensions
 
             foreach (var e in incident.TimelineEvents)
                 items.Add(new PostmortemTimelineItemDto(
-                    incident.Id, incident.Title, $"incident:{e.Type}",
+                    false, null, incident.Id, incident.Title, $"incident:{e.Type}",
                     e.OccurredAt, e.ActorName, e.Comment, e.OldStatus, e.NewStatus, null));
 
             foreach (var c in incident.ImpactChanges)
                 items.Add(new PostmortemTimelineItemDto(
-                    incident.Id, incident.Title, "incident:ImpactChanged",
+                    false, null, incident.Id, incident.Title, "incident:ImpactChanged",
                     DateTimeOffset.FromUnixTimeSeconds(c.Timestamp), null, null, null, null, c.Impact));
 
             foreach (var a in incident.Alerts)
             {
                 items.Add(new PostmortemTimelineItemDto(
-                    incident.Id, incident.Title, "alert:Fired",
+                    false, null, incident.Id, incident.Title, "alert:Fired",
                     a.FiredAt, null, a.Message, null, null, a.ImpactAtFireTime));
                 if (a.ResolvedAt.HasValue)
                     items.Add(new PostmortemTimelineItemDto(
-                        incident.Id, incident.Title, "alert:Resolved",
+                        false, null, incident.Id, incident.Title, "alert:Resolved",
                         a.ResolvedAt.Value, null, a.Message, null, null, null));
             }
         }
+
+        foreach (var entry in p.TimelineEntries)
+            items.Add(new PostmortemTimelineItemDto(
+                true, entry.Id, null, null, "annotation",
+                entry.OccurredAt, entry.AuthorName, entry.Body, null, null, null));
 
         return items.OrderBy(i => i.OccurredAt).ToList();
     }

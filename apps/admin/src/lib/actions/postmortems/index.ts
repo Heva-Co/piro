@@ -13,6 +13,9 @@ export type PostmortemFieldType = components["schemas"]["PostmortemFieldType"];
 export type CreatePostmortemRequest = components["schemas"]["CreatePostmortemRequest"];
 export type UpdatePostmortemRequest = components["schemas"]["UpdatePostmortemRequest"];
 export type PostmortemFieldValueUpdate = components["schemas"]["PostmortemFieldValueUpdate"];
+export type CreateTimelineEntryRequest = components["schemas"]["CreateTimelineEntryRequest"];
+export type UpdateTimelineEntryRequest = components["schemas"]["UpdateTimelineEntryRequest"];
+export type PostmortemIncidentSuggestion = components["schemas"]["PostmortemIncidentSuggestionDto"];
 
 export const postmortemsApi = {
   list: () => api.get<PostmortemListItem[]>(ENDPOINTS.POSTMORTEMS).then((r) => r.data),
@@ -39,4 +42,18 @@ export const postmortemsApi = {
 
   unlinkIncident: (id: number | string, incidentId: number) =>
     api.delete<Postmortem>(ENDPOINTS.POSTMORTEM_INCIDENT(id, incidentId)).then((r) => r.data),
+
+  incidentSuggestions: (id: number | string) =>
+    api
+      .get<PostmortemIncidentSuggestion[]>(ENDPOINTS.POSTMORTEM_INCIDENT_SUGGESTIONS(id))
+      .then((r) => r.data),
+
+  addTimelineEntry: (id: number | string, data: CreateTimelineEntryRequest) =>
+    api.post<Postmortem>(ENDPOINTS.POSTMORTEM_TIMELINE(id), data).then((r) => r.data),
+
+  updateTimelineEntry: (id: number | string, entryId: number, data: UpdateTimelineEntryRequest) =>
+    api.put<Postmortem>(ENDPOINTS.POSTMORTEM_TIMELINE_ENTRY(id, entryId), data).then((r) => r.data),
+
+  deleteTimelineEntry: (id: number | string, entryId: number) =>
+    api.delete<Postmortem>(ENDPOINTS.POSTMORTEM_TIMELINE_ENTRY(id, entryId)).then((r) => r.data),
 };

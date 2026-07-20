@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import axios from "axios";
@@ -8,6 +8,13 @@ import { toast } from "react-toastify";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usersApi } from "@/lib/api";
 import { useCreatePostmortem } from "@/hooks/usePostmortems";
 import { QUERY_KEYS } from "@/constants/api";
@@ -32,6 +39,7 @@ function PostmortemFormPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -80,17 +88,28 @@ function PostmortemFormPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold">Owner of the review process</label>
-            <select
-              {...register("reviewOwnerUserId")}
-              className="h-9 rounded-lg border bg-background px-3 text-sm"
-            >
-              <option value="">Unassigned</option>
-              {(users ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="reviewOwnerUserId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => field.onChange(!v || v === "none" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {(users ?? []).map((u) => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             <p className="text-xs text-muted-foreground">
               The person accountable for running the review and driving action items to done.
             </p>

@@ -56,6 +56,7 @@ function PostmortemFieldsSection(props: Props) {
               />
             ) : (
               <Input
+                type={f.fieldType === "Date" ? "date" : "text"}
                 value={values[f.fieldDefinitionId] ?? ""}
                 onChange={(e) =>
                   setValues((v) => ({ ...v, [f.fieldDefinitionId]: e.target.value }))
