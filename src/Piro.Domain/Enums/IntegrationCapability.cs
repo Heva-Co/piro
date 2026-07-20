@@ -38,4 +38,12 @@ public enum IntegrationCapability
 
     /// <summary>Has a registered IChannelNotificationDispatcher — posts notifications to a shared team channel (RFC 0009).</summary>
     SendsChannelNotification = 1 << 7,
+
+    /// <summary>
+    /// Has one or more actions declared via <see cref="Attributes.IntegrationActionAttribute"/>, each
+    /// backed by a registered IIntegrationAction — user-initiated buttons on Alert/Incident/Maintenance
+    /// detail pages (RFC 0012). A manifest-honesty test asserts this flag is set iff the type declares
+    /// at least one action.
+    /// </summary>
+    ProvidesActions = 1 << 8,
 }
