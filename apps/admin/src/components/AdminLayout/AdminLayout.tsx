@@ -29,6 +29,7 @@ import {
   CalendarClock,
   Siren,
   BellRing,
+  Send,
   User,
   Clock,
   TriangleAlert,
@@ -70,7 +71,11 @@ const mainNavItems: NavItem[] = [
   { label: "Maintenances", to: ROUTES.MAINTENANCES.LIST, icon: <ClockAlert size={18} /> },
   { label: "On Call Schedules", to: ROUTES.ONCALL.LIST, icon: <CalendarClock size={18} /> },
   { label: "Escalation Policies", to: ROUTES.ESCALATION.LIST, icon: <Siren size={18} /> },
-  { label: "Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} /> },
+];
+
+const logsNavItems: NavItem[] = [
+  { label: "System Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} />, end: true },
+  { label: "Delivery Logs", to: ROUTES.LOGS_DELIVERIES, icon: <Send size={18} /> },
 ];
 
 const configNavItems: NavItem[] = [
@@ -96,6 +101,8 @@ function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation();
   const isOnConfig = location.pathname.startsWith("/admin/configuration") || location.pathname.startsWith("/admin/settings");
   const [configOpen, setConfigOpen] = useState(isOnConfig);
+  const isOnLogs = location.pathname.startsWith("/admin/logs");
+  const [logsOpen, setLogsOpen] = useState(isOnLogs);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const { data: siteConfig } = useQuery({
@@ -204,6 +211,46 @@ function Sidebar({ onClose }: SidebarProps) {
             </NavLink>
           );
         })}
+
+        {/* Logs section */}
+        <div className="pt-1">
+          <button
+            onClick={() => setLogsOpen((o) => !o)}
+            className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ScrollText size={18} />
+              Logs
+            </div>
+            <ChevronDown
+              size={16}
+              className={cn("transition-transform", logsOpen ? "rotate-180" : "")}
+            />
+          </button>
+          {logsOpen && (
+            <div className="ml-4 mt-0.5 space-y-0.5">
+              {logsNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )
+                  }
+                >
+                  {item.icon}
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Configuration section */}
         <div className="pt-1">

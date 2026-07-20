@@ -273,6 +273,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationSubscriptionRepository, NotificationSubscriptionRepository>();
         services.AddScoped<INotificationDeliveryLogRepository, NotificationDeliveryLogRepository>();
         services.AddScoped<NotificationSubscriptionAppService>();
+        services.AddScoped<DeliveryLogAppService>();
 
         // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which catalog events it
         // handles and in which delivery mode. This is the menu the subscription UI offers per destination.

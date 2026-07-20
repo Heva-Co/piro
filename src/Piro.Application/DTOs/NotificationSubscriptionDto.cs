@@ -38,9 +38,35 @@ public record NotificationSubscriptionPageDto(
 );
 
 /// <summary>
-/// A catalog event exposed to the admin UI (RFC 0009 §4.2) — its stable wire name and description.
+/// A catalog event exposed to the admin UI (RFC 0009) — its stable wire name and description.
 /// </summary>
 public record NotificationEventCatalogDto(
     string Name,
     string Description
+);
+
+/// <summary>
+/// One delivery attempt for the admin activity feed 
+/// </summary>
+public record NotificationDeliveryLogDto(
+    long Id,
+    string EventType,
+    Guid? SubscriptionId,
+    string TargetKind,
+    IntegrationType? IntegrationType,
+    Guid? IntegrationId,
+    string TargetDescriptor,
+    DeliveryStatus Status,
+    string? Error,
+    DateTime AttemptedAt
+);
+
+/// <summary>
+/// A page of <see cref="NotificationDeliveryLogDto"/> results plus the total matching count.
+/// </summary>
+public record NotificationDeliveryLogPageDto(
+    IEnumerable<NotificationDeliveryLogDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize
 );
