@@ -48,4 +48,7 @@ public class Incident
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
     public ICollection<IncidentImpactChange> ImpactChanges { get; set; } = [];
     public ICollection<Alert> Alerts { get; set; } = [];
+
+    /// <summary>Postmortem reports that reference this incident (N:M, RFC 0005 §4.6). Nav only — no column on Incidents.</summary>
+    public ICollection<PostmortemIncident> PostmortemIncidents { get; set; } = [];
 }
