@@ -15,6 +15,8 @@ import SignInPage from "@/features/auth/pages/SignInPage";
 import OidcCallbackPage from "@/features/auth/pages/OidcCallbackPage";
 import SetupPage from "@/features/auth/pages/SetupPage";
 import AcceptInvitePage from "@/features/auth/pages/AcceptInvitePage";
+import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 
 // Admin pages
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
@@ -100,6 +102,8 @@ export default function App() {
             <Route path={ROUTES.AUTH.OIDC_CALLBACK} element={<OidcCallbackPage />} />
             <Route path={ROUTES.SETUP} element={<SetupPage />} />
             <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
+            <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+            <Route path={ROUTES.AUTH.RESET_PASSWORD} element={<ResetPasswordPage />} />
 
             {/* Protected admin routes */}
             <Route element={<ProtectedLayout />}>

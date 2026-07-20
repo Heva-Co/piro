@@ -7,6 +7,8 @@ export const ROUTES = {
     SIGN_IN: "/admin/auth/sign-in",
     OIDC_CALLBACK: "/admin/auth/oidc/callback",
     SIGN_OUT: "/admin/auth/sign-out",
+    FORGOT_PASSWORD: "/admin/auth/forgot-password",
+    RESET_PASSWORD: "/admin/auth/reset-password",
   },
 
   // Setup & invite (pre-auth)

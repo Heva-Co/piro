@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
+import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Mail, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { setupApi } from "@/lib/actions/setup";
 import { ROUTES } from "@/constants/routes";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 interface OidcProvider {
   id: string;
@@ -44,6 +45,7 @@ export default function SignInPage() {
 
   const [oidcProviders, setOidcProviders] = useState<OidcProvider[]>([]);
   const [ssoOnly, setSsoOnly] = useState(false);
+  const [signInError, setSignInError] = useState("");
 
   const invited = searchParams.has("invited");
   const oidcError = searchParams.has("oidc_error");
@@ -82,15 +84,17 @@ export default function SignInPage() {
   }
 
   async function onSubmit(values: FormValues) {
+    setSignInError("");
     try {
       await login(values.email, values.password);
       navigate(from, { replace: true });
     } catch (err) {
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.title
-          ? err.response.data.title
-          : "Invalid email or password.";
-      toast.error(msg);
+      // DomainValidationException is surfaced as a ProblemDetails whose real message lives in
+      // `detail` (the `title` is the generic "Validation Error"). Prefer `detail`, fall back to
+      // `title`, then a sensible default.
+      const data = axios.isAxiosError(err) ? err.response?.data : undefined;
+      const msg = data?.detail ?? data?.title ?? "Invalid email or password.";
+      setSignInError(msg);
     }
   }
 
@@ -106,14 +110,20 @@ export default function SignInPage() {
           </div>
 
           {invited && (
-            <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800 px-4 py-3 text-sm text-green-800 dark:text-green-300">
-              <CheckCircle className="size-4 mt-0.5 shrink-0" />
-              Account created! Sign in with your new credentials.
-            </div>
+            <Alert variant="success">
+              <CheckCircle />
+              <AlertTitle>Account created! Sign in with your new credentials.</AlertTitle>
+            </Alert>
           )}
 
           {!ssoOnly && (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              {signInError && (
+                <Alert variant="destructive">
+                  <AlertCircle />
+                  <AlertTitle>{signInError}</AlertTitle>
+                </Alert>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -141,6 +151,12 @@ export default function SignInPage() {
                 {errors.password && (
                   <p className="text-xs text-destructive">{errors.password.message}</p>
                 )}
+                <Link
+                  to={ROUTES.AUTH.FORGOT_PASSWORD}
+                  className="self-end text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                >
+                  Forgot your password?
+                </Link>
               </div>
 
               <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">

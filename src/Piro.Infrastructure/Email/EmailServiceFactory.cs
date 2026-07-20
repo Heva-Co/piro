@@ -34,4 +34,7 @@ public class EmailServiceFactory(
 
     public Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default) =>
         SendAsync(to, "You've been invited to Piro", EmailTemplates.Invitation(inviteUrl), ct);
+
+    public Task SendPasswordResetAsync(string to, string resetUrl, CancellationToken ct = default) =>
+        SendAsync(to, "Reset your Piro password", EmailTemplates.PasswordReset(resetUrl), ct);
 }

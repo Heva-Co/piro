@@ -10,4 +10,10 @@ public interface IEmailService
     /// only knows it needs an invitation sent, not how the email is rendered.
     /// </summary>
     Task SendInvitationAsync(string to, string inviteUrl, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sends the password-reset email. The HTML template lives in Infrastructure — Application
+    /// only knows it needs a reset link sent, not how the email is rendered.
+    /// </summary>
+    Task SendPasswordResetAsync(string to, string resetUrl, CancellationToken ct = default);
 }
