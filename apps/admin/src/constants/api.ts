@@ -82,6 +82,9 @@ export const ENDPOINTS = {
   POSTMORTEMS: `${API_BASE}/postmortems`,
   POSTMORTEM: (id: number | string) => `${API_BASE}/postmortems/${id}`,
   POSTMORTEM_FIELD_DEFINITIONS: `${API_BASE}/postmortems/field-definitions`,
+  POSTMORTEM_FIELD_DEFINITION: (defId: number | string) =>
+    `${API_BASE}/postmortems/field-definitions/${defId}`,
+  POSTMORTEM_FIELD_DEFINITIONS_ORDER: `${API_BASE}/postmortems/field-definitions/order`,
   POSTMORTEM_PUBLISH: (id: number | string) => `${API_BASE}/postmortems/${id}/publish`,
   POSTMORTEM_UNPUBLISH: (id: number | string) => `${API_BASE}/postmortems/${id}/unpublish`,
   POSTMORTEM_INCIDENTS: (id: number | string) => `${API_BASE}/postmortems/${id}/incidents`,

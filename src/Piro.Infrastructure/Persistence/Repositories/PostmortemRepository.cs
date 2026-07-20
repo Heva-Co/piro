@@ -58,6 +58,69 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
             .OrderBy(d => d.SortOrder)
             .ToListAsync(ct);
 
+    public async Task<List<PostmortemFieldDefinition>> GetAllFieldDefinitionsAsync(CancellationToken ct = default) =>
+        await db.PostmortemFieldDefinitions
+            .OrderBy(d => d.SortOrder)
+            .ToListAsync(ct);
+
+    public async Task<PostmortemFieldDefinition?> GetFieldDefinitionAsync(int id, CancellationToken ct = default) =>
+        await db.PostmortemFieldDefinitions.FirstOrDefaultAsync(d => d.Id == id, ct);
+
+    public async Task<bool> FieldDefinitionKeyExistsAsync(string key, int? excludingId = null, CancellationToken ct = default) =>
+        await db.PostmortemFieldDefinitions
+            .AnyAsync(d => d.Key == key && (excludingId == null || d.Id != excludingId), ct);
+
+    public async Task<int> GetMaxFieldDefinitionSortOrderAsync(CancellationToken ct = default) =>
+        await db.PostmortemFieldDefinitions.AnyAsync(ct)
+            ? await db.PostmortemFieldDefinitions.MaxAsync(d => d.SortOrder, ct)
+            : -1;
+
+    public async Task<PostmortemFieldDefinition> CreateFieldDefinitionAsync(PostmortemFieldDefinition definition, CancellationToken ct = default)
+    {
+        db.PostmortemFieldDefinitions.Add(definition);
+        await db.SaveChangesAsync(ct);
+        return definition;
+    }
+
+    public async Task UpdateFieldDefinitionAsync(PostmortemFieldDefinition definition, CancellationToken ct = default)
+    {
+        // `definition` is already tracked (loaded via GetFieldDefinitionAsync in this scope).
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteFieldDefinitionAsync(PostmortemFieldDefinition definition, CancellationToken ct = default)
+    {
+        db.PostmortemFieldDefinitions.Remove(definition);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<bool> FieldDefinitionHasValuesAsync(int definitionId, CancellationToken ct = default) =>
+        await db.PostmortemFieldValues.AnyAsync(v => v.FieldDefinitionId == definitionId, ct);
+
+    public async Task SaveFieldDefinitionOrderAsync(CancellationToken ct = default) =>
+        await db.SaveChangesAsync(ct);
+
+    public async Task<bool> BackfillFieldValuesAsync(int postmortemId, IEnumerable<int> activeDefinitionIds, CancellationToken ct = default)
+    {
+        var existing = await db.PostmortemFieldValues
+            .Where(v => v.PostmortemId == postmortemId)
+            .Select(v => v.FieldDefinitionId)
+            .ToListAsync(ct);
+
+        var missing = activeDefinitionIds.Except(existing).ToList();
+        if (missing.Count == 0) return false;
+
+        foreach (var defId in missing)
+            db.PostmortemFieldValues.Add(new PostmortemFieldValue
+            {
+                PostmortemId = postmortemId,
+                FieldDefinitionId = defId,
+                Value = "",
+            });
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<bool> LinkIncidentAsync(int postmortemId, int incidentId, CancellationToken ct = default)
     {
         var exists = await db.PostmortemIncidents

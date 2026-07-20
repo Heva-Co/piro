@@ -5,6 +5,8 @@ import type {
   UpdatePostmortemRequest,
   CreateTimelineEntryRequest,
   UpdateTimelineEntryRequest,
+  CreateFieldDefinitionRequest,
+  UpdateFieldDefinitionRequest,
 } from "@/lib/actions/postmortems";
 import { QUERY_KEYS } from "@/constants/api";
 
@@ -23,10 +25,51 @@ export function usePostmortem(id: number | string) {
   });
 }
 
-export function usePostmortemFieldDefinitions() {
+export function usePostmortemFieldDefinitions(includeInactive = false) {
   return useQuery({
-    queryKey: QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS,
-    queryFn: () => postmortemsApi.fieldDefinitions(),
+    queryKey: [...QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS, { includeInactive }],
+    queryFn: () => postmortemsApi.fieldDefinitions(includeInactive),
+  });
+}
+
+export function useCreateFieldDefinition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateFieldDefinitionRequest) => postmortemsApi.createFieldDefinition(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS });
+    },
+  });
+}
+
+export function useUpdateFieldDefinition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { defId: number; data: UpdateFieldDefinitionRequest }) =>
+      postmortemsApi.updateFieldDefinition(args.defId, args.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS });
+    },
+  });
+}
+
+export function useReorderFieldDefinitions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: number[]) => postmortemsApi.reorderFieldDefinitions(orderedIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS });
+    },
+  });
+}
+
+export function useDeleteFieldDefinition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (defId: number) => postmortemsApi.deleteFieldDefinition(defId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM_FIELD_DEFINITIONS });
+    },
   });
 }
 

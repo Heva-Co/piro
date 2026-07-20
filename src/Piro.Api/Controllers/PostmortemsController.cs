@@ -22,11 +22,52 @@ public class PostmortemsController(PostmortemAppService postmortemService) : Con
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await postmortemService.GetAllAsync(ct));
 
-    /// <summary>Returns the analysis template (active field definitions) — for rendering an empty editor.</summary>
+    /// <summary>
+    /// Returns the analysis template. By default only active definitions (for rendering an empty editor);
+    /// pass <paramref name="includeInactive"/> = true to include deactivated ones (template management).
+    /// </summary>
     [HttpGet("field-definitions")]
     [ProducesResponseType<IEnumerable<PostmortemFieldDefinitionDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetFieldDefinitions(CancellationToken ct) =>
-        Ok(await postmortemService.GetFieldDefinitionsAsync(ct));
+    public async Task<IActionResult> GetFieldDefinitions([FromQuery] bool includeInactive = false, CancellationToken ct = default) =>
+        Ok(includeInactive
+            ? await postmortemService.GetAllFieldDefinitionsAsync(ct)
+            : await postmortemService.GetFieldDefinitionsAsync(ct));
+
+    /// <summary>Creates a custom analysis field. Restricted to Owner/Admin (RFC 0005 Phase 3a).</summary>
+    [HttpPost("field-definitions")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<PostmortemFieldDefinitionDto>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateFieldDefinition([FromBody] CreateFieldDefinitionRequest request, CancellationToken ct)
+    {
+        var created = await postmortemService.CreateFieldDefinitionAsync(request, ct);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
+
+    /// <summary>Edits a field definition (heading/help/active for any; type only for custom). Owner/Admin only.</summary>
+    [HttpPut("field-definitions/{defId:int}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<PostmortemFieldDefinitionDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateFieldDefinition(int defId, [FromBody] UpdateFieldDefinitionRequest request, CancellationToken ct) =>
+        Ok(await postmortemService.UpdateFieldDefinitionAsync(defId, request, ct));
+
+    /// <summary>Reorders the analysis template. Owner/Admin only.</summary>
+    [HttpPut("field-definitions/order")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<IEnumerable<PostmortemFieldDefinitionDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReorderFieldDefinitions([FromBody] ReorderFieldDefinitionsRequest request, CancellationToken ct) =>
+        Ok(await postmortemService.ReorderFieldDefinitionsAsync(request, ct));
+
+    /// <summary>Deletes a custom field (or deactivates it if in use). System fields can't be deleted. Owner/Admin only.</summary>
+    [HttpDelete("field-definitions/{defId:int}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteFieldDefinition(int defId, CancellationToken ct)
+    {
+        await postmortemService.DeleteFieldDefinitionAsync(defId, ct);
+        return NoContent();
+    }
 
     /// <summary>Returns a single postmortem with its analysis fields and derived timeline.</summary>
     [HttpGet("{id:int}")]

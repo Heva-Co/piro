@@ -132,3 +132,26 @@ public record PostmortemFieldValueUpdate(int FieldDefinitionId, string Value);
 
 /// <summary>Payload for linking an incident to a postmortem.</summary>
 public record LinkIncidentRequest(int IncidentId);
+
+/// <summary>Payload for creating a custom analysis field definition (RFC 0005 Phase 3a).</summary>
+public record CreateFieldDefinitionRequest(
+    string Key,
+    string Heading,
+    string? HelpText,
+    PostmortemFieldType FieldType
+);
+
+/// <summary>
+/// Payload for editing a field definition. System fields only allow heading/help-text/active edits;
+/// the key and type of a system field are immutable.
+/// </summary>
+public record UpdateFieldDefinitionRequest(
+    string? Heading,
+    string? HelpText,
+    PostmortemFieldType? FieldType,
+    int? SortOrder,
+    bool? IsActive
+);
+
+/// <summary>Payload for reordering the analysis template — the desired definition ids in display order.</summary>
+public record ReorderFieldDefinitionsRequest(IEnumerable<int> OrderedIds);

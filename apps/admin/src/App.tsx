@@ -34,6 +34,7 @@ import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
 import PostmortemsPage from "@/features/postmortems/pages/PostmortemsPage";
 import PostmortemFormPage from "@/features/postmortems/pages/PostmortemFormPage";
 import PostmortemDetailPage from "@/features/postmortems/pages/PostmortemDetailPage";
+import PostmortemTemplatePage from "@/features/postmortems/pages/PostmortemTemplatePage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
 import IncidentTimelinePage from "@/features/incidents/pages/IncidentTimelinePage";
 import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
@@ -134,6 +135,7 @@ export default function App() {
               {/* Postmortems */}
               <Route path={ROUTES.POSTMORTEMS.LIST} element={<PostmortemsPage />} />
               <Route path={ROUTES.POSTMORTEMS.NEW} element={<PostmortemFormPage />} />
+              <Route path={ROUTES.POSTMORTEMS.TEMPLATE} element={<PostmortemTemplatePage />} />
               <Route path="/admin/postmortems/:id" element={<PostmortemDetailPage />} />
 
               {/* Integrations */}

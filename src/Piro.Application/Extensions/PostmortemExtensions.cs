@@ -28,6 +28,10 @@ public static class PostmortemExtensions
         BuildDerivedTimeline(p)
     );
 
+    /// <summary>Maps a field definition to its DTO.</summary>
+    public static PostmortemFieldDefinitionDto ToDto(this PostmortemFieldDefinition d) => new(
+        d.Id, d.Key, d.Heading, d.HelpText, d.FieldType, d.SortOrder, d.IsActive, d.IsSystem);
+
     /// <summary>Maps to the lightweight list-row DTO.</summary>
     public static PostmortemListItemDto ToListItemDto(this Postmortem p) => new(
         p.Id, p.Name, p.Status, p.ReviewOwnerName,
