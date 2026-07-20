@@ -132,8 +132,12 @@ Acceptance = **the PR is merged** by a maintainer. On merge:
   tracking issue (`Refs #NNN`) — or `Closes #NNN` on the last one.
 - Break large RFCs into phases; each phase is its own commit that ticks a box on the
   tracking issue/PR.
-- When the last phase lands on `main`, set `status: implemented` and close the
-  tracking issue.
+- When the implementation PR (labeled `implements-rfc`) merges, the
+  [`rfc-implement` workflow](../../.github/workflows/rfc-implement.yml) sets
+  `status: implemented`, closes the tracking issue, and regenerates the index
+  automatically — see [Automation](#automation). It resolves the RFC number from the
+  PR branch (`implements-rfc/NNNN-*`) or the referenced tracking issue, so the
+  implementation PR need not touch `docs/rfcs`.
 
 ---
 
@@ -185,6 +189,18 @@ regenerate and commit the README in the same PR. The
 [`rfc-index` workflow](../../.github/workflows/rfc-index.yml) fails the build if
 the committed README doesn't match what the script produces, so drift can't
 sneak in.
+
+Two workflows drive the status transitions automatically, so the front-matter and
+index stay in sync without manual edits:
+
+| Workflow | Trigger | Effect |
+|---|---|---|
+| [`rfc-accept`](../../.github/workflows/rfc-accept.yml) (`scripts/rfc-accept.mjs`) | an `rfc`-labeled PR touching `docs/rfcs/NNNN-*.md` merges | `status: accepted`, opens the tracking issue, records `proposal-pr` |
+| [`rfc-implement`](../../.github/workflows/rfc-implement.yml) (`scripts/rfc-implement.mjs`) | an `implements-rfc`-labeled PR merges | `status: implemented`, closes the tracking issue |
+
+Both regenerate the index and commit back to `main`. Each script takes a PR number
+and supports `--dry-run`, and `rfc-implement` can be re-run manually
+(`workflow_dispatch`) over an already-merged PR.
 
 Do **not** hand-edit the region between the `<!-- BEGIN GENERATED INDEX -->` and
 `<!-- END GENERATED INDEX -->` markers. Everything outside those markers (the
