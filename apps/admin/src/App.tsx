@@ -31,6 +31,10 @@ import AlertsPage from "@/features/alerts/pages/AlertsPage";
 import AlertDetailPage from "@/features/alerts/pages/AlertDetailPage";
 import IncidentsPage from "@/features/incidents/pages/IncidentsPage";
 import IncidentFormPage from "@/features/incidents/pages/IncidentFormPage";
+import PostmortemsPage from "@/features/postmortems/pages/PostmortemsPage";
+import PostmortemFormPage from "@/features/postmortems/pages/PostmortemFormPage";
+import PostmortemDetailPage from "@/features/postmortems/pages/PostmortemDetailPage";
+import PostmortemTemplatePage from "@/features/postmortems/pages/PostmortemTemplatePage";
 import IncidentDetailPage from "@/features/incidents/pages/IncidentDetailPage";
 import IncidentTimelinePage from "@/features/incidents/pages/IncidentTimelinePage";
 import IntegrationsPage from "@/features/integrations/pages/IntegrationsPage";
@@ -127,6 +131,12 @@ export default function App() {
               <Route path={ROUTES.INCIDENTS.NEW} element={<IncidentFormPage />} />
               <Route path="/admin/incidents/:id" element={<IncidentDetailPage />} />
               <Route path="/admin/incidents/:id/timeline" element={<IncidentTimelinePage />} />
+
+              {/* Postmortems */}
+              <Route path={ROUTES.POSTMORTEMS.LIST} element={<PostmortemsPage />} />
+              <Route path={ROUTES.POSTMORTEMS.NEW} element={<PostmortemFormPage />} />
+              <Route path={ROUTES.POSTMORTEMS.TEMPLATE} element={<PostmortemTemplatePage />} />
+              <Route path="/admin/postmortems/:id" element={<PostmortemDetailPage />} />
 
               {/* Integrations */}
               <Route path={ROUTES.INTEGRATIONS.LIST} element={<IntegrationsPage />} />

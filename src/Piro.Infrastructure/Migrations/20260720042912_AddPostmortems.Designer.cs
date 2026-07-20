@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Piro.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Migrations
 {
     [DbContext(typeof(PiroDbContext))]
-    partial class PiroDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720042912_AddPostmortems")]
+    partial class AddPostmortems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -717,64 +720,6 @@ namespace Piro.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("EscalationSteps", (string)null);
-                });
-
-            modelBuilder.Entity("Piro.Domain.Entities.ExternalReference", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ActionId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid>("IntegrationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("MetadataJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValue("{}");
-
-                    b.Property<int>("TargetId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TargetType")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IntegrationId");
-
-                    b.HasIndex("TargetType", "TargetId");
-
-                    b.ToTable("ExternalReferences", (string)null);
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Incident", b =>
@@ -1870,41 +1815,6 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("PostmortemIncidents");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.PostmortemTimelineEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AuthorName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("PostmortemId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostmortemId");
-
-                    b.ToTable("PostmortemTimelineEntries");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.RolePermission", b =>
                 {
                     b.Property<int>("RoleId")
@@ -2396,17 +2306,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Schedule");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.ExternalReference", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
-                        .WithMany()
-                        .HasForeignKey("IntegrationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Integration");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.IncidentImpactChange", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Incident", "Incident")
@@ -2646,17 +2545,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Postmortem");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.PostmortemTimelineEntry", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Postmortem", "Postmortem")
-                        .WithMany("TimelineEntries")
-                        .HasForeignKey("PostmortemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Postmortem");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.RolePermission", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Permission", "Permission")
@@ -2836,8 +2724,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("FieldValues");
 
                     b.Navigation("PostmortemIncidents");
-
-                    b.Navigation("TimelineEntries");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Service", b =>

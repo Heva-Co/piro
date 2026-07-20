@@ -189,6 +189,7 @@ builder.Services.AddScoped<GcpWebhookIngestionService>();
 builder.Services.AddScoped<CheckRunnerService>();
 builder.Services.AddScoped<ServiceStatusService>();
 builder.Services.AddScoped<IncidentAppService>();
+builder.Services.AddScoped<PostmortemAppService>();
 builder.Services.AddScoped<MaintenanceAppService>();
 builder.Services.AddScoped<YamlImportService>();
 builder.Services.AddScoped<ICheckResultIngester, CheckResultIngesterService>();
