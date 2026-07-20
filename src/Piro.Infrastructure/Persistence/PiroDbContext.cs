@@ -25,6 +25,11 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<IncidentTimelineEvent> IncidentTimelineEvents => Set<IncidentTimelineEvent>();
     public DbSet<IncidentService> IncidentServices => Set<IncidentService>();
     public DbSet<IncidentImpactChange> IncidentImpactChanges => Set<IncidentImpactChange>();
+    public DbSet<Postmortem> Postmortems => Set<Postmortem>();
+    public DbSet<PostmortemFieldDefinition> PostmortemFieldDefinitions => Set<PostmortemFieldDefinition>();
+    public DbSet<PostmortemFieldValue> PostmortemFieldValues => Set<PostmortemFieldValue>();
+    public DbSet<PostmortemIncident> PostmortemIncidents => Set<PostmortemIncident>();
+    public DbSet<PostmortemTimelineEntry> PostmortemTimelineEntries => Set<PostmortemTimelineEntry>();
     public DbSet<Maintenance> Maintenances => Set<Maintenance>();
     public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
     public DbSet<MaintenanceService> MaintenanceServices => Set<MaintenanceService>();

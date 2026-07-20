@@ -96,6 +96,11 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
         services.AddScoped<ICheckDataPointRepository, CheckDataPointRepository>();
 services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IPostmortemRepository, PostmortemRepository>();
+
+        // QuestPDF Community license, free for Piro as a FOSS project (AGPL-3.0). Set once at startup.
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        services.AddSingleton<IPostmortemPdfGenerator, Piro.Infrastructure.Pdf.PostmortemPdfGenerator>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
 
         // Check executors — registered as ICheckExecutor so CheckRunnerService can inject IEnumerable<ICheckExecutor>

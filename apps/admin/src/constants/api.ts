@@ -78,6 +78,25 @@ export const ENDPOINTS = {
     `${API_BASE}/incidents/${id}/services/${slug}`,
   INCIDENT_ACKNOWLEDGE: (id: number | string) => `${API_BASE}/incidents/${id}/acknowledge`,
 
+  // Postmortems
+  POSTMORTEMS: `${API_BASE}/postmortems`,
+  POSTMORTEM: (id: number | string) => `${API_BASE}/postmortems/${id}`,
+  POSTMORTEM_FIELD_DEFINITIONS: `${API_BASE}/postmortems/field-definitions`,
+  POSTMORTEM_FIELD_DEFINITION: (defId: number | string) =>
+    `${API_BASE}/postmortems/field-definitions/${defId}`,
+  POSTMORTEM_FIELD_DEFINITIONS_ORDER: `${API_BASE}/postmortems/field-definitions/order`,
+  POSTMORTEM_PUBLISH: (id: number | string) => `${API_BASE}/postmortems/${id}/publish`,
+  POSTMORTEM_PDF: (id: number | string) => `${API_BASE}/postmortems/${id}/pdf`,
+  POSTMORTEM_UNPUBLISH: (id: number | string) => `${API_BASE}/postmortems/${id}/unpublish`,
+  POSTMORTEM_INCIDENTS: (id: number | string) => `${API_BASE}/postmortems/${id}/incidents`,
+  POSTMORTEM_INCIDENT: (id: number | string, incidentId: number | string) =>
+    `${API_BASE}/postmortems/${id}/incidents/${incidentId}`,
+  POSTMORTEM_INCIDENT_SUGGESTIONS: (id: number | string) =>
+    `${API_BASE}/postmortems/${id}/incident-suggestions`,
+  POSTMORTEM_TIMELINE: (id: number | string) => `${API_BASE}/postmortems/${id}/timeline`,
+  POSTMORTEM_TIMELINE_ENTRY: (id: number | string, entryId: number | string) =>
+    `${API_BASE}/postmortems/${id}/timeline/${entryId}`,
+
   // Alert configs
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
     `${API_BASE}/services/${serviceSlug}/checks/${checkSlug}/alert-configs`,
@@ -211,6 +230,9 @@ export const QUERY_KEYS = {
     ["check-logs", serviceSlug, checkSlug] as const,
   INCIDENTS: ["incidents"] as const,
   INCIDENT: (id: number | string) => ["incidents", id] as const,
+  POSTMORTEMS: ["postmortems"] as const,
+  POSTMORTEM: (id: number | string) => ["postmortems", id] as const,
+  POSTMORTEM_FIELD_DEFINITIONS: ["postmortems", "field-definitions"] as const,
   MAINTENANCES: ["maintenances"] as const,
   MAINTENANCE: (id: number | string) => ["maintenances", id] as const,
   USERS: ["users"] as const,
