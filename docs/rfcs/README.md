@@ -26,10 +26,10 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | Proposed | 0011 |
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | Proposed | 0003, 0004, 0011 |
-| [0013](0013-heartbeat-check-type.md) | Heartbeat check type | **Implemented** | 0011 |
+| [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 
-Implemented (frozen): **0001, 0002, 0003, 0004, 0006, 0009, 0011, 0013, 0014**.
+Implemented (frozen): **0001, 0002, 0003, 0004, 0006, 0009, 0011, 0014**.
 
 ## Dependency graph
 
@@ -49,7 +49,7 @@ graph LR
   n0010["0010"]
   n0011["0011 ✓"]
   n0012["0012"]
-  n0013["0013 ✓"]
+  n0013["0013"]
   n0014["0014 ✓"]
   n0001 --> n0004
   n0003 --> n0004
@@ -70,7 +70,6 @@ graph LR
   class n0006 done;
   class n0009 done;
   class n0011 done;
-  class n0013 done;
   class n0014 done;
 ```
 
