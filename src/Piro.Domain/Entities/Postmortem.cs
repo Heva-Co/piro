@@ -48,6 +48,9 @@ public class Postmortem
     /// <summary>Referenced incidents, N:M (RFC 0005 §4.6).</summary>
     public ICollection<PostmortemIncident> PostmortemIncidents { get; set; } = [];
 
+    /// <summary>Author-owned timeline annotations, merged with the derived incident events (RFC 0005 §4.4, Phase 2).</summary>
+    public ICollection<PostmortemTimelineEntry> TimelineEntries { get; set; } = [];
+
     /// <summary>Nav to the owner. May be null after the owner is deleted (see <see cref="ReviewOwnerName"/>).</summary>
     public AppUser? ReviewOwner { get; set; }
 }

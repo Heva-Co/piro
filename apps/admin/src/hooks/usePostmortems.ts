@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { postmortemsApi } from "@/lib/actions/postmortems";
-import type { CreatePostmortemRequest, UpdatePostmortemRequest } from "@/lib/actions/postmortems";
+import type {
+  CreatePostmortemRequest,
+  UpdatePostmortemRequest,
+  CreateTimelineEntryRequest,
+  UpdateTimelineEntryRequest,
+} from "@/lib/actions/postmortems";
 import { QUERY_KEYS } from "@/constants/api";
 
 export function usePostmortems() {
@@ -82,6 +87,37 @@ export function useUnlinkIncident(id: number | string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (incidentId: number) => postmortemsApi.unlinkIncident(id, incidentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM(id) });
+    },
+  });
+}
+
+export function useAddTimelineEntry(id: number | string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTimelineEntryRequest) => postmortemsApi.addTimelineEntry(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM(id) });
+    },
+  });
+}
+
+export function useUpdateTimelineEntry(id: number | string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { entryId: number; data: UpdateTimelineEntryRequest }) =>
+      postmortemsApi.updateTimelineEntry(id, args.entryId, args.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM(id) });
+    },
+  });
+}
+
+export function useDeleteTimelineEntry(id: number | string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: number) => postmortemsApi.deleteTimelineEntry(id, entryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.POSTMORTEM(id) });
     },

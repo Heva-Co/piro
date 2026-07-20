@@ -5383,6 +5383,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/postmortems/{id}/incident-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggests incidents to link, from those overlapping the report's impact window. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemIncidentSuggestionDto"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adds an author annotation to the report's timeline. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateTimelineEntryRequest"];
+                    "text/json": components["schemas"]["CreateTimelineEntryRequest"];
+                    "application/*+json": components["schemas"]["CreateTimelineEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/timeline/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edits an existing timeline annotation. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    entryId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTimelineEntryRequest"];
+                    "text/json": components["schemas"]["UpdateTimelineEntryRequest"];
+                    "application/*+json": components["schemas"]["UpdateTimelineEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a timeline annotation. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    entryId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/maintenances": {
         parameters: {
             query?: never;
@@ -7932,6 +8118,11 @@ export interface components {
             /** Format: int32 */
             escalationPolicyId?: null | number;
         };
+        CreateTimelineEntryRequest: {
+            /** Format: date-time */
+            occurredAt: string;
+            body: string;
+        };
         CreateWorkerRequest: {
             name: string;
             region: string;
@@ -8560,6 +8751,16 @@ export interface components {
             endDateTime: null | number;
             currentImpact: components["schemas"]["ServiceStatus"];
         };
+        PostmortemIncidentSuggestionDto: {
+            /** Format: int32 */
+            incidentId: number;
+            title: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Format: int64 */
+            startDateTime: number;
+            /** Format: int64 */
+            endDateTime: null | number;
+        };
         PostmortemListItemDto: {
             /** Format: int32 */
             id: number;
@@ -8582,9 +8783,12 @@ export interface components {
         /** @enum {unknown} */
         PostmortemStatus: "Draft" | "Published";
         PostmortemTimelineItemDto: {
+            isAnnotation: boolean;
             /** Format: int32 */
-            incidentId: number;
-            incidentTitle: string;
+            entryId: null | number;
+            /** Format: int32 */
+            incidentId: null | number;
+            incidentTitle: null | string;
             source: string;
             /** Format: date-time */
             occurredAt: string;
@@ -8966,6 +9170,11 @@ export interface components {
         UpdateTimelineCommentRequest: {
             comment: string;
             visibility: components["schemas"]["EventVisibility"];
+        };
+        UpdateTimelineEntryRequest: {
+            /** Format: date-time */
+            occurredAt: string;
+            body: string;
         };
         UpdateWorkerRequest: {
             region?: null | string;

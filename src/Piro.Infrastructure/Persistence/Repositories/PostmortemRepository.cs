@@ -28,6 +28,7 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
             .Include(p => p.PostmortemIncidents)
                 .ThenInclude(pi => pi.Incident)
                     .ThenInclude(i => i.Alerts)
+            .Include(p => p.TimelineEntries)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<Postmortem> CreateAsync(Postmortem postmortem, CancellationToken ct = default)
@@ -81,4 +82,47 @@ public class PostmortemRepository(PiroDbContext db) : IPostmortemRepository
 
     public async Task<bool> IncidentExistsAsync(int incidentId, CancellationToken ct = default) =>
         await db.Incidents.AnyAsync(i => i.Id == incidentId, ct);
+
+    public async Task<PostmortemTimelineEntry> AddTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default)
+    {
+        db.PostmortemTimelineEntries.Add(entry);
+        await db.SaveChangesAsync(ct);
+        return entry;
+    }
+
+    public async Task<PostmortemTimelineEntry?> GetTimelineEntryAsync(int postmortemId, int entryId, CancellationToken ct = default) =>
+        await db.PostmortemTimelineEntries
+            .FirstOrDefaultAsync(e => e.Id == entryId && e.PostmortemId == postmortemId, ct);
+
+    public async Task UpdateTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default)
+    {
+        // `entry` is already tracked (loaded via GetTimelineEntryAsync in this scope).
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default)
+    {
+        db.PostmortemTimelineEntries.Remove(entry);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<Incident>> GetIncidentSuggestionsAsync(
+        int postmortemId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        var fromUnix = from.ToUnixTimeSeconds();
+        var toUnix = to.ToUnixTimeSeconds();
+
+        var linkedIds = await db.PostmortemIncidents
+            .Where(pi => pi.PostmortemId == postmortemId)
+            .Select(pi => pi.IncidentId)
+            .ToListAsync(ct);
+
+        // An incident overlaps the window when it started before the window ends AND either is still
+        // open (no EndDateTime) or ended after the window starts.
+        return await db.Incidents
+            .Where(i => !linkedIds.Contains(i.Id))
+            .Where(i => i.StartDateTime <= toUnix && (i.EndDateTime == null || i.EndDateTime >= fromUnix))
+            .OrderByDescending(i => i.StartDateTime)
+            .ToListAsync(ct);
+    }
 }

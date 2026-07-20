@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
@@ -93,4 +94,35 @@ public class PostmortemsController(PostmortemAppService postmortemService) : Con
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UnlinkIncident(int id, int incidentId, CancellationToken ct) =>
         Ok(await postmortemService.UnlinkIncidentAsync(id, incidentId, ct));
+
+    /// <summary>Suggests incidents to link, from those overlapping the report's impact window.</summary>
+    [HttpGet("{id:int}/incident-suggestions")]
+    [ProducesResponseType<IEnumerable<PostmortemIncidentSuggestionDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIncidentSuggestions(int id, CancellationToken ct) =>
+        Ok(await postmortemService.GetIncidentSuggestionsAsync(id, ct));
+
+    /// <summary>Adds an author annotation to the report's timeline.</summary>
+    [HttpPost("{id:int}/timeline")]
+    [ProducesResponseType<PostmortemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddTimelineEntry(int id, [FromBody] CreateTimelineEntryRequest request, CancellationToken ct)
+    {
+        var author = User.FindFirstValue("name") ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
+        return Ok(await postmortemService.AddTimelineEntryAsync(id, request, author, ct));
+    }
+
+    /// <summary>Edits an existing timeline annotation.</summary>
+    [HttpPut("{id:int}/timeline/{entryId:int}")]
+    [ProducesResponseType<PostmortemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateTimelineEntry(int id, int entryId, [FromBody] UpdateTimelineEntryRequest request, CancellationToken ct) =>
+        Ok(await postmortemService.UpdateTimelineEntryAsync(id, entryId, request, ct));
+
+    /// <summary>Deletes a timeline annotation.</summary>
+    [HttpDelete("{id:int}/timeline/{entryId:int}")]
+    [ProducesResponseType<PostmortemDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteTimelineEntry(int id, int entryId, CancellationToken ct) =>
+        Ok(await postmortemService.DeleteTimelineEntryAsync(id, entryId, ct));
 }

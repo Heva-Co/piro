@@ -16,6 +16,9 @@ import {
   useDeletePostmortem,
   useLinkIncident,
   useUnlinkIncident,
+  useAddTimelineEntry,
+  useUpdateTimelineEntry,
+  useDeleteTimelineEntry,
 } from "@/hooks/usePostmortems";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
@@ -39,6 +42,9 @@ function PostmortemDetailPage() {
   const deletePostmortem = useDeletePostmortem();
   const linkIncident = useLinkIncident(postmortemId);
   const unlinkIncident = useUnlinkIncident(postmortemId);
+  const addTimelineEntry = useAddTimelineEntry(postmortemId);
+  const updateTimelineEntry = useUpdateTimelineEntry(postmortemId);
+  const deleteTimelineEntry = useDeleteTimelineEntry(postmortemId);
 
   if (isLoading) {
     return (
@@ -129,6 +135,39 @@ function PostmortemDetailPage() {
     }
   }
 
+  async function handleAddNote(occurredAt: string, body: string) {
+    try {
+      await addTimelineEntry.mutateAsync({ occurredAt, body });
+      toast.success("Note added.");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to add note."));
+    }
+  }
+
+  async function handleEditNote(entryId: number, occurredAt: string, body: string) {
+    try {
+      await updateTimelineEntry.mutateAsync({ entryId, data: { occurredAt, body } });
+      toast.success("Note updated.");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to update note."));
+    }
+  }
+
+  async function handleDeleteNote(entryId: number) {
+    const ok = await confirm({
+      title: "Delete this note?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteTimelineEntry.mutateAsync(entryId);
+      toast.success("Note deleted.");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Failed to delete note."));
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -179,7 +218,17 @@ function PostmortemDetailPage() {
             saving={updatePostmortem.isPending}
             onSave={handleSaveFields}
           />
-          <PostmortemTimelineSection postmortem={postmortem} />
+          <PostmortemTimelineSection
+            postmortem={postmortem}
+            saving={
+              addTimelineEntry.isPending ||
+              updateTimelineEntry.isPending ||
+              deleteTimelineEntry.isPending
+            }
+            onAdd={handleAddNote}
+            onEdit={handleEditNote}
+            onDelete={handleDeleteNote}
+          />
         </div>
 
         <div className="flex flex-col gap-6">

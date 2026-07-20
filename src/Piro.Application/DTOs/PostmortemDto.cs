@@ -72,13 +72,17 @@ public record PostmortemIncidentRefDto(
 );
 
 /// <summary>
-/// One entry in the report's merged, chronologically sorted timeline. In Phase 1 every entry is
-/// <em>derived</em> (read-only) from a referenced incident's events; <see cref="Source"/> distinguishes
-/// which incident and event kind it came from.
+/// One entry in the report's merged, chronologically sorted timeline. An entry is either
+/// <em>derived</em> (read-only) from a referenced incident's events, or an author-owned
+/// <em>annotation</em> (Phase 2). <see cref="IsAnnotation"/> distinguishes the two: when true,
+/// <see cref="EntryId"/> is set and the entry is editable/deletable; when false, it comes from an
+/// incident (<see cref="IncidentId"/>/<see cref="IncidentTitle"/> identify which) and is read-only.
 /// </summary>
 public record PostmortemTimelineItemDto(
-    int IncidentId,
-    string IncidentTitle,
+    bool IsAnnotation,
+    int? EntryId,
+    int? IncidentId,
+    string? IncidentTitle,
     string Source,
     DateTimeOffset OccurredAt,
     string? ActorName,
@@ -86,6 +90,21 @@ public record PostmortemTimelineItemDto(
     IncidentStatus? OldStatus,
     IncidentStatus? NewStatus,
     ServiceStatus? Impact
+);
+
+/// <summary>Payload for adding an author annotation to a postmortem's timeline.</summary>
+public record CreateTimelineEntryRequest(DateTimeOffset OccurredAt, string Body);
+
+/// <summary>Payload for editing an existing annotation.</summary>
+public record UpdateTimelineEntryRequest(DateTimeOffset OccurredAt, string Body);
+
+/// <summary>A suggested incident to link, from those overlapping the report's impact window (RFC 0005 §4.6).</summary>
+public record PostmortemIncidentSuggestionDto(
+    int IncidentId,
+    string Title,
+    IncidentStatus Status,
+    long StartDateTime,
+    long? EndDateTime
 );
 
 /// <summary>Payload for creating a new postmortem report.</summary>

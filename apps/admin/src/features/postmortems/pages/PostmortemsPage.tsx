@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Settings } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import TableSkeleton from "@/components/TableSkeleton";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PostmortemStatusBadge from "@/features/postmortems/components/PostmortemStatusBadge";
 import { usePostmortems } from "@/hooks/usePostmortems";
@@ -22,12 +23,9 @@ function PostmortemsPage() {
       <PageHeader
         breadcrumbs={[{ label: "Postmortems" }]}
         actions={
-          <button
-            onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}
-            className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-          >
+          <Button onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}>
             <Plus size={14} /> New Postmortem
-          </button>
+          </Button>
         }
       />
 
@@ -45,12 +43,9 @@ function PostmortemsPage() {
                 Write a post-incident review to capture root cause and action items.
               </p>
             </div>
-            <button
-              onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}
-              className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-colors"
-            >
+            <Button onClick={() => navigate(ROUTES.POSTMORTEMS.NEW)}>
               <Plus size={14} /> New Postmortem
-            </button>
+            </Button>
           </div>
         ) : (
           <Table>
@@ -79,15 +74,16 @@ function PostmortemsPage() {
                   <TableCell className="text-muted-foreground">{pm.incidentCount}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(pm.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(ROUTES.POSTMORTEMS.DETAIL(pm.id));
                       }}
-                      className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
                     >
                       <Settings size={13} /> Open
-                    </button>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

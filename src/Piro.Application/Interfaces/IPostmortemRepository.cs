@@ -29,4 +29,19 @@ public interface IPostmortemRepository
 
     /// <summary>True if the incident exists — used to validate a link request.</summary>
     Task<bool> IncidentExistsAsync(int incidentId, CancellationToken ct = default);
+
+    /// <summary>Adds an author annotation to the report's timeline (RFC 0005 §4.4).</summary>
+    Task<PostmortemTimelineEntry> AddTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default);
+
+    /// <summary>Loads a single annotation scoped to its parent report; null if it doesn't exist.</summary>
+    Task<PostmortemTimelineEntry?> GetTimelineEntryAsync(int postmortemId, int entryId, CancellationToken ct = default);
+
+    Task UpdateTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default);
+    Task DeleteTimelineEntryAsync(PostmortemTimelineEntry entry, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns incidents whose active window overlaps [<paramref name="from"/>, <paramref name="to"/>] and
+    /// aren't already linked to the report — the impact-window suggestion set (RFC 0005 §4.6).
+    /// </summary>
+    Task<List<Incident>> GetIncidentSuggestionsAsync(int postmortemId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }
