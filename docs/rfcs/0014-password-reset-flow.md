@@ -1,10 +1,11 @@
 ---
 rfc: 14
 title: "Password reset / forgot password flow"
-status: accepted
+status: implemented
 created: 2026-07-18
 tracking-issue: 84
 proposal-pr: 197
+implementation-pr: 204
 ---
 
 # RFC 0014 — Password Reset / Forgot Password Flow
