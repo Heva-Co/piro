@@ -17,7 +17,9 @@ public class NotificationSubscriptionAppService(
     INotificationSubscriptionRepository repo,
     IIntegrationRepository integrationRepo)
 {
-    /// <summary>The closed event catalog exposed to the subscription UI (RFC 0009 §4.2).</summary>
+    /// <summary>
+    /// The closed event catalog exposed to the subscription UI (RFC 0009 §4.2).
+    /// </summary>
     public IReadOnlyList<NotificationEventCatalogDto> GetEventCatalog() =>
         Enum.GetValues<NotificationEventType>()
             .Select(e => new NotificationEventCatalogDto(e.WireName(), e.Description()))

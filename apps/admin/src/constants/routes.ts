@@ -93,6 +93,7 @@ export const ROUTES = {
 
   // Logs
   LOGS: "/admin/logs",
+  LOGS_DELIVERIES: "/admin/logs/deliveries",
 
   // Integrations (under Settings)
   INTEGRATIONS: {

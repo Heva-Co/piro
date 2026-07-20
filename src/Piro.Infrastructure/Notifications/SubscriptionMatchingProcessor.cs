@@ -224,6 +224,10 @@ internal class SubscriptionMatchingProcessor(
                     EventType = row.EventType,
                     SubscriptionId = sub.Id,
                     TargetKind = sub.TargetKind.ToString(),
+                    IntegrationType = channelType,
+                    // Personal channels that need an integration (Telegram/Twilio/Ntfy/Pushover) carry its
+                    // instance id; self-sufficient ones (Email) leave it null.
+                    IntegrationId = pref.Integration?.Id,
                     TargetDescriptor = descriptor,
                     Status = DeliveryStatus.Delivered,
                     AttemptedAt = DateTime.UtcNow,
@@ -350,6 +354,10 @@ internal class SubscriptionMatchingProcessor(
             EventType = row.EventType,
             SubscriptionId = sub.Id,
             TargetKind = sub.TargetKind.ToString(),
+            // Channel/Integration deliveries carry the integration's type (for its icon) and id (to
+            // filter the feed by integration). Null for Personal — no integration instance.
+            IntegrationType = sub.Integration?.Type,
+            IntegrationId = sub.Integration?.Id,
             TargetDescriptor = descriptor,
             Status = status,
             Error = error,

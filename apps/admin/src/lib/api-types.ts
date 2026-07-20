@@ -1531,6 +1531,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    status?: components["schemas"]["DeliveryStatus"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationDeliveryLogPageDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services/{serviceSlug}/dependencies": {
         parameters: {
             query?: never;
@@ -7438,6 +7477,8 @@ export interface components {
             /** Format: date-time */
             resolvedBefore: string;
         };
+        /** @enum {unknown} */
+        DeliveryStatus: "Delivered" | "Failed" | "Skipped";
         DependencyDto: {
             serviceSlug: string;
             dependsOnSlug: string;
@@ -7718,6 +7759,31 @@ export interface components {
         };
         /** @enum {unknown} */
         MaintenanceStatus: "Active" | "Cancelled";
+        NotificationDeliveryLogDto: {
+            /** Format: int64 */
+            id: number;
+            eventType: string;
+            /** Format: uuid */
+            subscriptionId: null | string;
+            targetKind: string;
+            integrationType: null | components["schemas"]["IntegrationType"];
+            /** Format: uuid */
+            integrationId: null | string;
+            targetDescriptor: string;
+            status: components["schemas"]["DeliveryStatus"];
+            error: null | string;
+            /** Format: date-time */
+            attemptedAt: string;
+        };
+        NotificationDeliveryLogPageDto: {
+            items: components["schemas"]["NotificationDeliveryLogDto"][];
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
         NotificationEventCatalogDto: {
             name: string;
             description: string;

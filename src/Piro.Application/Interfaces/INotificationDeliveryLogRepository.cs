@@ -1,4 +1,5 @@
 using Piro.Domain.Entities;
+using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -12,4 +13,11 @@ public interface INotificationDeliveryLogRepository
     /// treating the conflict as "already recorded" rather than throwing.
     /// </summary>
     Task RecordAsync(NotificationDeliveryLog log, CancellationToken ct = default);
+
+    /// <summary>
+    /// A page of delivery attempts, newest first, for the admin activity feed. Optionally filtered by
+    /// delivery status.
+    /// </summary>
+    Task<(IEnumerable<NotificationDeliveryLog> Items, int TotalCount)> GetPagedAsync(
+        int page, int pageSize, DeliveryStatus? status, CancellationToken ct = default);
 }
