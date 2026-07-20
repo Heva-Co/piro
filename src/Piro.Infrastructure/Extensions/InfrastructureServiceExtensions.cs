@@ -189,6 +189,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Integration actions (RFC 0012). The host is the sole DB/OAuth seam an action sees.
         services.AddScoped<IActionHost, ActionHost>();
+        services.AddScoped<IActionRegistry, ActionRegistry>();
+        // Action handlers — one IIntegrationAction per declared [IntegrationAction], joined to its
+        // manifest metadata by (Type, ActionId) in the registry.
+        services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
         services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
         // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).

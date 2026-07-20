@@ -28,11 +28,12 @@ public class IntegrationSecretMaskingTests
     private readonly IEscalationPolicyRepository _escalationPolicyRepo = Substitute.For<IEscalationPolicyRepository>();
     private readonly ISecretProtector _secretProtector = new FakeSecretProtector();
     private readonly IActionHost _actionHost = Substitute.For<IActionHost>();
+    private readonly IActionRegistry _actionRegistry = Substitute.For<IActionRegistry>();
     private readonly IntegrationAppService _sut;
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _actionHost);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _actionHost, _actionRegistry);
     }
 
     /// <summary>Deterministic protector for tests: prefixes ciphertext so round-trips are observable.</summary>

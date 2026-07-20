@@ -3237,6 +3237,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discovery — which integration action buttons to render for an object of the given context
+         *     (RFC 0012 §4.4). One descriptor per (configured integration × ready action). A not-ready action
+         *     is absent, never disabled.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionDescriptorDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
+         *     have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page
+         *     renders these as "🔗 OPS-123" links alongside the action buttons.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["ActionContext"];
+                    targetId?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalReferenceDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{id}/webhook-logs": {
         parameters: {
             query?: never;
@@ -7085,6 +7170,8 @@ export interface components {
             name: string;
             password: string;
         };
+        /** @enum {unknown} */
+        ActionContext: "Alert" | "Incident" | "Maintenance";
         AddDependencyRequest: {
             dependsOnSlug: string;
             propagationMode: components["schemas"]["DependencyPropagationMode"];
@@ -7647,6 +7734,18 @@ export interface components {
         };
         /** @enum {unknown} */
         EventVisibility: "Private" | "Public";
+        ExternalReferenceDto: {
+            context: components["schemas"]["ActionContext"];
+            /** Format: int32 */
+            targetId: number;
+            /** Format: uuid */
+            integrationId: string;
+            actionId: string;
+            externalId: string;
+            url: string;
+            label: string;
+            metadata: null | Record<string, never>;
+        };
         ForgotPasswordRequest: {
             email: string;
         };
@@ -7733,6 +7832,18 @@ export interface components {
         };
         /** @enum {unknown} */
         IncidentVisibility: "Private" | "Public";
+        IntegrationActionDescriptorDto: {
+            /** Format: uuid */
+            integrationId: string;
+            integrationLabel: string;
+            actionId: string;
+            label: string;
+            description: null | string;
+            iconifyIcon: null | string;
+            hasInput: boolean;
+            supportsDraft: boolean;
+            inputSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+        };
         /** @enum {unknown} */
         IntegrationCategory: "Notification" | "ThirdParty";
         /** @enum {unknown} */

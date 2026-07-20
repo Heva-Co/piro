@@ -44,6 +44,17 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
         Ok(await integrationApp.GetByIdAsync(id, ct));
 
     /// <summary>
+    /// Discovery — which integration action buttons to render for an object of the given context
+    /// (RFC 0012 §4.4). One descriptor per (configured integration × ready action). A not-ready action
+    /// is absent, never disabled.
+    /// </summary>
+    [HttpGet("actions")]
+    [ProducesResponseType<IReadOnlyList<IntegrationActionDescriptorDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetActions(
+        [FromQuery] Domain.Enums.ActionContext context, CancellationToken ct) =>
+        Ok(await integrationApp.GetActionsAsync(context, ct));
+
+    /// <summary>
     /// Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
     /// have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page
     /// renders these as "🔗 OPS-123" links alongside the action buttons.
