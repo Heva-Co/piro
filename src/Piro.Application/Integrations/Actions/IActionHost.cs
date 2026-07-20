@@ -39,4 +39,18 @@ public interface IActionHost
     /// (wraps RFC 0004's token provider). Throws if the integration is not OAuth-connected.
     /// </summary>
     Task<string> GetBearerTokenAsync(Guid integrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// True if the integration currently has a live OAuth connection (a stored, resolvable token).
+    /// Actions use this to gate readiness (RFC 0012 §4.4) without catching exceptions from
+    /// <see cref="GetBearerTokenAsync"/>.
+    /// </summary>
+    Task<bool> IsOAuthConnectedAsync(Guid integrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads a non-secret value from the integration's ConfigJson by key (e.g. "cloudId", "siteUrl",
+    /// "defaultProjectKey"), or null if absent. Secret fields are never returned in plaintext through
+    /// this — an action authenticates via <see cref="GetBearerTokenAsync"/>, not raw credentials.
+    /// </summary>
+    Task<string?> GetConfigValueAsync(Guid integrationId, string key, CancellationToken ct = default);
 }

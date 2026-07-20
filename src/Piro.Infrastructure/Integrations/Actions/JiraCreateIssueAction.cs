@@ -1,38 +1,90 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Piro.Application.Integrations.Actions;
 using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Integrations.Actions;
 
 /// <summary>
-/// The Jira "create-issue" action (RFC 0012 §4.6). This commit wires up only the parts needed to make
-/// the button appear and its dialog open — discovery metadata, input schema, and a draft. Readiness is
-/// provisional (returns true for any configured Jira integration); the real "OAuth-connected" gate and
-/// the live Jira call arrive with the OAuth commit. <see cref="ExecuteAsync"/> is intentionally not
-/// implemented yet.
+/// The Jira "create-issue" action (RFC 0012 §4.6): creates a Jira Cloud issue for an Alert/Incident/
+/// Maintenance and links it back. Authenticates with the OAuth bearer token from the host (never a raw
+/// credential); routes through the 3LO gateway <c>api.atlassian.com/ex/jira/{cloudId}</c>. Targets Jira
+/// Cloud REST v3 only (Server/DC wiki markup is out of scope).
 /// </summary>
-internal sealed class JiraCreateIssueAction : IIntegrationAction
+internal sealed class JiraCreateIssueAction(IHttpClientFactory httpClientFactory) : IIntegrationAction
 {
+    private const string HttpClientName = "oauth-integration-http";
+
     public IntegrationType Type => IntegrationType.Jira;
     public string ActionId => "create-issue";
     public Type? InputType => typeof(JiraCreateIssueInput);
 
-    // TODO(oauth commit): gate on a live OAuth token (host.GetBearerTokenAsync succeeds) so an
-    // unconnected Jira integration shows no button, per RFC 0012 §4.4. Provisional: always ready.
+    /// <summary>Ready only when the integration has a live OAuth connection — an unconnected Jira shows no button (RFC 0012 §4.4).</summary>
     public Task<bool> IsReadyAsync(IActionHost host, Guid integrationId, CancellationToken ct = default) =>
-        Task.FromResult(true);
+        host.IsOAuthConnectedAsync(integrationId, ct);
 
     public async Task<object?> BuildDraftAsync(IActionHost host, ActionExecutionContext ctx, CancellationToken ct = default)
     {
         var target = await host.GetTargetAsync(ctx.Context, ctx.TargetId, ct);
         if (target is null) return null;
 
+        var siteUrl = await host.GetConfigValueAsync(ctx.IntegrationId, "siteUrl", ct);
+        var piroLink = string.IsNullOrWhiteSpace(siteUrl) ? target.PiroUrl : $"{siteUrl.TrimEnd('/')}{target.PiroUrl}";
+
         return new JiraCreateIssueInput
         {
+            ProjectKey = await host.GetConfigValueAsync(ctx.IntegrationId, "defaultProjectKey", ct) ?? string.Empty,
+            IssueType = await host.GetConfigValueAsync(ctx.IntegrationId, "defaultIssueType", ct) ?? string.Empty,
             Title = target.Title,
-            Description = target.Summary,
+            Description = $"{target.Summary}\n\n[View in Piro]({piroLink})",
         };
     }
 
-    public Task<ActionResult> ExecuteAsync(IActionHost host, ActionExecutionContext ctx, CancellationToken ct = default) =>
-        throw new NotImplementedException("Jira create-issue execution lands with the OAuth + handler commit (RFC 0012 Phase 1).");
+    public async Task<ActionResult> ExecuteAsync(IActionHost host, ActionExecutionContext ctx, CancellationToken ct = default)
+    {
+        var input = ctx.Input as JiraCreateIssueInput
+            ?? throw new InvalidOperationException("Jira create-issue requires a JiraCreateIssueInput.");
+
+        var cloudId = await host.GetConfigValueAsync(ctx.IntegrationId, "cloudId", ct)
+            ?? throw new InvalidOperationException("Jira integration has no cloudId — reconnect the integration.");
+        var siteUrl = await host.GetConfigValueAsync(ctx.IntegrationId, "siteUrl", ct);
+        var token = await host.GetBearerTokenAsync(ctx.IntegrationId, ct);
+
+        var http = httpClientFactory.CreateClient(HttpClientName);
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var body = new JsonObject
+        {
+            ["fields"] = new JsonObject
+            {
+                ["project"] = new JsonObject { ["key"] = input.ProjectKey },
+                ["issuetype"] = new JsonObject { ["name"] = input.IssueType },
+                ["summary"] = input.Title,
+                ["description"] = MarkdownToAdf.Convert(input.Description),
+            },
+        };
+
+        var url = $"https://api.atlassian.com/ex/jira/{cloudId}/rest/api/3/issue";
+        var response = await http.PostAsJsonAsync(url, body, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException(
+                $"Jira issue creation failed ({(int)response.StatusCode}): {errorBody}");
+        }
+
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var key = created.TryGetProperty("key", out var k) ? k.GetString() : null;
+        if (string.IsNullOrWhiteSpace(key))
+            throw new InvalidOperationException("Jira returned no issue key.");
+
+        var browseUrl = string.IsNullOrWhiteSpace(siteUrl)
+            ? $"https://api.atlassian.com/ex/jira/{cloudId}/browse/{key}"
+            : $"{siteUrl.TrimEnd('/')}/browse/{key}";
+
+        return new ActionResult(key, browseUrl, key);
+    }
 }
