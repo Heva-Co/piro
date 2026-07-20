@@ -94,6 +94,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
         services.AddScoped<ICheckDataPointRepository, CheckDataPointRepository>();
 services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IPostmortemRepository, PostmortemRepository>();
         services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
 
         // Check executors — registered as ICheckExecutor so CheckRunnerService can inject IEnumerable<ICheckExecutor>
