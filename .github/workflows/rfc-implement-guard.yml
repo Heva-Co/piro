@@ -1,0 +1,42 @@
+name: RFC implement guard
+
+# Blocks an `implements-rfc` PR from merging until the RFC it targets is
+# `accepted` (or already `implemented`, for a re-merge). Runs on the open PR and
+# fails the check with an explanatory comment when the target RFC isn't there
+# yet, so implementation can't land ahead of acceptance. Logic lives in
+# scripts/rfc-implement-guard.mjs so it runs locally too
+# (`node scripts/rfc-implement-guard.mjs <pr> --dry-run`).
+#
+# Make this check "required" in branch protection to actually block the merge;
+# on its own a failing check only shows red.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guard:
+    name: RFC must be accepted
+    if: contains(github.event.pull_request.labels.*.name, 'implements-rfc')
+    runs-on: ubuntu-latest
+    steps:
+      # Read RFC front-matter from main: an implements-rfc PR changes code, not
+      # docs/rfcs, so the authoritative status lives on the base branch.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check target RFC is accepted
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/rfc-implement-guard.mjs "${{ github.event.pull_request.number }}"
