@@ -11,7 +11,8 @@ namespace Piro.Application.Services;
 public class IncidentAppService(
     IIncidentRepository incidentRepo,
     IServiceRepository serviceRepo,
-    ServiceStatusService statusService)
+    ServiceStatusService statusService,
+    IIncidentNotificationPublisher incidentPublisher)
 {
     public async Task<IEnumerable<IncidentDto>> GetAllAsync(string filter = "active", CancellationToken ct = default)
     {
@@ -111,8 +112,11 @@ public class IncidentAppService(
             Visibility = EventVisibility.Private,
         }, ct);
         await RecomputeAffectedAsync(created, ct);
-        return (await incidentRepo.GetByIdAsync(created.Id, ct)
-            ?? throw new NotFoundException(nameof(Incident), created.Id.ToString())).ToDto();
+        var full = await incidentRepo.GetByIdAsync(created.Id, ct)
+            ?? throw new NotFoundException(nameof(Incident), created.Id.ToString());
+        // full has IncidentServices loaded, so the snapshot lists affected services.
+        await incidentPublisher.PublishAsync(full, NotificationEventType.IncidentCreated, ct);
+        return full.ToDto();
     }
 
     public async Task<IncidentDto> UpdateAsync(int id, UpdateIncidentRequest request, CancellationToken ct = default)
@@ -150,8 +154,15 @@ public class IncidentAppService(
 
         await RecomputeAffectedAsync(updated, ct);
 
-        return (await incidentRepo.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException(nameof(Incident), id.ToString())).ToDto();
+        var full = await incidentRepo.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Incident), id.ToString());
+
+        // Emit incident:resolved when the status transitions into a final state (Resolved/Merged).
+        var wasResolved = oldStatus is IncidentStatus.Resolved or IncidentStatus.Merged;
+        if (oldStatus.HasValue && !wasResolved && full.IsResolved)
+            await incidentPublisher.PublishAsync(full, NotificationEventType.IncidentResolved, ct);
+
+        return full.ToDto();
     }
 
     /// <summary>

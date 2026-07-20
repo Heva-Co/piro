@@ -9,12 +9,12 @@ namespace Piro.UnitTests;
 /// Guards the IntegrationManifest contract (RFC 0003): every non-obsolete IntegrationType must
 /// declare a manifest, its ConfigType must be a real class whose declared ConfigJson fields are
 /// internally consistent, and the set of types marked SendsPersonalNotification must match the
-/// actual INotificationDispatcher registrations in InfrastructureServiceExtensions — so the two
-/// don't silently drift apart over time.
+/// actual IPersonalNotificationDispatcher registrations in InfrastructureServiceExtensions — so the
+/// two don't silently drift apart over time.
 /// </summary>
 public class IntegrationManifestTests
 {
-    /// <summary>Mirrors the INotificationDispatcher registrations in InfrastructureServiceExtensions.RegisterAlertDispatchers.</summary>
+    /// <summary>Mirrors the IPersonalNotificationDispatcher registrations in InfrastructureServiceExtensions.</summary>
     private static readonly HashSet<IntegrationType> RegisteredDispatcherTypes =
     [
         IntegrationType.Email,

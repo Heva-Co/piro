@@ -8,13 +8,11 @@ namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Posts an alert notification to a Discord Incoming Webhook.</summary>
 public partial class DiscordDispatcher(IHttpClientFactory httpClientFactory, ILogger<DiscordDispatcher> logger)
-    : INotificationDispatcher
+    : IChannelNotificationDispatcher<AlertNotificationContext>
 {
     public IntegrationType Type => IntegrationType.Discord;
 
-    public Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default) =>
-        Task.FromResult(false);
-
-    public Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default) =>
+    // Channel delivery is implemented in RFC 0009 phase 5; not registered until then.
+    public Task<bool> SendAsync(Integration integration, string? target, AlertNotificationContext content, CancellationToken ct = default) =>
         Task.FromResult(false);
 }

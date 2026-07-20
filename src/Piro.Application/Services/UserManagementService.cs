@@ -18,14 +18,14 @@ public class UserManagementService(
     ISiteConfigRepository siteConfigRepo,
     IIntegrationRepository integrationRepo,
     IUserNotificationPreferenceRepository prefRepo,
-    IEnumerable<INotificationDispatcher> dispatchers) : IUserManagementService
+    IEnumerable<IVerificationCodeSender> codeSenders) : IUserManagementService
 {
     private const string InvitationTokenPurpose = "Invitation";
     private const string NotificationVerificationPurpose = "NotifyChannelVerify";
     private static readonly TimeSpan InvitationExpiry = TimeSpan.FromHours(48);
 
-    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
-        dispatchers.ToDictionary(d => d.Type);
+    private readonly Dictionary<IntegrationType, IVerificationCodeSender> _codeSenders =
+        codeSenders.ToDictionary(s => s.Type);
 
     public async Task<List<UserListDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -360,13 +360,13 @@ public class UserManagementService(
         var user = await userManager.FindByIdAsync(userId.ToString())
             ?? throw new NotFoundException(nameof(AppUser), userId);
 
-        if (!_dispatchers.TryGetValue(pref.Channel.ToIntegrationType(), out var dispatcher))
+        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationType(), out var codeSender))
             throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
 
         var code = await userManager.GenerateUserTokenAsync(
             user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle));
 
-        var sent = await dispatcher.SendPersonalMessageAsync(
+        var sent = await codeSender.SendCodeAsync(
             pref.Integration, pref.Handle, $"Your Piro verification code is {code}. It expires shortly.", ct);
 
         if (!sent)

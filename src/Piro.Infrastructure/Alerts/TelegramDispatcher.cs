@@ -12,32 +12,32 @@ namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications via the Telegram Bot API (sendMessage).</summary>
 public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramDispatcher> logger, ISecretProtector secretProtector)
-    : INotificationDispatcher
+    : IPersonalNotificationDispatcher<AlertNotificationContext>, IVerificationCodeSender
 {
     private const string ApiBase = "https://api.telegram.org";
 
     public IntegrationType Type => IntegrationType.Telegram;
 
-    public async Task<bool> DispatchPersonalAsync(Integration? integration, string handle, AlertNotificationContext context, CancellationToken ct = default)
+    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TelegramIntegrationConfig config;
         try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
-        await SendMessageAsync(config.BotToken, handle, AlertMessageTemplates.Telegram(context), ct);
+        await SendMessageAsync(config.BotToken, handle, AlertMessageTemplates.Telegram(content), ct);
         logger.LogInformation("Telegram personal alert sent to chat {ChatId}.", handle);
         return true;
     }
 
-    public async Task<bool> SendPersonalMessageAsync(Integration? integration, string handle, string message, CancellationToken ct = default)
+    public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
         TelegramIntegrationConfig config;
         try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
         catch { return false; }
 
-        await SendMessageAsync(config.BotToken, handle, message, ct);
+        await SendMessageAsync(config.BotToken, handle, code, ct);
         logger.LogInformation("Telegram verification message sent to chat {ChatId}.", handle);
         return true;
     }

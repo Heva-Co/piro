@@ -38,6 +38,7 @@ import MaintenancesPage from "@/features/maintenances/pages/MaintenancesPage";
 import MaintenanceFormPage from "@/features/maintenances/pages/MaintenanceFormPage";
 import MaintenanceDetailPage from "@/features/maintenances/pages/MaintenanceDetailPage";
 import LogsPage from "@/features/logs/pages/LogsPage";
+import DeliveryLogsPage from "@/features/delivery-logs/pages/DeliveryLogsPage";
 import SiteConfigPage from "@/features/configuration/pages/SiteConfigPage";
 import EmailConfigPage from "@/features/configuration/pages/EmailConfigPage";
 import UsersPage from "@/features/configuration/pages/UsersPage";
@@ -52,6 +53,7 @@ import DataRetentionPage from "@/features/configuration/pages/DataRetentionPage"
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
 import OnCallScheduleDetailPage from "@/features/oncall/pages/OnCallScheduleDetailPage";
 import EscalationPoliciesPage from "@/features/escalation/pages/EscalationPoliciesPage";
+import SubscriptionsPage from "@/features/notification-subscriptions/pages/SubscriptionsPage";
 import EscalationPolicyDetailPage from "@/features/escalation/pages/EscalationPolicyDetailPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
 import { ToastContainer } from 'react-toastify';
@@ -135,6 +137,7 @@ export default function App() {
 
               {/* Logs */}
               <Route path={ROUTES.LOGS} element={<LogsPage />} />
+              <Route path={ROUTES.LOGS_DELIVERIES} element={<DeliveryLogsPage />} />
 
               {/* Configuration */}
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
@@ -157,6 +160,9 @@ export default function App() {
               {/* Escalation policies */}
               <Route path={ROUTES.ESCALATION.LIST} element={<EscalationPoliciesPage />} />
               <Route path={ROUTES.ESCALATION.DETAIL(":policyId")} element={<EscalationPolicyDetailPage />} />
+
+              {/* Notification subscriptions (RFC 0009) */}
+              <Route path={ROUTES.NOTIFICATION_SUBSCRIPTIONS.LIST} element={<SubscriptionsPage />} />
               <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
             </Route>
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Application.Models;
 using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -17,12 +18,12 @@ namespace Piro.Application.Services;
 public class EscalationCheckerService(
     IAlertRepository alertRepo,
     OnCallService onCallService,
-    IEnumerable<INotificationDispatcher> dispatchers,
+    IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>> dispatchers,
     IUserNotificationPreferenceRepository prefRepo,
     ISiteUrlBuilder siteUrlBuilder,
     ILogger<EscalationCheckerService> logger)
 {
-    private readonly Dictionary<IntegrationType, INotificationDispatcher> _dispatchers =
+    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<AlertNotificationContext>> _dispatchers =
         dispatchers.ToDictionary(d => d.Type);
 
     public async Task ProcessAsync(CancellationToken ct = default)
@@ -177,7 +178,7 @@ public class EscalationCheckerService(
 
                 try
                 {
-                    var sent = await dispatcher.DispatchPersonalAsync(pref.Integration, pref.Handle, context, ct);
+                    var sent = await dispatcher.SendAsync(pref.Integration, pref.Handle, context, ct);
                     if (!sent) continue; // dispatcher doesn't support personal dispatch; try next
 
                     logger.LogInformation(
