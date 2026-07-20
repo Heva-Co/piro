@@ -7591,7 +7591,7 @@ export interface components {
             validator?: null | string;
         };
         /** @enum {unknown} */
-        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code";
+        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code" | "Markdown";
         ConfigFieldVisibilityDto: {
             field: string;
             values: string[];

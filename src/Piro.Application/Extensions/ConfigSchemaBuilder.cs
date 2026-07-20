@@ -102,6 +102,8 @@ public static class ConfigSchemaBuilder
             return ConfigFieldType.Enum;
         if (property.GetCustomAttribute<CodeFieldAttribute>() is not null)
             return ConfigFieldType.Code;
+        if (property.GetCustomAttribute<MarkdownFieldAttribute>() is not null)
+            return ConfigFieldType.Markdown;
         if (property.GetCustomAttribute<MultilineFieldAttribute>() is not null)
             return ConfigFieldType.Multiline;
         if (property.GetCustomAttribute<UrlAttribute>() is not null)
