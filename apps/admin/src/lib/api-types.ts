@@ -4975,6 +4975,414 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/postmortems": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all postmortems, newest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemListItemDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates a Draft report and seeds an empty value per active field definition. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePostmortemRequest"];
+                    "text/json": components["schemas"]["CreatePostmortemRequest"];
+                    "application/*+json": components["schemas"]["CreatePostmortemRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the analysis template (active field definitions) — for rendering an empty editor. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns a single postmortem with its analysis fields and derived timeline. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Updates report metadata and/or its analysis field values. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePostmortemRequest"];
+                    "text/json": components["schemas"]["UpdatePostmortemRequest"];
+                    "application/*+json": components["schemas"]["UpdatePostmortemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a postmortem and its analysis content (referenced incidents are untouched). */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes a Draft report (internal-only in Phase 1). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverts a Published report back to Draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Links an incident to a postmortem (N:M "data source"). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkIncidentRequest"];
+                    "text/json": components["schemas"]["LinkIncidentRequest"];
+                    "application/*+json": components["schemas"]["LinkIncidentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/incidents/{incidentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes an incident link from a postmortem. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    incidentId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/maintenances": {
         parameters: {
             query?: never;
@@ -7503,6 +7911,15 @@ export interface components {
             /** Format: date-time */
             endsAtUtc?: null | string;
         };
+        CreatePostmortemRequest: {
+            name: string;
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+        };
         CreateServiceRequest: {
             slug: string;
             name: string;
@@ -7791,6 +8208,10 @@ export interface components {
             incidentId: null | number;
             serviceIds?: null | number[];
         };
+        LinkIncidentRequest: {
+            /** Format: int32 */
+            incidentId: number;
+        };
         LogDto: {
             /** Format: int64 */
             id: number;
@@ -8074,6 +8495,104 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        PostmortemDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            status: components["schemas"]["PostmortemStatus"];
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            reviewOwnerName: null | string;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            fields: components["schemas"]["PostmortemFieldValueDto"][];
+            incidents: components["schemas"]["PostmortemIncidentRefDto"][];
+            timeline: components["schemas"]["PostmortemTimelineItemDto"][];
+        };
+        PostmortemFieldDefinitionDto: {
+            /** Format: int32 */
+            id: number;
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: number;
+            isActive: boolean;
+            isSystem: boolean;
+        };
+        /** @enum {unknown} */
+        PostmortemFieldType: "Text" | "LongText" | "Date" | "Select";
+        PostmortemFieldValueDto: {
+            /** Format: int32 */
+            fieldDefinitionId: number;
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: number;
+            isSystem: boolean;
+            value: string;
+        };
+        PostmortemFieldValueUpdate: {
+            /** Format: int32 */
+            fieldDefinitionId: number;
+            value: string;
+        };
+        PostmortemIncidentRefDto: {
+            /** Format: int32 */
+            incidentId: number;
+            title: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Format: int64 */
+            startDateTime: number;
+            /** Format: int64 */
+            endDateTime: null | number;
+            currentImpact: components["schemas"]["ServiceStatus"];
+        };
+        PostmortemListItemDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            status: components["schemas"]["PostmortemStatus"];
+            reviewOwnerName: null | string;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: int32 */
+            incidentCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {unknown} */
+        PostmortemStatus: "Draft" | "Published";
+        PostmortemTimelineItemDto: {
+            /** Format: int32 */
+            incidentId: number;
+            incidentTitle: string;
+            source: string;
+            /** Format: date-time */
+            occurredAt: string;
+            actorName: null | string;
+            text: null | string;
+            oldStatus: null | components["schemas"]["IncidentStatus"];
+            newStatus: null | components["schemas"]["IncidentStatus"];
+            impact: null | components["schemas"]["ServiceStatus"];
         };
         ProblemDetails: {
             type?: null | string;
@@ -8406,6 +8925,16 @@ export interface components {
             startsAtUtc: null | string;
             /** Format: date-time */
             endsAtUtc: null | string;
+        };
+        UpdatePostmortemRequest: {
+            name: null | string;
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            fields: null | components["schemas"]["PostmortemFieldValueUpdate"][];
         };
         UpdateProfileRequest: {
             name: null | string;
