@@ -91,6 +91,9 @@ function ActionDialog(props: Props) {
             schema={descriptor.inputSchema as ConfigFieldSchema[]}
             values={values}
             onChange={setValues}
+            optionsResolver={(sourceKey, dependsOnValue) =>
+              integrationActionsApi.options(descriptor.integrationId, sourceKey, dependsOnValue)
+            }
           />
         )}
 

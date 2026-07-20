@@ -194,6 +194,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Action handlers — one IIntegrationAction per declared [IntegrationAction], joined to its
         // manifest metadata by (Type, ActionId) in the registry.
         services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
+        // Dynamic-options providers — populate select fields from the connected account at runtime.
+        services.AddScoped<IOptionsProvider, JiraProjectsOptionsProvider>();
+        services.AddScoped<IOptionsProvider, JiraIssueTypesOptionsProvider>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
         services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
         services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();

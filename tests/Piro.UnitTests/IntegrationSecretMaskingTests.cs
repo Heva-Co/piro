@@ -33,7 +33,7 @@ public class IntegrationSecretMaskingTests
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _actionHost, _actionRegistry);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _actionHost, _actionRegistry, []);
     }
 
     /// <summary>Deterministic protector for tests: prefixes ciphertext so round-trips are observable.</summary>

@@ -3279,6 +3279,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/{id}/options/{sourceKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolves the runtime options for a dynamic-options field (RFC 0012) — e.g. the connected Jira
+         *     account's projects, or the issue types for a chosen project (pass its key as dependsOn).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    dependsOn?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    sourceKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OptionItem"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{id}/actions/{actionId}/draft": {
         parameters: {
             query?: never;
@@ -7589,6 +7642,8 @@ export interface components {
             itemSchema?: null | components["schemas"]["ConfigFieldSchemaDto"][];
             visibleWhen?: null | components["schemas"]["ConfigFieldVisibilityDto"];
             validator?: null | string;
+            optionsSource?: null | string;
+            optionsDependsOn?: null | string;
         };
         /** @enum {unknown} */
         ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code" | "Markdown";
@@ -8302,6 +8357,10 @@ export interface components {
             name: string;
             initials: string;
             color: string;
+        };
+        OptionItem: {
+            value: string;
+            label: string;
         };
         PaginatedResponseOfServiceDto: {
             items: components["schemas"]["ServiceDto"][];

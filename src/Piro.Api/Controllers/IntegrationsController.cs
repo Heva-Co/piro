@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
+using Piro.Application.Integrations.Actions;
 using Piro.Application.Extensions;
 using Piro.Application.Services;
 using Piro.Domain.Attributes;
@@ -53,6 +54,17 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     public async Task<IActionResult> GetActions(
         [FromQuery] Domain.Enums.ActionContext context, CancellationToken ct) =>
         Ok(await integrationApp.GetActionsAsync(context, ct));
+
+    /// <summary>
+    /// Resolves the runtime options for a dynamic-options field (RFC 0012) — e.g. the connected Jira
+    /// account's projects, or the issue types for a chosen project (pass its key as <paramref name="dependsOn"/>).
+    /// </summary>
+    [HttpGet("{id:guid}/options/{sourceKey}")]
+    [ProducesResponseType<IReadOnlyList<OptionItem>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFieldOptions(
+        Guid id, string sourceKey, [FromQuery] string? dependsOn, CancellationToken ct) =>
+        Ok(await integrationApp.GetFieldOptionsAsync(id, sourceKey, dependsOn, ct));
 
     /// <summary>Pre-fills an action's input dialog for a specific target (RFC 0012 §4.6).</summary>
     [HttpGet("{id:guid}/actions/{actionId}/draft")]

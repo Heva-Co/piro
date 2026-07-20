@@ -19,8 +19,26 @@ public class IntegrationAppService(
     IEscalationPolicyRepository escalationPolicyRepository,
     ISecretProtector secretProtector,
     IActionHost actionHost,
-    IActionRegistry actionRegistry)
+    IActionRegistry actionRegistry,
+    IEnumerable<IOptionsProvider> optionsProviders)
 {
+    /// <summary>
+    /// Resolves the runtime options for a <c>[DynamicOptions]</c> field (RFC 0012): finds the
+    /// IOptionsProvider registered for (integration type, sourceKey) and asks it, passing the cascade
+    /// parent's value when present. 404 if no provider matches.
+    /// </summary>
+    public async Task<IReadOnlyList<OptionItem>> GetFieldOptionsAsync(
+        Guid integrationId, string sourceKey, string? dependsOn, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var provider = optionsProviders.FirstOrDefault(p => p.Type == integration.Type && p.SourceKey == sourceKey)
+            ?? throw new NotFoundException("OptionsProvider", $"{integration.Type}/{sourceKey}");
+
+        return await provider.GetOptionsAsync(actionHost, integrationId, dependsOn, ct);
+    }
+
     /// <summary>
     /// Discovers which action buttons to render for an object of the given <paramref name="context"/>
     /// (RFC 0012 §4.4): for each configured integration, take its registered actions whose Contexts

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MASKED_SECRET_VALUE } from "@/constants/integrations";
 import type { ConfigFieldSchema } from "@/lib/actions/integrations";
 import { GeneratedConfigField } from "./GeneratedConfigField";
+import DynamicOptionsSelect, { type DynamicOptionsResolver } from "@/components/config-form/DynamicOptionsSelect";
 
 /** Visual-only stand-in shown in a masked password input — never sent to the server as-is. */
 const MASKED_PASSWORD_PLACEHOLDER = "••••••••••••";
@@ -20,11 +21,20 @@ interface Props {
   /** Regenerates this field's value server-side — undefined while creating (nothing to regenerate yet). */
   onRegenerate?: () => void;
   isRegenerating?: boolean;
+  /**
+   * Resolver for `[DynamicOptions]` fields (RFC 0012), provided only when the integration is
+   * OAuth-connected (edit mode with a live token). When absent, such a field falls back to free text —
+   * options can't be listed without a connection.
+   */
+  optionsResolver?: DynamicOptionsResolver;
+  /** Current value of this field's cascade parent (field.optionsDependsOn), if any. */
+  dependsOnValue?: string;
 }
 
 export function DynamicConfigField(props: Props) {
-  const { field, value, error, onChange, isCreating, onRegenerate, isRegenerating } = props;
+  const { field, value, error, onChange, isCreating, onRegenerate, isRegenerating, optionsResolver, dependsOnValue } = props;
   const isMasked = field.isSecret && value === MASKED_SECRET_VALUE;
+  const useDynamicOptions = Boolean(field.optionsSource) && Boolean(optionsResolver);
 
   if (field.isGenerated)
     return (
@@ -67,7 +77,15 @@ export function DynamicConfigField(props: Props) {
         )}
       </div>
 
-      {field.type === "Enum" ? (
+      {useDynamicOptions ? (
+        <DynamicOptionsSelect
+          field={field}
+          value={value}
+          onChange={(v) => onChange(typeof v === "string" ? v : "")}
+          resolver={optionsResolver!}
+          dependsOnValue={dependsOnValue}
+        />
+      ) : field.type === "Enum" ? (
         <Select value={value} onValueChange={(v) => v && onChange(v)}>
           <SelectTrigger className="w-full">
             <SelectValue />
