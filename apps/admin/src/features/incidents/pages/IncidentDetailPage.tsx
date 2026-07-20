@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCheck, Save, Eye, EyeOff, Globe, Lock, MessageSquare, Blend, AlertTriangle, Plus, PlusCircle, MinusCircle, FlagTriangleRight, ArrowRightLeft } from "lucide-react";
 import { marked } from "marked";
 import { PageHeader } from "@/components/PageHeader";
+import ActionButtons from "@/components/integration-actions/ActionButtons";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone/DangerZone";
 import { Button } from "@/components/ui/button";
@@ -326,6 +327,7 @@ export default function IncidentDetailPage() {
                 </Button>
               )
             )}
+            <ActionButtons context="Incident" targetId={incident.id} />
           </>
         }
       />

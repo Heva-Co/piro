@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
+using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Attributes;
 using Piro.Domain.Entities;
@@ -15,8 +17,147 @@ public class IntegrationAppService(
     IIntegrationRepository repository,
     IWebhookRequestLogRepository webhookLogRepository,
     IEscalationPolicyRepository escalationPolicyRepository,
-    ISecretProtector secretProtector)
+    ISecretProtector secretProtector,
+    IActionHost actionHost,
+    IActionRegistry actionRegistry,
+    IEnumerable<IOptionsProvider> optionsProviders)
 {
+    /// <summary>
+    /// Resolves the runtime options for a <c>[DynamicOptions]</c> field (RFC 0012): finds the
+    /// IOptionsProvider registered for (integration type, sourceKey) and asks it, passing the cascade
+    /// parent's value when present. 404 if no provider matches.
+    /// </summary>
+    public async Task<IReadOnlyList<OptionItem>> GetFieldOptionsAsync(
+        Guid integrationId, string sourceKey, string? dependsOn, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var provider = optionsProviders.FirstOrDefault(p => p.Type == integration.Type && p.SourceKey == sourceKey)
+            ?? throw new NotFoundException("OptionsProvider", $"{integration.Type}/{sourceKey}");
+
+        return await provider.GetOptionsAsync(actionHost, integrationId, dependsOn, ct);
+    }
+
+    /// <summary>
+    /// Discovers which action buttons to render for an object of the given <paramref name="context"/>
+    /// (RFC 0012 §4.4): for each configured integration, take its registered actions whose Contexts
+    /// include the context and that are ready to run, and project each to a descriptor. A not-ready
+    /// action is dropped entirely — the frontend never receives a descriptor it can't use.
+    /// </summary>
+    public async Task<IReadOnlyList<IntegrationActionDescriptorDto>> GetActionsAsync(
+        ActionContext context, CancellationToken ct = default)
+    {
+        var integrations = await repository.GetAllAsync(ct);
+        var descriptors = new List<IntegrationActionDescriptorDto>();
+
+        foreach (var integration in integrations)
+        {
+            var label = integration.Type.GetManifest()?.Label ?? integration.Name;
+
+            foreach (var action in actionRegistry.GetActions(integration.Type))
+            {
+                if (!action.Descriptor.Contexts.Contains(context))
+                    continue;
+                if (!await action.Handler.IsReadyAsync(actionHost, integration.Id, ct))
+                    continue;
+
+                var inputSchema = action.Descriptor.HasInput && action.Handler.InputType is not null
+                    ? ConfigSchemaBuilder.For(action.Handler.InputType)
+                    : [];
+
+                descriptors.Add(new IntegrationActionDescriptorDto(
+                    integration.Id,
+                    label,
+                    action.Descriptor.ActionId,
+                    action.Descriptor.Label,
+                    action.Descriptor.Description,
+                    action.Descriptor.IconifyIcon,
+                    action.Descriptor.HasInput,
+                    action.Descriptor.SupportsDraft,
+                    inputSchema));
+            }
+        }
+
+        return descriptors;
+    }
+
+    /// <summary>
+    /// Builds a pre-filled draft input for an action + target (RFC 0012 §4.6), shaped like the action's
+    /// InputType so the dialog round-trips. Null if the action doesn't support drafts or the target is gone.
+    /// </summary>
+    public async Task<object?> BuildActionDraftAsync(
+        Guid integrationId, string actionId, ActionContext context, int targetId, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var action = actionRegistry.Resolve(integration.Type, actionId)
+            ?? throw new NotFoundException("IntegrationAction", $"{integration.Type}/{actionId}");
+
+        if (!action.Descriptor.SupportsDraft)
+            return null;
+
+        var ctx = new ActionExecutionContext(integrationId, context, targetId, Input: null);
+        return await action.Handler.BuildDraftAsync(actionHost, ctx, ct);
+    }
+
+    /// <summary>
+    /// Executes a user-initiated integration action (RFC 0012 §4.4): resolve the action, deserialize and
+    /// validate the input against the same DataAnnotations that drove the dialog, run it, and persist the
+    /// external reference it created (via the host). Returns that reference to the client.
+    /// </summary>
+    public async Task<IntegrationActionResultDto> ExecuteActionAsync(
+        Guid integrationId, string actionId, ExecuteIntegrationActionRequest request, CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(integrationId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
+
+        var action = actionRegistry.Resolve(integration.Type, actionId)
+            ?? throw new NotFoundException("IntegrationAction", $"{integration.Type}/{actionId}");
+
+        object? input = null;
+        if (action.Handler.InputType is not null)
+        {
+            if (request.Input is not { } rawInput)
+                throw new DomainValidationException($"Action '{actionId}' requires input.");
+
+            input = rawInput.Deserialize(action.Handler.InputType, JsonSerializerOptions.Web)
+                ?? throw new DomainValidationException($"Action '{actionId}' input could not be parsed.");
+
+            var results = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(input, new ValidationContext(input), results, validateAllProperties: true))
+                throw new DomainValidationException(
+                    string.Join("; ", results.Select(r => r.ErrorMessage)));
+        }
+
+        var ctx = new ActionExecutionContext(integrationId, request.Context, request.TargetId, input);
+        var result = await action.Handler.ExecuteAsync(actionHost, ctx, ct);
+
+        await actionHost.LinkExternalAsync(
+            new ExternalReferenceRequest(
+                request.Context, request.TargetId, integrationId, actionId,
+                result.ExternalId, result.Url, result.Label, result.Metadata),
+            ct);
+
+        return new IntegrationActionResultDto(result.ExternalId, result.Url, result.Label);
+    }
+
+    /// <summary>
+    /// Returns the outbound external references an integration action has created for a local object
+    /// (RFC 0012 §4.5) — read through the <see cref="IActionHost"/>, the same seam actions write
+    /// through, so this endpoint never touches the ExternalReferences table directly.
+    /// </summary>
+    public async Task<IReadOnlyList<ExternalReferenceDto>> GetReferencesAsync(
+        ActionContext context, int targetId, CancellationToken ct = default)
+    {
+        var links = await actionHost.GetLinksAsync(context, targetId, ct);
+        return links
+            .Select(l => new ExternalReferenceDto(
+                l.Context, l.TargetId, l.IntegrationId, l.ActionId, l.ExternalId, l.Url, l.Label, l.Metadata))
+            .ToList();
+    }
+
     /// <summary>
     /// Encrypts every <see cref="SecretFieldAttribute"/> value in the config at rest, for every
     /// integration type. <see cref="IntegrationExtensions.ProtectSecrets"/> is a no-op for a type

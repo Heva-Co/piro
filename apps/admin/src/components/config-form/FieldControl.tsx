@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
 import type { ConfigFieldSchema } from "@/lib/actions/checks";
 import StringListControl from "./StringListControl";
 import KeyValueControl from "./KeyValueControl";
@@ -50,6 +51,15 @@ function FieldControl(props: Props) {
           type="number"
           value={value == null ? "" : String(value)}
           onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          placeholder={field.placeholder ?? undefined}
+        />
+      );
+
+    case "Markdown":
+      return (
+        <MarkdownEditor
+          value={asString(value)}
+          onChange={onChange}
           placeholder={field.placeholder ?? undefined}
         />
       );

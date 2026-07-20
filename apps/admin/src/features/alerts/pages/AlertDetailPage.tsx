@@ -5,6 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { ExternalLink, CheckCheck, Link2, PlusCircle, Info, ListChecks, Siren, History, XCircle, FileJson } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import ActionButtons from "@/components/integration-actions/ActionButtons";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,6 +137,7 @@ export default function AlertDetailPage() {
                 {acknowledgeMutation.isPending ? "…" : "Acknowledge"}
               </Button>
             )}
+            <ActionButtons context="Alert" targetId={alert.id} />
           </>
         }
       />

@@ -27,4 +27,15 @@ public static class IntegrationTypeExtensions
         typeof(IntegrationType)
             .GetField(type.ToString())
             ?.GetCustomAttribute<IntegrationManifestAttribute>();
+
+    /// <summary>
+    /// Returns the actions declared on this type via <see cref="IntegrationActionAttribute"/> (RFC 0012),
+    /// in declaration order. Empty for a type that declares none. These are metadata only — the behavior
+    /// lives in a matching IIntegrationAction handler, joined by (type, ActionId).
+    /// </summary>
+    public static IReadOnlyList<IntegrationActionAttribute> GetActions(this IntegrationType type) =>
+        typeof(IntegrationType)
+            .GetField(type.ToString())
+            ?.GetCustomAttributes<IntegrationActionAttribute>().ToList()
+            ?? [];
 }

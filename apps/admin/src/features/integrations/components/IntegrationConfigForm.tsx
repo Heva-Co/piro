@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@iconify/react";
 import { AlertTriangle, Save, Settings, Webhook } from "lucide-react";
@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone/DangerZone";
-import { integrationsApi, type Integration, type IntegrationTypeMeta, type CreateIntegrationRequest } from "@/lib/actions/integrations";
+import { integrationsApi, integrationOAuthApi, type Integration, type IntegrationTypeMeta, type CreateIntegrationRequest } from "@/lib/actions/integrations";
+import { integrationActionsApi } from "@/lib/actions/integration-actions";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { MASKED_SECRET_VALUE } from "@/constants/integrations";
@@ -79,6 +80,18 @@ export function IntegrationConfigForm(props: Props) {
   const [saved, setSaved] = useState(false);
   /** Set once, right after creation — holds the response with any generated field unmasked (see GeneratedConfigField). Navigation to the detail page waits until the admin dismisses this. */
   const [createdIntegration, setCreatedIntegration] = useState<Integration | null>(null);
+
+  // OAuth connection status — dynamic-options fields (RFC 0012) can only be populated once connected.
+  const { data: oauthStatus } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATION_OAUTH_STATUS(id ?? ""),
+    queryFn: () => integrationOAuthApi.status(id!),
+    enabled: isEdit && Boolean(id) && (typeMeta?.capabilities.includes("RequiresOAuthConnection") ?? false),
+  });
+  // Only offer the resolver (→ dynamic dropdowns) when a live connection can list options; else the
+  // field falls back to free text (e.g. while creating, before OAuth).
+  const optionsResolver = oauthStatus?.connected && id
+    ? (sourceKey: string, dependsOn?: string) => integrationActionsApi.options(id, sourceKey, dependsOn)
+    : undefined;
 
   const saveMutation = useMutation({
     mutationFn: (values: GeneralFormValues) => {
@@ -232,6 +245,8 @@ export function IntegrationConfigForm(props: Props) {
                 isCreating={!isEdit && !createdIntegration}
                 onRegenerate={isEdit ? () => regenerateMutation.mutate() : undefined}
                 isRegenerating={regenerateMutation.isPending}
+                optionsResolver={optionsResolver}
+                dependsOnValue={field.optionsDependsOn ? configValues[field.optionsDependsOn] : undefined}
               />
             ))}
             {typeMeta?.capabilities.includes("RequiresOAuthConnection") && (
