@@ -17,7 +17,7 @@ public record IncidentCreatedPayload(
     DateTimeOffset CreatedAt
 ) : INotificationEvent
 {
-    public string EventType => "incident:created";
+    public string EventType => NotificationEventNames.IncidentCreated;
     public int Version => 1;
 }
 
@@ -35,6 +35,6 @@ public record IncidentResolvedPayload(
     DateTimeOffset ResolvedAt
 ) : INotificationEvent
 {
-    public string EventType => "incident:resolved";
+    public string EventType => NotificationEventNames.IncidentResolved;
     public int Version => 1;
 }

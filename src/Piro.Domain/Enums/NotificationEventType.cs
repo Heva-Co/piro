@@ -12,32 +12,37 @@ namespace Piro.Domain.Enums;
 public enum NotificationEventType
 {
     /// <summary>An Alert row was created for a monitored service (or ingested from a third party).</summary>
-    [NotificationEvent("alert:created",
+    [NotificationEvent(NotificationEventNames.AlertCreated,
         "An alert was opened for a monitored service — a check crossed its failure threshold, or a third-party alert was ingested.")]
     AlertCreated,
 
     /// <summary>A human acknowledged an active alert.</summary>
-    [NotificationEvent("alert:acknowledged",
+    [NotificationEvent(NotificationEventNames.AlertAcknowledged,
         "A team member acknowledged an active alert, taking ownership of the response.")]
     AlertAcknowledged,
 
     /// <summary>An active alert cleared (recovered), whether automatically or by resolution.</summary>
-    [NotificationEvent("alert:resolved",
+    [NotificationEvent(NotificationEventNames.AlertResolved,
         "An active alert cleared — the underlying service recovered or the alert was resolved.")]
     AlertResolved,
 
     /// <summary>An incident was opened (born in the Investigating state).</summary>
-    [NotificationEvent("incident:created",
+    [NotificationEvent(NotificationEventNames.IncidentCreated,
         "An incident was opened, entering the Investigating state.")]
     IncidentCreated,
 
     /// <summary>An incident reached a final state (Resolved or Merged).</summary>
-    [NotificationEvent("incident:resolved",
+    [NotificationEvent(NotificationEventNames.IncidentResolved,
         "An incident reached a final state — resolved or merged into another incident.")]
     IncidentResolved,
 
-    /// <summary>An integration's connection expired or was disconnected and needs operator attention.</summary>
-    [NotificationEvent("system:integration:expired",
+    /// <summary>
+    /// An integration's connection expired or was disconnected and needs operator attention.
+    /// NOTE: defined in the catalog but not yet emitted — nothing detects integration expiry today.
+    /// The emitter (an OAuth-token check and/or the disconnect flow) is future work; until then a
+    /// subscription to this event is valid but never fires.
+    /// </summary>
+    [NotificationEvent(NotificationEventNames.SystemIntegrationExpired,
         "An integration's connection expired or was disconnected — it can no longer be used until reconnected.")]
     SystemIntegrationExpired,
 }

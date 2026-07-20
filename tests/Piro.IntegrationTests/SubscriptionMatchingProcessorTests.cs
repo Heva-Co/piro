@@ -53,7 +53,9 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
     private SubscriptionMatchingProcessor NewProcessor(
         FakeEmailDispatcher dispatcher,
         IEnumerable<IChannelNotificationDispatcher<AlertNotificationContext>>? group = null,
-        IEnumerable<ISystemEventDispatcher>? systemEvent = null) =>
+        IEnumerable<ISystemEventDispatcher>? systemEvent = null,
+        IEnumerable<IPersonalNotificationDispatcher<IncidentNotificationContext>>? incidentPersonal = null,
+        IEnumerable<IChannelNotificationDispatcher<IncidentNotificationContext>>? incidentChannel = null) =>
         new(
             new NotificationSubscriptionRepository(_db),
             new UserNotificationPreferenceRepository(_db),
@@ -61,6 +63,8 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
             new ServiceIntegrationMappingRepository(_db),
             [dispatcher],
             group ?? [],
+            incidentPersonal ?? [],
+            incidentChannel ?? [],
             systemEvent ?? [],
             NullLogger<SubscriptionMatchingProcessor>.Instance);
 
@@ -268,6 +272,75 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         await NewProcessor(new FakeEmailDispatcher(), systemEvent: [pd]).ProcessAsync(row, default);
 
         pd.Events.Should().BeEmpty("no mapping means no routing key");
+        (await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync()).Status.Should().Be(DeliveryStatus.Skipped);
+    }
+
+    private sealed class FakeIncidentChannelDispatcher(IntegrationType type) : IChannelNotificationDispatcher<IncidentNotificationContext>
+    {
+        public List<IncidentNotificationContext> Posted { get; } = [];
+        public IntegrationType Type => type;
+        public Task<bool> SendAsync(Integration integration, string? target, IncidentNotificationContext c, CancellationToken ct = default)
+        {
+            Posted.Add(c);
+            return Task.FromResult(true);
+        }
+    }
+
+    private static NotificationEventOutbox IncidentCreatedRow(int incidentId)
+    {
+        var payload = new IncidentCreatedPayload(incidentId, "DB outage", IncidentStatus.Investigating,
+            IncidentVisibility.Private, ["api", "web"], DateTimeOffset.UtcNow);
+        return new NotificationEventOutbox
+        {
+            Id = incidentId,
+            EventType = "incident:created",
+            OrderingKey = $"incident:{incidentId}",
+            PayloadJson = JsonSerializer.Serialize(payload),
+            Status = OutboxStatus.Processing,
+        };
+    }
+
+    [Fact]
+    public async Task IncidentDestination_DeliversViaChannelDispatcher_NoSeverityGate()
+    {
+        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.GoogleChat, Name = "Ops Space" };
+        _db.Integrations.Add(integration);
+        // MinSeverity is Critical, but incidents have no severity — it must NOT gate them out.
+        _db.NotificationSubscriptions.Add(new NotificationSubscription
+        {
+            Name = "gchat-incidents", EventsJson = JsonSerializer.Serialize(new[] { "incident:created" }),
+            MinSeverity = AlertSeverity.Critical, TargetKind = NotificationTargetKind.Channel,
+            IntegrationId = integration.Id, Enabled = true,
+        });
+        await _db.SaveChangesAsync();
+        var incidentChannel = new FakeIncidentChannelDispatcher(IntegrationType.GoogleChat);
+
+        await NewProcessor(new FakeEmailDispatcher(), incidentChannel: [incidentChannel])
+            .ProcessAsync(IncidentCreatedRow(incidentId: 300), default);
+
+        incidentChannel.Posted.Should().ContainSingle();
+        incidentChannel.Posted[0].Title.Should().Be("DB outage");
+        incidentChannel.Posted[0].AffectedServices.Should().BeEquivalentTo(["api", "web"]);
+        var log = await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync();
+        log.Status.Should().Be(DeliveryStatus.Delivered);
+        log.EventType.Should().Be("incident:created");
+    }
+
+    [Fact]
+    public async Task IncidentDestination_IntegrationTarget_IsSkipped()
+    {
+        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.PagerDuty, Name = "PD" };
+        _db.Integrations.Add(integration);
+        _db.NotificationSubscriptions.Add(new NotificationSubscription
+        {
+            Name = "pd-incidents", EventsJson = JsonSerializer.Serialize(new[] { "incident:created" }),
+            MinSeverity = AlertSeverity.Warning, TargetKind = NotificationTargetKind.Integration,
+            IntegrationId = integration.Id, Enabled = true,
+        });
+        await _db.SaveChangesAsync();
+
+        await NewProcessor(new FakeEmailDispatcher()).ProcessAsync(IncidentCreatedRow(incidentId: 301), default);
+
         (await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync()).Status.Should().Be(DeliveryStatus.Skipped);
     }
 }
