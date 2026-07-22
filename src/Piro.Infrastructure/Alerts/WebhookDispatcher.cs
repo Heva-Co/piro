@@ -24,6 +24,10 @@ public class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<Web
     /// <summary>The public payload contract version. Bump only on a breaking change; evolve additively otherwise.</summary>
     private const int SchemaVersion = 1;
 
+    /// <summary>Headers Piro manages itself — a user-supplied custom header can never override these.</summary>
+    private static readonly HashSet<string> ReservedHeaders =
+        new(StringComparer.OrdinalIgnoreCase) { "Authorization", "Content-Type" };
+
     // camelCase property names + string enums, so the payload is a stable, human-mappable shape for
     // Zapier/Make. Note ServiceStatus members are already upper-snake (UP/DOWN/…), so they serialize
     // verbatim regardless of naming policy.
@@ -55,6 +59,18 @@ public class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<Web
         {
             Content = new StringContent(payload, Encoding.UTF8, "application/json"),
         };
+
+        if (config.CustomHeaders is { Count: > 0 })
+        {
+            foreach (var (name, value) in config.CustomHeaders)
+            {
+                // Content-Type is set by the StringContent above; Authorization is managed by the
+                // dedicated field below. User headers never override either.
+                if (string.IsNullOrWhiteSpace(name) || ReservedHeaders.Contains(name))
+                    continue;
+                request.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(config.AuthorizationHeader))
             request.Headers.TryAddWithoutValidation("Authorization", config.AuthorizationHeader);
@@ -116,5 +132,9 @@ public class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<Web
         },
     };
 
-    private record WebhookIntegrationConfig([property: Required] string Url, string? Method, string? AuthorizationHeader);
+    private record WebhookIntegrationConfig(
+        [property: Required] string Url,
+        string? Method,
+        string? AuthorizationHeader,
+        Dictionary<string, string>? CustomHeaders);
 }

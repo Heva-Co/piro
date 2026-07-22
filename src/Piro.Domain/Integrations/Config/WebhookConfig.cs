@@ -24,4 +24,8 @@ public sealed class WebhookConfig
         Placeholder = "Bearer … or an API key",
         HelpText = "Optional. Sent as the Authorization request header, e.g. a bearer token or API key.")]
     public string? AuthorizationHeader { get; set; }
+
+    [ConfigField("Custom headers",
+        HelpText = "Optional. Extra HTTP headers sent with every request. Content-Type and Authorization are managed by Piro and cannot be overridden here.")]
+    public Dictionary<string, string>? CustomHeaders { get; set; }
 }
