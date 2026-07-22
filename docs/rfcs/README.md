@@ -28,9 +28,9 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | **Implemented** (PR #206) | 0003, 0004, 0011 |
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
-| [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | Accepted (PR #209, #210) | 0009 |
+| [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 
-Implemented (frozen): **0001, 0002, 0003, 0004, 0005, 0006, 0009, 0011, 0012, 0014**.
+Implemented (frozen): **0001, 0002, 0003, 0004, 0005, 0006, 0009, 0011, 0012, 0014, 0015**.
 
 ## Dependency graph
 
@@ -52,7 +52,7 @@ graph LR
   n0012["0012 ✓"]
   n0013["0013"]
   n0014["0014 ✓"]
-  n0015["0015"]
+  n0015["0015 ✓"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
@@ -76,6 +76,7 @@ graph LR
   class n0011 done;
   class n0012 done;
   class n0014 done;
+  class n0015 done;
 ```
 
 <!-- END GENERATED INDEX -->
