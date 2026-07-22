@@ -7,15 +7,16 @@ import { MASKED_SECRET_VALUE } from "@/constants/integrations";
 import type { ConfigFieldSchema } from "@/lib/actions/integrations";
 import { GeneratedConfigField } from "./GeneratedConfigField";
 import DynamicOptionsSelect, { type DynamicOptionsResolver } from "@/components/config-form/DynamicOptionsSelect";
+import KeyValueControl from "@/components/config-form/KeyValueControl";
 
 /** Visual-only stand-in shown in a masked password input — never sent to the server as-is. */
 const MASKED_PASSWORD_PLACEHOLDER = "••••••••••••";
 
 interface Props {
   field: ConfigFieldSchema;
-  value: string;
+  value: unknown;
   error?: string;
-  onChange: (value: string) => void;
+  onChange: (value: unknown) => void;
   /** True while creating a new Integration — a generated field has no value yet to show. */
   isCreating: boolean;
   /** Regenerates this field's value server-side — undefined while creating (nothing to regenerate yet). */
@@ -33,14 +34,17 @@ interface Props {
 
 export function DynamicConfigField(props: Props) {
   const { field, value, error, onChange, isCreating, onRegenerate, isRegenerating, optionsResolver, dependsOnValue } = props;
-  const isMasked = field.isSecret && value === MASKED_SECRET_VALUE;
+  // Every field but KeyValue is a scalar rendered into a text control, so coerce to a string for those
+  // branches; the KeyValue branch consumes the raw object value instead.
+  const stringValue = typeof value === "string" ? value : "";
+  const isMasked = field.isSecret && stringValue === MASKED_SECRET_VALUE;
   const useDynamicOptions = Boolean(field.optionsSource) && Boolean(optionsResolver);
 
   if (field.isGenerated)
     return (
       <GeneratedConfigField
         field={field}
-        value={value}
+        value={stringValue}
         isCreating={isCreating}
         onRegenerate={onRegenerate}
         isRegenerating={isRegenerating}
@@ -80,13 +84,13 @@ export function DynamicConfigField(props: Props) {
       {useDynamicOptions ? (
         <DynamicOptionsSelect
           field={field}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(typeof v === "string" ? v : "")}
           resolver={optionsResolver!}
           dependsOnValue={dependsOnValue}
         />
       ) : field.type === "Enum" ? (
-        <Select value={value} onValueChange={(v) => v && onChange(v)}>
+        <Select value={stringValue} onValueChange={(v) => v && onChange(v)}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -98,15 +102,17 @@ export function DynamicConfigField(props: Props) {
         </Select>
       ) : field.type === "Multiline" ? (
         <Textarea
-          value={isMasked ? "" : value}
+          value={isMasked ? "" : stringValue}
           onChange={(e) => onChange(e.target.value)}
           rows={12}
           placeholder={isMasked ? "Leave blank to keep the existing value…" : field.placeholder ?? undefined}
         />
+      ) : field.type === "KeyValue" ? (
+        <KeyValueControl value={value} onChange={onChange} />
       ) : (
         <Input
           type={field.isSecret ? "password" : field.type === "Url" ? "url" : field.type === "Email" ? "email" : "text"}
-          value={isMasked ? "" : value}
+          value={isMasked ? "" : stringValue}
           onChange={(e) => onChange(e.target.value)}
           placeholder={isMasked ? MASKED_PASSWORD_PLACEHOLDER : field.placeholder ?? undefined}
         />

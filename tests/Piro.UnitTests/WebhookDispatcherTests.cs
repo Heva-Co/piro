@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -38,7 +39,7 @@ public class WebhookDispatcherTests
         AlertId: 99,
         IncidentUrl: "https://piro.example/admin/incidents/42");
 
-    private static Integration WebhookIntegration(string method = "POST", string? authHeader = null)
+    private static Integration WebhookIntegration(string method = "POST", string? authHeader = null, Dictionary<string, string>? customHeaders = null)
     {
         var config = new Dictionary<string, object?>
         {
@@ -47,6 +48,8 @@ public class WebhookDispatcherTests
         };
         if (authHeader is not null)
             config["authorizationHeader"] = authHeader;
+        if (customHeaders is not null)
+            config["customHeaders"] = customHeaders;
 
         return new Integration
         {
@@ -174,6 +177,34 @@ public class WebhookDispatcherTests
     }
 
     [Fact]
+    public async Task CustomHeaders_AreSentWhenPresent()
+    {
+        var (dispatcher, handler) = Build();
+        var headers = new Dictionary<string, string> { ["X-Api-Key"] = "abc123", ["X-Source"] = "piro" };
+
+        await dispatcher.SendAsync(WebhookIntegration(customHeaders: headers), target: null, IncidentContext());
+
+        handler.Header("X-Api-Key").Should().Be("abc123");
+        handler.Header("X-Source").Should().Be("piro");
+    }
+
+    [Fact]
+    public async Task CustomHeaders_CannotOverrideReservedHeaders()
+    {
+        var (dispatcher, handler) = Build();
+        // A user trying to inject Authorization via the free-form headers dict must not win over the
+        // dedicated auth field / Piro-managed headers.
+        var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer attacker", ["Content-Type"] = "text/plain" };
+
+        await dispatcher.SendAsync(
+            WebhookIntegration(authHeader: "Bearer legit", customHeaders: headers),
+            target: null, IncidentContext());
+
+        handler.LastAuthorization.Should().Be("Bearer legit");
+        handler.LastBody.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task NonSuccessStatus_ReturnsFalseAndDoesNotThrow()
     {
         var (dispatcher, _) = Build(HttpStatusCode.InternalServerError);
@@ -205,11 +236,15 @@ public class WebhookDispatcherTests
         public HttpMethod? LastMethod { get; private set; }
         public string? LastBody { get; private set; }
         public string? LastAuthorization { get; private set; }
+        public HttpRequestHeaders? LastHeaders { get; private set; }
+
+        public string? Header(string name) => LastHeaders?.TryGetValues(name, out var v) == true ? string.Join(",", v) : null;
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             LastRequestUri = request.RequestUri;
             LastMethod = request.Method;
+            LastHeaders = request.Headers;
             LastAuthorization = request.Headers.TryGetValues("Authorization", out var values) ? string.Join(",", values) : null;
             LastBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
             return new HttpResponseMessage(status);
