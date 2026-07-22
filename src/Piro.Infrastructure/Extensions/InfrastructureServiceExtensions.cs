@@ -259,7 +259,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Personal notification dispatchers (RFC 0009 mode 1) — registered as
         // IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>>. The group-only
-        // types (Slack/GoogleChat/Discord/MsTeams/Webhook/Opsgenie) are not registered here: their
+        // types (Slack/GoogleChat/Discord/MsTeams/Opsgenie) are not registered here: their
         // IChannelNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
         // unregistered exactly as before (phase 1 preserves behavior — it is wired in a later phase).
         services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, EmailDispatcher>();
@@ -269,11 +269,13 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Channel notification dispatchers (RFC 0009 mode 2) — post to a shared team channel.
         services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, GoogleChatDispatcher>();
+        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, WebhookDispatcher>();
 
-        // Incident notification dispatchers (RFC 0009 §4.2, phase 6) — Email (personal) and Google Chat
-        // (channel) can carry incident notifications as well as alerts.
+        // Incident notification dispatchers (RFC 0009 §4.2, phase 6) — Email (personal), Google Chat
+        // (channel), and the generic webhook (channel, RFC 0015) carry incident notifications as well as alerts.
         services.AddScoped<IPersonalNotificationDispatcher<IncidentNotificationContext>, EmailDispatcher>();
         services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, GoogleChatDispatcher>();
+        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, WebhookDispatcher>();
 
         // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
         services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
@@ -303,6 +305,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
         services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
         services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
+        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Webhook, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
         services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration, EventSubscriber.AlertEvents));
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
