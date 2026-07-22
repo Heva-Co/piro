@@ -29,13 +29,20 @@ interface GeneralFormValues {
   escalationPolicyId: number | null;
 }
 
-/** Parses an Integration's ConfigJson into the flat string-map DynamicConfigField expects. */
-function parseConfigJson(configJson: string): Record<string, string> {
-  const values: Record<string, string> = {};
+/**
+ * Parses an Integration's ConfigJson into the value map DynamicConfigField expects. Scalars are
+ * coerced to strings (the text controls render strings); objects and arrays (e.g. a KeyValue
+ * headers dictionary) are preserved as-is so composite fields round-trip intact.
+ */
+function parseConfigJson(configJson: string): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
   try {
     const parsed = JSON.parse(configJson) as Record<string, unknown>;
-    for (const [key, val] of Object.entries(parsed))
-      values[key] = val == null ? "" : String(val);
+    for (const [key, val] of Object.entries(parsed)) {
+      if (val == null) values[key] = "";
+      else if (typeof val === "object") values[key] = val;
+      else values[key] = String(val);
+    }
   } catch { /* malformed ConfigJson — fall back to an empty config */ }
   return values;
 }
@@ -73,7 +80,7 @@ export function IntegrationConfigForm(props: Props) {
     },
     mode: "all"
   });
-  const [configValues, setConfigValues] = useState<Record<string, string>>(() =>
+  const [configValues, setConfigValues] = useState<Record<string, unknown>>(() =>
     existing ? parseConfigJson(existing.configJson) : {}
   );
   const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
@@ -137,7 +144,8 @@ export function IntegrationConfigForm(props: Props) {
     const nextErrors: Record<string, string> = {};
     for (const field of typeMeta?.configSchema ?? []) {
       if (field.isGenerated) continue; // the server fills this in — nothing to validate here
-      const value = configValues[field.key] ?? "";
+      if (field.type === "KeyValue") continue; // composite, optional — the string checks below don't apply
+      const value = typeof configValues[field.key] === "string" ? (configValues[field.key] as string) : "";
       const isMasked = field.isSecret && value === MASKED_SECRET_VALUE;
       if (field.required && !isMasked && value.trim() === "") {
         nextErrors[field.key] = `${field.label} is required`;
@@ -239,14 +247,14 @@ export function IntegrationConfigForm(props: Props) {
               <DynamicConfigField
                 key={field.key}
                 field={field}
-                value={configValues[field.key] ?? ""}
+                value={configValues[field.key] ?? (field.type === "KeyValue" ? {} : "")}
                 error={configErrors[field.key]}
                 onChange={(v) => setConfigValues((prev) => ({ ...prev, [field.key]: v }))}
                 isCreating={!isEdit && !createdIntegration}
                 onRegenerate={isEdit ? () => regenerateMutation.mutate() : undefined}
                 isRegenerating={regenerateMutation.isPending}
                 optionsResolver={optionsResolver}
-                dependsOnValue={field.optionsDependsOn ? configValues[field.optionsDependsOn] : undefined}
+                dependsOnValue={typeof configValues[field.optionsDependsOn ?? ""] === "string" ? (configValues[field.optionsDependsOn!] as string) : undefined}
               />
             ))}
             {typeMeta?.capabilities.includes("RequiresOAuthConnection") && (

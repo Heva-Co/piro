@@ -13,7 +13,9 @@ public class IntegrationTypeMetaDtoTests
     [Fact]
     public void ObsoleteType_HasNoMetaDto()
     {
-        var dto = IntegrationType.Webhook.ToMetaDto();
+#pragma warning disable CS0618 // referencing an obsolete member on purpose to assert it has no manifest
+        var dto = IntegrationType.Slack.ToMetaDto();
+#pragma warning restore CS0618
 
         dto.Should().BeNull();
     }

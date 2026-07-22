@@ -11,7 +11,7 @@ interface Props {
   integrationId: string;
   typeMeta: IntegrationTypeMeta;
   /** Current ConfigJson values, keyed the same way as the type's configSchema. */
-  configValues: Record<string, string>;
+  configValues: Record<string, unknown>;
 }
 
 /**
@@ -27,7 +27,8 @@ export function IntegrationWebhookUrlField(props: Props) {
   if (!typeMeta.webhookPath) return null;
 
   const tokenField = typeMeta.configSchema.find((f) => f.isGenerated && f.isSecret);
-  const token = tokenField ? configValues[tokenField.key] ?? "" : "";
+  const rawToken = tokenField ? configValues[tokenField.key] : undefined;
+  const token = typeof rawToken === "string" ? rawToken : "";
   const isTokenKnown = token !== "" && token !== MASKED_SECRET_VALUE;
 
   const url = `${API_BASE}/webhooks/${typeMeta.webhookPath}/${integrationId}?auth_token=${isTokenKnown ? token : "…"}`;
