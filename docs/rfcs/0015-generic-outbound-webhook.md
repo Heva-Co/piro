@@ -1,10 +1,10 @@
 ---
 rfc: 15
 title: "Generic outbound webhook (Zapier / Make compatible)"
-status: proposed
+status: accepted
 created: 2026-07-22
-tracking-issue: null
-proposal-pr: null
+tracking-issue: 210
+proposal-pr: 209
 implementation-pr: null
 depends-on: ["0009"]
 superseded-by: null
