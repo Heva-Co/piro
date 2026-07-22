@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://heva-co.github.io/piro/sitemap.xml
