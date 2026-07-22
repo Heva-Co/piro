@@ -52,10 +52,19 @@ public enum IntegrationType
     Email = 2,
 
     /// <summary>
-    /// Not supported for now — DispatchPersonalAsync was never implemented. Kept in place (not
-    /// removed/reordered) so its ordinal value doesn't shift and corrupt any existing DB rows.
+    /// Generic outbound webhook (RFC 0015) — POSTs a fixed, versioned JSON payload to any URL when a
+    /// subscribed alert or incident event fires. Compatible with Zapier/Make catch-hooks. A
+    /// channel-target dispatcher: the destination is the config URL, not a per-person handle.
     /// </summary>
-    [Obsolete("Not supported for now.")]
+    [IntegrationManifest(
+        IntegrationCategory.Notification,
+        IntegrationDirection.Outbound,
+        IntegrationCapability.SendsChannelNotification,
+        typeof(WebhookConfig),
+        Label = "Webhook",
+        Description = "POST a JSON payload to any URL when an incident or alert event fires (Zapier/Make compatible).",
+        IconifyIcon = "tabler:webhook"
+    )]
     Webhook = 3,
 
     /// <summary>
