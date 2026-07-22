@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary meta -->
+  <title>Piro — Open-source uptime monitoring &amp; status pages</title>
+  <meta name="description" content="Piro is a self-hosted, enterprise-grade status page, uptime monitoring, and incident-response platform. Run multi-region checks, page the right on-call engineer, and own all your data. AGPL-3.0." />
+  <meta name="keywords" content="uptime monitoring, status page, open source, self-hosted, incident management, on-call, escalation policy, SSL monitoring, DNS monitoring, StatusPage alternative, Better Stack alternative, Pingdom alternative" />
+  <meta name="author" content="heva" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="theme-color" content="#05070d" />
+  <link rel="canonical" href="https://heva-co.github.io/piro/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Piro" />
+  <meta property="og:title" content="Piro — Open-source uptime monitoring &amp; status pages" />
+  <meta property="og:description" content="Self-hosted, enterprise-grade status page, uptime monitoring, and incident-response platform. Multi-region checks, on-call paging, and a real-time status page, all on servers you own." />
+  <meta property="og:url" content="https://heva-co.github.io/piro/" />
+  <meta property="og:image" content="https://heva-co.github.io/piro/og-image.png" />
+  <meta property="og:image:alt" content="Piro — open-source uptime monitoring and status pages" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Piro — Open-source uptime monitoring &amp; status pages" />
+  <meta name="twitter:description" content="Self-hosted status page, uptime monitoring &amp; incident response. Multi-region checks, on-call paging, real-time status, all on servers you own." />
+  <meta name="twitter:image" content="https://heva-co.github.io/piro/og-image.png" />
+
+  <!-- Icons -->
+  <link rel="icon" type="image/svg+xml" href="piro.svg" />
+  <link rel="apple-touch-icon" href="og-image.png" />
+
+  <!-- Fonts & styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Piro",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "Uptime Monitoring & Status Page",
+    "operatingSystem": "Docker, Linux",
+    "description": "Self-hosted, enterprise-grade status page, uptime monitoring, and incident-response platform with multi-region checks, on-call schedules, escalation policies, and a real-time public status page.",
+    "url": "https://heva-co.github.io/piro/",
+    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+    "softwareVersion": "latest",
+    "author": {
+      "@type": "Organization",
+      "name": "heva",
+      "url": "https://heva.co"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Multi-region uptime monitoring",
+      "HTTP, DNS, SSL, TCP, Ping and gRPC checks",
+      "Public real-time status page",
+      "Incident management",
+      "On-call schedules and escalation policies",
+      "OIDC / SSO and RBAC"
+    ]
+  }
+  </script>
+</head>
+<body>
+  <!-- Ambient background -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow--1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow--2" aria-hidden="true"></div>
+  <div class="bg-noise" aria-hidden="true"></div>
+
+  <!-- Nav -->
+  <header class="nav" id="nav">
+    <a class="nav__brand" href="#top" aria-label="Piro home">
+      <img src="piro.svg" alt="" width="26" height="26" />
+      <span>Piro</span>
+    </a>
+    <nav class="nav__links">
+      <a href="#features">Features</a>
+      <a href="#checks">Checks</a>
+      <a href="#oncall">On-call</a>
+      <a href="#deploy">Self-host</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="btn btn--ghost" href="https://github.com/Heva-Co/piro" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn btn--primary" href="https://github.com/Heva-Co/piro/wiki/Self-Hosting" target="_blank" rel="noopener">Deploy</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero__inner">
+        <div class="pill reveal">
+          <span class="pill__dot"></span>
+          Open-source · AGPL-3.0 · Self-hosted
+        </div>
+        <h1 class="hero__title reveal" style="--d:.05s">
+          Uptime monitoring<br />
+          <span class="grad">you actually own.</span>
+        </h1>
+        <p class="hero__sub reveal" style="--d:.12s">
+          Piro is a self-hosted, enterprise-grade status page, uptime monitoring, and
+          incident-response platform. Run checks from any region, page the right on-call
+          engineer, and give users a real-time status page, all on servers you control.
+        </p>
+        <div class="hero__cta reveal" style="--d:.18s">
+          <a class="btn btn--primary btn--lg" href="https://github.com/Heva-Co/piro/wiki/Self-Hosting" target="_blank" rel="noopener">Self-host in minutes</a>
+          <a class="btn btn--ghost btn--lg" href="https://github.com/Heva-Co/piro" target="_blank" rel="noopener">Read the source</a>
+        </div>
+        <div class="hero__meta reveal" style="--d:.24s">
+          <span>No data leaves your infra</span>
+          <span class="dot">·</span>
+          <span>No per-seat pricing</span>
+          <span class="dot">·</span>
+          <span>No phone-home telemetry</span>
+        </div>
+      </div>
+
+      <!-- Live status page mockup (mirrors Piro's real public status page UI) -->
+      <div class="hero__panel reveal" style="--d:.3s" aria-hidden="true">
+        <div class="browser">
+          <div class="browser__bar">
+            <span class="browser__dots"><i></i><i></i><i></i></span>
+            <span class="browser__url">status.acme.io</span>
+          </div>
+          <div class="sp">
+            <div class="sp__head">
+              <h3>Service Status</h3>
+              <p>Real-time status of our services</p>
+            </div>
+            <div class="sp__banner">
+              <span class="sp__dot"></span>
+              All systems operational
+            </div>
+            <div class="sp__card">
+              <div class="sp__row">
+                <span class="sp__name">API Gateway</span>
+                <span class="sp__stat"><b>99.99%</b><small>74.6ms</small></span>
+                <span class="sp__check">✓</span>
+              </div>
+              <div class="sp__uptime"><span data-bars></span></div>
+              <div class="sp__range"><span>Jun 22</span><span>Jul 22</span></div>
+            </div>
+            <div class="sp__card">
+              <div class="sp__row">
+                <span class="sp__name">Web App</span>
+                <span class="sp__stat"><b>99.97%</b><small>33.8ms</small></span>
+                <span class="sp__check">✓</span>
+              </div>
+              <div class="sp__uptime"><span data-bars></span></div>
+              <div class="sp__range"><span>Jun 22</span><span>Jul 22</span></div>
+            </div>
+            <div class="sp__card">
+              <div class="sp__row">
+                <span class="sp__name">Payments</span>
+                <span class="sp__stat"><b>99.71%</b><small>41.2ms</small></span>
+                <span class="sp__check sp__check--warn">!</span>
+              </div>
+              <div class="sp__uptime"><span data-bars data-degraded></span></div>
+              <div class="sp__range"><span>Jun 22</span><span>Jul 22</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trust strip -->
+    <section class="strip">
+      <p>A production-ready, self-hostable alternative to</p>
+      <div class="strip__names">
+        <span>StatusPage</span><span>Instatus</span><span>Better Stack</span><span>Pingdom</span><span>UptimeRobot</span>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+      <div class="stat"><div class="stat__num" data-count="8">8</div><div class="stat__label">Check types out of the box</div></div>
+      <div class="stat"><div class="stat__num" data-count="4">4</div><div class="stat__label">Paging channels, verified</div></div>
+      <div class="stat"><div class="stat__num"><span data-count="100">100</span>%</div><div class="stat__label">Your data, your servers</div></div>
+      <div class="stat"><div class="stat__num">∞</div><div class="stat__label">Regions & seats, no limits</div></div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+      <div class="section__head">
+        <span class="eyebrow">The platform</span>
+        <h2>Everything a status page leaves out,<br /><span class="muted">in one self-hostable stack.</span></h2>
+      </div>
+      <div class="cards">
+        <article class="card card--wide reveal">
+          <div class="card__icon">◎</div>
+          <h3>Multi-region monitoring</h3>
+          <p>Deploy lightweight workers to any cloud, on-prem, or bare-metal box. They connect back over SignalR and scale independently per region. Single-region setups run checks in-process, no worker needed.</p>
+        </article>
+        <article class="card reveal" style="--d:.06s">
+          <div class="card__icon">◈</div>
+          <h3>Public status page</h3>
+          <p>Branded, real-time status page with uptime history, latency trends, incidents, and scheduled maintenances.</p>
+        </article>
+        <article class="card reveal" style="--d:.12s">
+          <div class="card__icon">⚑</div>
+          <h3>Incident management</h3>
+          <p>Structured incidents with timeline updates and severity. You decide when an alert becomes customer-facing, never automatically.</p>
+        </article>
+        <article class="card reveal" style="--d:.18s">
+          <div class="card__icon">◷</div>
+          <h3>Maintenance windows</h3>
+          <p>Schedule windows that automatically suppress a service's public status while you work.</p>
+        </article>
+        <article class="card card--wide reveal" style="--d:.24s">
+          <div class="card__icon">⌁</div>
+          <h3>Encrypted secrets & full REST API</h3>
+          <p>Integration credentials and secret fields are encrypted at rest. Every admin operation is available programmatically through an OpenAPI 3.1 spec, Piro is API-first by design.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Checks -->
+    <section class="section section--alt" id="checks">
+      <div class="section__head">
+        <span class="eyebrow">Active monitoring</span>
+        <h2>Eight check types,<br /><span class="muted">tunable intervals, per-region assignment.</span></h2>
+      </div>
+      <div class="checks">
+        <div class="chk"><span class="chk__k">HTTP</span><span class="chk__d">Status, latency &amp; content</span></div>
+        <div class="chk"><span class="chk__k">DNS</span><span class="chk__d">Expected-value matching</span></div>
+        <div class="chk"><span class="chk__k">SSL</span><span class="chk__d">Certificate expiry</span></div>
+        <div class="chk"><span class="chk__k">TCP</span><span class="chk__d">Port reachability</span></div>
+        <div class="chk"><span class="chk__k">Ping</span><span class="chk__d">ICMP round-trip</span></div>
+        <div class="chk"><span class="chk__k">gRPC</span><span class="chk__d">Service health checks</span></div>
+        <div class="chk"><span class="chk__k">Cloud Run</span><span class="chk__d">GCP job execution</span></div>
+        <div class="chk"><span class="chk__k">+ more</span><span class="chk__d">Extensible dispatchers</span></div>
+      </div>
+      <div class="checks-cta reveal">
+        <p>Need a specific check type? It's open-source, <b>raise an issue</b> or implement it yourself.</p>
+        <div class="checks-cta__btns">
+          <a class="btn btn--primary" href="https://github.com/Heva-Co/piro/issues/new?template=feature_request.md" target="_blank" rel="noopener">Request a check ↗</a>
+          <a class="btn btn--ghost" href="https://github.com/Heva-Co/piro/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contribute a dispatcher</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- On-call -->
+    <section class="section" id="oncall">
+      <div class="split">
+        <div class="split__text">
+          <span class="eyebrow">On-call &amp; escalation</span>
+          <h2>Page the <span class="grad">right engineer</span>, every time.</h2>
+          <ul class="checklist">
+            <li><b>On-call schedules</b> — RRULE-based rotation layers with overrides, timezone-aware, on a Gantt calendar.</li>
+            <li><b>Escalation policies</b> — ordered steps, delays, per-step retries, and re-escalation after inactivity. Reuse one policy across many services.</li>
+            <li><b>Verified channels</b> — Email, Telegram, SMS (Twilio) and ntfy require a one-time code before they can page you. A typo never means a missed page.</li>
+            <li><b>Prioritized delivery</b> — each user sets their own ordered channel list; escalation tries them in order and falls back to email if all fail.</li>
+          </ul>
+        </div>
+        <div class="split__viz reveal" aria-hidden="true">
+          <div class="esc">
+            <div class="esc__step"><span class="esc__t">0m</span><div class="esc__body"><b>Push + Telegram</b><small>Primary on-call · Ana</small></div></div>
+            <div class="esc__line"></div>
+            <div class="esc__step"><span class="esc__t">5m</span><div class="esc__body"><b>SMS via Twilio</b><small>No ack · retry Ana</small></div></div>
+            <div class="esc__line"></div>
+            <div class="esc__step"><span class="esc__t">10m</span><div class="esc__body"><b>Escalate → Secondary</b><small>Page team lead · Marco</small></div></div>
+            <div class="esc__line"></div>
+            <div class="esc__step esc__step--fb"><span class="esc__t">↺</span><div class="esc__body"><b>Fallback: email everyone</b><small>Guaranteed delivery</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integrations -->
+    <section class="section section--alt" id="integrations">
+      <div class="section__head">
+        <span class="eyebrow">Integrations &amp; enterprise</span>
+        <h2>Fits your stack,<br /><span class="muted">answers to your security team.</span></h2>
+      </div>
+      <div class="grid-tags">
+        <div class="tag"><span class="iconify" data-icon="mdi:email-outline"></span>Email</div>
+        <div class="tag"><span class="iconify" data-icon="simple-icons:telegram"></span>Telegram</div>
+        <div class="tag"><span class="iconify" data-icon="simple-icons:twilio"></span>Twilio SMS</div>
+        <div class="tag"><span class="iconify" data-icon="simple-icons:ntfy"></span>ntfy</div>
+        <div class="tag"><span class="iconify" data-icon="simple-icons:pagerduty"></span>PagerDuty</div>
+        <div class="tag"><span class="iconify" data-icon="simple-icons:googlecloud"></span>GCP Cloud Monitoring</div>
+        <div class="tag tag--strong"><span class="iconify" data-icon="mdi:shield-key-outline"></span>OIDC / SSO</div>
+        <div class="tag tag--strong"><span class="iconify" data-icon="mdi:account-group-outline"></span>RBAC roles</div>
+        <div class="tag tag--strong"><span class="iconify" data-icon="mdi:login-variant"></span>SSO-only policy</div>
+        <div class="tag tag--strong"><span class="iconify" data-icon="mdi:lock-outline"></span>Encrypted at rest</div>
+      </div>
+      <p class="fineprint">Sign in with Google, Microsoft, GitHub, or any standard OIDC/OAuth2 provider. Owner / Admin / Member / Viewer roles with email invitations.</p>
+    </section>
+
+    <!-- Deploy -->
+    <section class="section" id="deploy">
+      <div class="deploy">
+        <div class="deploy__text">
+          <span class="eyebrow">Self-host</span>
+          <h2>One version to pin.<br /><span class="muted">Up and running in minutes.</span></h2>
+          <p>Four images ship under the same tag on every release. Each release attaches a ready-to-run compose file with the version resolved, no source checkout required.</p>
+          <div class="hero__cta">
+            <a class="btn btn--primary btn--lg" href="https://github.com/Heva-Co/piro/wiki/Self-Hosting" target="_blank" rel="noopener">Self-Hosting Guide ↗</a>
+          </div>
+        </div>
+        <div class="terminal reveal">
+          <div class="terminal__bar"><i></i><i></i><i></i><span>bash</span></div>
+          <pre class="terminal__body"><code><span class="c">$</span> curl -O https://github.com/Heva-Co/piro/releases/latest/<span class="hl">docker-compose.release.yml</span>
+<span class="c">$</span> docker compose -f docker-compose.release.yml up <span class="hl">-d</span>
+
+<span class="ok">✓</span> proxy   started  <span class="dim">:80</span>
+<span class="ok">✓</span> web     started  <span class="dim">status page</span>
+<span class="ok">✓</span> api     started  <span class="dim">migrations applied</span>
+<span class="ok">✓</span> db      healthy  <span class="dim">postgres</span>
+
+<span class="dim"># Your status page is live. No data left your box.</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="finale">
+      <h2>Own your uptime story.</h2>
+      <p>Production-ready. AGPL-3.0. Built by engineers who dogfood it in production.</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary btn--lg" href="https://github.com/Heva-Co/piro" target="_blank" rel="noopener">Star on GitHub ★</a>
+        <a class="btn btn--ghost btn--lg" href="https://github.com/Heva-Co/piro/wiki" target="_blank" rel="noopener">Read the docs</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <img src="piro.svg" alt="" width="22" height="22" />
+      <span>Piro</span>
+    </div>
+    <p>Built with ♥ by <a href="https://heva.co" target="_blank" rel="noopener">heva</a> · Open-source under AGPL-3.0</p>
+    <div class="footer__links">
+      <a href="https://github.com/Heva-Co/piro" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Heva-Co/piro/wiki" target="_blank" rel="noopener">Docs</a>
+      <a href="mailto:devops@heva.co">Security</a>
+    </div>
+  </footer>
+
+  <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
