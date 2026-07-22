@@ -56,6 +56,9 @@ public class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<Web
             Content = new StringContent(payload, Encoding.UTF8, "application/json"),
         };
 
+        if (!string.IsNullOrWhiteSpace(config.AuthorizationHeader))
+            request.Headers.TryAddWithoutValidation("Authorization", config.AuthorizationHeader);
+
         HttpResponseMessage response;
         try { response = await client.SendAsync(request, ct); }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -113,5 +116,5 @@ public class WebhookDispatcher(IHttpClientFactory httpClientFactory, ILogger<Web
         },
     };
 
-    private record WebhookIntegrationConfig([property: Required] string Url, string? Method);
+    private record WebhookIntegrationConfig([property: Required] string Url, string? Method, string? AuthorizationHeader);
 }

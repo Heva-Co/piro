@@ -18,4 +18,10 @@ public sealed class WebhookConfig
     [ConfigFieldOptions("POST", "PUT")]
     [ConfigField("HTTP Method", HelpText = "The HTTP method used to send the payload.")]
     public string Method { get; set; } = "POST";
+
+    [SecretField]
+    [ConfigField("Authorization header",
+        Placeholder = "Bearer … or an API key",
+        HelpText = "Optional. Sent as the Authorization request header, e.g. a bearer token or API key.")]
+    public string? AuthorizationHeader { get; set; }
 }
