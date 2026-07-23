@@ -272,6 +272,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddSingleton<IIntegration, Piro.Integrations.Jira.JiraIntegration>();
         services.AddSingleton<IIntegration, Piro.Integrations.Gcp.GcpCloudMonitoringWebhookIntegration>();
         services.AddSingleton<IIntegration, EmailIntegration>();
+        services.AddSingleton<IIntegration, GoogleCloudIntegration>();
 
         services.AddScoped<IIntegrationEventHandler, EmailDispatcher>();
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Telegram.TelegramNotificationDispatcher>();

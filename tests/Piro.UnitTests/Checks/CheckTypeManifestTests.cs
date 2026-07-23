@@ -43,7 +43,7 @@ public class CheckTypeManifestTests
     [Fact]
     public void GcpCloudRunJob_RequiresGoogleCloudIntegration()
     {
-        CheckType.GCP_CloudRunJob.GetManifest()!.RequiredIntegration.Should().Be(IntegrationType.GoogleCloud);
+        CheckType.GCP_CloudRunJob.GetManifest()!.RequiredIntegration.Should().Be("GoogleCloud");
     }
 
     [Fact]

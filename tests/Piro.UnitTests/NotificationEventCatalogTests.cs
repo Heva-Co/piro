@@ -109,7 +109,7 @@ public class NotificationEventCatalogTests
         ],
         ["system:integration:expired"] =
         [
-            "IntegrationId:Guid", "IntegrationName:String", "Type:IntegrationType", "Reason:String",
+            "IntegrationId:Guid", "IntegrationName:String", "Type:String", "Reason:String",
             "ExpiredAt:DateTimeOffset",
             "EventType:String", "Version:Int32",
         ],
