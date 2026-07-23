@@ -24,8 +24,8 @@ public class EscalationCheckerService(
     ISiteUrlBuilder siteUrlBuilder,
     ILogger<EscalationCheckerService> logger)
 {
-    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<AlertNotificationContext>> _dispatchers =
-        dispatchers.ToDictionary(d => d.Type);
+    private readonly Dictionary<string, IPersonalNotificationDispatcher<AlertNotificationContext>> _dispatchers =
+        dispatchers.ToDictionary(d => d.IntegrationId);
 
     public async Task ProcessAsync(CancellationToken ct = default)
     {
@@ -175,7 +175,7 @@ public class EscalationCheckerService(
                 if (!pref.VerifiedAt.HasValue) continue; // unverified handle — never dispatch to it
                 if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
                 var channelType = pref.Channel.ToIntegrationType();
-                if (!_dispatchers.TryGetValue(channelType, out var dispatcher)) continue;
+                if (!_dispatchers.TryGetValue(channelType.ToString(), out var dispatcher)) continue;
 
                 try
                 {
