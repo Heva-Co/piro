@@ -19,7 +19,7 @@ public class PagerDutyDispatcher(IHttpClientFactory httpClientFactory, ILogger<P
     private const string EnqueueUrl = "https://events.pagerduty.com/v2/enqueue";
     private const int MaxSummaryLength = 1024;
 
-    public IntegrationType Type => IntegrationType.PagerDuty;
+    public string IntegrationId => "PagerDuty";
 
     public Task<bool> TriggerAsync(string routingKey, string dedupKey, AlertNotificationContext context, CancellationToken ct = default)
     {

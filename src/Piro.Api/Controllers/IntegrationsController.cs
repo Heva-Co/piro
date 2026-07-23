@@ -97,7 +97,7 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateIntegrationRequest request, CancellationToken ct)
     {
-        if (request.Type.IsChannelOnly())
+        if (registry.Find(request.Type)?.Manifest.ChannelOnly == true)
             return BadRequest(new { error = $"Integration type '{request.Type}' does not support global credentials. Configure it directly on the Notification Channel." });
 
         var created = await integrationApp.CreateAsync(request, ct);

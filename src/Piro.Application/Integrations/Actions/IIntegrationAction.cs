@@ -19,19 +19,34 @@ namespace Piro.Application.Integrations.Actions;
 /// </summary>
 public interface IIntegrationAction
 {
-    /// <summary>Which integration type this action belongs to (resolution discriminator).</summary>
-    IntegrationType Type { get; }
 
     /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; resolution moves to it in 5b.</summary>
-    string IntegrationId => Type.ToString();
+    string IntegrationId { get; }
 
-    /// <summary>Stable id, unique within a <see cref="Type"/>. Must match a declared <c>[IntegrationAction]</c> on the type (e.g. "create-issue").</summary>
+    /// <summary>Stable id, unique within an integration (e.g. "create-issue").</summary>
     string ActionId { get; }
+
+    /// <summary>Human label for the action button (e.g. "Create Jira ticket").</summary>
+    string Label { get; }
+
+    /// <summary>One-line description shown with the button.</summary>
+    string? Description { get; }
+
+    /// <summary>Iconify icon for the button (e.g. "logos:jira").</summary>
+    string? IconifyIcon { get; }
+
+    /// <summary>The object kinds this action applies to (Alert / Incident / Maintenance).</summary>
+    IReadOnlyList<ActionContext> Contexts { get; }
+
+    /// <summary>True when the action opens an input dialog (implies <see cref="InputType"/> is non-null).</summary>
+    bool HasInput { get; }
+
+    /// <summary>True when the action can pre-fill its input from the target (see <see cref="BuildDraftAsync"/>).</summary>
+    bool SupportsDraft { get; }
 
     /// <summary>
     /// The DataAnnotations-annotated input class whose <c>ConfigSchemaBuilder.For(...)</c> schema both
-    /// renders the dialog and validates the POST, or null for a no-input action. Kept in sync with the
-    /// manifest's <c>HasInput</c> by the manifest-honesty test.
+    /// renders the dialog and validates the POST, or null for a no-input action.
     /// </summary>
     Type? InputType { get; }
 

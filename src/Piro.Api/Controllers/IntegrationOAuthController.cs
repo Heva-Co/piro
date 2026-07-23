@@ -137,10 +137,10 @@ public class IntegrationOAuthController(
         return NoContent();
     }
 
-    private static string? ProviderIdFor(Domain.Enums.IntegrationType type) => type switch
+    private static string? ProviderIdFor(string integrationId) => integrationId switch
     {
-        Domain.Enums.IntegrationType.PagerDuty => "pagerduty",
-        Domain.Enums.IntegrationType.Jira => "jira",
+        "PagerDuty" => "pagerduty",
+        "Jira" => "jira",
         _ => null
     };
 }

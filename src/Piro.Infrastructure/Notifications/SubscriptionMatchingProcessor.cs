@@ -4,10 +4,12 @@ using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Application.Notifications;
+using Piro.Application.Extensions;
 using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
+using Piro.Domain.Attributes;
 using Piro.Integrations.Abstractions;
 
 namespace Piro.Infrastructure.Notifications;
@@ -121,7 +123,7 @@ internal class SubscriptionMatchingProcessor(
         {
             if (!pref.VerifiedAt.HasValue) continue;
             if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
-            var integrationId = pref.Channel.ToIntegrationType().ToString();
+            var integrationId = pref.Channel.ToIntegrationId();
             if (!_dispatchers.TryGetValue(integrationId, out var dispatcher)) continue;
 
             var delivery = new NotificationDelivery { Target = pref.Handle, Mode = NotificationMode.Personal, IntegrationId = pref.Integration?.Id };

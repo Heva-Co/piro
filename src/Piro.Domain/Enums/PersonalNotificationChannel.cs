@@ -13,15 +13,15 @@ namespace Piro.Domain.Enums;
 public enum PersonalNotificationChannel
 {
     /// <summary>Self-sufficient from the user's own address — no platform Integration needed.</summary>
-    [PersonalChannel(RequiresIntegration = false, IntegrationType = IntegrationType.Email)]
+    [PersonalChannel(RequiresIntegration = false, IntegrationId = "Email")]
     Email,
 
-    [PersonalChannel(RequiresIntegration = true, IntegrationType = IntegrationType.Telegram)]
+    [PersonalChannel(RequiresIntegration = true, IntegrationId = "Telegram")]
     Telegram,
 
-    [PersonalChannel(RequiresIntegration = true, IntegrationType = IntegrationType.Twilio)]
+    [PersonalChannel(RequiresIntegration = true, IntegrationId = "Twilio")]
     TwilioSms,
 
-    [PersonalChannel(RequiresIntegration = true, IntegrationType = IntegrationType.Ntfy)]
+    [PersonalChannel(RequiresIntegration = true, IntegrationId = "Ntfy")]
     Ntfy,
 }

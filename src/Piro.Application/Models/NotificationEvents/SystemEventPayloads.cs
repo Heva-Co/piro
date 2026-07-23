@@ -10,7 +10,7 @@ namespace Piro.Application.Models.NotificationEvents;
 public record IntegrationExpiredPayload(
     Guid IntegrationId,
     string IntegrationName,
-    IntegrationType Type,
+    string Type,
     /// <summary>Human-readable reason, if known (e.g. "OAuth token expired", "webhook revoked").</summary>
     string? Reason,
     DateTimeOffset ExpiredAt

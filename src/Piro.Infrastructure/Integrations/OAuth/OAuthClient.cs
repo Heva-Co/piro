@@ -25,6 +25,7 @@ namespace Piro.Infrastructure.Integrations.OAuth;
 internal class OAuthClient(
     IEnumerable<IOAuthProviderDescriptor> descriptors,
     IIntegrationRepository integrationRepo,
+    Piro.Integrations.Abstractions.IIntegrationRegistry integrationRegistry,
     ISecretProtector secretProtector,
     ISiteConfigRepository siteConfigRepo,
     IConfiguration configuration,
@@ -134,7 +135,7 @@ internal class OAuthClient(
         var integration = await integrationRepo.GetByIdAsync(integrationId, ct)
             ?? throw new InvalidOperationException($"Integration {integrationId} not found.");
 
-        var decryptedConfig = IntegrationExtensions.UnprotectSecrets(integration.Type, integration.ConfigJson, secretProtector);
+        var decryptedConfig = IntegrationExtensions.UnprotectSecrets(integrationRegistry.Find(integration.Type)?.Manifest.ConfigType, integration.ConfigJson, secretProtector);
         var obj = JsonSerializer.Deserialize<JsonElement>(decryptedConfig);
 
         var clientId = obj.TryGetProperty("clientId", out var cid) ? cid.GetString() : null;

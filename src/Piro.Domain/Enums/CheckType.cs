@@ -55,6 +55,6 @@ public enum CheckType
         "Verify a Cloud Run Job has completed within a freshness window.",
         typeof(GcpCloudRunJobCheckConfig), 60,
         [AlertFor.Status],
-        RequiresIntegration = IntegrationType.GoogleCloud)]
+        RequiresIntegration = "GoogleCloud")]
     GCP_CloudRunJob
 }

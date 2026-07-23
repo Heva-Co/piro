@@ -1,48 +1,67 @@
-using Microsoft.Extensions.Configuration;
+using System.Net;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
-using Piro.Application.Models;
+using Piro.Contracts;
 using Piro.Domain.Entities;
-using Piro.Domain.Enums;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Infrastructure.Alerts;
 
-/// <summary>Sends alert and incident notifications via SMTP.</summary>
+/// <summary>
+/// Sends alert and incident notifications, and verification codes, via SMTP. Email is the one
+/// integration that stays in Piro.Infrastructure (its transport is core infrastructure shared with
+/// account setup / password reset, RFC 0016 §4.1). It implements the RFC 0016
+/// <see cref="INotificationDispatcher"/> like every other integration, plus the core
+/// <see cref="IVerificationCodeSender"/>.
+/// </summary>
 public class EmailDispatcher(
     IEmailService emailService,
-    IConfiguration configuration,
-    ISiteConfigRepository siteConfigRepo,
     ILogger<EmailDispatcher> logger)
-    : IPersonalNotificationDispatcher<AlertNotificationContext>,
-      IPersonalNotificationDispatcher<IncidentNotificationContext>,
-      IVerificationCodeSender
+    : INotificationDispatcher, IVerificationCodeSender
 {
-    public IntegrationType Type => IntegrationType.Email;
+    public string IntegrationId => "Email";
 
-    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
+    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(handle)) return false;
-        await emailService.SendAsync(handle, AlertMessageTemplates.EmailSubject(content), AlertMessageTemplates.EmailBody(content), ct);
-        logger.LogInformation("Email personal alert sent to {To}.", handle);
+        if (string.IsNullOrWhiteSpace(delivery.Target)) return false;
+        var (subject, body) = Render(evt);
+        await emailService.SendAsync(delivery.Target, subject, body, ct);
+        logger.LogInformation("Email notification sent to {To}.", delivery.Target);
         return true;
     }
 
-    public async Task<bool> SendAsync(Integration? integration, string handle, IncidentNotificationContext content, CancellationToken ct = default)
+    private static (string Subject, string Body) Render(Event evt)
     {
-        if (string.IsNullOrWhiteSpace(handle)) return false;
-        var verb = content.IsResolved ? "resolved" : "opened";
-        var subject = $"[Incident {verb}] {content.Title}";
-        var services = content.AffectedServices.Count > 0 ? string.Join(", ", content.AffectedServices) : "—";
-        var body = $"<p><strong>{content.Title}</strong> — {content.Status}</p><p>Affected services: {services}</p>";
-        await emailService.SendAsync(handle, subject, body, ct);
-        logger.LogInformation("Email incident notification sent to {To}.", handle);
-        return true;
+        switch (evt)
+        {
+            case IncidentEvent incident:
+            {
+                var verb = incident is IncidentResolvedEvent ? "resolved" : "opened";
+                var services = incident.AffectedServices.Count > 0 ? string.Join(", ", incident.AffectedServices) : "—";
+                return ($"[Incident {verb}] {evt.Title}",
+                    $"<p><strong>{WebUtility.HtmlEncode(evt.Title)}</strong> — {WebUtility.HtmlEncode(incident.Status)}</p>" +
+                    $"<p>Affected services: {WebUtility.HtmlEncode(services)}</p>");
+            }
+            case AlertEvent alert:
+            {
+                var state = evt is AlertResolvedEvent ? "Resolved" : evt.Severity.ToString();
+                var subject = $"[{state}] {evt.Title}";
+                var body = $"<p><strong>{WebUtility.HtmlEncode(evt.Title)}</strong> — {WebUtility.HtmlEncode(state)}</p>";
+                if (!string.IsNullOrWhiteSpace(alert.Description))
+                    body += $"<p>{WebUtility.HtmlEncode(alert.Description)}</p>";
+                if (alert.Url is { } url)
+                    body += $"<p><a href=\"{WebUtility.HtmlEncode(url)}\">View in Piro</a></p>";
+                return (subject, body);
+            }
+            default:
+                return (evt.Title, $"<p>{WebUtility.HtmlEncode(evt.Title)}</p>");
+        }
     }
 
     public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle)) return false;
-        await emailService.SendAsync(handle, "Your Piro verification code", $"<p>{code}</p>", ct);
+        await emailService.SendAsync(handle, "Your Piro verification code", $"<p>{WebUtility.HtmlEncode(code)}</p>", ct);
         logger.LogInformation("Email verification message sent to {To}.", handle);
         return true;
     }

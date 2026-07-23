@@ -14,7 +14,7 @@ public sealed record RegisteredAction(ActionDescriptor Descriptor, IIntegrationA
 /// <see cref="Domain.Attributes.IntegrationActionAttribute"/>, resolved for one <see cref="IntegrationType"/>.
 /// </summary>
 public sealed record ActionDescriptor(
-    IntegrationType Type,
+    string IntegrationId,
     string ActionId,
     string Label,
     string? Description,
@@ -34,10 +34,10 @@ public sealed record ActionDescriptor(
 public interface IActionRegistry
 {
     /// <summary>All actions declared for <paramref name="type"/> (metadata + handler), in manifest order.</summary>
-    IReadOnlyList<RegisteredAction> GetActions(IntegrationType type);
+    IReadOnlyList<RegisteredAction> GetActions(string integrationId);
 
     /// <summary>Resolves a single action by (type, actionId), or null if none is declared/registered.</summary>
-    RegisteredAction? Resolve(IntegrationType type, string actionId);
+    RegisteredAction? Resolve(string integrationId, string actionId);
 
     /// <summary>Every registered action across all types — used by the manifest-honesty test and diagnostics.</summary>
     IReadOnlyList<RegisteredAction> All { get; }

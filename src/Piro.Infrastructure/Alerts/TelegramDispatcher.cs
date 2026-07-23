@@ -1,3 +1,4 @@
+using Piro.Integrations.Abstractions;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using System.Text.Json;
@@ -12,30 +13,19 @@ using Piro.Contracts;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends alert notifications via the Telegram Bot API (sendMessage).</summary>
-public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramDispatcher> logger, ISecretProtector secretProtector)
-    : IPersonalNotificationDispatcher<AlertNotificationContext>, IVerificationCodeSender
+public class TelegramDispatcher(IHttpClientFactory httpClientFactory, ILogger<TelegramDispatcher> logger, IIntegrationRegistry registry, ISecretProtector secretProtector)
+    : IVerificationCodeSender
 {
     private const string ApiBase = "https://api.telegram.org";
 
-    public IntegrationType Type => IntegrationType.Telegram;
-
-    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
-        TelegramIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
-        catch { return false; }
-
-        await SendMessageAsync(config.BotToken, handle, AlertMessageTemplates.Telegram(content), ct);
-        logger.LogInformation("Telegram personal alert sent to chat {ChatId}.", handle);
-        return true;
-    }
+    public string IntegrationId => "Telegram";
 
     public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
+        var configType = registry.Find(integration.Type)?.Manifest.ConfigType;
         TelegramIntegrationConfig config;
-        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector)); }
+        try { config = JsonUtils.DeserializeAndValidate<TelegramIntegrationConfig>(integration.ReadDecryptedConfigJson(configType, secretProtector)); }
         catch { return false; }
 
         await SendMessageAsync(config.BotToken, handle, code, ct);

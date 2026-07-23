@@ -1,5 +1,4 @@
 using Piro.Domain.Entities;
-using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -12,10 +11,9 @@ namespace Piro.Application.Interfaces;
 /// </summary>
 public interface IVerificationCodeSender
 {
-    IntegrationType Type { get; }
 
     /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; dispatch moves to it in 5b.</summary>
-    string IntegrationId => Type.ToString();
+    string IntegrationId { get; }
 
     /// <summary>
     /// Sends a plain-text <paramref name="code"/> to <paramref name="handle"/>. Same null-integration

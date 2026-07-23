@@ -1,3 +1,4 @@
+using Piro.Integrations.Abstractions;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +23,7 @@ public class GcpWebhookIngestionService(
     IIntegrationRepository integrationRepository,
     IWebhookRequestLogRepository webhookLogRepository,
     AlertLifecycleService alertLifecycleService,
+    IIntegrationRegistry integrationRegistry,
     ISecretProtector secretProtector)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -46,14 +48,14 @@ public class GcpWebhookIngestionService(
             RawPayload = rawPayload,
         };
 
-        if (integration is null || integration.Type != IntegrationType.GcpCloudMonitoringWebhook)
+        if (integration is null || integration.Type != "GcpCloudMonitoringWebhook")
         {
             // Nothing to attribute this request to — still not written, there's no valid IntegrationId
             // to log against. GCP gets a generic 404 via the controller.
             return WebhookRequestOutcome.AuthFailed;
         }
 
-        if (!TryValidateToken(integration.ReadDecryptedConfigJson(secretProtector), authToken))
+        if (!TryValidateToken(integration.ReadDecryptedConfigJson(integrationRegistry.Find(integration.Type)?.Manifest.ConfigType, secretProtector), authToken))
         {
             log.Outcome = WebhookRequestOutcome.AuthFailed;
             await webhookLogRepository.CreateAsync(log, ct);

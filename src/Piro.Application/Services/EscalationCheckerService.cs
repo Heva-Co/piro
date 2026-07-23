@@ -174,7 +174,7 @@ public class EscalationCheckerService(
             {
                 if (!pref.VerifiedAt.HasValue) continue; // unverified handle — never dispatch to it
                 if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
-                var channelType = pref.Channel.ToIntegrationType();
+                var channelType = pref.Channel.ToIntegrationId();
                 if (!_dispatchers.TryGetValue(channelType.ToString(), out var dispatcher)) continue;
 
                 try
