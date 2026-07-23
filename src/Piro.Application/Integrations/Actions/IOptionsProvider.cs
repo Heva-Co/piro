@@ -18,6 +18,9 @@ public interface IOptionsProvider
     /// <summary>Which integration type this provider belongs to (resolution discriminator).</summary>
     IntegrationType Type { get; }
 
+    /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; resolution moves to it in 5b.</summary>
+    string IntegrationId => Type.ToString();
+
     /// <summary>Stable source key matching the field's <c>[DynamicOptions(sourceKey)]</c> (e.g. "jira-projects").</summary>
     string SourceKey { get; }
 

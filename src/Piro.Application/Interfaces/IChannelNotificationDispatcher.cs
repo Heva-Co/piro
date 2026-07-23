@@ -14,6 +14,9 @@ public interface IChannelNotificationDispatcher<in TContent> where TContent : IN
 {
     IntegrationType Type { get; }
 
+    /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; dispatch moves to it in 5b.</summary>
+    string IntegrationId => Type.ToString();
+
     /// <summary>
     /// Posts <paramref name="content"/> to a group destination. <paramref name="integration"/> is
     /// always required (it holds the channel credentials); <paramref name="target"/> is the

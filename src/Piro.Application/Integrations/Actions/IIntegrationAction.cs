@@ -22,6 +22,9 @@ public interface IIntegrationAction
     /// <summary>Which integration type this action belongs to (resolution discriminator).</summary>
     IntegrationType Type { get; }
 
+    /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; resolution moves to it in 5b.</summary>
+    string IntegrationId => Type.ToString();
+
     /// <summary>Stable id, unique within a <see cref="Type"/>. Must match a declared <c>[IntegrationAction]</c> on the type (e.g. "create-issue").</summary>
     string ActionId { get; }
 
