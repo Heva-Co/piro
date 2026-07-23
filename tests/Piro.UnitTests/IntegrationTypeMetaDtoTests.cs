@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Piro.Application.Extensions;
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.UnitTests;
 

@@ -1,4 +1,4 @@
-namespace Piro.Domain.Attributes;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Names a rich client-side validator for a config field (RFC 0011) — e.g.

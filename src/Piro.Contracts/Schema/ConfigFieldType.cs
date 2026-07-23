@@ -1,4 +1,4 @@
-namespace Piro.Domain.Enums;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Wire-level shape of a ConfigJson field's input — derived by reflection from the Data

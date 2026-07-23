@@ -1,4 +1,4 @@
-namespace Piro.Domain.Attributes;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Marks a config property as conditionally visible: the admin form shows it only when the sibling

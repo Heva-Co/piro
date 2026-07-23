@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using FluentAssertions;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Enums;
 
 namespace Piro.UnitTests;

@@ -1,3 +1,5 @@
+using Piro.Contracts;
+
 namespace Piro.Application.DTOs;
 
 /// <summary>

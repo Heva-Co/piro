@@ -1,5 +1,6 @@
 using Piro.Application.Integrations.Actions;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Enums;
 
 namespace Piro.Infrastructure.Integrations.Actions;

@@ -3,6 +3,7 @@ using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 

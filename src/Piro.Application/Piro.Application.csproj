@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\Piro.Contracts\Piro.Contracts.csproj" />
     <ProjectReference Include="..\Piro.Domain\Piro.Domain.csproj" />
   </ItemGroup>
 
