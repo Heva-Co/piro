@@ -1,11 +1,11 @@
 ---
 rfc: 16
 title: "Integration SDK: self-describing integrations with an open discriminator"
-status: proposed
+status: accepted
 created: 2026-07-22
 depends-on: ["0003", "0009", "0011", "0012", "0015"]
-tracking-issue: null
-proposal-pr: null
+tracking-issue: 216
+proposal-pr: 215
 implementation-pr: null
 superseded-by: null
 ---
