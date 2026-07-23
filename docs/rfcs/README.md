@@ -29,6 +29,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
+| [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | Proposed | 0003, 0009, 0011, 0012, 0015 |
 
 Implemented (frozen): **0001, 0002, 0003, 0004, 0005, 0006, 0009, 0011, 0012, 0014, 0015**.
 
@@ -53,6 +54,7 @@ graph LR
   n0013["0013"]
   n0014["0014 ✓"]
   n0015["0015 ✓"]
+  n0016["0016"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
@@ -65,6 +67,11 @@ graph LR
   n0011 --> n0012
   n0011 --> n0013
   n0009 --> n0015
+  n0003 --> n0016
+  n0009 --> n0016
+  n0011 --> n0016
+  n0012 --> n0016
+  n0015 --> n0016
   classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d;
   class n0001 done;
   class n0002 done;
