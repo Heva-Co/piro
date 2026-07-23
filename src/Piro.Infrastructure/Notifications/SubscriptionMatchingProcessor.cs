@@ -33,16 +33,16 @@ internal class SubscriptionMatchingProcessor(
     IEnumerable<ISystemEventDispatcher> systemEventDispatchers,
     ILogger<SubscriptionMatchingProcessor> logger) : INotificationEventProcessor
 {
-    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<AlertNotificationContext>> _personal =
-        personalDispatchers.ToDictionary(d => d.Type);
-    private readonly Dictionary<IntegrationType, IChannelNotificationDispatcher<AlertNotificationContext>> _channel =
-        channelDispatchers.ToDictionary(d => d.Type);
-    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<IncidentNotificationContext>> _incidentPersonal =
-        incidentPersonalDispatchers.ToDictionary(d => d.Type);
-    private readonly Dictionary<IntegrationType, IChannelNotificationDispatcher<IncidentNotificationContext>> _incidentChannel =
-        incidentChannelDispatchers.ToDictionary(d => d.Type);
-    private readonly Dictionary<IntegrationType, ISystemEventDispatcher> _systemEvent =
-        systemEventDispatchers.ToDictionary(d => d.Type);
+    private readonly Dictionary<string, IPersonalNotificationDispatcher<AlertNotificationContext>> _personal =
+        personalDispatchers.ToDictionary(d => d.IntegrationId);
+    private readonly Dictionary<string, IChannelNotificationDispatcher<AlertNotificationContext>> _channel =
+        channelDispatchers.ToDictionary(d => d.IntegrationId);
+    private readonly Dictionary<string, IPersonalNotificationDispatcher<IncidentNotificationContext>> _incidentPersonal =
+        incidentPersonalDispatchers.ToDictionary(d => d.IntegrationId);
+    private readonly Dictionary<string, IChannelNotificationDispatcher<IncidentNotificationContext>> _incidentChannel =
+        incidentChannelDispatchers.ToDictionary(d => d.IntegrationId);
+    private readonly Dictionary<string, ISystemEventDispatcher> _systemEvent =
+        systemEventDispatchers.ToDictionary(d => d.IntegrationId);
 
     public async Task ProcessAsync(NotificationEventOutbox outboxRow, CancellationToken ct = default)
     {
@@ -131,7 +131,7 @@ internal class SubscriptionMatchingProcessor(
             if (!pref.VerifiedAt.HasValue) continue;
             if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
             var channelType = pref.Channel.ToIntegrationType();
-            if (!_incidentPersonal.TryGetValue(channelType, out var dispatcher)) continue;
+            if (!_incidentPersonal.TryGetValue(channelType.ToString(), out var dispatcher)) continue;
 
             try
             {
@@ -153,7 +153,7 @@ internal class SubscriptionMatchingProcessor(
 
     private async Task DeliverIncidentChannelAsync(NotificationSubscription sub, NotificationEventOutbox row, IncidentNotificationContext context, string idempotencyKey, CancellationToken ct)
     {
-        if (sub.Integration is null || !_incidentChannel.TryGetValue(sub.Integration.Type, out var dispatcher))
+        if (sub.Integration is null || !_incidentChannel.TryGetValue(sub.Integration.Type.ToString(), out var dispatcher))
         {
             await RecordFailedAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? "Channel",
                 "No channel dispatcher registered for this integration type carries incidents.", ct);
@@ -209,7 +209,7 @@ internal class SubscriptionMatchingProcessor(
             if (!pref.VerifiedAt.HasValue) continue;
             if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
             var channelType = pref.Channel.ToIntegrationType();
-            if (!_personal.TryGetValue(channelType, out var dispatcher)) continue;
+            if (!_personal.TryGetValue(channelType.ToString(), out var dispatcher)) continue;
 
             var descriptor = $"{channelType}:{pref.Handle}";
             try
@@ -261,7 +261,7 @@ internal class SubscriptionMatchingProcessor(
     // Channel (mode 2): post to a team channel via the subscription's integration (e.g. Google Chat).
     private async Task DeliverChannelAsync(NotificationSubscription sub, NotificationEventOutbox row, AlertSnapshot alert, string idempotencyKey, CancellationToken ct)
     {
-        if (sub.Integration is null || !_channel.TryGetValue(sub.Integration.Type, out var dispatcher))
+        if (sub.Integration is null || !_channel.TryGetValue(sub.Integration.Type.ToString(), out var dispatcher))
         {
             await RecordFailedAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
                 "No group dispatcher registered for this integration type.", ct);
@@ -289,7 +289,7 @@ internal class SubscriptionMatchingProcessor(
     // PagerDuty service. A trigger opens the event; a resolve closes it, keyed by the same dedup key.
     private async Task DeliverIntegrationAsync(NotificationSubscription sub, NotificationEventOutbox row, AlertSnapshot alert, string idempotencyKey, CancellationToken ct)
     {
-        if (sub.Integration is null || !_systemEvent.TryGetValue(sub.Integration.Type, out var dispatcher))
+        if (sub.Integration is null || !_systemEvent.TryGetValue(sub.Integration.Type.ToString(), out var dispatcher))
         {
             await RecordFailedAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
                 "No system-event dispatcher registered for this integration type.", ct);

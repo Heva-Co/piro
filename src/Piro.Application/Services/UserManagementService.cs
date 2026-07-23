@@ -25,8 +25,8 @@ public class UserManagementService(
     private const string NotificationVerificationPurpose = "NotifyChannelVerify";
     private static readonly TimeSpan InvitationExpiry = TimeSpan.FromHours(48);
 
-    private readonly Dictionary<IntegrationType, IVerificationCodeSender> _codeSenders =
-        codeSenders.ToDictionary(s => s.Type);
+    private readonly Dictionary<string, IVerificationCodeSender> _codeSenders =
+        codeSenders.ToDictionary(s => s.IntegrationId);
 
     public async Task<List<UserListDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -361,7 +361,7 @@ public class UserManagementService(
         var user = await userManager.FindByIdAsync(userId.ToString())
             ?? throw new NotFoundException(nameof(AppUser), userId);
 
-        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationType(), out var codeSender))
+        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationType().ToString(), out var codeSender))
             throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
 
         var code = await userManager.GenerateUserTokenAsync(
