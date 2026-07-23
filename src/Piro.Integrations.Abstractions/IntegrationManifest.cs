@@ -60,6 +60,25 @@ public sealed class IntegrationManifest
     public IReadOnlyList<string> SupportedEvents { get; init; } = [];
 
     /// <summary>
+    /// Whether this integration handles the given catalog event wire name, honoring wildcards in
+    /// <see cref="SupportedEvents"/> (RFC 0016): "*" matches everything, "alert:*" matches any
+    /// "alert:…" event, and an exact name matches itself. Used by the create-time subscription guard
+    /// and the UI catalog scoping.
+    /// </summary>
+    public bool HandlesEvent(string wireName)
+    {
+        foreach (var pattern in SupportedEvents)
+        {
+            if (pattern == "*" || pattern == wireName)
+                return true;
+            if (pattern.EndsWith(":*", StringComparison.Ordinal) &&
+                wireName.StartsWith(pattern[..^1], StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Which way data flows — <b>derived</b> from <see cref="Capabilities"/>, not declared (RFC 0016
     /// §4.6): a type that creates alerts is inbound; one that sends/extends-UI is outbound. Kept as a
     /// projected value for the admin badge, with no hand-set field that could disagree with the
