@@ -11,6 +11,7 @@ using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Services;
 

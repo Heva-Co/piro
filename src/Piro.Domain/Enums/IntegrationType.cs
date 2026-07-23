@@ -1,6 +1,7 @@
 using Piro.Domain.Attributes;
 using Piro.Contracts;
 using Piro.Domain.Integrations.Config;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Domain.Enums;
 
@@ -21,7 +22,7 @@ public enum IntegrationType
     [IntegrationManifest(
         IntegrationCategory.ThirdParty,
         IntegrationDirection.Outbound,
-        IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.ProvidesActions,
+        IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.ExtendsUserInterface,
         typeof(JiraConfig),
         Label = "Jira",
         Description = "Create and track Jira tickets from alerts, incidents, and maintenances.",

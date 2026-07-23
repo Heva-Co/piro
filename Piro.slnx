@@ -4,6 +4,7 @@
     <Project Path="src/Piro.Application/Piro.Application.csproj" />
     <Project Path="src/Piro.Contracts/Piro.Contracts.csproj" />
     <Project Path="src/Piro.Domain/Piro.Domain.csproj" />
+    <Project Path="src/Piro.Integrations.Abstractions/Piro.Integrations.Abstractions.csproj" />
     <Project Path="src/Piro.Infrastructure/Piro.Infrastructure.csproj" />
     <Project Path="src/Piro.Worker/Piro.Worker.csproj" />
   </Folder>
