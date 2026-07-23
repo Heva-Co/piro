@@ -12,20 +12,20 @@ namespace Piro.Integrations.Ntfy;
 /// wording that used to live in the <c>ntfy_title</c>/<c>ntfy_body</c> Scriban templates is ported
 /// inline here. It references no Piro.Domain type, no repository, no secret store (RFC 0016 §4.2b).
 /// </summary>
-public sealed class NtfyNotificationDispatcher : INotificationDispatcher
+public sealed class NtfyNotificationDispatcher : IIntegrationEventHandler
 {
     private const string DefaultServer = "https://ntfy.sh";
 
     public string IntegrationId => "Ntfy";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(delivery.Target) || delivery.IntegrationId is not { } integrationId)
+        if (string.IsNullOrWhiteSpace(ctx.Target) || ctx.IntegrationInstanceId is not { } integrationId)
             return false;
 
         var config = await host.GetConfigAsync<NtfyConfig>(integrationId, ct);
         var serverUrl = string.IsNullOrWhiteSpace(config?.ServerUrl) ? DefaultServer : config.ServerUrl;
-        var url = $"{serverUrl.TrimEnd('/')}/{delivery.Target}";
+        var url = $"{serverUrl.TrimEnd('/')}/{ctx.Target}";
 
         var isRecovery = evt.IsResolvedLike();
         var title = RenderTitle(evt, isRecovery);

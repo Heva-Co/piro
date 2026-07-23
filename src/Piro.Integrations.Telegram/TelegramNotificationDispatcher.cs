@@ -12,22 +12,22 @@ namespace Piro.Integrations.Telegram;
 /// references no Piro.Domain type, no repository, no secret store — the boundary is the assembly's
 /// reference graph plus the host window (RFC 0016 §4.2b).
 /// </summary>
-public sealed class TelegramNotificationDispatcher : INotificationDispatcher
+public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler
 {
     private const string ApiBase = "https://api.telegram.org";
 
     public string IntegrationId => "Telegram";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(delivery.Target) || delivery.IntegrationId is not { } integrationId)
+        if (string.IsNullOrWhiteSpace(ctx.Target) || ctx.IntegrationInstanceId is not { } integrationId)
             return false;
 
         var config = await host.GetConfigAsync<TelegramConfig>(integrationId, ct);
         if (config is null || string.IsNullOrWhiteSpace(config.BotToken))
             return false;
 
-        await SendMessageAsync(host, config.BotToken, delivery.Target, Render(evt), ct);
+        await SendMessageAsync(host, config.BotToken, ctx.Target, Render(evt), ct);
         return true;
     }
 

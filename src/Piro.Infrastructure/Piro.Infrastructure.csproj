@@ -8,7 +8,6 @@
     <ProjectReference Include="..\Piro.Integrations.Ntfy\Piro.Integrations.Ntfy.csproj" />
     <ProjectReference Include="..\Piro.Integrations.GoogleChat\Piro.Integrations.GoogleChat.csproj" />
     <ProjectReference Include="..\Piro.Integrations.Webhook\Piro.Integrations.Webhook.csproj" />
-    <ProjectReference Include="..\Piro.Integrations.PagerDuty\Piro.Integrations.PagerDuty.csproj" />
     <ProjectReference Include="..\Piro.Integrations.Jira\Piro.Integrations.Jira.csproj" />
     <ProjectReference Include="..\Piro.Integrations.Gcp\Piro.Integrations.Gcp.csproj" />
 

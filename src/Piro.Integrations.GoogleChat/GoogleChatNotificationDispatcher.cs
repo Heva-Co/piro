@@ -16,13 +16,13 @@ namespace Piro.Integrations.GoogleChat;
 /// itself. It references no Piro.Domain type, no repository, no secret store (RFC 0016 §4.2b).
 /// </para>
 /// </summary>
-public sealed class GoogleChatNotificationDispatcher : INotificationDispatcher
+public sealed class GoogleChatNotificationDispatcher : IIntegrationEventHandler
 {
     public string IntegrationId => "GoogleChat";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (delivery.IntegrationId is not { } integrationId)
+        if (ctx.IntegrationInstanceId is not { } integrationId)
             return false;
 
         var config = await host.GetConfigAsync<GoogleChatConfig>(integrationId, ct);
