@@ -17,10 +17,18 @@ namespace Piro.Integrations.Abstractions;
 public interface IIntegrationHost
 {
     /// <summary>
-    /// Resolves a service the integration is allowed to use (e.g. <c>HttpClient</c>). Throws when the
-    /// requested type is not on the allow-list — that is the boundary doing its job, not a bug. An
-    /// integration that needs HTTP requests one here rather than constructing its own; one that needs
-    /// nothing asks for nothing.
+    /// Resolves a service the integration is allowed to use (e.g. <see cref="HttpClient"/>,
+    /// <see cref="Piro.Contracts.ISecretProtector"/>). Throws when the requested type is not on the
+    /// allow-list — that is the boundary doing its job, not a bug. An integration that needs HTTP
+    /// requests one here rather than constructing its own; one that needs nothing asks for nothing.
     /// </summary>
     T GetRequiredService<T>() where T : notnull;
+
+    /// <summary>
+    /// Returns this integration instance's configuration, deserialized into <typeparamref name="TConfig"/>
+    /// with its secret fields already decrypted. The integration reads its own settings without ever
+    /// touching the <c>Integration</c> entity, the repository, or the secret store directly — the host
+    /// resolves and decrypts on its behalf. Returns null if the integration instance is not found.
+    /// </summary>
+    Task<TConfig?> GetConfigAsync<TConfig>(Guid integrationId, CancellationToken ct = default) where TConfig : class;
 }
