@@ -13,13 +13,13 @@ namespace Piro.Integrations.Twilio;
 /// renders the neutral event to plain text itself. The Twilio SDK owns its own HTTP client, so this
 /// dispatcher needs no HttpClient from the host. References no Piro.Domain/Infrastructure type.
 /// </summary>
-public sealed class TwilioNotificationDispatcher : INotificationDispatcher
+public sealed class TwilioNotificationDispatcher : IIntegrationEventHandler
 {
     public string IntegrationId => "Twilio";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(delivery.Target) || delivery.IntegrationId is not { } integrationId)
+        if (string.IsNullOrWhiteSpace(ctx.Target) || ctx.IntegrationInstanceId is not { } integrationId)
             return false;
 
         var config = await host.GetConfigAsync<TwilioConfig>(integrationId, ct);
@@ -27,7 +27,7 @@ public sealed class TwilioNotificationDispatcher : INotificationDispatcher
 
         TwilioClient.Init(config.AccountSid, config.AuthToken);
         await MessageResource.CreateAsync(
-            to: new PhoneNumber(delivery.Target),
+            to: new PhoneNumber(ctx.Target),
             from: new PhoneNumber(config.FromNumber),
             body: Render(evt));
         return true;

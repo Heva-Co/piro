@@ -17,16 +17,16 @@ namespace Piro.Infrastructure.Alerts;
 public class EmailDispatcher(
     IEmailService emailService,
     ILogger<EmailDispatcher> logger)
-    : INotificationDispatcher, IVerificationCodeSender
+    : IIntegrationEventHandler, IVerificationCodeSender
 {
     public string IntegrationId => "Email";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(delivery.Target)) return false;
+        if (string.IsNullOrWhiteSpace(ctx.Target)) return false;
         var (subject, body) = Render(evt);
-        await emailService.SendAsync(delivery.Target, subject, body, ct);
-        logger.LogInformation("Email notification sent to {To}.", delivery.Target);
+        await emailService.SendAsync(ctx.Target, subject, body, ct);
+        logger.LogInformation("Email notification sent to {To}.", ctx.Target);
         return true;
     }
 

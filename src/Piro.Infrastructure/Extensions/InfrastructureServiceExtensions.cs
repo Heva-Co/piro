@@ -191,7 +191,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IOAuthClient, OAuthClient>();
         services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
         services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
-        services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
         services.AddScoped<IJiraDiscoveryService, JiraDiscoveryService>();
         services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
 
@@ -205,7 +204,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IOptionsProvider, JiraProjectsOptionsProvider>();
         services.AddScoped<IOptionsProvider, JiraIssueTypesOptionsProvider>();
         // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
-        services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
         services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();
         // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
         services.AddHttpClient("oauth-integration-http", c =>
@@ -261,7 +259,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Integration SDK (RFC 0016) — the explicit compile-time registry + the per-integration
         // assemblies. Each integration self-describes (IIntegration) and delivers via a single
-        // INotificationDispatcher against the neutral Event hierarchy, reaching Piro only through
+        // IIntegrationEventHandler against the neutral Event hierarchy, reaching Piro only through
         // IIntegrationHost. Email stays here in Infrastructure (its SMTP transport is core infra).
         services.AddScoped<IIntegrationHost, IntegrationHost>();
         services.AddSingleton<IIntegrationRegistry, IntegrationRegistry>();
@@ -271,17 +269,16 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddSingleton<IIntegration, Piro.Integrations.Ntfy.NtfyIntegration>();
         services.AddSingleton<IIntegration, Piro.Integrations.GoogleChat.GoogleChatIntegration>();
         services.AddSingleton<IIntegration, Piro.Integrations.Webhook.WebhookIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.PagerDuty.PagerDutyIntegration>();
         services.AddSingleton<IIntegration, Piro.Integrations.Jira.JiraIntegration>();
         services.AddSingleton<IIntegration, Piro.Integrations.Gcp.GcpCloudMonitoringWebhookIntegration>();
         services.AddSingleton<IIntegration, EmailIntegration>();
 
-        services.AddScoped<INotificationDispatcher, EmailDispatcher>();
-        services.AddScoped<INotificationDispatcher, Piro.Integrations.Telegram.TelegramNotificationDispatcher>();
-        services.AddScoped<INotificationDispatcher, Piro.Integrations.Twilio.TwilioNotificationDispatcher>();
-        services.AddScoped<INotificationDispatcher, Piro.Integrations.Ntfy.NtfyNotificationDispatcher>();
-        services.AddScoped<INotificationDispatcher, Piro.Integrations.GoogleChat.GoogleChatNotificationDispatcher>();
-        services.AddScoped<INotificationDispatcher, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, EmailDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Telegram.TelegramNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Twilio.TwilioNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Ntfy.NtfyNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.GoogleChat.GoogleChatNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
 
         // Verification-code senders (RFC 0009 §4.9) — a distinct concern from notification dispatch,
         // kept in Infrastructure. Email plus the personal plain-text channels.
@@ -309,7 +306,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // the registry — issue #212. No per-type subscriber registration remains.
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
-        services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
 
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();

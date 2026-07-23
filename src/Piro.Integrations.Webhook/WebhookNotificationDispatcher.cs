@@ -9,13 +9,13 @@ namespace Piro.Integrations.Webhook;
 /// <summary>
 /// Generic outbound webhook dispatcher (RFC 0015, migrated to its own assembly per RFC 0016). POSTs
 /// (or PUTs) a fixed, versioned JSON payload to the configured URL when a subscribed alert or incident
-/// event fires. A channel dispatcher: the destination is the config URL, so <c>delivery.Target</c> is
+/// event fires. A channel dispatcher: the destination is the config URL, so <c>ctx.Target</c> is
 /// unused. The body is not user-editable — Piro owns the schema, so Zapier/Make map against a stable
 /// shape. It reaches Piro only through <see cref="IIntegrationHost"/>: it asks the host for an
 /// HttpClient and for its own decrypted <see cref="WebhookConfig"/>, and renders the neutral
 /// <see cref="Event"/> itself — no Piro.Domain type, no repository, no secret store.
 /// </summary>
-public sealed class WebhookNotificationDispatcher : INotificationDispatcher
+public sealed class WebhookNotificationDispatcher : IIntegrationEventHandler
 {
     /// <summary>The public payload contract version. Bump only on a breaking change; evolve additively otherwise.</summary>
     private const int SchemaVersion = 1;
@@ -34,9 +34,9 @@ public sealed class WebhookNotificationDispatcher : INotificationDispatcher
 
     public string IntegrationId => "Webhook";
 
-    public async Task<bool> SendAsync(Event evt, NotificationDelivery delivery, IIntegrationHost host, CancellationToken ct = default)
+    public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {
-        if (delivery.IntegrationId is not { } integrationId)
+        if (ctx.IntegrationInstanceId is not { } integrationId)
             return false;
 
         var config = await host.GetConfigAsync<WebhookConfig>(integrationId, ct);

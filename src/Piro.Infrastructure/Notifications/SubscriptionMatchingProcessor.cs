@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Application.Notifications;
-using Piro.Application.Extensions;
 using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
@@ -16,28 +16,22 @@ namespace Piro.Infrastructure.Notifications;
 
 /// <summary>
 /// The real event processor (RFC 0009 §4.4, RFC 0016). Matches a drained event against enabled
-/// subscriptions (by event membership + minimum severity) and delivers each match to its destination.
-/// Personal and Channel destinations go through the single <see cref="INotificationDispatcher"/> an
-/// integration exposes (resolved by IntegrationId, fed the neutral <see cref="Event"/> mapped from the
-/// snapshot); Integration destinations (paging platforms like PagerDuty) still use
-/// <see cref="ISystemEventDispatcher"/> with a per-service routing key from the RFC-0004
-/// <see cref="ServiceIntegrationMapping"/>. Every attempt is logged with a deterministic idempotency
-/// key so a retry can't double-send.
+/// subscriptions (by event membership + minimum severity) and delivers each match through the single
+/// <see cref="IIntegrationEventHandler"/> the destination integration exposes — resolved by
+/// IntegrationId, fed the neutral <see cref="Event"/> mapped from the snapshot and an
+/// <see cref="EventDeliveryContext"/> with the resolved target/mode. Every attempt is logged with a
+/// deterministic idempotency key so a retry can't double-send.
 /// </summary>
 internal class SubscriptionMatchingProcessor(
     INotificationSubscriptionRepository subscriptionRepo,
     IUserNotificationPreferenceRepository prefRepo,
     INotificationDeliveryLogRepository deliveryLogRepo,
-    IServiceIntegrationMappingRepository mappingRepo,
-    IEnumerable<INotificationDispatcher> dispatchers,
-    IEnumerable<ISystemEventDispatcher> systemEventDispatchers,
+    IEnumerable<IIntegrationEventHandler> handlers,
     IIntegrationHost host,
     ILogger<SubscriptionMatchingProcessor> logger) : INotificationEventProcessor
 {
-    private readonly Dictionary<string, INotificationDispatcher> _dispatchers =
-        dispatchers.ToDictionary(d => d.IntegrationId, StringComparer.Ordinal);
-    private readonly Dictionary<string, ISystemEventDispatcher> _systemEvent =
-        systemEventDispatchers.ToDictionary(d => d.IntegrationId, StringComparer.Ordinal);
+    private readonly Dictionary<string, IIntegrationEventHandler> _handlers =
+        handlers.ToDictionary(h => h.IntegrationId, StringComparer.Ordinal);
 
     public async Task ProcessAsync(NotificationEventOutbox outboxRow, CancellationToken ct = default)
     {
@@ -69,7 +63,8 @@ internal class SubscriptionMatchingProcessor(
         foreach (var sub in matched)
         {
             if (ct.IsCancellationRequested) break;
-            await DeliverAsync(sub, outboxRow, alert, evt, ct);
+            var idempotencyKey = $"{outboxRow.EventType}:{alert.AlertId}:{sub.Id}";
+            await DeliverAsync(sub, outboxRow, evt, idempotencyKey, ct);
         }
     }
 
@@ -89,15 +84,15 @@ internal class SubscriptionMatchingProcessor(
         foreach (var sub in matched)
         {
             if (ct.IsCancellationRequested) break;
-            await DeliverIncidentAsync(sub, outboxRow, incident, evt, ct);
+            var idempotencyKey = $"{outboxRow.EventType}:{incident.IncidentId}:{sub.Id}";
+            await DeliverAsync(sub, outboxRow, evt, idempotencyKey, ct);
         }
     }
 
-    // ── Alerts ────────────────────────────────────────────────────────────────
-
-    private async Task DeliverAsync(NotificationSubscription sub, NotificationEventOutbox row, AlertSnapshot alert, Event evt, CancellationToken ct)
+    /// <summary>Route one matched event to a subscription's destination. Personal fans over the user's
+    /// verified preferences; Channel goes to the subscription's integration.</summary>
+    private async Task DeliverAsync(NotificationSubscription sub, NotificationEventOutbox row, Event evt, string idempotencyKey, CancellationToken ct)
     {
-        var idempotencyKey = $"{row.EventType}:{alert.AlertId}:{sub.Id}";
         if (await deliveryLogRepo.ExistsAsync(idempotencyKey, ct)) return;
 
         switch (sub.TargetKind)
@@ -108,8 +103,11 @@ internal class SubscriptionMatchingProcessor(
             case NotificationTargetKind.Channel:
                 await DeliverChannelAsync(sub, row, evt, idempotencyKey, ct);
                 break;
-            case NotificationTargetKind.Integration:
-                await DeliverIntegrationAsync(sub, row, alert, idempotencyKey, ct);
+            default:
+                // Integration (paging-platform) target kind is retired with the PagerDuty integration —
+                // Piro provides on-call itself via escalation policies (RFC 0016).
+                await RecordAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
+                    DeliveryStatus.Skipped, "This target kind is no longer supported.", sub.Integration?.Type, sub.Integration?.Id, ct);
                 break;
         }
     }
@@ -124,13 +122,13 @@ internal class SubscriptionMatchingProcessor(
             if (!pref.VerifiedAt.HasValue) continue;
             if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
             var integrationId = pref.Channel.ToIntegrationId();
-            if (!_dispatchers.TryGetValue(integrationId, out var dispatcher)) continue;
+            if (!_handlers.TryGetValue(integrationId, out var handler)) continue;
 
-            var delivery = new NotificationDelivery { Target = pref.Handle, Mode = NotificationMode.Personal, IntegrationId = pref.Integration?.Id };
+            var ctx = new EventDeliveryContext { Target = pref.Handle, Mode = EventDeliveryMode.Personal, IntegrationInstanceId = pref.Integration?.Id };
             var descriptor = $"{integrationId}:{pref.Handle}";
             try
             {
-                if (await dispatcher.SendAsync(evt, delivery, host, ct))
+                if (await handler.HandleAsync(evt, ctx, host, ct))
                 {
                     await RecordAsync(sub, row, idempotencyKey, descriptor, DeliveryStatus.Delivered, null, integrationId, pref.Integration?.Id, ct);
                     return;
@@ -148,103 +146,26 @@ internal class SubscriptionMatchingProcessor(
 
     private async Task DeliverChannelAsync(NotificationSubscription sub, NotificationEventOutbox row, Event evt, string idempotencyKey, CancellationToken ct)
     {
-        if (sub.Integration is null || !_dispatchers.TryGetValue(sub.Integration.Type, out var dispatcher))
+        if (sub.Integration is null || !_handlers.TryGetValue(sub.Integration.Type, out var handler))
         {
             await RecordAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
-                DeliveryStatus.Failed, "No dispatcher registered for this integration.", sub.Integration?.Type, sub.Integration?.Id, ct);
+                DeliveryStatus.Failed, "No handler registered for this integration.", sub.Integration?.Type, sub.Integration?.Id, ct);
             return;
         }
 
-        var delivery = new NotificationDelivery { Target = sub.Target ?? "", Mode = NotificationMode.Channel, IntegrationId = sub.Integration.Id };
+        var ctx = new EventDeliveryContext { Target = sub.Target, Mode = EventDeliveryMode.Channel, IntegrationInstanceId = sub.Integration.Id };
         var descriptor = sub.Integration.Name + (sub.Target is { Length: > 0 } t ? $" · {t}" : "");
         try
         {
-            var sent = await dispatcher.SendAsync(evt, delivery, host, ct);
+            var sent = await handler.HandleAsync(evt, ctx, host, ct);
             await RecordAsync(sub, row, idempotencyKey, descriptor, sent ? DeliveryStatus.Delivered : DeliveryStatus.Failed,
-                sent ? null : "Channel dispatcher reported failure.", sub.Integration.Type, sub.Integration.Id, ct);
+                sent ? null : "Handler reported failure.", sub.Integration.Type, sub.Integration.Id, ct);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Channel delivery failed for subscription {Sub} via {Type}.", sub.Id, sub.Integration.Type);
             await RecordAsync(sub, row, idempotencyKey, descriptor, DeliveryStatus.Failed, ex.Message, sub.Integration.Type, sub.Integration.Id, ct);
         }
-    }
-
-    private async Task DeliverIntegrationAsync(NotificationSubscription sub, NotificationEventOutbox row, AlertSnapshot alert, string idempotencyKey, CancellationToken ct)
-    {
-        if (sub.Integration is null || !_systemEvent.TryGetValue(sub.Integration.Type, out var dispatcher))
-        {
-            await RecordAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
-                DeliveryStatus.Failed, "No system-event dispatcher registered for this integration.", sub.Integration?.Type, sub.Integration?.Id, ct);
-            return;
-        }
-
-        if (alert.ServiceId is null)
-        {
-            await RecordAsync(sub, row, idempotencyKey, sub.Integration.Name, DeliveryStatus.Skipped,
-                "Alert has no service; cannot resolve a per-service routing key.", sub.Integration.Type, sub.Integration.Id, ct);
-            return;
-        }
-
-        var mapping = await mappingRepo.GetAsync(alert.ServiceId.Value, sub.Integration.Id, ct);
-        var routingKey = ExtractRoutingKey(mapping?.MappingJson);
-        if (routingKey is null)
-        {
-            await RecordAsync(sub, row, idempotencyKey, sub.Integration.Name, DeliveryStatus.Skipped,
-                "No routing key mapped for this service and integration.", sub.Integration.Type, sub.Integration.Id, ct);
-            return;
-        }
-
-        var dedupKey = $"piro-alert-{alert.AlertId}";
-        var descriptor = $"{sub.Integration.Name} (service {alert.ServiceId})";
-        try
-        {
-            var ok = alert.IsRecovery
-                ? await dispatcher.ResolveAsync(routingKey, dedupKey, ct)
-                : await dispatcher.TriggerAsync(routingKey, dedupKey, BuildAlertContext(alert), ct);
-            await RecordAsync(sub, row, idempotencyKey, descriptor, ok ? DeliveryStatus.Delivered : DeliveryStatus.Failed,
-                ok ? null : "System-event dispatcher reported failure.", sub.Integration.Type, sub.Integration.Id, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Integration delivery failed for subscription {Sub} via {Type}.", sub.Id, sub.Integration.Type);
-            await RecordAsync(sub, row, idempotencyKey, descriptor, DeliveryStatus.Failed, ex.Message, sub.Integration.Type, sub.Integration.Id, ct);
-        }
-    }
-
-    // ── Incidents ─────────────────────────────────────────────────────────────
-
-    private async Task DeliverIncidentAsync(NotificationSubscription sub, NotificationEventOutbox row, IncidentSnapshot incident, Event evt, CancellationToken ct)
-    {
-        var idempotencyKey = $"{row.EventType}:{incident.IncidentId}:{sub.Id}";
-        if (await deliveryLogRepo.ExistsAsync(idempotencyKey, ct)) return;
-
-        switch (sub.TargetKind)
-        {
-            case NotificationTargetKind.Personal:
-                await DeliverPersonalAsync(sub, row, evt, idempotencyKey, ct);
-                break;
-            case NotificationTargetKind.Channel:
-                await DeliverChannelAsync(sub, row, evt, idempotencyKey, ct);
-                break;
-            case NotificationTargetKind.Integration:
-                await RecordAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? "Integration", DeliveryStatus.Skipped,
-                    "Incident delivery to integration platforms is not supported in v1.", sub.Integration?.Type, sub.Integration?.Id, ct);
-                break;
-        }
-    }
-
-    // ── Shared ────────────────────────────────────────────────────────────────
-
-    private static string? ExtractRoutingKey(string? mappingJson)
-    {
-        if (string.IsNullOrWhiteSpace(mappingJson)) return null;
-        try
-        {
-            using var doc = JsonDocument.Parse(mappingJson);
-            return doc.RootElement.TryGetProperty("routingKey", out var k) ? k.GetString() : null;
-        }
-        catch { return null; }
     }
 
     private Task RecordAsync(NotificationSubscription sub, NotificationEventOutbox row, string key, string descriptor,
