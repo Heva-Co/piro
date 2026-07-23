@@ -361,7 +361,7 @@ public class UserManagementService(
         var user = await userManager.FindByIdAsync(userId.ToString())
             ?? throw new NotFoundException(nameof(AppUser), userId);
 
-        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationType().ToString(), out var codeSender))
+        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationId(), out var codeSender))
             throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
 
         var code = await userManager.GenerateUserTokenAsync(

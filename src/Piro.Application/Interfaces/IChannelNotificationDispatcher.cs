@@ -1,6 +1,5 @@
 using Piro.Application.Models;
 using Piro.Domain.Entities;
-using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -12,10 +11,9 @@ namespace Piro.Application.Interfaces;
 /// <typeparam name="TContent">The content this dispatcher renders and posts.</typeparam>
 public interface IChannelNotificationDispatcher<in TContent> where TContent : INotificationContent
 {
-    IntegrationType Type { get; }
 
     /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; dispatch moves to it in 5b.</summary>
-    string IntegrationId => Type.ToString();
+    string IntegrationId { get; }
 
     /// <summary>
     /// Posts <paramref name="content"/> to a group destination. <paramref name="integration"/> is

@@ -1,5 +1,4 @@
 using Piro.Application.Models;
-using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
@@ -17,10 +16,9 @@ namespace Piro.Application.Interfaces;
 /// </summary>
 public interface ISystemEventDispatcher
 {
-    IntegrationType Type { get; }
 
     /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; dispatch moves to it in 5b.</summary>
-    string IntegrationId => Type.ToString();
+    string IntegrationId { get; }
 
     /// <summary>
     /// Opens an event on the shared channel for the given alert. <paramref name="dedupKey"/> must be

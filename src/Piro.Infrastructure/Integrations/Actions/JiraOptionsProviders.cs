@@ -29,7 +29,7 @@ internal static class JiraOptionsHttp
 /// <summary>Lists the connected Jira account's projects (RFC 0012) — populates the "Project key" select.</summary>
 internal sealed class JiraProjectsOptionsProvider(IHttpClientFactory httpClientFactory) : IOptionsProvider
 {
-    public IntegrationType Type => IntegrationType.Jira;
+    public string IntegrationId => "Jira";
     public string SourceKey => "jira-projects";
 
     public async Task<IReadOnlyList<OptionItem>> GetOptionsAsync(
@@ -69,7 +69,7 @@ internal sealed class JiraProjectsOptionsProvider(IHttpClientFactory httpClientF
 /// </summary>
 internal sealed class JiraIssueTypesOptionsProvider(IHttpClientFactory httpClientFactory) : IOptionsProvider
 {
-    public IntegrationType Type => IntegrationType.Jira;
+    public string IntegrationId => "Jira";
     public string SourceKey => "jira-issue-types";
 
     public async Task<IReadOnlyList<OptionItem>> GetOptionsAsync(

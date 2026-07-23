@@ -17,8 +17,14 @@ internal sealed class JiraCreateIssueAction(IHttpClientFactory httpClientFactory
 {
     private const string HttpClientName = "oauth-integration-http";
 
-    public IntegrationType Type => IntegrationType.Jira;
+    public string IntegrationId => "Jira";
     public string ActionId => "create-issue";
+    public string Label => "Create Jira ticket";
+    public string? Description => "Create a Jira ticket and link it back to this object.";
+    public string? IconifyIcon => "logos:jira";
+    public IReadOnlyList<ActionContext> Contexts => [ActionContext.Alert, ActionContext.Incident, ActionContext.Maintenance];
+    public bool HasInput => true;
+    public bool SupportsDraft => true;
     public Type? InputType => typeof(JiraCreateIssueInput);
 
     /// <summary>Ready only when the integration has a live OAuth connection — an unconnected Jira shows no button (RFC 0012 §4.4).</summary>

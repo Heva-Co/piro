@@ -13,8 +13,9 @@ public static class PersonalNotificationChannelExtensions
     public static bool RequiresIntegration(this PersonalNotificationChannel channel) =>
         GetAttribute(channel)?.RequiresIntegration ?? false;
 
-    /// <summary>The IPersonalNotificationDispatcher.Type this channel dispatches through (used to look up the right dispatcher).</summary>
-    public static IntegrationType ToIntegrationType(this PersonalNotificationChannel channel) =>
-        GetAttribute(channel)?.IntegrationType
-            ?? throw new InvalidOperationException($"Personal channel '{channel}' has no [PersonalChannel] attribute.");
+    /// <summary>The integration id (RFC 0016) this channel dispatches through — used to look up the right INotificationDispatcher.</summary>
+    public static string ToIntegrationId(this PersonalNotificationChannel channel) =>
+        GetAttribute(channel) is { IntegrationId.Length: > 0 } attr
+            ? attr.IntegrationId
+            : throw new InvalidOperationException($"Personal channel '{channel}' has no [PersonalChannel] integration id.");
 }

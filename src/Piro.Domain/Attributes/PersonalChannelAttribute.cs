@@ -1,5 +1,3 @@
-using Piro.Domain.Enums;
-
 namespace Piro.Domain.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
@@ -14,9 +12,9 @@ public sealed class PersonalChannelAttribute : Attribute
     public bool RequiresIntegration { get; init; }
 
     /// <summary>
-    /// The platform IntegrationType this channel's credentials come from when
-    /// <see cref="RequiresIntegration"/> is true (e.g. Telegram → IntegrationType.Telegram).
-    /// Unused when RequiresIntegration is false.
+    /// The integration id (RFC 0016) this channel's credentials come from when
+    /// <see cref="RequiresIntegration"/> is true (e.g. Telegram → "Telegram"). Empty when
+    /// RequiresIntegration is false.
     /// </summary>
-    public IntegrationType IntegrationType { get; init; }
+    public string IntegrationId { get; init; } = string.Empty;
 }

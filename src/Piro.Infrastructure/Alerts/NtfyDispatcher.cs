@@ -1,3 +1,4 @@
+using Piro.Integrations.Abstractions;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -11,25 +12,16 @@ using Piro.Contracts;
 namespace Piro.Infrastructure.Alerts;
 
 /// <summary>Sends push notifications via ntfy.sh or a self-hosted ntfy instance.</summary>
-public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDispatcher> logger, ISecretProtector secretProtector)
-    : IPersonalNotificationDispatcher<AlertNotificationContext>, IVerificationCodeSender
+public class NtfyDispatcher(IHttpClientFactory httpClientFactory, ILogger<NtfyDispatcher> logger, IIntegrationRegistry registry, ISecretProtector secretProtector)
+    : IVerificationCodeSender
 {
-    public IntegrationType Type => IntegrationType.Ntfy;
-
-    public async Task<bool> SendAsync(Integration? integration, string handle, AlertNotificationContext content, CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
-        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector));
-
-        await SendAsync(config?.ServerUrl, handle, config?.Token, null, content, ct);
-        logger.LogInformation("ntfy personal alert sent to topic {Topic}.", handle);
-        return true;
-    }
+    public string IntegrationId => "Ntfy";
 
     public async Task<bool> SendCodeAsync(Integration? integration, string handle, string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(handle) || integration is null) return false;
-        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ReadDecryptedConfigJson(secretProtector));
+        var configType = registry.Find(integration.Type)?.Manifest.ConfigType;
+        var config = JsonUtils.Deserialize<NtfyIntegrationConfig>(integration.ReadDecryptedConfigJson(configType, secretProtector));
 
         var url = $"{config?.ServerUrl?.TrimEnd('/') ?? "https://ntfy.sh"}/{handle}";
         var client = httpClientFactory.CreateClient("piro-webhook");

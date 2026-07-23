@@ -35,22 +35,12 @@ public sealed class CheckTypeManifestAttribute(
     /// <summary>The <see cref="AlertFor"/> values that make sense for this type — see RFC 0002 §4.4.</summary>
     public AlertFor[] AllowedAlertFors { get; } = allowedAlertFors;
 
-    private IntegrationType _requiredIntegration;
-    private bool _hasRequiredIntegration;
-
     /// <summary>
-    /// A provider Integration this type requires before it can be used (e.g. GoogleCloud for a
-    /// Cloud Run Job check). Replaces the <c>[RequiresIntegration]</c> attribute that previously
-    /// lived on the executor. Set via the named argument; read as a nullable through
-    /// <see cref="RequiredIntegration"/>. (Attribute named args can't be a nullable enum, hence the
-    /// backing-field + presence-flag pattern.)
+    /// The integration id (RFC 0016) of a provider Integration this type requires before it can be
+    /// used (e.g. "GoogleCloud" for a Cloud Run Job check). Null when this type needs none.
     /// </summary>
-    public IntegrationType RequiresIntegration
-    {
-        get => _requiredIntegration;
-        set { _requiredIntegration = value; _hasRequiredIntegration = true; }
-    }
+    public string? RequiresIntegration { get; init; }
 
-    /// <summary>The required provider Integration, or null when this type needs none.</summary>
-    public IntegrationType? RequiredIntegration => _hasRequiredIntegration ? _requiredIntegration : null;
+    /// <summary>The required provider integration id, or null when this type needs none.</summary>
+    public string? RequiredIntegration => RequiresIntegration;
 }

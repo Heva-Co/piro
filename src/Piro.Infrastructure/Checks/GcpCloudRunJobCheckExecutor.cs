@@ -50,7 +50,7 @@ internal class GcpCloudRunJobCheckExecutor(
         string accessToken;
         try
         {
-            accessToken = await tokenProvider.GetAccessTokenAsync(check.IntegrationId.Value, check.Integration.ReadDecryptedConfigJson(secretProtector), ct);
+            accessToken = await tokenProvider.GetAccessTokenAsync(check.IntegrationId.Value, check.Integration.ReadDecryptedConfigJson(typeof(Piro.Domain.Integrations.Config.GoogleCloudConfig), secretProtector), ct);
         }
         catch (Exception ex)
         {

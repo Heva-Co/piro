@@ -6,7 +6,7 @@ namespace Piro.Application.DTOs;
 public record IntegrationDto(
     Guid Id,
     string Name,
-    IntegrationType Type,
+    string Type,
     IntegrationCategory Category,
     string? Description,
     string ConfigJson,
@@ -19,7 +19,7 @@ public record IntegrationDto(
 
 public record CreateIntegrationRequest(
     string Name,
-    IntegrationType Type,
+    string Type,
     string? Description,
     string ConfigJson,
     int? EscalationPolicyId = null

@@ -117,7 +117,7 @@ public record AlertRetentionResultDto(int Count);
 public record EscalationDeliveryLogDto(
     int StepIndex,
     string UserName,
-    IntegrationType ChannelType,
+    string ChannelType,
     bool Succeeded,
     string? ErrorMessage,
     DateTimeOffset AttemptedAt

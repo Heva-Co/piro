@@ -20,10 +20,18 @@ public class IntegrationAppService(
     IWebhookRequestLogRepository webhookLogRepository,
     IEscalationPolicyRepository escalationPolicyRepository,
     ISecretProtector secretProtector,
+    IIntegrationRegistry integrationRegistry,
     IActionHost actionHost,
     IActionRegistry actionRegistry,
     IEnumerable<IOptionsProvider> optionsProviders)
 {
+    /// <summary>The manifest ConfigType for a string integration id, or null if the id is unknown (RFC 0016).</summary>
+    private Type? ConfigTypeFor(string integrationId) =>
+        integrationRegistry.Find(integrationId)?.Manifest.ConfigType;
+
+    private IntegrationManifest? ManifestFor(string integrationId) =>
+        integrationRegistry.Find(integrationId)?.Manifest;
+
     /// <summary>
     /// Resolves the runtime options for a <c>[DynamicOptions]</c> field (RFC 0012): finds the
     /// IOptionsProvider registered for (integration type, sourceKey) and asks it, passing the cascade
@@ -35,7 +43,7 @@ public class IntegrationAppService(
         var integration = await repository.GetByIdAsync(integrationId, ct)
             ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
 
-        var provider = optionsProviders.FirstOrDefault(p => p.Type == integration.Type && p.SourceKey == sourceKey)
+        var provider = optionsProviders.FirstOrDefault(p => p.IntegrationId == integration.Type && p.SourceKey == sourceKey)
             ?? throw new NotFoundException("OptionsProvider", $"{integration.Type}/{sourceKey}");
 
         return await provider.GetOptionsAsync(actionHost, integrationId, dependsOn, ct);
@@ -55,7 +63,7 @@ public class IntegrationAppService(
 
         foreach (var integration in integrations)
         {
-            var label = integration.Type.GetManifest()?.Label ?? integration.Name;
+            var label = ManifestFor(integration.Type)?.Label ?? integration.Name;
 
             foreach (var action in actionRegistry.GetActions(integration.Type))
             {
@@ -168,9 +176,9 @@ public class IntegrationAppService(
     /// actually need a secret decrypt it via <see cref="IntegrationExtensions.UnprotectSecrets"/>;
     /// the outbound DTO keeps masking (never decrypting) untouched.
     /// </summary>
-    private string ProtectSecretsIfNeeded(IntegrationType type, string configJson)
+    private string ProtectSecretsIfNeeded(string type, string configJson)
     {
-        return IntegrationExtensions.ProtectSecrets(type, configJson, secretProtector);
+        return IntegrationExtensions.ProtectSecrets(ConfigTypeFor(type), configJson, secretProtector);
     }
 
     /// <summary>Sentinel returned in place of a real secret value. Sent back unchanged on update means "keep the existing secret".</summary>
@@ -179,14 +187,14 @@ public class IntegrationAppService(
     public async Task<IEnumerable<IntegrationDto>> GetAllAsync(CancellationToken ct = default)
     {
         var items = await repository.GetAllAsync(ct);
-        return items.Select(i => i.ToDto());
+        return items.Select(i => i.ToDto(integrationRegistry));
     }
 
     public async Task<IntegrationDto> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var item = await repository.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Integration), id.ToString());
-        return item.ToDto();
+        return item.ToDto(integrationRegistry);
     }
 
     public async Task<IntegrationDto> CreateAsync(CreateIntegrationRequest request, CancellationToken ct = default)
@@ -204,7 +212,7 @@ public class IntegrationAppService(
             EscalationPolicyId = request.EscalationPolicyId
         };
         var created = await repository.CreateAsync(integration, ct);
-        return created.ToDto(revealGeneratedFields: true);
+        return created.ToDto(integrationRegistry, revealGeneratedFields: true);
     }
 
     /// <summary>
@@ -213,9 +221,9 @@ public class IntegrationAppService(
     /// ConfigJson, so it's masked like every other secret from the moment it first leaves the server.
     /// Not GCP-specific: any future webhook-capable type gets the same treatment automatically.
     /// </summary>
-    private static string InjectAuthTokenIfNeeded(IntegrationType type, string configJson)
+    private string InjectAuthTokenIfNeeded(string type, string configJson)
     {
-        var manifest = type.GetManifest();
+        var manifest = ManifestFor(type);
         if (manifest is null || !manifest.Capabilities.HasFlag(IntegrationCapability.CreatesAlerts))
             return configJson;
 
@@ -253,13 +261,13 @@ public class IntegrationAppService(
         var integration = await repository.GetByIdAsync(id, ct)
             ?? throw new NotFoundException(nameof(Integration), id.ToString());
 
-        var manifest = integration.Type.GetManifest();
+        var manifest = ManifestFor(integration.Type);
         if (manifest is null || !manifest.Capabilities.HasFlag(IntegrationCapability.CreatesAlerts))
             throw new DomainValidationException($"Integration type '{integration.Type}' has no server-generated fields to regenerate.");
 
         integration.ConfigJson = InjectAuthTokenIfNeeded(integration.Type, integration.ConfigJson);
         var updated = await repository.UpdateAsync(integration, ct);
-        return updated.ToDto(revealGeneratedFields: true);
+        return updated.ToDto(integrationRegistry, revealGeneratedFields: true);
     }
 
     public async Task<IntegrationDto> UpdateAsync(Guid id, UpdateIntegrationRequest request, CancellationToken ct = default)
@@ -288,7 +296,7 @@ public class IntegrationAppService(
         }
 
         var updated = await repository.UpdateAsync(integration, ct);
-        return updated.ToDto();
+        return updated.ToDto(integrationRegistry);
     }
 
     /// <summary>Returns the most recent inbound webhook requests for this Integration — RFC 0001 §4.4. Empty for a non-webhook type.</summary>
@@ -315,9 +323,9 @@ public class IntegrationAppService(
     /// still the masked sentinel is left untouched, so a client re-submitting a masked form (without
     /// the user having entered a new secret) doesn't overwrite the stored credential with the placeholder.
     /// </summary>
-    private static string MergeConfigJson(IntegrationType type, string existingConfigJson, string incomingConfigJson)
+    private string MergeConfigJson(string type, string existingConfigJson, string incomingConfigJson)
     {
-        var secretKeys = IntegrationExtensions.GetSecretKeys(type);
+        var secretKeys = IntegrationExtensions.GetSecretKeys(ConfigTypeFor(type));
         if (secretKeys.Length == 0)
             return incomingConfigJson;
 
