@@ -14,6 +14,9 @@ public interface IVerificationCodeSender
 {
     IntegrationType Type { get; }
 
+    /// <summary>Open string discriminator (RFC 0016 §4.4), defaulted from <see cref="Type"/> during the transition; dispatch moves to it in 5b.</summary>
+    string IntegrationId => Type.ToString();
+
     /// <summary>
     /// Sends a plain-text <paramref name="code"/> to <paramref name="handle"/>. Same null-integration
     /// convention as the personal dispatcher. Returns <c>true</c> if delivered; <c>false</c> otherwise.

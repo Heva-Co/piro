@@ -16,6 +16,13 @@ public interface IPersonalNotificationDispatcher<in TContent> where TContent : I
     IntegrationType Type { get; }
 
     /// <summary>
+    /// The open string discriminator this dispatcher serves (RFC 0016 §4.4), equal to the enum name
+    /// verbatim. Defaulted from <see cref="Type"/> during the transition off <c>IntegrationType</c>;
+    /// dispatch resolution moves to this key in phase 5b, and <see cref="Type"/> is removed in 5c.
+    /// </summary>
+    string IntegrationId => Type.ToString();
+
+    /// <summary>
     /// Sends <paramref name="content"/> to a personal handle. <paramref name="integration"/> carries
     /// shared platform credentials and is null for channels that don't need one (see
     /// <c>PersonalNotificationChannelExtensions.RequiresIntegration</c> — today, only Email), where
