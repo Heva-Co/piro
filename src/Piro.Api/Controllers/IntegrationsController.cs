@@ -4,10 +4,9 @@ using Piro.Application.DTOs;
 using Piro.Application.Integrations.Actions;
 using Piro.Application.Extensions;
 using Piro.Application.Services;
-using Piro.Domain.Attributes;
 using Piro.Contracts;
-using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Api.Controllers;
 
@@ -15,21 +14,18 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/integrations")]
 [Produces("application/json")]
-public class IntegrationsController(IntegrationAppService integrationApp) : ControllerBase
+public class IntegrationsController(IntegrationAppService integrationApp, IIntegrationRegistry registry) : ControllerBase
 {
     /// <summary>
-    /// Returns the manifest (category, direction, capabilities, ConfigJson schema) for every
-    /// non-obsolete IntegrationType — see RFC 0003. Reflected from each type's ConfigType, not
-    /// hand-authored, so it can't drift from what the code actually deserializes.
+    /// Returns the manifest (category, derived direction, capabilities, ConfigJson schema) for every
+    /// registered integration (RFC 0016) — enumerated from the integration registry, reflected from
+    /// each integration's ConfigType, so it can't drift from what the code actually deserializes.
     /// </summary>
     [HttpGet("types")]
     [ProducesResponseType<IEnumerable<IntegrationTypeMetaDto>>(StatusCodes.Status200OK)]
     public IActionResult GetTypes()
     {
-        var types = Enum.GetValues<IntegrationType>()
-            .Select(t => t.ToMetaDto())
-            .Where(dto => dto is not null);
-
+        var types = registry.All.Select(i => i.ToMetaDto());
         return Ok(types);
     }
 

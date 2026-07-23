@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Piro.Application.Interfaces;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Security;
 

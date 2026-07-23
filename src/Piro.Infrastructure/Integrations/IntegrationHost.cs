@@ -17,6 +17,7 @@ namespace Piro.Infrastructure.Integrations;
 internal sealed class IntegrationHost(
     IServiceProvider services,
     IIntegrationRepository integrationRepo,
+    IIntegrationRegistry registry,
     ISecretProtector secretProtector) : IIntegrationHost
 {
     /// <summary>Types an integration is allowed to resolve. Anything else throws (the boundary doing its job).</summary>
@@ -47,7 +48,8 @@ internal sealed class IntegrationHost(
         if (integration is null || string.IsNullOrWhiteSpace(integration.ConfigJson))
             return null;
 
-        var decrypted = integration.ReadDecryptedConfigJson(secretProtector);
+        var configType = registry.Find(integration.Type)?.Manifest.ConfigType;
+        var decrypted = integration.ReadDecryptedConfigJson(configType, secretProtector);
         return JsonSerializer.Deserialize<TConfig>(decrypted, JsonOpts);
     }
 

@@ -7,6 +7,7 @@ using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Twilio;
 using Twilio.Rest.Api.V2010.Account;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Alerts;
 

@@ -7,6 +7,7 @@ using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.UnitTests;
 

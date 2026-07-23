@@ -2,6 +2,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Piro.Application\Piro.Application.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Abstractions\Piro.Integrations.Abstractions.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Telegram\Piro.Integrations.Telegram.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Twilio\Piro.Integrations.Twilio.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Ntfy\Piro.Integrations.Ntfy.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.GoogleChat\Piro.Integrations.GoogleChat.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Webhook\Piro.Integrations.Webhook.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.PagerDuty\Piro.Integrations.PagerDuty.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Jira\Piro.Integrations.Jira.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Gcp\Piro.Integrations.Gcp.csproj" />
+
   </ItemGroup>
 
   <ItemGroup>

@@ -1,12 +1,16 @@
-using Piro.Domain.Enums;
-
 namespace Piro.Domain.Entities;
 
 public class Integration
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public IntegrationType Type { get; set; }
+
+    /// <summary>
+    /// The integration's stable id (RFC 0016) — the string discriminator that replaced the
+    /// <c>IntegrationType</c> enum. Equals the integration's <c>IIntegration.IntegrationId</c>
+    /// ("Jira", "Twilio", …). Persisted as this string, unchanged from the former enum-name storage.
+    /// </summary>
+    public string Type { get; set; } = string.Empty;
     public string? Description { get; set; }
     /// <summary>JSON blob with provider-specific credentials (e.g. Google service account JSON).</summary>
     public string ConfigJson { get; set; } = "{}";

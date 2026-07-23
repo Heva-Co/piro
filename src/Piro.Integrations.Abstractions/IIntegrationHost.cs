@@ -1,3 +1,4 @@
+using Piro.Contracts;
 namespace Piro.Integrations.Abstractions;
 
 /// <summary>
