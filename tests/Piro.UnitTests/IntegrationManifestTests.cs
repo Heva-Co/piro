@@ -3,6 +3,7 @@ using FluentAssertions;
 using Piro.Domain.Attributes;
 using Piro.Contracts;
 using Piro.Domain.Enums;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.UnitTests;
 

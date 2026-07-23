@@ -1,4 +1,4 @@
-namespace Piro.Domain.Enums;
+namespace Piro.Integrations.Abstractions;
 
 public enum IntegrationCategory
 {

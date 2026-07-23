@@ -1,7 +1,7 @@
-namespace Piro.Domain.Enums;
+namespace Piro.Integrations.Abstractions;
 
 /// <summary>
-/// Concrete things an IntegrationType can do, declared in its <see cref="Attributes.IntegrationManifestAttribute"/>.
+/// Concrete things an integration can do, declared in its <see cref="IntegrationManifest"/>.
 /// Additive metadata over facts that already exist in the running system (e.g. a dispatcher being
 /// registered) — not an authorization mechanism. An empty set is a valid, honest declaration for a
 /// type that has no wired-up consumer yet (e.g. PagerDuty, Jira today).
@@ -40,10 +40,19 @@ public enum IntegrationCapability
     SendsChannelNotification = 1 << 7,
 
     /// <summary>
-    /// Has one or more actions declared via <see cref="Attributes.IntegrationActionAttribute"/>, each
-    /// backed by a registered IIntegrationAction — user-initiated buttons on Alert/Incident/Maintenance
-    /// detail pages (RFC 0012). A manifest-honesty test asserts this flag is set iff the type declares
-    /// at least one action.
+    /// Contributes something to the admin UI — today, one or more user-initiated actions (RFC 0012's
+    /// buttons on Alert/Incident/Maintenance detail pages), each backed by a registered
+    /// IIntegrationAction. Renamed from <c>ProvidesActions</c> (RFC 0016 §4.6) so the capability names
+    /// the general "extends the UI" idea rather than one surface; future surfaces (sections, tabs,
+    /// widgets) reuse this flag. A manifest-honesty test asserts it is set iff the integration declares
+    /// at least one UI extension.
     /// </summary>
-    ProvidesActions = 1 << 8,
+    ExtendsUserInterface = 1 << 8,
+
+    /// <summary>
+    /// Can be the destination of a notification event-subscription (RFC 0009). A hard precondition:
+    /// an integration must declare this to be subscribable at all, and the manifest-honesty test
+    /// asserts it is set iff <c>IntegrationManifest.SupportedEvents</c> is non-empty (RFC 0016 §4.5).
+    /// </summary>
+    SubscribesToEvents = 1 << 9,
 }

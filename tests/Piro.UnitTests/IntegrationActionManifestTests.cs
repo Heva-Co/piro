@@ -4,6 +4,7 @@ using Piro.Application.Integrations.Actions;
 using Piro.Domain.Attributes;
 using Piro.Contracts;
 using Piro.Domain.Enums;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.UnitTests;
 
@@ -68,7 +69,7 @@ public class IntegrationActionManifestTests
             if (manifest is null) continue;
 
             var declaresActions = type.GetActions().Count > 0;
-            var hasCapability = manifest.Capabilities.HasFlag(IntegrationCapability.ProvidesActions);
+            var hasCapability = manifest.Capabilities.HasFlag(IntegrationCapability.ExtendsUserInterface);
 
             hasCapability.Should().Be(declaresActions,
                 $"{type}: ProvidesActions capability must be set iff it declares [IntegrationAction]s");
