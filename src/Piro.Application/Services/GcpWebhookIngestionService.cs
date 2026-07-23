@@ -7,6 +7,7 @@ using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Integrations.Config;
+using Piro.Contracts;
 
 namespace Piro.Application.Services;
 

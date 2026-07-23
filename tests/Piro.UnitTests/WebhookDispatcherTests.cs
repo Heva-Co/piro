@@ -9,6 +9,7 @@ using Piro.Application.Models;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
+using Piro.Contracts;
 
 namespace Piro.UnitTests;
 

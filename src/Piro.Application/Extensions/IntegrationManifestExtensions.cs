@@ -1,48 +1,35 @@
 using Piro.Application.DTOs;
-using Piro.Domain.Attributes;
 using Piro.Contracts;
-using Piro.Domain.Enums;
 using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Extensions;
 
 /// <summary>
-/// Builds the wire-level <see cref="IntegrationTypeMetaDto"/> for an IntegrationType by reflecting
-/// over its manifest ConfigType (see IntegrationManifestAttribute) via the shared
-/// <see cref="ConfigSchemaBuilder"/> — the schema is derived, never hand-authored, so it can't
-/// drift from what the code actually deserializes.
+/// Projects an <see cref="IIntegration"/>'s manifest to the wire-level <see cref="IntegrationTypeMetaDto"/>,
+/// reflecting its ConfigType via the shared <see cref="ConfigSchemaBuilder"/> (RFC 0016). The manifest
+/// now comes from the integration's own class (via the registry), not from an enum attribute.
 /// </summary>
 public static class IntegrationManifestExtensions
 {
-    /// <summary>
-    /// Returns the wire-level manifest for this type, or null for a type with none (e.g. the
-    /// obsolete ones).
-    /// </summary>
-    public static IntegrationTypeMetaDto? ToMetaDto(this IntegrationType type)
+    public static IntegrationTypeMetaDto ToMetaDto(this IIntegration integration)
     {
-        var manifest = type.GetManifest();
-        if (manifest is null)
-            return null;
-
+        var m = integration.Manifest;
         return new IntegrationTypeMetaDto(
-            type.ToString(),
-            manifest.Label,
-            manifest.Description,
-            manifest.IconifyIcon,
-            manifest.Category,
-            manifest.ChannelOnly,
-            manifest.Creatable,
-            manifest.Direction,
-            CapabilityNames(manifest.Capabilities),
-            ConfigSchemaBuilder.For(manifest.ConfigType),
-            manifest.WebhookPath
+            integration.IntegrationId,
+            m.Label,
+            m.Description,
+            m.IconifyIcon,
+            m.Category,
+            m.ChannelOnly,
+            m.Creatable,
+            m.Direction,
+            CapabilityNames(m.Capabilities),
+            ConfigSchemaBuilder.For(m.ConfigType),
+            m.WebhookPath
         );
     }
 
-    /// <summary>
-    /// Expands a <see cref="IntegrationCapability"/> flag set into its individual flag names,
-    /// excluding <see cref="IntegrationCapability.None"/>.
-    /// </summary>
+    /// <summary>Expands a capability flag set into its individual flag names, excluding None.</summary>
     private static IReadOnlyList<string> CapabilityNames(IntegrationCapability capabilities) =>
         Enum.GetValues<IntegrationCapability>()
             .Where(c => c != IntegrationCapability.None && capabilities.HasFlag(c))

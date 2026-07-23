@@ -8,6 +8,7 @@ using Piro.Domain.Checks.Config;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Integrations.GoogleCloud;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Checks;
 

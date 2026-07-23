@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Entities;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Integrations.OAuth;
 

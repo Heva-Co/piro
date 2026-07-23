@@ -8,6 +8,7 @@ using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Alerts;
 

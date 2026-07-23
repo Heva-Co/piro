@@ -30,6 +30,8 @@ using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
 using Piro.Infrastructure.Workers;
 using Quartz;
+using Piro.Contracts;
+using Piro.Integrations.Abstractions;
 
 
 namespace Piro.Infrastructure.Extensions;
@@ -257,27 +259,31 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
         services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
-        // Personal notification dispatchers (RFC 0009 mode 1) — registered as
-        // IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>>. The group-only
-        // types (Slack/GoogleChat/Discord/MsTeams/Opsgenie) are not registered here: their
-        // IChannelNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
-        // unregistered exactly as before (phase 1 preserves behavior — it is wired in a later phase).
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, EmailDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TelegramDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TwilioSmsDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, NtfyDispatcher>();
+        // Integration SDK (RFC 0016) — the explicit compile-time registry + the per-integration
+        // assemblies. Each integration self-describes (IIntegration) and delivers via a single
+        // INotificationDispatcher against the neutral Event hierarchy, reaching Piro only through
+        // IIntegrationHost. Email stays here in Infrastructure (its SMTP transport is core infra).
+        services.AddScoped<IIntegrationHost, IntegrationHost>();
+        services.AddSingleton<IIntegrationRegistry, IntegrationRegistry>();
 
-        // Channel notification dispatchers (RFC 0009 mode 2) — post to a shared team channel.
-        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, GoogleChatDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, WebhookDispatcher>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Telegram.TelegramIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Twilio.TwilioIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Ntfy.NtfyIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.GoogleChat.GoogleChatIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Webhook.WebhookIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.PagerDuty.PagerDutyIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Jira.JiraIntegration>();
+        services.AddSingleton<IIntegration, Piro.Integrations.Gcp.GcpCloudMonitoringWebhookIntegration>();
+        services.AddSingleton<IIntegration, EmailIntegration>();
 
-        // Incident notification dispatchers (RFC 0009 §4.2, phase 6) — Email (personal), Google Chat
-        // (channel), and the generic webhook (channel, RFC 0015) carry incident notifications as well as alerts.
-        services.AddScoped<IPersonalNotificationDispatcher<IncidentNotificationContext>, EmailDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, GoogleChatDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, WebhookDispatcher>();
+        services.AddScoped<INotificationDispatcher, Piro.Integrations.Telegram.TelegramNotificationDispatcher>();
+        services.AddScoped<INotificationDispatcher, Piro.Integrations.Twilio.TwilioNotificationDispatcher>();
+        services.AddScoped<INotificationDispatcher, Piro.Integrations.Ntfy.NtfyNotificationDispatcher>();
+        services.AddScoped<INotificationDispatcher, Piro.Integrations.GoogleChat.GoogleChatNotificationDispatcher>();
+        services.AddScoped<INotificationDispatcher, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
 
-        // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
+        // Verification-code senders (RFC 0009 §4.9) — a distinct concern from notification dispatch,
+        // kept in Infrastructure. Email plus the personal plain-text channels.
         services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
         services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
         services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
@@ -297,16 +303,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<NotificationSubscriptionAppService>();
         services.AddScoped<DeliveryLogAppService>();
 
-        // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which catalog events it
-        // handles and in which delivery mode. This is the menu the subscription UI offers per destination.
-        // Email and Google Chat carry incidents too; the others carry alerts only in v1.
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Email, NotificationTargetKind.Personal, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Telegram, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Webhook, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration, EventSubscriber.AlertEvents));
+        // (RFC 0016) The old INotificationSubscriber/EventSubscriber declarations are gone: which
+        // catalog events an integration handles now lives on its manifest (SupportedEvents), read from
+        // the registry — issue #212. No per-type subscriber registration remains.
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
         services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();

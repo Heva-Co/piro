@@ -33,7 +33,7 @@ public class NotificationDeliveryLog
     /// can show its icon. Channel and Integration deliveries always have one; a Personal delivery carries
     /// the user's channel type. Null when no integration was involved (e.g. a skip before resolution).
     /// </summary>
-    public Enums.IntegrationType? IntegrationType { get; set; }
+    public string? IntegrationType { get; set; }
 
     /// <summary>
     /// The specific integration instance behind a Channel/Integration delivery — so the feed can be

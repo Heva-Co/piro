@@ -2,15 +2,19 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
-using Piro.Application.Interfaces;
-using Piro.Domain.Attributes;
 using Piro.Contracts;
 using Piro.Domain.Entities;
-using Piro.Domain.Enums;
-using Piro.Domain.Extensions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Extensions;
 
+/// <summary>
+/// Config-secret helpers (masking, encryption at rest, decrypted reads) for an <see cref="Integration"/>.
+/// Which config keys are secret is discovered by reflecting over the integration's manifest
+/// <c>ConfigType</c> for <see cref="SecretFieldAttribute"/> properties (RFC 0016). The manifest is
+/// resolved from the <see cref="IIntegrationRegistry"/> by the integration's string id, so these
+/// helpers no longer depend on the retired <c>IntegrationType</c> enum.
+/// </summary>
 public static class IntegrationExtensions
 {
     /// <summary>
@@ -25,18 +29,22 @@ public static class IntegrationExtensions
     /// Maps an <see cref="Integration"/> entity to its outbound DTO representation, masking secret
     /// config keys.
     /// </summary>
-    public static IntegrationDto ToDto(this Integration i, bool revealGeneratedFields = false) => new(
-        i.Id,
-        i.Name,
-        i.Type,
-        i.Type.GetCategory(),
-        i.Description,
-        MaskSecrets(i.Type, i.ConfigJson, revealGeneratedFields),
-        i.Checks.Count,
-        i.CreatedAt,
-        i.UpdatedAt,
-        i.EscalationPolicyId
-    );
+    public static IntegrationDto ToDto(this Integration i, IIntegrationRegistry registry, bool revealGeneratedFields = false)
+    {
+        var manifest = registry.Find(i.Type)?.Manifest;
+        return new(
+            i.Id,
+            i.Name,
+            i.Type,
+            manifest?.Category ?? IntegrationCategory.Notification,
+            i.Description,
+            MaskSecrets(manifest?.ConfigType, i.ConfigJson, revealGeneratedFields),
+            i.Checks.Count,
+            i.CreatedAt,
+            i.UpdatedAt,
+            i.EscalationPolicyId
+        );
+    }
 
     /// <summary>
     /// Replaces any secret-marked config key's value in <paramref name="configJson"/> with
@@ -47,13 +55,13 @@ public static class IntegrationExtensions
     /// <see cref="GeneratedFieldAttribute"/> (e.g. a webhook auth token) — set only on the response
     /// to the create call, the one time an admin can see a server-generated secret's real value.
     /// </summary>
-    public static string MaskSecrets(IntegrationType type, string configJson, bool revealGeneratedFields = false)
+    public static string MaskSecrets(Type? configType, string configJson, bool revealGeneratedFields = false)
     {
-        var secretKeys = GetSecretKeys(type);
+        var secretKeys = GetSecretKeys(configType);
         if (secretKeys.Length == 0)
             return configJson;
 
-        var generatedKeys = revealGeneratedFields ? GetGeneratedFieldKeys(type) : [];
+        var generatedKeys = revealGeneratedFields ? GetGeneratedFieldKeys(configType) : [];
 
         JsonNode? node;
         try
@@ -86,12 +94,12 @@ public static class IntegrationExtensions
     /// uses). Already-protected values and the masked sentinel are left untouched, so re-saving is safe.
     /// Returns the config unchanged if the type has no secret fields.
     /// </summary>
-    public static string ProtectSecrets(IntegrationType type, string configJson, ISecretProtector protector) =>
-        TransformSecrets(type, configJson, (protector, plaintext: true));
+    public static string ProtectSecrets(Type? configType, string configJson, ISecretProtector protector) =>
+        TransformSecrets(configType, configJson, (protector, plaintext: true));
 
     /// <summary>Reverses <see cref="ProtectSecrets"/> — decrypts protected secret values for in-process use.</summary>
-    public static string UnprotectSecrets(IntegrationType type, string configJson, ISecretProtector protector) =>
-        TransformSecrets(type, configJson, (protector, plaintext: false));
+    public static string UnprotectSecrets(Type? configType, string configJson, ISecretProtector protector) =>
+        TransformSecrets(configType, configJson, (protector, plaintext: false));
 
     /// <summary>
     /// The centralized consumption read: returns this integration's ConfigJson with every secret field
@@ -102,14 +110,14 @@ public static class IntegrationExtensions
     /// so this is safe for rows written before encryption was applied. Never used for the outbound DTO,
     /// which masks instead of decrypts (see <see cref="ToDto"/>).
     /// </summary>
-    public static string ReadDecryptedConfigJson(this Integration integration, ISecretProtector protector)
+    public static string ReadDecryptedConfigJson(this Integration integration, Type? configType, ISecretProtector protector)
     {
-        return UnprotectSecrets(integration.Type, integration.ConfigJson, protector);
+        return UnprotectSecrets(configType, integration.ConfigJson, protector);
     }
 
-    private static string TransformSecrets(IntegrationType type, string configJson, (ISecretProtector Protector, bool Protecting) op)
+    private static string TransformSecrets(Type? configType, string configJson, (ISecretProtector Protector, bool Protecting) op)
     {
-        var secretKeys = GetSecretKeys(type);
+        var secretKeys = GetSecretKeys(configType);
         if (secretKeys.Length == 0)
             return configJson;
 
@@ -147,9 +155,8 @@ public static class IntegrationExtensions
     /// The ConfigJson property names (in wire/camelCase form) marked <see cref="SecretFieldAttribute"/>
     /// on this IntegrationType's manifest ConfigType. Empty for a type with no manifest or no secret fields.
     /// </summary>
-    public static string[] GetSecretKeys(IntegrationType type)
+    public static string[] GetSecretKeys(Type? configType)
     {
-        var configType = type.GetManifest()?.ConfigType;
         if (configType is null)
             return [];
 
@@ -160,10 +167,9 @@ public static class IntegrationExtensions
             .ToArray();
     }
 
-    /// <summary>The ConfigJson property names marked <see cref="GeneratedFieldAttribute"/> on this IntegrationType's manifest ConfigType.</summary>
-    private static string[] GetGeneratedFieldKeys(IntegrationType type)
+    /// <summary>The ConfigJson property names marked <see cref="GeneratedFieldAttribute"/> on the manifest ConfigType.</summary>
+    private static string[] GetGeneratedFieldKeys(Type? configType)
     {
-        var configType = type.GetManifest()?.ConfigType;
         if (configType is null)
             return [];
 

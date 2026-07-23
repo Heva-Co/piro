@@ -16,43 +16,42 @@ public static class EventMapper
     /// <summary>Builds the neutral event for an alert context and the wire name that fired (alert:created/acknowledged/resolved).</summary>
     public static Event ToEvent(this AlertNotificationContext ctx, string wireName)
     {
-        var common = new
-        {
-            Severity = ToEventSeverity(ctx.Severity),
-            ctx.FiredAt,
-            ctx.FiredAtDisplay,
-            Title = ctx.Title(),
-            Url = ctx.AlertUrl,
-        };
+        var fields = new AlertFields(
+            Severity: ToEventSeverity(ctx.Severity),
+            Title: ctx.Title(),
+            ServiceName: ctx.ServiceName,
+            CheckName: ctx.CheckName);
 
-        AlertEvent evt = wireName switch
+        return wireName switch
         {
-            "alert:acknowledged" => new AlertAcknowledgedEvent { Severity = common.Severity, Title = common.Title },
-            "alert:resolved" => new AlertResolvedEvent { Severity = common.Severity, Title = common.Title },
-            _ => new AlertCreatedEvent { Severity = common.Severity, Title = common.Title },
-        };
-
-        return evt with
-        {
-            FiredAt = common.FiredAt,
-            FiredAtDisplay = common.FiredAtDisplay,
-            Url = common.Url,
-            ServiceName = ctx.ServiceName,
-            CheckName = ctx.CheckName,
-            CurrentStatus = ToStatusLabel(ctx.CurrentStatus),
-            Description = ctx.AlertDescription,
-            AlertId = ctx.AlertId,
-            CheckId = ctx.CheckId,
-            Value = ctx.AlertValue,
-            FailureThreshold = ctx.FailureThreshold,
-            SuccessThreshold = ctx.SuccessThreshold,
-            ServiceUrl = ctx.ServiceUrl,
-            CheckUrl = ctx.CheckUrl,
-            IsExternal = ctx.IsExternal,
-            SourceLabel = ctx.SourceLabel,
-            SourceUrl = ctx.SourceUrl,
+            "alert:acknowledged" => Fill(new AlertAcknowledgedEvent { Severity = fields.Severity, Title = fields.Title, ServiceName = fields.ServiceName, CheckName = fields.CheckName }, ctx),
+            "alert:resolved" => Fill(new AlertResolvedEvent { Severity = fields.Severity, Title = fields.Title, ServiceName = fields.ServiceName, CheckName = fields.CheckName }, ctx),
+            _ => Fill(new AlertCreatedEvent { Severity = fields.Severity, Title = fields.Title, ServiceName = fields.ServiceName, CheckName = fields.CheckName }, ctx),
         };
     }
+
+    private readonly record struct AlertFields(
+        EventSeverity Severity, string Title, string ServiceName, string CheckName);
+
+    /// <summary>Copies the optional alert fields onto an already-required-initialized event via a non-destructive <c>with</c>.</summary>
+    private static AlertEvent Fill(AlertEvent evt, AlertNotificationContext ctx) => evt with
+    {
+        FiredAt = ctx.FiredAt,
+        FiredAtDisplay = ctx.FiredAtDisplay,
+        Url = ctx.AlertUrl,
+        CurrentStatus = ToStatusLabel(ctx.CurrentStatus),
+        Description = ctx.AlertDescription,
+        AlertId = ctx.AlertId,
+        CheckId = ctx.CheckId,
+        Value = ctx.AlertValue,
+        FailureThreshold = ctx.FailureThreshold,
+        SuccessThreshold = ctx.SuccessThreshold,
+        ServiceUrl = ctx.ServiceUrl,
+        CheckUrl = ctx.CheckUrl,
+        IsExternal = ctx.IsExternal,
+        SourceLabel = ctx.SourceLabel,
+        SourceUrl = ctx.SourceUrl,
+    };
 
     /// <summary>Builds the neutral event for an incident context and the wire name that fired (incident:created/resolved).</summary>
     public static Event ToEvent(this IncidentNotificationContext ctx, string wireName)
