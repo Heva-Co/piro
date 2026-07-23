@@ -1,4 +1,4 @@
-namespace Piro.Domain.Attributes;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Marks a config/input property as long-form <b>Markdown</b> prose that should render as a rich

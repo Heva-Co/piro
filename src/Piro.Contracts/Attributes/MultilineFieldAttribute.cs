@@ -1,4 +1,4 @@
-namespace Piro.Domain.Attributes;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Marks a property on an Integration config class as long-form text (e.g. a pasted JSON key

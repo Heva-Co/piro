@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 
 namespace Piro.Application.Integrations.Actions;
 

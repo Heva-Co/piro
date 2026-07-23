@@ -1,4 +1,4 @@
-namespace Piro.Domain.Attributes;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Marks a property on an Integration config class as a fixed set of valid values (e.g.

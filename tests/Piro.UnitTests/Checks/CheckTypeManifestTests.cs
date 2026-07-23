@@ -3,6 +3,7 @@ using Piro.Application.Extensions;
 using Piro.Domain.Checks.Config;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
+using Piro.Contracts;
 
 namespace Piro.UnitTests.Checks;
 

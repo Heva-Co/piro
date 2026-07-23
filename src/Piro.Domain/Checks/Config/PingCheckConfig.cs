@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 
 namespace Piro.Domain.Checks.Config;
 

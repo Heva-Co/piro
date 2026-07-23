@@ -1,6 +1,7 @@
 using Piro.Application.DTOs;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
+using Piro.Contracts;
 
 namespace Piro.Application.Extensions;
 

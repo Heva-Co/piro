@@ -1,4 +1,5 @@
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 
 namespace Piro.Domain.Enums;
 

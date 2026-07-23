@@ -5,6 +5,7 @@ using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;

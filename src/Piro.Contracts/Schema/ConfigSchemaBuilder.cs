@@ -2,11 +2,8 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.Json;
-using Piro.Application.DTOs;
-using Piro.Domain.Attributes;
-using Piro.Domain.Enums;
 
-namespace Piro.Application.Extensions;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Reflects an annotated config class into its wire-level <see cref="ConfigFieldSchemaDto"/> list.

@@ -4,6 +4,7 @@ using Piro.Application.DTOs;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;

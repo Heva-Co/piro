@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentAssertions;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
 

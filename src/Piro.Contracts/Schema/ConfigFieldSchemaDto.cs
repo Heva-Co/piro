@@ -1,6 +1,4 @@
-using Piro.Domain.Enums;
-
-namespace Piro.Application.DTOs;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Wire representation of a single config property, reflected from a config type's Data Annotations
