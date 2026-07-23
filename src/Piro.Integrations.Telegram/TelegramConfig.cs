@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Piro.Domain.Attributes;
 using Piro.Contracts;
 
-namespace Piro.Domain.Integrations.Config;
+namespace Piro.Integrations.Telegram;
 
 public sealed class TelegramConfig
 {

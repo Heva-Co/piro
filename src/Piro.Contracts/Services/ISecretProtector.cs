@@ -1,4 +1,4 @@
-namespace Piro.Application.Interfaces;
+namespace Piro.Contracts;
 
 /// <summary>
 /// Encrypts/decrypts sensitive strings at rest. Application-layer abstraction over the
