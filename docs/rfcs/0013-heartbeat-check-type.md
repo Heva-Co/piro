@@ -1,10 +1,11 @@
 ---
 rfc: 13
 title: "Heartbeat check type"
-status: accepted
+status: implemented
 created: 2026-07-18
 depends-on: ["0011", "0016"]
 tracking-issue: 1
+implementation-pr: 221
 ---
 
 # RFC 0013 — Heartbeat check type
