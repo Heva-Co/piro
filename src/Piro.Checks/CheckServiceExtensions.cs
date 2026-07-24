@@ -23,6 +23,7 @@ public static class CheckServiceExtensions
         services.AddSingleton<ICheck, SslCheck>();
         services.AddSingleton<ICheck, GrpcCheck>();
         services.AddSingleton<ICheck, ScriptCheck>();
+        services.AddSingleton<ICheck, HeartbeatCheck>();
 
         services.AddSingleton<ICheckRegistry, CheckRegistry>();
 
@@ -40,6 +41,11 @@ public static class CheckServiceExtensions
         // Base allow-list: the shared infrastructure the built-in checks may resolve through the host.
         // Integrations that ship a check add their own allowed types (e.g. GoogleCloud → IGcpTokenProvider).
         services.AddSingleton(CheckHostAllowedType.Of<System.Net.Http.IHttpClientFactory>());
+        // A push-based check (Heartbeat) reads its own past points through this scoped reader, and its
+        // inbound handler validates the ping token + records the ping — all through the host (RFC 0013).
+        services.AddSingleton(CheckHostAllowedType.Of<IOwnCheckPoints>());
+        services.AddSingleton(CheckHostAllowedType.Of<ICheckTokenValidator>());
+        services.AddSingleton(CheckHostAllowedType.Of<ICheckPingRecorder>());
 
         // The host is scoped: it resolves per-request/per-execution services from the ambient scope.
         services.AddScoped<ICheckHost, CheckHost>();

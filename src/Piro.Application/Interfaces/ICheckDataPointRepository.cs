@@ -33,6 +33,11 @@ public interface ICheckDataPointRepository
     /// <param name="ct">Cancellation token.</param>
     Task<CheckDataPoint?> GetLatestByServiceIdAsync(int serviceId, CancellationToken ct = default);
 
+    /// <summary>Returns the most recent data point for a single check, or null if it has none yet.</summary>
+    /// <param name="checkId">The check whose latest data point is returned.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<CheckDataPoint?> GetLatestByCheckIdAsync(int checkId, CancellationToken ct = default);
+
     /// <summary>Returns daily avg/min/max latency for a check, grouped by worker region.</summary>
     /// <param name="checkId">The check to aggregate data points for.</param>
     /// <param name="from">Inclusive lower bound (unix seconds).</param>

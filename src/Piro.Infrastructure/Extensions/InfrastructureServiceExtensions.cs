@@ -10,6 +10,8 @@ using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Services;
 using Piro.Checks;
+using Piro.Checks.Abstractions;
+using Piro.Infrastructure.Checks;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
@@ -63,6 +65,7 @@ public static class InfrastructureServiceExtensions
         // Auth infrastructure services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ApiKeyService>();
+        services.AddScoped<ICheckInboundTokenService, CheckInboundTokenService>();
         services.AddScoped<IEmailConfigRepository, EmailConfigRepository>();
         services.AddScoped<SmtpEmailService>();
         services.AddScoped<ResendEmailService>();
@@ -146,6 +149,16 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // single adapter that bridges Piro's pipeline to it (replaces the seven per-type executors).
         services.AddChecks();
         services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
+
+        // Push-based check support (RFC 0013 — Heartbeat): the scoped current-check holders, the
+        // check's own-points reader, and the inbound token validator / ping recorder / dispatcher.
+        // Scoped so each execution or inbound request is bound to exactly one check.
+        services.AddScoped<CurrentCheckContext>();
+        services.AddScoped<IOwnCheckPoints, OwnCheckPoints>();
+        services.AddScoped<CurrentInboundCheck>();
+        services.AddScoped<ICheckTokenValidator, CheckInboundTokenValidator>();
+        services.AddScoped<ICheckPingRecorder, CheckInboundPingRecorder>();
+        services.AddScoped<ICheckInboundDispatcher, CheckInboundDispatcher>();
 
         // In-process event pipeline: check executions → service status recomputation
         services.AddSingleton(Channel.CreateUnbounded<CheckStatusChangedEvent>());
