@@ -109,6 +109,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<ICheckRepository, CheckRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
         services.AddScoped<ICheckDataPointRepository, CheckDataPointRepository>();
 services.AddScoped<IIncidentRepository, IncidentRepository>();
