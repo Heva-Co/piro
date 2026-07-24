@@ -22,6 +22,7 @@ public class CheckAppService(
     IAlertConfigRepository alertConfigRepository,
     ICronIntervalCalculator cronInterval,
     ICheckRegistry checkRegistry,
+    ICheckHost checkHost,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -49,6 +50,45 @@ public class CheckAppService(
         var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
             ?? throw new NotFoundException(nameof(Check), checkSlug);
         return check.ToDto();
+    }
+
+    /// <summary>
+    /// Runs a testable check (RFC 0010 — the Script check) in debug mode against a candidate config,
+    /// returning the raw verdict plus captured logs WITHOUT persisting a datapoint or evaluating alerts.
+    /// The candidate <paramref name="typeDataJson"/> lets the operator test unsaved edits; when null, the
+    /// persisted config is used. Throws <see cref="NotFoundException"/> for an unknown check and
+    /// <see cref="ValidationException"/> when the check type does not support testing.
+    /// </summary>
+    public async Task<ScriptTestResultDto> TestAsync(string serviceSlug, string checkSlug, string? typeDataJson, CancellationToken ct = default)
+    {
+        var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
+            ?? throw new NotFoundException(nameof(Service), serviceSlug);
+        var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
+            ?? throw new NotFoundException(nameof(Check), checkSlug);
+
+        var impl = checkRegistry.Find(check.Type.ToString());
+        if (impl is not ITestableCheck testable)
+            throw new DomainValidationException($"Check type '{check.Type}' does not support test runs.");
+
+        var json = string.IsNullOrWhiteSpace(typeDataJson) ? check.TypeDataJson : typeDataJson;
+        object config;
+        try
+        {
+            config = System.Text.Json.JsonSerializer.Deserialize(json ?? "{}", impl.Manifest.ConfigType, _typeDataJson)
+                     ?? Activator.CreateInstance(impl.Manifest.ConfigType)!;
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            throw new DomainValidationException($"Invalid check config: {ex.Message}");
+        }
+
+        var result = testable.ProbeForTest(config, checkHost, out var logs);
+        var latency = result.Dimensions.FirstOrDefault(d => d.Name == CommonDimensions.Latency.Name)?.Value;
+        var dimensions = result.Dimensions
+            .Where(d => d.Name != CommonDimensions.Latency.Name)
+            .ToDictionary(d => d.Name, d => d.Value);
+
+        return new ScriptTestResultDto(result.Outcome.ToString(), result.Message, latency, dimensions, logs);
     }
 
     public async Task<CheckDto> CreateAsync(string serviceSlug, CreateCheckRequest request, CancellationToken ct = default)
