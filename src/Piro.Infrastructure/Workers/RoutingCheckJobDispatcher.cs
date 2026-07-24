@@ -18,7 +18,7 @@ namespace Piro.Infrastructure.Workers;
 /// matching worker is registered but offline) vs UNSCHEDULABLE (no registered worker can ever match), §4.6.
 /// </summary>
 internal class RoutingCheckJobDispatcher(
-    RemoteCheckJobDispatcher remote,
+    IWorkerFanoutDispatcher remote,
     IWorkerRegistry registry,
     ITagRepository tags) : ICheckJobDispatcher
 {

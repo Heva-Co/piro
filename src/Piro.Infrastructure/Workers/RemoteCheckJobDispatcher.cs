@@ -31,7 +31,7 @@ internal class RemoteCheckJobDispatcher(
     ICheckExecutor executor,
     ICheckResultIngester ingester,
     string localWorkerRegion,
-    ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher
+    ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher, IWorkerFanoutDispatcher
 {
     public Task DispatchAsync(Check check, CancellationToken ct = default) =>
         DispatchToWorkersAsync(check, registry.GetAll(), ct);
