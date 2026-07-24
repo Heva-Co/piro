@@ -21,6 +21,7 @@ import { validateConfig } from "@/components/config-form/validators";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
 import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
 import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
+import ScriptTestPanel from "@/features/checks/components/ScriptTestPanel";
 import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
 import { CRON_PRESETS } from "@/constants/checks";
 import { checkTypesApi } from "@/lib/actions/checks";
@@ -198,6 +199,16 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
       ) : visibleSchema.length > 0 ? (
         <DynamicConfigForm schema={visibleSchema} values={configValues} errors={configErrors} onChange={setConfigValues} />
       ) : null}
+
+      {check?.type === "Script" && (
+        <div className="border-t pt-4">
+          <ScriptTestPanel
+            serviceSlug={serviceSlug}
+            checkSlug={checkSlug}
+            getTypeDataJson={() => JSON.stringify(configValues)}
+          />
+        </div>
+      )}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={updateCheck.isPending}>

@@ -57,8 +57,11 @@ function upsertComment(body) {
     return;
   }
   // Find an existing guard comment (by marker) and edit it, else create one, so
-  // re-runs don't pile up duplicate comments.
-  const comments = JSON.parse(gh(["pr", "view", prNumber, "--json", "comments"])).comments || [];
+  // re-runs don't pile up duplicate comments. Fetch via the REST issues/comments
+  // endpoint (not `pr view --json comments`, which returns GraphQL node ids like
+  // `IC_...` that the REST PATCH endpoint 404s on); this returns the numeric id
+  // that `issues/comments/{id}` expects.
+  const comments = JSON.parse(gh(["api", "--paginate", `repos/{owner}/{repo}/issues/${prNumber}/comments`]));
   const existing = comments.find((c) => (c.body || "").includes(COMMENT_MARKER));
   if (existing) {
     gh(["api", "-X", "PATCH", `repos/{owner}/{repo}/issues/comments/${existing.id}`, "-f", `body=${body}`]);

@@ -18,5 +18,8 @@ public enum CheckType
     Heartbeat,
 
     GRPC,
-    GCP_CloudRunJob
+    GCP_CloudRunJob,
+
+    /// <summary>Sandboxed-JavaScript check — the operator's check() drives its own HTTP (RFC 0010).</summary>
+    Script
 }
