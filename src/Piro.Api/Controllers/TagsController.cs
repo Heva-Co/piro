@@ -74,6 +74,52 @@ public class TagsController(TagAppService tagApp) : ControllerBase
         return Ok(await tagApp.ReplaceWorkerTagsAsync(id, request, ct));
     }
 
+    /// <summary>Assigns (or sets the value of) an assignable system tag on a service.</summary>
+    [HttpPut("services/{id:int}/system-tags/{key}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignServiceSystemTag(int id, string key, [FromBody] SystemTagValue? body, CancellationToken ct)
+    {
+        await tagApp.AssignServiceSystemTagAsync(id, key, body?.Value, ct);
+        return NoContent();
+    }
+
+    /// <summary>Unassigns an assignable system tag from a service.</summary>
+    [HttpDelete("services/{id:int}/system-tags/{key}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnassignServiceSystemTag(int id, string key, CancellationToken ct)
+    {
+        await tagApp.UnassignServiceSystemTagAsync(id, key, ct);
+        return NoContent();
+    }
+
+    /// <summary>Assigns (or sets the value of) an assignable system tag on a check.</summary>
+    [HttpPut("checks/{id:int}/system-tags/{key}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignCheckSystemTag(int id, string key, [FromBody] SystemTagValue? body, CancellationToken ct)
+    {
+        await tagApp.AssignCheckSystemTagAsync(id, key, body?.Value, ct);
+        return NoContent();
+    }
+
+    /// <summary>Unassigns an assignable system tag from a check.</summary>
+    [HttpDelete("checks/{id:int}/system-tags/{key}")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnassignCheckSystemTag(int id, string key, CancellationToken ct)
+    {
+        await tagApp.UnassignCheckSystemTagAsync(id, key, ct);
+        return NoContent();
+    }
+
     /// <summary>Autocomplete: distinct user tag keys, optionally filtered by prefix.</summary>
     [HttpGet("tags/keys")]
     [ProducesResponseType<IReadOnlyList<string>>(StatusCodes.Status200OK)]

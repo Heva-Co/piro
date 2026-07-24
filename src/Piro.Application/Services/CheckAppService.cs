@@ -24,6 +24,7 @@ public class CheckAppService(
     ICheckRegistry checkRegistry,
     ICheckHost checkHost,
     ICheckInboundTokenService inboundTokens,
+    ISystemTagReconciler systemTags,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -187,6 +188,9 @@ public class CheckAppService(
         if (checkRegistry.Find(created.Type.ToString())?.ProvidedInboundHandler() is not null)
             await inboundTokens.CreateOrRotateAsync(created.Id, ct);
 
+        // Materialize the check's stored piro:* system tags from its fields (RFC 0008 §4.2).
+        await systemTags.ReconcileCheckAsync(created, ct);
+
         return created.ToDto();
     }
 
@@ -311,6 +315,10 @@ public class CheckAppService(
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
+
+        // Re-materialize piro:check-type / piro:multi-region if the source fields changed (RFC 0008 §4.2).
+        await systemTags.ReconcileCheckAsync(updated, ct);
+
         return updated.ToDto();
     }
 

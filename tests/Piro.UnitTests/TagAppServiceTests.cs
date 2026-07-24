@@ -98,16 +98,67 @@ public class TagAppServiceTests
 
         public Task<IReadOnlyList<string>> GetValuesForKeyAsync(string key, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task SetServiceSystemTagAsync(int serviceId, string key, string? value, CancellationToken ct = default)
+        {
+            var tag = GetOrCreateTagAsync(key, TagSource.System, ct).Result;
+            var list = ServiceTags.GetValueOrDefault(serviceId, []);
+            list.RemoveAll(st => st.Tag.Key == key);
+            list.Add(new ServiceTag { ServiceId = serviceId, TagId = tag.Id, Value = value, Tag = tag });
+            ServiceTags[serviceId] = list;
+            return Task.CompletedTask;
+        }
+
+        public Task SetCheckSystemTagAsync(int checkId, string key, string? value, CancellationToken ct = default)
+        {
+            var tag = GetOrCreateTagAsync(key, TagSource.System, ct).Result;
+            var list = CheckTags.GetValueOrDefault(checkId, []);
+            list.RemoveAll(c => c.Tag.Key == key);
+            list.Add(new CheckTag { CheckId = checkId, TagId = tag.Id, Value = value, Tag = tag });
+            CheckTags[checkId] = list;
+            return Task.CompletedTask;
+        }
+
+        public Task SetWorkerSystemTagAsync(Guid workerId, string key, string? value, CancellationToken ct = default)
+        {
+            var tag = GetOrCreateTagAsync(key, TagSource.System, ct).Result;
+            var list = WorkerTags.GetValueOrDefault(workerId, []);
+            list.RemoveAll(w => w.Tag.Key == key);
+            list.Add(new WorkerTag { WorkerRegistrationId = workerId, TagId = tag.Id, Value = value, Tag = tag });
+            WorkerTags[workerId] = list;
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveServiceSystemTagAsync(int serviceId, string key, CancellationToken ct = default)
+        {
+            ServiceTags.GetValueOrDefault(serviceId, []).RemoveAll(st => st.Tag.Key == key);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveCheckSystemTagAsync(int checkId, string key, CancellationToken ct = default)
+        {
+            CheckTags.GetValueOrDefault(checkId, []).RemoveAll(c => c.Tag.Key == key);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveWorkerSystemTagAsync(Guid workerId, string key, CancellationToken ct = default)
+        {
+            WorkerTags.GetValueOrDefault(workerId, []).RemoveAll(w => w.Tag.Key == key);
+            return Task.CompletedTask;
+        }
     }
 
     private static ReplaceTagsRequest Req(params TagDto[] tags) => new(tags);
+
+    /// <summary>Phase-1 tests need no computed system-tag batches; pass an empty set.</summary>
+    private static TagAppService NewService(ITagRepository repo) => new(repo, []);
 
     [Fact]
     public async Task ReplaceServiceTags_RejectsSystemNamespaceKey()
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
 
         var act = () => svc.ReplaceServiceTagsAsync(1, Req(new TagDto("piro:region", "eu")), default);
 
@@ -123,7 +174,7 @@ public class TagAppServiceTests
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
 
         var act = () => svc.ReplaceServiceTagsAsync(1, Req(new TagDto(key, null)), default);
 
@@ -135,7 +186,7 @@ public class TagAppServiceTests
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
         var longKey = "a" + new string('b', TagConstants.MaxKeyLength);
 
         var act = () => svc.ReplaceServiceTagsAsync(1, Req(new TagDto(longKey, null)), default);
@@ -148,7 +199,7 @@ public class TagAppServiceTests
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
         var many = Enumerable.Range(0, TagConstants.MaxTagsPerEntity + 1)
             .Select(i => new TagDto($"key{i}", null)).ToArray();
 
@@ -162,7 +213,7 @@ public class TagAppServiceTests
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
 
         var result = await svc.ReplaceServiceTagsAsync(1,
             Req(new TagDto("env", "prod"), new TagDto("env", "staging")), default);
@@ -176,7 +227,7 @@ public class TagAppServiceTests
     {
         var repo = new FakeTagRepository();
         repo.Services.Add(1);
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
 
         var result = await svc.ReplaceServiceTagsAsync(1, Req(new TagDto("critical", null)), default);
 
@@ -186,7 +237,7 @@ public class TagAppServiceTests
     [Fact]
     public async Task GetServiceTags_UnknownService_Throws()
     {
-        var svc = new TagAppService(new FakeTagRepository());
+        var svc = NewService(new FakeTagRepository());
         var act = () => svc.GetServiceTagsAsync(999, default);
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -206,7 +257,7 @@ public class TagAppServiceTests
             new ServiceTag { ServiceId = 1, TagId = env.Id, Value = "prod", Tag = env },
         ];
 
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
         var result = await svc.GetCheckTagsAsync(10, default);
 
         result.Own.Should().BeEmpty();
@@ -235,7 +286,7 @@ public class TagAppServiceTests
             new CheckTag { CheckId = 10, TagId = env.Id, Value = "staging", Tag = env },
         ];
 
-        var svc = new TagAppService(repo);
+        var svc = NewService(repo);
         var result = await svc.GetCheckTagsAsync(10, default);
 
         // own env wins; team inherited
@@ -247,8 +298,92 @@ public class TagAppServiceTests
     [Fact]
     public async Task GetCheckTags_UnknownCheck_Throws()
     {
-        var svc = new TagAppService(new FakeTagRepository());
+        var svc = NewService(new FakeTagRepository());
         var act = () => svc.GetCheckTagsAsync(404, default);
         await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    // ---- Phase 2a: system tags ----
+
+    private class FakeComputedTag(string key, params int[] appliesTo) : IComputedSystemTagBatch<Service>
+    {
+        public string Key => key;
+        public Task<ISet<int>> ComputeForAsync(IReadOnlyCollection<int> entityIds, CancellationToken ct) =>
+            Task.FromResult<ISet<int>>(entityIds.Where(appliesTo.Contains).ToHashSet());
+    }
+
+    [Fact]
+    public async Task GetServiceTags_MergesComputedSystemTags()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = new TagAppService(repo, [new FakeComputedTag("piro:has-incident", 1)]);
+
+        var result = await svc.GetServiceTagsAsync(1, default);
+
+        result.Tags.Should().ContainSingle(t => t.Key == "piro:has-incident");
+    }
+
+    [Fact]
+    public async Task GetServiceTags_OmitsComputedTagWhenNotApplicable()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = new TagAppService(repo, [new FakeComputedTag("piro:has-incident", 99)]);
+
+        var result = await svc.GetServiceTagsAsync(1, default);
+
+        result.Tags.Should().NotContain(t => t.Key == "piro:has-incident");
+    }
+
+    [Fact]
+    public async Task AssignServiceSystemTag_AcceptsAssignableFlag()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = NewService(repo);
+
+        await svc.AssignServiceSystemTagAsync(1, "piro:3rd-party", null, default);
+
+        var result = await svc.GetServiceTagsAsync(1, default);
+        result.Tags.Should().ContainSingle(t => t.Key == "piro:3rd-party");
+    }
+
+    [Fact]
+    public async Task AssignServiceSystemTag_RejectsReconciledKey()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = NewService(repo);
+
+        var act = () => svc.AssignServiceSystemTagAsync(1, "piro:check-type", "http", default);
+
+        await act.Should().ThrowAsync<DomainValidationException>().WithMessage("*not an assignable*");
+    }
+
+    [Fact]
+    public async Task AssignServiceSystemTag_RejectsUnknownKey()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = NewService(repo);
+
+        var act = () => svc.AssignServiceSystemTagAsync(1, "piro:made-up", null, default);
+
+        await act.Should().ThrowAsync<DomainValidationException>();
+    }
+
+    [Fact]
+    public async Task UnassignServiceSystemTag_RemovesFlag()
+    {
+        var repo = new FakeTagRepository();
+        repo.Services.Add(1);
+        var svc = NewService(repo);
+        await svc.AssignServiceSystemTagAsync(1, "piro:3rd-party", null, default);
+
+        await svc.UnassignServiceSystemTagAsync(1, "piro:3rd-party", default);
+
+        var result = await svc.GetServiceTagsAsync(1, default);
+        result.Tags.Should().NotContain(t => t.Key == "piro:3rd-party");
     }
 }

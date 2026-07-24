@@ -9,18 +9,22 @@ namespace Piro.Application.Services;
 
 /// <summary>
 /// Tag read/write and autocomplete for services, checks, and workers (RFC 0008, Part A). Enforces the §4.2
-/// key/value rules and the per-entity ceiling, and computes a check's effective tags via service
-/// inheritance (§4.3). System tags are read-only here; they are managed through the separate system-tags
-/// endpoints (Part A phase 2), so this service only ever replaces the User-source set.
+/// key/value rules and the per-entity ceiling, computes a check's effective tags via service inheritance
+/// (§4.3), and merges the computed (on-read) system tags into a service read. Free-tag writes only ever
+/// touch the User-source set; assignable <c>piro:*</c> tags (e.g. <c>piro:3rd-party</c>) are managed through
+/// the dedicated assign/unassign methods, and reconciled <c>piro:*</c> tags are Piro-owned and read-only.
 /// </summary>
-public class TagAppService(ITagRepository tags)
+public class TagAppService(ITagRepository tags, IEnumerable<IComputedSystemTagBatch<Service>> computedServiceTags)
 {
     public async Task<EntityTagsDto> GetServiceTagsAsync(int serviceId, CancellationToken ct = default)
     {
         if (!await tags.ServiceExistsAsync(serviceId, ct))
             throw new NotFoundException(nameof(Service), serviceId);
-        var own = await tags.GetServiceTagsAsync(serviceId, ct);
-        return new EntityTagsDto([.. own.Select(st => new TagDto(st.Tag.Key, st.Value))]);
+        var own = (await tags.GetServiceTagsAsync(serviceId, ct))
+            .Select(st => new TagDto(st.Tag.Key, st.Value))
+            .ToList();
+        own.AddRange(await ComputeServiceSystemTagsAsync(serviceId, ct));
+        return new EntityTagsDto(own);
     }
 
     public async Task<CheckTagsDto> GetCheckTagsAsync(int checkId, CancellationToken ct = default)
@@ -34,6 +38,8 @@ public class TagAppService(ITagRepository tags)
         var serviceTags = (await tags.GetServiceTagsAsync(parentServiceId, ct))
             .Select(st => new TagDto(st.Tag.Key, st.Value))
             .ToList();
+        // A check inherits its service's computed system tags too (e.g. piro:has-incident).
+        serviceTags.AddRange(await ComputeServiceSystemTagsAsync(parentServiceId, ct));
 
         var effective = ComputeEffective(own, serviceTags);
         return new CheckTagsDto(own, effective);
@@ -79,6 +85,79 @@ public class TagAppService(ITagRepository tags)
 
     public Task<IReadOnlyList<string>> GetValuesAsync(string key, CancellationToken ct = default) =>
         tags.GetValuesForKeyAsync(key, ct);
+
+    /// <summary>
+    /// Assigns (upserts) an assignable system tag on a service (§4.7). Rejects any key that is not an
+    /// assignable entry in the <see cref="SystemTags"/> catalog, and validates the value against its
+    /// <c>AllowedValues</c> vocabulary if it declares one.
+    /// </summary>
+    public async Task AssignServiceSystemTagAsync(int serviceId, string key, string? value, CancellationToken ct = default)
+    {
+        if (!await tags.ServiceExistsAsync(serviceId, ct))
+            throw new NotFoundException(nameof(Service), serviceId);
+        var resolvedValue = ValidateAssignableSystemTag(key, value);
+        await tags.SetServiceSystemTagAsync(serviceId, key, resolvedValue, ct);
+    }
+
+    public async Task UnassignServiceSystemTagAsync(int serviceId, string key, CancellationToken ct = default)
+    {
+        if (!await tags.ServiceExistsAsync(serviceId, ct))
+            throw new NotFoundException(nameof(Service), serviceId);
+        EnsureAssignableKey(key);
+        await tags.RemoveServiceSystemTagAsync(serviceId, key, ct);
+    }
+
+    public async Task AssignCheckSystemTagAsync(int checkId, string key, string? value, CancellationToken ct = default)
+    {
+        if (!await tags.CheckExistsAsync(checkId, ct))
+            throw new NotFoundException(nameof(Check), checkId);
+        var resolvedValue = ValidateAssignableSystemTag(key, value);
+        await tags.SetCheckSystemTagAsync(checkId, key, resolvedValue, ct);
+    }
+
+    public async Task UnassignCheckSystemTagAsync(int checkId, string key, CancellationToken ct = default)
+    {
+        if (!await tags.CheckExistsAsync(checkId, ct))
+            throw new NotFoundException(nameof(Check), checkId);
+        EnsureAssignableKey(key);
+        await tags.RemoveCheckSystemTagAsync(checkId, key, ct);
+    }
+
+    private static void EnsureAssignableKey(string key)
+    {
+        var def = SystemTags.Find(key);
+        if (def is null || def.Assignment != SystemTagAssignment.Assignable)
+            throw new DomainValidationException($"'{key}' is not an assignable system tag.");
+    }
+
+    /// <summary>Validates an assignable system tag and returns the value to store (null for a key-only flag).</summary>
+    private static string? ValidateAssignableSystemTag(string key, string? value)
+    {
+        var def = SystemTags.Find(key);
+        if (def is null || def.Assignment != SystemTagAssignment.Assignable)
+            throw new DomainValidationException($"'{key}' is not an assignable system tag.");
+
+        if (def.AllowedValues is null)
+            return null; // key-only flag; presence is the flag, any supplied value is ignored
+
+        if (string.IsNullOrWhiteSpace(value) || !def.AllowedValues.Contains(value))
+            throw new DomainValidationException(
+                $"'{key}' requires one of: {string.Join(", ", def.AllowedValues)}.");
+        return value;
+    }
+
+    /// <summary>Computes the on-read system tags (§4.2) for a single service.</summary>
+    private async Task<List<TagDto>> ComputeServiceSystemTagsAsync(int serviceId, CancellationToken ct)
+    {
+        var result = new List<TagDto>();
+        foreach (var batch in computedServiceTags)
+        {
+            var matched = await batch.ComputeForAsync([serviceId], ct);
+            if (matched.Contains(serviceId))
+                result.Add(new TagDto(batch.Key, null));
+        }
+        return result;
+    }
 
     /// <summary>
     /// Validates the requested user tags (§4.2), dedupes by key (last wins, since a key is unique per
