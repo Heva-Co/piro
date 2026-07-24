@@ -103,6 +103,34 @@ internal class RemoteCheckJobDispatcher(
     }
 
     /// <summary>
+    /// Records a visible <see cref="DataPointType.UNSCHEDULABLE"/> datapoint (RFC 0008 Part B, §4.6): workers
+    /// are connected but none match the check's required worker tags, so it cannot be placed. Distinct from
+    /// <see cref="DataPointType.MONITOR_OUTAGE"/> (a transient gap): this is a configuration error that
+    /// clears only when the check is edited. Not service downtime; the mirror of the MONITOR_OUTAGE write.
+    /// </summary>
+    public async Task RecordUnschedulableAsync(Check check, CancellationToken ct = default)
+    {
+        logger.LogWarning(
+            "Check {CheckId} has required worker tags that no connected worker matches — writing UNSCHEDULABLE datapoint.",
+            check.Id);
+
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        timestamp -= timestamp % 60;
+
+        var point = new CheckDataPoint
+        {
+            CheckId = check.Id,
+            Timestamp = timestamp,
+            Status = ServiceStatus.NO_DATA,
+            DataType = DataPointType.UNSCHEDULABLE,
+            WorkerRegion = "monitor",
+            ErrorMessage = "No connected worker matches the check's required worker tags"
+        };
+
+        await dataPointRepo.CreateAsync(point, ct);
+    }
+
+    /// <summary>
     /// Routes a non-multi-region check to the single worker marked as default.
     /// Writes a MONITOR_OUTAGE data point if no default worker is connected.
     /// </summary>
