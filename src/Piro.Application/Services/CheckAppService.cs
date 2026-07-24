@@ -88,7 +88,18 @@ public class CheckAppService(
             .Where(d => d.Name != CommonDimensions.Latency.Name)
             .ToDictionary(d => d.Name, d => d.Value);
 
-        return new ScriptTestResultDto(result.Outcome.ToString(), result.Message, latency, dimensions, logs);
+        // Return the mapped ServiceStatus, not the raw CheckOutcome, so the client renders it with the
+        // shared StatusPill without re-implementing the outcome→status mapping (the same mapping the
+        // ingester applies to a scheduled run).
+        var status = result.Outcome switch
+        {
+            CheckOutcome.Up => ServiceStatus.UP,
+            CheckOutcome.Down => ServiceStatus.DOWN,
+            CheckOutcome.Error => ServiceStatus.FAILURE,
+            _ => ServiceStatus.NO_DATA,
+        };
+
+        return new ScriptTestResultDto(status.ToString(), result.Message, latency, dimensions, logs);
     }
 
     public async Task<CheckDto> CreateAsync(string serviceSlug, CreateCheckRequest request, CancellationToken ct = default)
