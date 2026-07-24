@@ -53,4 +53,5 @@ public class Check
     public Integration? Integration { get; set; }
     public ICollection<CheckDataPoint> DataPoints { get; set; } = [];
     public ICollection<AlertConfig> AlertConfigs { get; set; } = [];
+    public ICollection<CheckTag> CheckTags { get; set; } = [];
 }

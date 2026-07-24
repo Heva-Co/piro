@@ -30,4 +30,6 @@ public class WorkerRegistration
 
     /// <summary>When true, this is the built-in API worker (token hash = "builtin").</summary>
     public bool IsBuiltIn { get; set; } = false;
+
+    public ICollection<WorkerTag> WorkerTags { get; set; } = [];
 }
