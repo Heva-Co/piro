@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Server, Copy, AlertCircle, Pencil, Power, Star } from "lucide-react";
+import { Plus, Trash2, Server, Copy, AlertCircle, Pencil, Power, Star, Tags as TagsIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { workersApi, type Worker } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
+import WorkerTagsDialog from "@/features/configuration/components/WorkerTagsDialog";
 
 type ModalState = "none" | "create" | "token" | "editRegion";
 
@@ -37,6 +38,7 @@ export default function WorkersPage() {
   const [editingWorker, setEditingWorker] = useState<{ id: string; region: string } | null>(null);
   const [editRegion, setEditRegion] = useState("");
   const [editError, setEditError] = useState("");
+  const [tagsWorker, setTagsWorker] = useState<{ id: string; name: string } | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () => workersApi.create(workerName, workerRegion, isDefault),
@@ -181,6 +183,9 @@ export default function WorkersPage() {
                       <Star size={15} />
                     </Button>
                   )}
+                  <Button variant="ghost" size="icon" title="Edit tags" onClick={() => setTagsWorker({ id: w.id, name: w.name })}>
+                    <TagsIcon size={15} />
+                  </Button>
                   <Button variant="ghost" size="icon" title="Edit region" onClick={() => openEditRegion(w)}>
                     <Pencil size={15} />
                   </Button>
@@ -305,6 +310,8 @@ export default function WorkersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <WorkerTagsDialog worker={tagsWorker} onClose={() => setTagsWorker(null)} />
     </div>
   );
 }

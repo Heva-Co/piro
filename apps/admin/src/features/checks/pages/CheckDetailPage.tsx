@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
+import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench, Tags as TagsIcon, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import {
   useCheck,
@@ -21,6 +21,8 @@ import { validateConfig } from "@/components/config-form/validators";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
 import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
 import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
+import CheckTagsSection from "@/features/checks/components/CheckTagsSection";
+import CheckRequiredWorkerTagsSection from "@/features/checks/components/CheckRequiredWorkerTagsSection";
 import ScriptTestPanel from "@/features/checks/components/ScriptTestPanel";
 import HeartbeatPanel from "@/features/checks/components/HeartbeatPanel";
 import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
@@ -307,6 +309,24 @@ export default function CheckDetailPage() {
       >
         <ConfigurationSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
       </SectionAccordion>
+
+      <SectionAccordion
+        title="Tags"
+        description="Organize this check and its service with key/value tags"
+        icon={<TagsIcon size={16} className="text-muted-foreground" />}
+      >
+        <CheckTagsSection checkId={check.id} />
+      </SectionAccordion>
+
+      {!typeMeta?.singleRegionOnly && (
+        <SectionAccordion
+          title="Required worker tags"
+          description="Restrict which workers may run this check"
+          icon={<Filter size={16} className="text-muted-foreground" />}
+        >
+          <CheckRequiredWorkerTagsSection checkId={check.id} />
+        </SectionAccordion>
+      )}
 
       <SectionAccordion
         title={
