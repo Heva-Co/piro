@@ -3,8 +3,7 @@ namespace Piro.Contracts;
 /// <summary>
 /// Wire representation of a single config property, reflected from a config type's Data Annotations
 /// by <see cref="Extensions.ConfigSchemaBuilder"/> — never hand-authored. Shared by both Integration
-/// manifests (see IntegrationManifestAttribute) and Check manifests (see CheckTypeManifestAttribute,
-/// RFC 0011).
+/// manifests (see IntegrationManifestAttribute) and Check manifests (see CheckManifest, RFC 0011/0016).
 /// </summary>
 public record ConfigFieldSchemaDto(
     string Key,

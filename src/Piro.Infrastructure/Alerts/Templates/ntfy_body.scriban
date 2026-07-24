@@ -1,1 +1,0 @@
-{{~ if is_recovery ~}}{{ title }} has recovered. Status: {{ current_status }}.{{~ else ~}}{{ title }} is {{ current_status }}.{{~ if alert_description ~}} {{ alert_description }}{{~ end ~}}{{~ end ~}}{{~ if check_url ~}} {{ check_url }}{{~ end ~}}

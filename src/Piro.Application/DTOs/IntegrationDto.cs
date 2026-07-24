@@ -7,7 +7,6 @@ public record IntegrationDto(
     Guid Id,
     string Name,
     string Type,
-    IntegrationCategory Category,
     string? Description,
     string ConfigJson,
     int CheckCount,

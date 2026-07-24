@@ -133,9 +133,6 @@ export const ENDPOINTS = {
   // Jobs (scheduler status)
   JOBS: `${API_BASE}/jobs`,
 
-  // Config import
-  CONFIG_IMPORT: `${API_BASE}/config/import`,
-
   // Logs
   LOGS: `${API_BASE}/logs`,
 
@@ -162,10 +159,6 @@ export const ENDPOINTS = {
   INTEGRATION_OAUTH_DISCONNECT: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/disconnect`,
   INTEGRATION_OAUTH_CALLBACK: `${API_BASE}/integrations/oauth/callback`,
   INTEGRATION_OAUTH_REDIRECT_URI: `${API_BASE}/integrations/oauth/redirect-uri`,
-  INTEGRATION_OAUTH_DISCOVER: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/discover`,
-  SERVICE_INTEGRATION_MAPPINGS: (serviceId: number | string) => `${API_BASE}/services/${serviceId}/integration-mappings`,
-  SERVICE_INTEGRATION_MAPPING: (serviceId: number | string, integrationId: string) =>
-    `${API_BASE}/services/${serviceId}/integration-mappings/${integrationId}`,
 
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
@@ -291,7 +284,6 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const CHANNEL_TYPE_LABELS: Record<string, string> = {
   Email:      "Email",
-  PagerDuty:  "PagerDuty",
   MSTeams:    "Microsoft Teams",
   Telegram:   "Telegram",
   Twilio:     "Twilio",

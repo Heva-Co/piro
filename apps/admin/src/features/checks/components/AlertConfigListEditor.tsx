@@ -1,15 +1,14 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ALLOWED_ALERT_FORS } from "@/constants/checks";
 import { AlertConfigRow, type AlertConfigDraft, type AlertConfigRowHandle } from "@/features/checks/components/AlertConfigRow";
-import { type AlertFor, DEFAULT_ALERT_FOR, DEFAULT_ALERT_SEVERITY, DEFAULT_ALERT_VALUES } from "@/types/checks";
+import { type CheckDimension, defaultAlertValue, DEFAULT_ALERT_SEVERITY } from "@/types/checks";
 
-function defaultAlertConfigDraft(alertForOptions: readonly AlertFor[]): AlertConfigDraft {
-  const alertFor = alertForOptions[0] ?? DEFAULT_ALERT_FOR;
+function defaultAlertConfigDraft(dimensions: readonly CheckDimension[]): AlertConfigDraft {
+  const dim = dimensions[0];
   return {
-    alertFor,
-    alertValue: DEFAULT_ALERT_VALUES[alertFor] ?? "",
+    dimension: dim?.name ?? "",
+    alertValue: dim ? defaultAlertValue(dim) : "",
     failureThreshold: 1,
     successThreshold: 1,
     severity: DEFAULT_ALERT_SEVERITY,
@@ -28,7 +27,8 @@ export interface AlertConfigListEditorHandle {
 }
 
 interface Props {
-  checkType: string;
+  /** The dimensions the check type exposes (from its manifest) — what an alert rule can watch. */
+  dimensions: readonly CheckDimension[];
   value: AlertConfigDraft[];
   onChange: (value: AlertConfigDraft[]) => void;
 }
@@ -39,8 +39,7 @@ interface Props {
  * alongside check creation.
  */
 export const AlertConfigListEditor = forwardRef<AlertConfigListEditorHandle, Props>(function AlertConfigListEditor(props, ref) {
-  const { checkType, value, onChange } = props;
-  const alertForOptions = ALLOWED_ALERT_FORS[checkType] ?? [DEFAULT_ALERT_FOR];
+  const { dimensions, value, onChange } = props;
 
   const [rows, setRows] = useState<Row[]>(() => value.map((draft) => ({ key: crypto.randomUUID(), draft })));
   const rowRefs = useRef(new Map<string, AlertConfigRowHandle>());
@@ -58,7 +57,7 @@ export const AlertConfigListEditor = forwardRef<AlertConfigListEditorHandle, Pro
   }
 
   function addRow() {
-    commit([...rows, { key: crypto.randomUUID(), draft: defaultAlertConfigDraft(alertForOptions) }]);
+    commit([...rows, { key: crypto.randomUUID(), draft: defaultAlertConfigDraft(dimensions) }]);
   }
 
   function saveRow(key: string, draft: AlertConfigDraft) {
@@ -85,7 +84,7 @@ export const AlertConfigListEditor = forwardRef<AlertConfigListEditorHandle, Pro
           }}
           initial={row.draft}
           saved={null}
-          alertForOptions={alertForOptions}
+          dimensions={dimensions}
           onSave={async (draft) => saveRow(row.key, draft)}
           onRemove={() => removeRow(row.key)}
           isSaving={false}

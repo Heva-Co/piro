@@ -10,6 +10,7 @@ import {
   useUpdateCheck,
   useDeleteCheck,
   useRunCheck,
+  useAlertConfigs,
 } from "@/hooks/useChecks";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -132,37 +133,41 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   const [error, setError] = useState("");
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
-  const [integrationId, setIntegrationId] = useState("");
   const [integrationError, setIntegrationError] = useState("");
 
   const typeMeta = check ? checkTypes.find((t) => t.type === check.type) : undefined;
   const requiredIntegration = typeMeta?.requiredIntegrationType;
 
-  // Seed the config + integration once both the check and its type manifest are available.
+  // The required integration lives inside the check's config (config.integrationInstanceId) — what the
+  // check actually reads — so the picker reads/writes it there, and it's hidden from the schema form.
+  const integrationInstanceId = (configValues.integrationInstanceId as string) ?? "";
+
+  // Seed the config once both the check and its type manifest are available. integrationInstanceId
+  // comes from the config itself (typeDataJson), not the legacy Check.integrationId field.
   const seeded = useRef(false);
   useEffect(() => {
     if (check && typeMeta && !seeded.current) {
       seeded.current = true;
       setConfigValues(seedFromTypeData(typeMeta.configSchema, check.typeDataJson));
-      setIntegrationId(check.integrationId ?? "");
     }
   }, [check, typeMeta]);
 
   async function handleSave() {
     setError("");
-    const errors = validateConfig(typeMeta?.configSchema ?? [], configValues);
+    // The integration-instance field is validated via the picker, not the generic schema form (hidden there).
+    const schemaForValidation = (typeMeta?.configSchema ?? []).filter(
+      (f) => !requiredIntegration || f.key !== "integrationInstanceId"
+    );
+    const errors = validateConfig(schemaForValidation, configValues);
     setConfigErrors(errors);
-    const missingIntegration = !!requiredIntegration && !integrationId;
+    const missingIntegration = !!requiredIntegration && !integrationInstanceId;
     setIntegrationError(missingIntegration ? `A ${requiredIntegration} integration is required.` : "");
     if (Object.keys(errors).length > 0 || missingIntegration) {
       setError("Fix the highlighted configuration fields before saving.");
       return;
     }
     try {
-      await updateCheck.mutateAsync({
-        typeDataJson: JSON.stringify(configValues),
-        ...(requiredIntegration ? { integrationId } : {}),
-      });
+      await updateCheck.mutateAsync({ typeDataJson: JSON.stringify(configValues) });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -171,6 +176,7 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
   }
 
   const schema = typeMeta?.configSchema ?? [];
+  const visibleSchema = requiredIntegration ? schema.filter((f) => f.key !== "integrationInstanceId") : schema;
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-5">
@@ -181,16 +187,16 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
       {requiredIntegration && (
         <RequiredIntegrationPicker
           integrationType={requiredIntegration}
-          value={integrationId}
-          onChange={setIntegrationId}
+          value={integrationInstanceId}
+          onChange={(id) => setConfigValues((prev) => ({ ...prev, integrationInstanceId: id }))}
           error={integrationError}
         />
       )}
 
       {schema.length === 0 && !requiredIntegration ? (
         <p className="text-sm text-muted-foreground">This check type has no configuration.</p>
-      ) : schema.length > 0 ? (
-        <DynamicConfigForm schema={schema} values={configValues} errors={configErrors} onChange={setConfigValues} />
+      ) : visibleSchema.length > 0 ? (
+        <DynamicConfigForm schema={visibleSchema} values={configValues} errors={configErrors} onChange={setConfigValues} />
       ) : null}
 
       <div className="flex justify-end">
@@ -215,7 +221,12 @@ export default function CheckDetailPage() {
     queryKey: QUERY_KEYS.CHECK_TYPES,
     queryFn: checkTypesApi.list,
   });
-  const typeLabel = check ? (checkTypes.find((t) => t.type === check.type)?.displayName ?? check.type) : "";
+  const typeMeta = check ? checkTypes.find((t) => t.type === check.type) : undefined;
+  const typeLabel = typeMeta?.displayName ?? check?.type ?? "";
+
+  // For the section header warning: a check with no alert configs runs but notifies no one.
+  const { data: alertConfigs } = useAlertConfigs(serviceSlug!, checkSlug!);
+  const hasNoAlerts = alertConfigs !== undefined && alertConfigs.length === 0;
 
   async function handleDelete() {
     await deleteCheck.mutateAsync();
@@ -280,12 +291,24 @@ export default function CheckDetailPage() {
       </SectionAccordion>
 
       <SectionAccordion
-        title="Alert Configurations"
+        title={
+          hasNoAlerts ? (
+            <span className="flex items-center gap-2">
+              Alert Configurations
+              <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                <AlertTriangle size={12} />
+                No alerts
+              </span>
+            </span>
+          ) : (
+            "Alert Configurations"
+          )
+        }
         description="Notification channels triggered by this check"
         icon={<Bell size={16} className="text-muted-foreground" />}
         disableCard
       >
-        <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} checkType={check.type} />
+        <AlertConfigsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} dimensions={typeMeta?.dimensions ?? []} />
       </SectionAccordion>
 
       <SectionAccordion
@@ -295,7 +318,7 @@ export default function CheckDetailPage() {
         actions={<RecentLogsActions serviceSlug={serviceSlug!} checkSlug={checkSlug!} />}
         disableCard
       >
-        <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />
+        <RecentLogsSection serviceSlug={serviceSlug!} checkSlug={checkSlug!} dimensions={typeMeta?.dimensions ?? []} />
       </SectionAccordion>
 
       <SectionAccordion

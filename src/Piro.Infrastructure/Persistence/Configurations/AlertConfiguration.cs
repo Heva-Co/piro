@@ -16,7 +16,9 @@ internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
         // Critical at 7, on the same SSL check) — see RFC 0002. Non-unique index, kept for lookup.
         builder.HasIndex(a => a.CheckId);
 
-        builder.Property(a => a.AlertFor).HasConversion<string>();
+        builder.Property(a => a.Dimension).HasMaxLength(100).IsRequired();
+        builder.Property(a => a.Comparison).HasConversion<string>();
+        builder.Property(a => a.Direction).HasConversion<string>();
         builder.Property(a => a.AlertValue).HasMaxLength(255).IsRequired();
         builder.Property(a => a.Severity).HasConversion<string>().HasDefaultValue(AlertSeverity.Warning);
 

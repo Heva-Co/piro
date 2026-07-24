@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
-using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Domain.Attributes;
 using Piro.Contracts;
@@ -21,9 +20,10 @@ public class IntegrationAppService(
     IEscalationPolicyRepository escalationPolicyRepository,
     ISecretProtector secretProtector,
     IIntegrationRegistry integrationRegistry,
-    IActionHost actionHost,
-    IActionRegistry actionRegistry,
-    IEnumerable<IOptionsProvider> optionsProviders)
+    IIntegrationHost integrationHost,
+    IUIActionRegistry actionRegistry,
+    IUIActionTargetService targetService,
+    IExternalReferenceStore externalReferenceStore)
 {
     /// <summary>The manifest ConfigType for a string integration id, or null if the id is unknown (RFC 0016).</summary>
     private Type? ConfigTypeFor(string integrationId) =>
@@ -43,10 +43,10 @@ public class IntegrationAppService(
         var integration = await repository.GetByIdAsync(integrationId, ct)
             ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
 
-        var provider = optionsProviders.FirstOrDefault(p => p.IntegrationId == integration.Type && p.SourceKey == sourceKey)
+        var provider = actionRegistry.ResolveOptionsProvider(integration.Type, sourceKey)
             ?? throw new NotFoundException("OptionsProvider", $"{integration.Type}/{sourceKey}");
 
-        return await provider.GetOptionsAsync(actionHost, integrationId, dependsOn, ct);
+        return await provider.GetOptionsAsync(integrationHost, integrationId, dependsOn, ct);
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public class IntegrationAppService(
     /// action is dropped entirely — the frontend never receives a descriptor it can't use.
     /// </summary>
     public async Task<IReadOnlyList<IntegrationActionDescriptorDto>> GetActionsAsync(
-        ActionContext context, CancellationToken ct = default)
+        UISurface context, CancellationToken ct = default)
     {
         var integrations = await repository.GetAllAsync(ct);
         var descriptors = new List<IntegrationActionDescriptorDto>();
@@ -69,7 +69,7 @@ public class IntegrationAppService(
             {
                 if (!action.Descriptor.Contexts.Contains(context))
                     continue;
-                if (!await action.Handler.IsReadyAsync(actionHost, integration.Id, ct))
+                if (!await action.Handler.IsReadyAsync(integrationHost, integration.Id, ct))
                     continue;
 
                 var inputSchema = action.Descriptor.HasInput && action.Handler.InputType is not null
@@ -97,7 +97,7 @@ public class IntegrationAppService(
     /// InputType so the dialog round-trips. Null if the action doesn't support drafts or the target is gone.
     /// </summary>
     public async Task<object?> BuildActionDraftAsync(
-        Guid integrationId, string actionId, ActionContext context, int targetId, CancellationToken ct = default)
+        Guid integrationId, string actionId, UISurface context, int targetId, CancellationToken ct = default)
     {
         var integration = await repository.GetByIdAsync(integrationId, ct)
             ?? throw new NotFoundException(nameof(Integration), integrationId.ToString());
@@ -108,8 +108,12 @@ public class IntegrationAppService(
         if (!action.Descriptor.SupportsDraft)
             return null;
 
-        var ctx = new ActionExecutionContext(integrationId, context, targetId, Input: null);
-        return await action.Handler.BuildDraftAsync(actionHost, ctx, ct);
+        var target = await targetService.GetTargetAsync(context, targetId, ct);
+        if (target is null)
+            return null;
+
+        var ctx = new UIActionContext(integrationId, target, Input: null);
+        return await action.Handler.BuildDraftAsync(integrationHost, ctx, ct);
     }
 
     /// <summary>
@@ -141,10 +145,13 @@ public class IntegrationAppService(
                     string.Join("; ", results.Select(r => r.ErrorMessage)));
         }
 
-        var ctx = new ActionExecutionContext(integrationId, request.Context, request.TargetId, input);
-        var result = await action.Handler.ExecuteAsync(actionHost, ctx, ct);
+        var target = await targetService.GetTargetAsync(request.Context, request.TargetId, ct)
+            ?? throw new NotFoundException("ActionTarget", $"{request.Context}/{request.TargetId}");
 
-        await actionHost.LinkExternalAsync(
+        var ctx = new UIActionContext(integrationId, target, input);
+        var result = await action.Handler.ExecuteAsync(integrationHost, ctx, ct);
+
+        await externalReferenceStore.LinkAsync(
             new ExternalReferenceRequest(
                 request.Context, request.TargetId, integrationId, actionId,
                 result.ExternalId, result.Url, result.Label, result.Metadata),
@@ -155,13 +162,13 @@ public class IntegrationAppService(
 
     /// <summary>
     /// Returns the outbound external references an integration action has created for a local object
-    /// (RFC 0012 §4.5) — read through the <see cref="IActionHost"/>, the same seam actions write
-    /// through, so this endpoint never touches the ExternalReferences table directly.
+    /// (RFC 0012 §4.5) — read through the <see cref="IExternalReferenceStore"/>, the same seam the
+    /// executor writes through, so this endpoint never touches the ExternalReferences table directly.
     /// </summary>
     public async Task<IReadOnlyList<ExternalReferenceDto>> GetReferencesAsync(
-        ActionContext context, int targetId, CancellationToken ct = default)
+        UISurface context, int targetId, CancellationToken ct = default)
     {
-        var links = await actionHost.GetLinksAsync(context, targetId, ct);
+        var links = await externalReferenceStore.GetLinksAsync(context, targetId, ct);
         return links
             .Select(l => new ExternalReferenceDto(
                 l.Context, l.TargetId, l.IntegrationId, l.ActionId, l.ExternalId, l.Url, l.Label, l.Metadata))
@@ -212,7 +219,7 @@ public class IntegrationAppService(
             EscalationPolicyId = request.EscalationPolicyId
         };
         var created = await repository.CreateAsync(integration, ct);
-        return created.ToDto(integrationRegistry, revealGeneratedFields: true);
+        return created.ToDto(integrationRegistry, revealGeneratedFields: true, revealProtector: secretProtector);
     }
 
     /// <summary>
@@ -267,7 +274,7 @@ public class IntegrationAppService(
 
         integration.ConfigJson = InjectAuthTokenIfNeeded(integration.Type, integration.ConfigJson);
         var updated = await repository.UpdateAsync(integration, ct);
-        return updated.ToDto(integrationRegistry, revealGeneratedFields: true);
+        return updated.ToDto(integrationRegistry, revealGeneratedFields: true, revealProtector: secretProtector);
     }
 
     public async Task<IntegrationDto> UpdateAsync(Guid id, UpdateIntegrationRequest request, CancellationToken ct = default)

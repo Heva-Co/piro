@@ -1,4 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ChartColumnBig } from "lucide-react";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import MetricInfo from "@/features/dashboard/components/MetricInfo";
 
 interface Props {
@@ -20,7 +22,15 @@ function ByServiceBarChart(props: Props) {
         {info && <MetricInfo text={info} />}
       </div>
       {data.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">{emptyLabel}</p>
+        <Empty className="py-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ChartColumnBig />
+            </EmptyMedia>
+            <EmptyTitle>{emptyLabel}</EmptyTitle>
+            <EmptyDescription>Data appears here once there is activity to show.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>

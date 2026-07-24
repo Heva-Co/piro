@@ -16,7 +16,7 @@ internal class ExternalReferenceConfiguration : IEntityTypeConfiguration<Externa
         builder.Property(x => x.Url).IsRequired().HasMaxLength(2048);
         builder.Property(x => x.Label).IsRequired().HasMaxLength(512);
 
-        // Provider-specific coordinates, opaque to Piro (RFC 0012 §4.5) — same shape as ServiceIntegrationMapping.MappingJson.
+        // Provider-specific coordinates, opaque to Piro (RFC 0012 §4.5).
         builder.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValue("{}");
 
         // Polymorphic target pointer — deliberately NOT a FK (no common base among Alert/Incident/Maintenance).

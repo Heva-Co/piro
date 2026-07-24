@@ -237,7 +237,7 @@ export default function AlertDetailPage() {
         ) : (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-5">
-              <Field label="Alert For">{alert.alertFor}</Field>
+              <Field label="Dimension">{alert.dimension}</Field>
               <Field label="Value">{alert.alertValue}</Field>
               <Field label="Failure threshold">{alert.failureThreshold}</Field>
               <Field label="Success threshold">{alert.successThreshold}</Field>

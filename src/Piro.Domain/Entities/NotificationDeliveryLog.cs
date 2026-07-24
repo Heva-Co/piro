@@ -29,7 +29,7 @@ public class NotificationDeliveryLog
     public string TargetKind { get; set; } = string.Empty;
 
     /// <summary>
-    /// The integration type behind the delivery (e.g. GoogleChat, PagerDuty, Email) — so the admin feed
+    /// The integration type behind the delivery (e.g. GoogleChat, Telegram, Email) — so the admin feed
     /// can show its icon. Channel and Integration deliveries always have one; a Personal delivery carries
     /// the user's channel type. Null when no integration was involved (e.g. a skip before resolution).
     /// </summary>

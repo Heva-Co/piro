@@ -1,3 +1,4 @@
+using Piro.Contracts;
 using Piro.Domain.Enums;
 
 namespace Piro.Application.DTOs;
@@ -5,7 +6,9 @@ namespace Piro.Application.DTOs;
 public record AlertConfigDto(
     int Id,
     int CheckId,
-    AlertFor AlertFor,
+    string Dimension,
+    DimensionComparison Comparison,
+    ThresholdDirection Direction,
     string AlertValue,
     int FailureThreshold,
     int SuccessThreshold,
@@ -18,7 +21,7 @@ public record AlertConfigDto(
 );
 
 public record CreateAlertConfigRequest(
-    AlertFor AlertFor,
+    string Dimension,
     string AlertValue,
     int FailureThreshold = 1,
     int SuccessThreshold = 1,
@@ -28,7 +31,7 @@ public record CreateAlertConfigRequest(
 );
 
 public record UpdateAlertConfigRequest(
-    AlertFor? AlertFor,
+    string? Dimension,
     string? AlertValue,
     int? FailureThreshold,
     int? SuccessThreshold,

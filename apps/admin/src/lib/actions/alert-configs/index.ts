@@ -2,7 +2,6 @@ import api from "@/lib/axios";
 import { ENDPOINTS } from "@/constants/api";
 import type { components } from "@/lib/api-types";
 
-export type AlertFor = components["schemas"]["AlertFor"];
 export type AlertSeverity = components["schemas"]["AlertSeverity"];
 export type AlertConfig = components["schemas"]["AlertConfigDto"];
 export type CreateAlertConfigRequest = components["schemas"]["CreateAlertConfigRequest"];

@@ -12,22 +12,24 @@ import { Label } from "@/components/ui/label";
 import type { AlertConfig, CreateAlertConfigRequest } from "@/lib/actions/alert-configs";
 import { alertConfigSchema, type AlertConfigFormValues } from "@/features/checks/validations";
 import {
-  type AlertFor,
-  ALERT_FOR_LABELS,
-  ALERT_VALUE_PLACEHOLDERS,
-  ALERT_VALUE_DESCRIPTIONS,
-  DEFAULT_ALERT_VALUES,
-  NUMERIC_ALERT_FORS,
+  type CheckDimension,
+  dimensionLabel,
+  isNumericDimension,
+  valuePlaceholder,
+  valueDescription,
+  defaultAlertValue,
   STATUS_ALERT_VALUES,
   ALERT_SEVERITY_OPTIONS,
 } from "@/types/checks";
+import { SERVICE_STATUS_LABEL } from "@/constants/serviceStatus";
 
 export type AlertConfigDraft = CreateAlertConfigRequest;
 
 interface Props {
   initial: AlertConfigDraft;
   saved: AlertConfig | null;
-  alertForOptions: readonly AlertFor[];
+  /** The dimensions this check exposes (from CheckTypeMetaDto.dimensions) — the alertable signals to pick from. */
+  dimensions: readonly CheckDimension[];
   onSave: (draft: AlertConfigDraft) => Promise<void>;
   onRemove: () => void;
   isSaving: boolean;
@@ -41,23 +43,33 @@ export interface AlertConfigRowHandle {
 }
 
 export const AlertConfigRow = forwardRef<AlertConfigRowHandle, Props>(function AlertConfigRow(props, ref) {
-  const { initial, saved, alertForOptions, onSave, onRemove, isSaving, autoSave = false } = props;
+  const { initial, saved, dimensions, onSave, onRemove, isSaving, autoSave = false } = props;
   const [error, setError] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [open, setOpen] = useState(saved === null);
 
+  const findDim = (name: string): CheckDimension | undefined => dimensions.find((d) => d.name === name);
+
   const { register, control, watch, setValue, handleSubmit, trigger, formState: { errors } } = useForm<AlertConfigFormValues>({
     resolver: zodResolver(alertConfigSchema),
-    defaultValues: initial,
+    defaultValues: {
+      ...initial,
+      isNumeric: (() => { const d = findDim(initial.dimension); return d ? isNumericDimension(d) : true; })(),
+    },
   });
 
-  const alertFor = watch("alertFor") as AlertFor;
+  const dimensionName = watch("dimension");
   const alertValue = watch("alertValue");
   const severity = watch("severity");
   const isActive = watch("isActive");
 
+  const selectedDim = findDim(dimensionName);
+  const numeric = selectedDim ? isNumericDimension(selectedDim) : true;
+
   function toDraft(values: AlertConfigFormValues): AlertConfigDraft {
-    return { ...values, alertFor: values.alertFor as AlertFor };
+    // isNumeric is a transient form flag, not part of the API request.
+    const { isNumeric: _isNumeric, ...rest } = values;
+    return rest;
   }
 
   async function submit(values: AlertConfigFormValues) {
@@ -89,7 +101,9 @@ export const AlertConfigRow = forwardRef<AlertConfigRowHandle, Props>(function A
     if (autoSave) void commit();
   }
 
-  const summary = `${ALERT_FOR_LABELS[alertFor] ?? alertFor} = ${alertValue} · ${severity}${isActive ? "" : " · Disabled"}`;
+  // A Status value shows its human label ("Down"); a numeric value shows as-is.
+  const displayValue = SERVICE_STATUS_LABEL[alertValue as keyof typeof SERVICE_STATUS_LABEL] ?? alertValue;
+  const summary = `${dimensionLabel(dimensionName)} = ${displayValue} · ${severity}${isActive ? "" : " · Disabled"}`;
 
   return (
     <Accordion
@@ -109,48 +123,50 @@ export const AlertConfigRow = forwardRef<AlertConfigRowHandle, Props>(function A
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Field>
-                <Label>Alert For</Label>
-                <Controller name="alertFor" control={control} render={({ field }) => (
+                <Label>Dimension</Label>
+                <Controller name="dimension" control={control} render={({ field }) => (
                   <Select value={field.value} onValueChange={(v) => {
                     if (!v) return;
                     field.onChange(v);
-                    setValue("alertValue", DEFAULT_ALERT_VALUES[v as AlertFor] ?? "");
+                    const dim = findDim(v);
+                    setValue("isNumeric", dim ? isNumericDimension(dim) : true);
+                    setValue("alertValue", dim ? defaultAlertValue(dim) : "");
                     onFieldChange();
                   }}>
                     <SelectTrigger className="w-full">
-                      <SelectValue>{ALERT_FOR_LABELS[field.value as AlertFor] ?? field.value}</SelectValue>
+                      <SelectValue>{dimensionLabel(field.value)}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {alertForOptions.map((o) => <SelectItem key={o} value={o}>{ALERT_FOR_LABELS[o as AlertFor] ?? o}</SelectItem>)}
+                      {dimensions.map((d) => <SelectItem key={d.name} value={d.name}>{dimensionLabel(d.name)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )} />
-                <FieldDescription>Which raw signal this alert evaluates.</FieldDescription>
+                <FieldDescription>Which measurement this alert evaluates.</FieldDescription>
               </Field>
               <Field>
                 <Label>Value</Label>
-                {alertFor === "Status" ? (
+                {!numeric ? (
                   <Controller name="alertValue" control={control} render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => { if (v) { field.onChange(v); onFieldChange(); } }}>
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue>{SERVICE_STATUS_LABEL[field.value as keyof typeof SERVICE_STATUS_LABEL] ?? field.value}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUS_ALERT_VALUES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {STATUS_ALERT_VALUES.map((s) => <SelectItem key={s} value={s}>{SERVICE_STATUS_LABEL[s]}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   )} />
                 ) : (
                   <Input
-                    type={NUMERIC_ALERT_FORS.has(alertFor) ? "number" : "text"}
-                    min={NUMERIC_ALERT_FORS.has(alertFor) ? 0 : undefined}
+                    type="number"
+                    min={0}
                     {...register("alertValue")}
                     onChange={(e) => { setValue("alertValue", e.target.value); onFieldChange(); }}
-                    placeholder={ALERT_VALUE_PLACEHOLDERS[alertFor]}
+                    placeholder={selectedDim ? valuePlaceholder(selectedDim) : ""}
                   />
                 )}
                 <FieldError errors={[errors.alertValue]} />
-                {!errors.alertValue && <FieldDescription>{ALERT_VALUE_DESCRIPTIONS[alertFor]}</FieldDescription>}
+                {!errors.alertValue && selectedDim && <FieldDescription>{valueDescription(selectedDim)}</FieldDescription>}
               </Field>
               <Field>
                 <Label>Failure threshold</Label>

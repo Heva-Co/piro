@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { MessageSquareDashed } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/src/components/ui/empty";
 
 const statusColor: Record<string, string> = {
   Investigating: "bg-red-500",
@@ -38,7 +40,19 @@ function timeAgo(ts: number): string {
 
 export function Timeline({ items, className }: TimelineProps) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">No updates yet.</p>;
+    return (
+      <Empty className="py-10 border border-dashed border-border rounded-xl">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <MessageSquareDashed />
+          </EmptyMedia>
+          <EmptyTitle>No updates posted yet</EmptyTitle>
+          <EmptyDescription>
+            Status updates from the team will appear here as this incident progresses.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
@@ -65,7 +79,8 @@ export function Timeline({ items, className }: TimelineProps) {
                 <span className="text-xs text-muted-foreground">{timeAgo(item.timestamp)}</span>
               </div>
               <p className="text-xs text-muted-foreground">{fmtTs(item.timestamp)}</p>
-              <p className="text-sm mt-0.5 leading-relaxed">{item.body}</p>
+              {/* body may be rich content (a div with markdown paragraphs), so it can't live in a <p> */}
+              <div className="text-sm mt-0.5 leading-relaxed">{item.body}</div>
             </div>
           </li>
         );

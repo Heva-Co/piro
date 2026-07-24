@@ -10,36 +10,19 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   usersApi,
-  type PersonalNotificationChannelType,
   type UserNotificationPreference,
   type UpsertNotificationPreference,
 } from "@/lib/api";
 import type { Integration } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 
-const CHANNEL_INTEGRATION_TYPE: Partial<Record<PersonalNotificationChannelType, string>> = {
-  Telegram: "Telegram",
-  TwilioSms: "Twilio",
-  Ntfy: "Ntfy",
-};
-
-const CHANNEL_OPTIONS: { value: PersonalNotificationChannelType; label: string }[] = [
-  { value: "Email", label: "Email" },
-  { value: "Telegram", label: "Telegram" },
-  { value: "TwilioSms", label: "SMS" },
-  { value: "Ntfy", label: "Ntfy" },
-];
-
-function channelLabel(channel: PersonalNotificationChannelType): string {
-  return CHANNEL_OPTIONS.find((c) => c.value === channel)?.label ?? channel;
-}
-
-function getHandlePlaceholder(channel: PersonalNotificationChannelType): string {
-  switch (channel) {
+// Handle placeholder by the integration type the chosen instance is (Email is the read-only account fallback).
+function handlePlaceholder(integrationType: string | undefined): string {
+  switch (integrationType) {
     case "Telegram": return "Chat ID";
-    case "TwilioSms": return "+1234567890";
-    case "Email": return "your@email.com";
+    case "Twilio": return "+1234567890";
     case "Ntfy": return "Topic";
+    case "Email": return "your@email.com";
     default: return "Handle";
   }
 }
@@ -48,7 +31,8 @@ interface Props {
   userId: number;
   draft: UpsertNotificationPreference;
   saved: UserNotificationPreference | null;
-  allIntegrations: Integration[];
+  /** Integrations whose type supports personal notifications — the pickable instances for a new row. */
+  personalIntegrations: Integration[];
   onChange: (patch: Partial<UpsertNotificationPreference>) => void;
   onSaved: (saved: UserNotificationPreference) => void;
   onRemove: () => void;
@@ -57,7 +41,7 @@ interface Props {
 }
 
 export function NotificationPreferenceRow(props: Props) {
-  const { userId, draft, saved, allIntegrations, onChange, onSaved, onRemove, sortableId } = props;
+  const { userId, draft, saved, personalIntegrations, onChange, onSaved, onRemove, sortableId } = props;
   const qc = useQueryClient();
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
@@ -67,12 +51,17 @@ export function NotificationPreferenceRow(props: Props) {
     ? { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }
     : undefined;
 
-  const requiredIntegrationType = CHANNEL_INTEGRATION_TYPE[draft.channel];
-  const compatibleIntegrations = requiredIntegrationType
-    ? allIntegrations.filter((i) => i.type === requiredIntegrationType)
-    : [];
+  const isEditable = saved === null;
 
-  const canSave = draft.handle.trim().length > 0 && (!requiredIntegrationType || draft.integrationId !== null);
+  // For a saved row, the type comes from the DTO's derived integrationId ("Email"/"Telegram"/…). For a
+  // new draft, it's the type of the picked integration instance.
+  const selectedIntegration = personalIntegrations.find((i) => i.id === draft.integrationInstanceId);
+  const integrationType = saved?.integrationId ?? selectedIntegration?.type;
+  const displayName = saved?.integrationName
+    ?? selectedIntegration?.name
+    ?? (saved?.isAccountFallback ? "Account email" : undefined);
+
+  const canSave = draft.handle.trim().length > 0 && Boolean(draft.integrationInstanceId);
 
   const savePref = useMutation({
     mutationFn: () => usersApi.createNotificationPreference(userId, draft),
@@ -98,7 +87,7 @@ export function NotificationPreferenceRow(props: Props) {
   function handleSendCode() {
     toast.promise(sendCode.mutateAsync(), {
       loading: "Sending verification code…",
-      success: `Code sent via ${channelLabel(draft.channel)}.`,
+      success: `Code sent via ${integrationType ?? "channel"}.`,
       error: "Failed to send verification code.",
     });
   }
@@ -119,8 +108,6 @@ export function NotificationPreferenceRow(props: Props) {
     });
   }
 
-  const isEditable = saved === null;
-
   return (
     <div
       ref={sortableId !== undefined ? sortable.setNodeRef : undefined}
@@ -137,44 +124,30 @@ export function NotificationPreferenceRow(props: Props) {
           <GripVertical size={14} />
         </button>
 
-        <Select
-          value={draft.channel}
-          onValueChange={(v) => v && onChange({ channel: v as PersonalNotificationChannelType, integrationId: null })}
-          disabled={!isEditable}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue>{channelLabel(draft.channel)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {CHANNEL_OPTIONS.map((c) => (
-              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {requiredIntegrationType && (
+        {isEditable ? (
           <Select
-            value={draft.integrationId ? String(draft.integrationId) : ""}
-            onValueChange={(v) => v && onChange({ integrationId: v })}
-            disabled={!isEditable}
+            value={draft.integrationInstanceId ?? ""}
+            onValueChange={(v) => v && onChange({ integrationInstanceId: v })}
           >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select integration">
-                {compatibleIntegrations.find((i) => i.id === draft.integrationId)?.name}
-              </SelectValue>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Select an integration">{displayName}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {compatibleIntegrations.map((i) => (
-                <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>
+              {personalIntegrations.map((i) => (
+                <SelectItem key={i.id} value={i.id}>{i.name} ({i.type})</SelectItem>
               ))}
             </SelectContent>
           </Select>
+        ) : (
+          <span className="w-56 text-sm truncate">
+            {displayName} <span className="text-muted-foreground">({integrationType})</span>
+          </span>
         )}
 
         <Input
           value={draft.handle}
           onChange={(e) => onChange({ handle: e.target.value })}
-          placeholder={getHandlePlaceholder(draft.channel)}
+          placeholder={handlePlaceholder(integrationType)}
           disabled={!isEditable}
         />
 

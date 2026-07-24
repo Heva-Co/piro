@@ -7,7 +7,7 @@ namespace Piro.Contracts;
 /// never hand-assigned. See IntegrationManifestAttribute and ConfigSchemaBuilder.
 /// Orthogonal to whether the field is secret (see ConfigFieldSchemaDto.IsSecret) — a field can be
 /// e.g. Multiline and secret at once (GoogleCloudConfig.ServiceAccountJson), or String and secret
-/// (JiraConfig.ClientSecret), or Enum and not secret (OpsgenieConfig.Region).
+/// (JiraConfig.ClientSecret), or Enum and not secret.
 /// </summary>
 public enum ConfigFieldType
 {

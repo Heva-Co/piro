@@ -13,7 +13,6 @@ public sealed class NtfyIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsPersonalNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(NtfyConfig),
         Label = "Ntfy",

@@ -12,6 +12,7 @@
     <Project Path="src/Piro.Integrations.Webhook/Piro.Integrations.Webhook.csproj" />
     <Project Path="src/Piro.Integrations.Jira/Piro.Integrations.Jira.csproj" />
     <Project Path="src/Piro.Integrations.Gcp/Piro.Integrations.Gcp.csproj" />
+    <Project Path="src/Piro.Integrations.GoogleCloud/Piro.Integrations.GoogleCloud.csproj" />
     <Project Path="src/Piro.Infrastructure/Piro.Infrastructure.csproj" />
     <Project Path="src/Piro.Worker/Piro.Worker.csproj" />
   </Folder>

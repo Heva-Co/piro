@@ -104,8 +104,8 @@ internal class SubscriptionMatchingProcessor(
                 await DeliverChannelAsync(sub, row, evt, idempotencyKey, ct);
                 break;
             default:
-                // Integration (paging-platform) target kind is retired with the PagerDuty integration —
-                // Piro provides on-call itself via escalation policies (RFC 0016).
+                // Only Personal and Channel exist. A row with any other persisted value (e.g. a legacy
+                // retired kind) is skipped rather than delivered — defensive, should never hit today.
                 await RecordAsync(sub, row, idempotencyKey, sub.Integration?.Name ?? sub.TargetKind.ToString(),
                     DeliveryStatus.Skipped, "This target kind is no longer supported.", sub.Integration?.Type, sub.Integration?.Id, ct);
                 break;
@@ -120,17 +120,18 @@ internal class SubscriptionMatchingProcessor(
         foreach (var pref in prefs.OrderBy(p => p.Priority))
         {
             if (!pref.VerifiedAt.HasValue) continue;
-            if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
-            var integrationId = pref.Channel.ToIntegrationId();
+            // A non-fallback preference needs its integration instance loaded to resolve its type.
+            if (!pref.IsAccountFallback && pref.Integration is null) continue;
+            var integrationId = pref.ResolveIntegrationId();
             if (!_handlers.TryGetValue(integrationId, out var handler)) continue;
 
-            var ctx = new EventDeliveryContext { Target = pref.Handle, Mode = EventDeliveryMode.Personal, IntegrationInstanceId = pref.Integration?.Id };
+            var ctx = new EventDeliveryContext { Target = pref.Handle, Mode = EventDeliveryMode.Personal, IntegrationInstanceId = pref.IntegrationInstanceId };
             var descriptor = $"{integrationId}:{pref.Handle}";
             try
             {
                 if (await handler.HandleAsync(evt, ctx, host, ct))
                 {
-                    await RecordAsync(sub, row, idempotencyKey, descriptor, DeliveryStatus.Delivered, null, integrationId, pref.Integration?.Id, ct);
+                    await RecordAsync(sub, row, idempotencyKey, descriptor, DeliveryStatus.Delivered, null, integrationId, pref.IntegrationInstanceId, ct);
                     return;
                 }
             }

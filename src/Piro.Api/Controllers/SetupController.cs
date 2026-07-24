@@ -47,10 +47,17 @@ public class SetupController(
             return Conflict(new { title = "Setup already completed.", status = 409 });
 
         var code = ComputeCode(request.Email, request.ToConfig(), DateTimeOffset.UtcNow);
-        var subject = "Piro — Verify your email configuration";
-        var html = $"<p>Your Piro setup verification code is:</p><h2 style=\"letter-spacing:4px\">{code}</h2>" +
-                   "<p>This code expires in 10 minutes.</p>";
+        var subject = "Piro - Verify your email configuration";
+        var html = EmailTemplates.VerificationCode(code, minutes: 10);
 
+        // NOTE: this deliberately does NOT go through IEmailService/EmailServiceFactory. That abstraction
+        // reads the persisted email config (IEmailConfigRepository), but setup is precisely the moment
+        // BEFORE any config is saved — the whole point is to prove the SMTP/Resend settings work using
+        // the not-yet-persisted values from the wizard. So we branch on the request's provider and call
+        // the static SendWithConfigAsync overloads that take an explicit ad-hoc config. Once setup is
+        // complete and the config is stored, every other send in the app goes through IEmailService.
+        // If a third provider is ever added, that's the trigger to extract an
+        // "IEmailService.SendWithConfig(EmailConfig, ...)" seam instead of growing this branch.
         try
         {
             if (request.Provider == "resend")
@@ -189,7 +196,6 @@ public class SetupController(
             await prefRepo.CreateAsync(new UserNotificationPreference
             {
                 UserId = user.Id,
-                Channel = PersonalNotificationChannel.Email,
                 Handle = user.Email!,
                 Priority = 0,
                 VerifiedAt = DateTimeOffset.UtcNow,

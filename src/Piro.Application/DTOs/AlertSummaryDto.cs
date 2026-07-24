@@ -65,7 +65,7 @@ public record AlertDetailDto(
     string? ServiceSlug,
     string? ServiceName,
     int? AlertConfigId,
-    AlertFor? AlertFor,
+    string? Dimension,
     string? AlertValue,
     int? FailureThreshold,
     int? SuccessThreshold,

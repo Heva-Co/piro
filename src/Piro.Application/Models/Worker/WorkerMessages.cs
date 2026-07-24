@@ -28,11 +28,16 @@ public record WorkerHeartbeatMessage(string Version);
 /// <summary>Sent by the worker after completing a check execution.</summary>
 /// <param name="BatchId">Echo of <see cref="WorkerExecuteMessage.BatchId"/>. Null for single-region checks.</param>
 /// <param name="Status">String representation of <see cref="ServiceStatus"/> to avoid enum serialization issues over SignalR.</param>
+/// <param name="Dimensions">
+/// Every numeric measurement the check reported, keyed by dimension name (e.g. "Latency", "CertExpiry").
+/// A remote worker runs the same checks as the in-process worker, so it returns the full set of
+/// dimensions, not just latency — otherwise multi-region alerts on non-latency dimensions could not fire.
+/// </param>
 public record WorkerResultMessage(
     string JobId,
     int CheckId,
     string Status,
-    double? LatencyMs,
+    IReadOnlyDictionary<string, double> Dimensions,
     string? ErrorMessage,
     DateTime ExecutedAt,
     string? BatchId = null);

@@ -122,18 +122,9 @@ public class WorkerSignalRService(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var executors = scope.ServiceProvider
-                .GetRequiredService<IEnumerable<ICheckExecutor>>()
-                .ToDictionary(e => e.CheckType);
+            var executor = scope.ServiceProvider.GetRequiredService<ICheckExecutor>();
 
-            if (!executors.TryGetValue(msg.CheckType, out var executor))
-            {
-                logger.LogWarning("No executor registered for check type {CheckType}. Skipping check {CheckId}.",
-                    msg.CheckType, msg.CheckId);
-                return;
-            }
-
-            // Reconstruct a minimal Check entity — executors only need Id, Type, and TypeDataJson
+            // Reconstruct a minimal Check entity — the executor only needs Id, Type, and TypeDataJson
             var check = new Check
             {
                 Id = msg.CheckId,
@@ -149,14 +140,14 @@ public class WorkerSignalRService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled error executing check {CheckId}.", msg.CheckId);
-            result = new CheckExecutionResult(ServiceStatus.DOWN, null, ex.Message);
+            result = CheckExecutionResult.Of(ServiceStatus.DOWN, ex.Message);
         }
 
         var response = new WorkerResultMessage(
             msg.JobId,
             msg.CheckId,
             result.Status.ToString(),
-            result.LatencyMs,
+            result.Dimensions,
             result.ErrorMessage,
             DateTime.UtcNow,
             msg.BatchId);

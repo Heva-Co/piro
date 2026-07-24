@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Piro.Integrations.Abstractions\Piro.Integrations.Abstractions.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\*.scriban" />
+  </ItemGroup>
+
 </Project>

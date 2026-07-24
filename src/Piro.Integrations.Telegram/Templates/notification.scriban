@@ -1,0 +1,11 @@
+*{{ title }}*
+{{ status }}
+{{- if description }}
+{{ description }}
+{{- end }}
+{{- if fired_at }}
+{{ fired_at }}
+{{- end }}
+{{- if url }}
+{{ url }}
+{{- end }}

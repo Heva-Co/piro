@@ -9,9 +9,6 @@ namespace Piro.Integrations.Abstractions;
 /// </summary>
 public sealed class IntegrationManifest
 {
-    /// <summary>Service/action integration (<see cref="IntegrationCategory.ThirdParty"/>) or notification channel (<see cref="IntegrationCategory.Notification"/>).</summary>
-    public required IntegrationCategory Category { get; init; }
-
     /// <summary>The concrete things this integration can do — see <see cref="IntegrationCapability"/>. <see cref="IntegrationCapability.None"/> is a valid, honest declaration.</summary>
     public required IntegrationCapability Capabilities { get; init; }
 
@@ -40,13 +37,6 @@ public sealed class IntegrationManifest
 
     /// <summary>Whether an admin can create a new Integration of this type from the picker (false for Email — configured platform-wide).</summary>
     public bool Creatable { get; init; } = true;
-
-    /// <summary>
-    /// Path segment (relative to <c>/api/v1/webhooks/</c>) this integration's inbound endpoint listens
-    /// on, e.g. <c>"gcp"</c>. Only meaningful when <see cref="IntegrationCapability.CreatesAlerts"/> is
-    /// set; null otherwise. Lets the admin form build the full webhook URL generically.
-    /// </summary>
-    public string? WebhookPath { get; init; }
 
     /// <summary>
     /// The catalog events this integration can be subscribed to (RFC 0009), by their stable wire name
@@ -92,7 +82,6 @@ public sealed class IntegrationManifest
         var outbound =
             capabilities.HasFlag(IntegrationCapability.SendsPersonalNotification) ||
             capabilities.HasFlag(IntegrationCapability.SendsChannelNotification) ||
-            capabilities.HasFlag(IntegrationCapability.SendsAlertEvents) ||
             capabilities.HasFlag(IntegrationCapability.ExtendsUserInterface);
 
         return (inbound, outbound) switch

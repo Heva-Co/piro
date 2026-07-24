@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
+import { ROUTES } from "@/constants/routes";
 import { IntegrationTypeGrid } from "../components/IntegrationTypeGrid";
 import { IntegrationConfigStep } from "../components/IntegrationConfigStep";
 
@@ -16,8 +17,10 @@ export default function IntegrationFormPage() {
   if (!isEdit && !selectedType) {
     return (
       <>
-        <PageHeader breadcrumbs={[{ label: "Integrations" }, { label: "New Integration" }]} />
-        <p className="mb-6 text-sm text-muted-foreground">Choose a provider to connect.</p>
+        <PageHeader 
+        breadcrumbs={[{ label: "Integrations", to: ROUTES.INTEGRATIONS.LIST }, { label: "New Integration" }]} 
+        subheader="Choose a provider to connect."
+        />
         <IntegrationTypeGrid onSelect={setSelectedType} />
       </>
     );

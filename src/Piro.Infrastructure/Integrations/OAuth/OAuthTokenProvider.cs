@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Piro.Application.Interfaces;
-using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Integrations.OAuth;
 
@@ -97,7 +97,6 @@ internal class OAuthTokenProvider(
     /// <summary>Maps an integration id to its OAuth provider descriptor id. Extend as providers are added.</summary>
     private static string ResolveProviderId(string integrationId) => integrationId switch
     {
-        "PagerDuty" => "pagerduty",
         "Jira" => "jira",
         _ => throw new InvalidOperationException($"Integration '{integrationId}' has no OAuth provider.")
     };

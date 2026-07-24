@@ -12,7 +12,7 @@ public class Postmortem
 {
     public int Id { get; set; }
 
-    /// <summary>The report name (PagerDuty "Report Name").</summary>
+    /// <summary>The report name.</summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Draft (default) or Published — the review lifecycle. Internal-only in Phase 1.</summary>
@@ -30,7 +30,7 @@ public class Postmortem
     /// </summary>
     public string? ReviewOwnerName { get; set; }
 
-    /// <summary>Optional impact window start (PagerDuty "Impact Start Time").</summary>
+    /// <summary>Optional impact window start.</summary>
     public DateTimeOffset? ImpactStartAt { get; set; }
 
     /// <summary>Optional impact window end.</summary>

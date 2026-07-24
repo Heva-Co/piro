@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Piro.Integrations.Jira\Piro.Integrations.Jira.csproj" />
     <ProjectReference Include="..\..\src\Piro.Integrations.Ntfy\Piro.Integrations.Ntfy.csproj" />
     <ProjectReference Include="..\..\src\Piro.Integrations.Telegram\Piro.Integrations.Telegram.csproj" />
+    <ProjectReference Include="..\..\src\Piro.Integrations.GoogleCloud\Piro.Integrations.GoogleCloud.csproj" />
 
   </ItemGroup>
 

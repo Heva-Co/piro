@@ -1,6 +1,5 @@
 using Piro.Integrations.Abstractions;
 using FluentAssertions;
-using Piro.Application.Integrations.Actions;
 using NSubstitute;
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
@@ -29,14 +28,16 @@ public class IntegrationSecretMaskingTests
     private readonly IWebhookRequestLogRepository _webhookLogRepo = Substitute.For<IWebhookRequestLogRepository>();
     private readonly IEscalationPolicyRepository _escalationPolicyRepo = Substitute.For<IEscalationPolicyRepository>();
     private readonly ISecretProtector _secretProtector = new FakeSecretProtector();
-    private readonly IActionHost _actionHost = Substitute.For<IActionHost>();
-    private readonly IActionRegistry _actionRegistry = Substitute.For<IActionRegistry>();
+    private readonly IIntegrationHost _integrationHost = Substitute.For<IIntegrationHost>();
+    private readonly IUIActionRegistry _actionRegistry = Substitute.For<IUIActionRegistry>();
+    private readonly IUIActionTargetService _targetService = Substitute.For<IUIActionTargetService>();
+    private readonly IExternalReferenceStore _externalReferenceStore = Substitute.For<IExternalReferenceStore>();
     private readonly IIntegrationRegistry _registry = new TestRegistry();
     private readonly IntegrationAppService _sut;
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _registry, _actionHost, _actionRegistry, []);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _registry, _integrationHost, _actionRegistry, _targetService, _externalReferenceStore);
     }
 
     /// <summary>Deterministic protector for tests: prefixes ciphertext so round-trips are observable.</summary>
@@ -177,7 +178,6 @@ file sealed class StubIntegration(string id, System.Type configType) : Piro.Inte
     public string IntegrationId => id;
     public Piro.Integrations.Abstractions.IntegrationManifest Manifest => new()
     {
-        Category = Piro.Integrations.Abstractions.IntegrationCategory.ThirdParty,
         Capabilities = Piro.Integrations.Abstractions.IntegrationCapability.None,
         ConfigType = configType,
     };
@@ -189,7 +189,7 @@ file sealed class TestRegistry : Piro.Integrations.Abstractions.IIntegrationRegi
         new(System.StringComparer.Ordinal)
         {
             ["Jira"] = new Piro.Integrations.Jira.JiraIntegration(),
-            ["GoogleCloud"] = new StubIntegration("GoogleCloud", typeof(Piro.Domain.Integrations.Config.GoogleCloudConfig)),
+            ["GoogleCloud"] = new StubIntegration("GoogleCloud", typeof(Piro.Integrations.GoogleCloud.GoogleCloudConfig)),
         };
     public System.Collections.Generic.IReadOnlyList<Piro.Integrations.Abstractions.IIntegration> All => _byId.Values.ToList();
     public Piro.Integrations.Abstractions.IIntegration? Find(string integrationId) => _byId.GetValueOrDefault(integrationId);

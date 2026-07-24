@@ -25,10 +25,15 @@ export function formatMonthRange(fromIso: string, toIso: string): string {
   return `${formatDate(`${fromIso}T00:00:00Z`, "UTC", opts)} – ${formatDate(`${toIso}T00:00:00Z`, "UTC", opts)}`;
 }
 
+/**
+ * Month-to-date range (UTC): from the 1st of the current month through **today inclusive**, not the
+ * whole calendar month. The API's `to` is exclusive, so it's tomorrow — this keeps the daily-volume
+ * chart from drawing empty future days and matches the "Month to Date" dashboard label.
+ */
 export function currentMonthRange(): { from: string; to: string } {
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   return { from: iso(from), to: iso(to) };
 }

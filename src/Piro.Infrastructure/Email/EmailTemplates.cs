@@ -4,11 +4,11 @@ using Scriban;
 namespace Piro.Infrastructure.Email;
 
 /// <summary>
-/// Compiles and renders the transactional email templates embedded under Email/Templates/.
-/// Mirrors the pattern in Alerts/AlertMessageTemplates — HTML lives in .scriban files, not
-/// interpolated in C#, so Piro.Application never needs to know how an email is rendered.
+/// Compiles and renders the transactional email templates embedded under Email/Templates/. HTML lives
+/// in .scriban files, not interpolated in C#, so Piro.Application never needs to know how an email is
+/// rendered.
 /// </summary>
-internal static class EmailTemplates
+public static class EmailTemplates
 {
     private static readonly Dictionary<string, Template> Compiled = new();
 
@@ -39,6 +39,10 @@ internal static class EmailTemplates
 
     public static string PasswordReset(string resetUrl) =>
         Render("reset-password", new { reset_url = resetUrl });
+
+    /// <summary>The branded one-time verification-code email (setup / email-config verification).</summary>
+    public static string VerificationCode(string code, int minutes) =>
+        Render("verification-code", new { code, minutes });
 
     private static string Render(string templateKey, object model)
     {

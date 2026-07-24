@@ -5,8 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, RefreshCw, Globe } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Timeline } from "@/src/components/ui/timeline";
-import { incidentsApi } from "@/src/lib/actions/incidents";
-import type { Incident, IncidentTimelineEvent } from "@/src/lib/actions/incidents";
+import type { Incident, IncidentTimelineEvent, IncidentTimelinePage } from "@/src/lib/actions/incidents";
 
 const statusColor: Record<string, string> = {
   Investigating: "bg-red-100 text-red-700",
@@ -56,7 +55,11 @@ export function IncidentDetailClient({ id, initial }: Props) {
 
   async function fetchTimeline() {
     try {
-      const page = await incidentsApi.timeline(id, 1, 50);
+      // Through the Next route proxy, not incidentsApi (which calls the backend directly and would
+      // be a cross-origin request from this client component).
+      const res = await fetch(`/api/incidents/${id}/timeline?page=1&pageSize=50`);
+      if (!res.ok) return;
+      const page: IncidentTimelinePage = await res.json();
       setComments(page.items.filter((e) => e.type === "CommentPosted"));
     } catch { /* silent */ }
   }

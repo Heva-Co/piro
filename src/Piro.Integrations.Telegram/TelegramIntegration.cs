@@ -13,12 +13,11 @@ public sealed class TelegramIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsPersonalNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(TelegramConfig),
         Label = "Telegram",
         Description = "Send alert notifications to Telegram chats via a bot.",
         IconifyIcon = "logos:telegram",
-        SupportedEvents = ["alert:created", "alert:acknowledged", "alert:resolved"],
+        SupportedEvents = ["alert:*", "incident:*"],
     };
 }

@@ -5,7 +5,7 @@ const STATUS_STYLES: Record<string, { classes: string; label: string }> = {
   DOWN: { classes: "bg-destructive text-white", label: "Down" },
   DEGRADED: { classes: "bg-amber-500 text-white", label: "Degraded" },
   MAINTENANCE: { classes: "bg-blue-500 text-white", label: "Maintenance" },
-  NO_DATA: { classes: "bg-muted text-black", label: "No Data" },
+  NO_DATA: { classes: "bg-muted text-muted-foreground", label: "No Data" },
   FAILURE: { classes: "bg-orange-500 text-white", label: "Check Error" },
   MONITOR_OUTAGE: { classes: "bg-yellow-100 text-yellow-800 border border-yellow-300", label: "Monitor Outage" },
 };

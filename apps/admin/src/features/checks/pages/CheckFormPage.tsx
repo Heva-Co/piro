@@ -7,9 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useCreateCheck } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
 import { checkTypesApi } from "@/lib/actions/checks";
+import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { PageHeader } from "@/components/PageHeader";
 import { WarningConfirmDialog } from "@/components/ui/warning-confirm-dialog";
@@ -35,6 +37,17 @@ export default function CheckFormPage() {
     queryKey: QUERY_KEYS.CHECK_TYPES,
     queryFn: checkTypesApi.list,
   });
+
+  // Which integration types are actually connected — a check that requires one it doesn't have is
+  // shown but disabled, so the picker is discoverable without offering an unusable choice.
+  const { data: integrations = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATIONS,
+    queryFn: integrationsApi.list,
+  });
+  const connectedIntegrationTypes = useMemo(
+    () => new Set(integrations.map((i) => i.type)),
+    [integrations]
+  );
 
   const [alertDrafts, setAlertDrafts] = useState<AlertConfigDraft[]>([]);
   const [submitError, setSubmitError] = useState("");
@@ -102,9 +115,17 @@ export default function CheckFormPage() {
   }
 
   async function onSubmit(values: CheckConfigFormValues) {
-    const errors = validateConfig(typeMeta?.configSchema ?? [], (values.config ?? {}) as Record<string, unknown>);
+    const config = (values.config ?? {}) as Record<string, unknown>;
+    // The integration-instance field is validated via the picker below, not the generic schema form
+    // (it's hidden there), so exclude it to avoid a duplicate error on a field the user can't see.
+    const schemaForValidation = (typeMeta?.configSchema ?? []).filter(
+      (f) => !typeMeta?.requiredIntegrationType || f.key !== "integrationInstanceId"
+    );
+    const errors = validateConfig(schemaForValidation, config);
     setConfigErrors(errors);
-    const missingIntegration = !!typeMeta?.requiredIntegrationType && !values.integrationId;
+    // The required integration is now stored in the check's config (config.integrationInstanceId),
+    // which is what the check actually reads — not the legacy Check.integrationId field.
+    const missingIntegration = !!typeMeta?.requiredIntegrationType && !config.integrationInstanceId;
     setIntegrationError(missingIntegration ? `A ${typeMeta!.requiredIntegrationType} integration is required.` : "");
     if (Object.keys(errors).length > 0 || missingIntegration) {
       setSubmitError("Fix the highlighted configuration fields before creating this check.");
@@ -137,9 +158,32 @@ export default function CheckFormPage() {
         <SelectValue>{(v: string) => checkTypes.find((t) => t.type === v)?.displayName ?? v}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {checkTypes.filter((t) => t.hasExecutor).map((t) => (
-          <SelectItem key={t.type} value={t.type}>{t.displayName}</SelectItem>
-        ))}
+        {checkTypes.filter((t) => t.hasExecutor).map((t) => {
+          // A check that requires a provider integration is only selectable once one is connected —
+          // otherwise it's shown disabled with a tooltip explaining what to connect first.
+          const missingIntegration =
+            !!t.requiredIntegrationType && !connectedIntegrationTypes.has(t.requiredIntegrationType);
+
+          if (missingIntegration) {
+            return (
+              <Tooltip key={t.type}>
+                <TooltipTrigger
+                  // A disabled SelectItem swallows pointer events, so wrap it in a span the tooltip can hover.
+                  render={
+                    <span className="block">
+                      <SelectItem value={t.type} disabled>{t.displayName}</SelectItem>
+                    </span>
+                  }
+                />
+                <TooltipContent side="right">
+                  Requires a {t.requiredIntegrationType} integration. Connect one first.
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return <SelectItem key={t.type} value={t.type}>{t.displayName}</SelectItem>;
+        })}
       </SelectContent>
     </Select>
   );
@@ -186,7 +230,7 @@ export default function CheckFormPage() {
             icon={<Bell size={16} className="text-muted-foreground" />}
             disableCard
           >
-            <AlertConfigListEditor ref={alertConfigEditorRef} checkType={type} value={alertDrafts} onChange={setAlertDrafts} />
+            <AlertConfigListEditor ref={alertConfigEditorRef} dimensions={typeMeta?.dimensions ?? []} value={alertDrafts} onChange={setAlertDrafts} />
           </SectionAccordion>
 
           <FormActions

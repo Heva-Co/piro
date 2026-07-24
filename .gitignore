@@ -44,5 +44,11 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Data Protection keyring — machine-local encryption keys, never commit
+EncryptionKeys/
+**/EncryptionKeys/
+
 # ── Claude Code ─────────────────────────────────────────────────────────────
 .claude/worktrees/
+
+graphify-out/

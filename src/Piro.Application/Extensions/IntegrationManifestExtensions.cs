@@ -19,13 +19,11 @@ public static class IntegrationManifestExtensions
             m.Label,
             m.Description,
             m.IconifyIcon,
-            m.Category,
             m.ChannelOnly,
             m.Creatable,
             m.Direction,
             CapabilityNames(m.Capabilities),
-            ConfigSchemaBuilder.For(m.ConfigType),
-            m.WebhookPath
+            ConfigSchemaBuilder.For(m.ConfigType)
         );
     }
 
