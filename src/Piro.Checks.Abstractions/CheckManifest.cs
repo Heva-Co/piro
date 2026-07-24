@@ -39,4 +39,27 @@ public sealed class CheckManifest
     /// the UI can require the integration up front and Piro never hardcodes the check→integration link.
     /// </summary>
     public string? RequiredIntegration { get; init; }
+
+    /// <summary>
+    /// Whether this check's probe reads its own past data points instead of (or as well as) making a
+    /// network call (RFC 0013 — the Heartbeat check reads "when was I last seen"). When true, the probe
+    /// may resolve an <see cref="IOwnCheckPoints"/> through the host — a reader already scoped to the
+    /// check currently executing, so it returns only that check's data points and the probe never sees a
+    /// check id, the <c>Check</c> entity, a repository, or any other check's data. Declared, not
+    /// name-matched: Piro's executor adapter wires the scoped reader only for a check that sets this flag,
+    /// so the "checks know nothing" boundary is untouched for every check that leaves it false (the
+    /// default). More general than a precomputed "last seen": a future push-based check can average the
+    /// recent points or detect a pattern, not just read the newest.
+    /// </summary>
+    public bool ConsumesCheckPoints { get; init; }
+
+    /// <summary>
+    /// Whether a check of this type must run in a single region (multi-region is rejected). A check
+    /// declares this itself — Piro never infers it from another capability. The Heartbeat check sets it
+    /// because its pings are ingested and evaluated in one place, so fanning it across regions is
+    /// meaningless; a normal outbound probe leaves it false and may run multi-region. Independent of
+    /// <see cref="ConsumesCheckPoints"/>: reading one's own history does not, by itself, pin a check to a
+    /// region (the data points live in the shared store).
+    /// </summary>
+    public bool SingleRegionOnly { get; init; }
 }

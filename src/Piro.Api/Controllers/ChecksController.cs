@@ -93,6 +93,34 @@ public class ChecksController(CheckAppService checkApp, CheckRunnerService check
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Test(string serviceSlug, string checkSlug, [FromBody] TestCheckRequest? request, CancellationToken ct) =>
         Ok(await checkApp.TestAsync(serviceSlug, checkSlug, request?.TypeDataJson, ct));
+
+    /// <summary>
+    /// Inbound-token info for a check that receives inbound requests (RFC 0013): the masked token,
+    /// last-used time, and the base inbound URL. The raw token is not returned here — only on rotate.
+    /// </summary>
+    [HttpGet("{checkSlug}/inbound-token")]
+    [ProducesResponseType<CheckInboundTokenDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> InboundTokenInfo(string serviceSlug, string checkSlug, CancellationToken ct)
+    {
+        var (checkId, token) = await checkApp.GetInboundTokenAsync(serviceSlug, checkSlug, ct);
+        // The masked token can't reconstruct the raw URL, so this is the base endpoint (no token); the
+        // operator gets the tokenized URL from rotate. Show the masked token + last-used for reference.
+        return Ok(new CheckInboundTokenDto(InboundUrlBase(checkId), token?.MaskedToken, token?.LastUsedAt));
+    }
+
+    /// <summary>Rotates a check's inbound token (RFC 0013) and returns the new raw token + full inbound URL, shown once.</summary>
+    [HttpPost("{checkSlug}/inbound-token/rotate")]
+    [ProducesResponseType<CheckInboundTokenRotateResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RotateInboundToken(string serviceSlug, string checkSlug, CancellationToken ct)
+    {
+        var (checkId, rawToken) = await checkApp.RotateInboundTokenAsync(serviceSlug, checkSlug, ct);
+        return Ok(new CheckInboundTokenRotateResultDto(rawToken, $"{InboundUrlBase(checkId)}?token={rawToken}"));
+    }
+
+    private string InboundUrlBase(int checkId) =>
+        $"{Request.Scheme}://{Request.Host}/api/v1/checks/{checkId}/inbound";
 }
 
 /// <summary>Body for the check Test endpoint — the candidate config to test, or null to use the persisted one.</summary>

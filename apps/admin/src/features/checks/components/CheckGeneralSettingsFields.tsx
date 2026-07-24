@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useFormContext, Controller } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import cronstrue from "cronstrue";
+import { QUERY_KEYS } from "@/constants/api";
+import { checkTypesApi } from "@/lib/actions/checks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -33,6 +36,14 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
   const isActive = watch("isActive");
   const isMultiRegion = watch("isMultiRegion");
   const name = watch("name");
+  const type = watch("type");
+  // Whether this check type is single-region comes from its manifest (SingleRegionOnly), not a hardcoded
+  // type name (RFC 0013). Heartbeat declares it; when true, hide the multi-region toggle and force it off.
+  const { data: checkTypes = [] } = useQuery({ queryKey: QUERY_KEYS.CHECK_TYPES, queryFn: checkTypesApi.list });
+  const singleRegionOnly = checkTypes.find((t) => t.type === type)?.singleRegionOnly ?? false;
+  useEffect(() => {
+    if (singleRegionOnly && isMultiRegion) setValue("isMultiRegion", false);
+  }, [singleRegionOnly, isMultiRegion, setValue]);
 
   const slugManual = useRef(false);
   useEffect(() => {
@@ -117,7 +128,7 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
         </Field>
       </div>
 
-      {/* Active + Multi-region */}
+      {/* Active + Multi-region (multi-region hidden for single-region-only check types) */}
       <div className="grid grid-cols-2 gap-4">
         <Field >
           <label className="text-sm font-semibold">Active</label>
@@ -126,13 +137,15 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
             <FieldDescription>{isActive ? "Check is running" : "Check is paused"}</FieldDescription>
           </div>
         </Field>
-        <Field >
-          <label className="text-sm font-semibold">Multi-region</label>
-          <div className="flex items-center gap-2.5">
-            <Switch checked={isMultiRegion} onCheckedChange={(v) => setValue("isMultiRegion", v)} />
-            <FieldDescription >{isMultiRegion ? "Enabled" : "Disabled"}</FieldDescription>
-          </div>
-        </Field>
+        {!singleRegionOnly && (
+          <Field >
+            <label className="text-sm font-semibold">Multi-region</label>
+            <div className="flex items-center gap-2.5">
+              <Switch checked={isMultiRegion} onCheckedChange={(v) => setValue("isMultiRegion", v)} />
+              <FieldDescription >{isMultiRegion ? "Enabled" : "Disabled"}</FieldDescription>
+            </div>
+          </Field>
+        )}
       </div>
     </div>
   );

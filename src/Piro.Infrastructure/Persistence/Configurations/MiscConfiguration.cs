@@ -17,11 +17,19 @@ internal class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
         builder.Property(k => k.HashedKey).HasMaxLength(255).IsRequired();
         builder.Property(k => k.MaskedKey).HasMaxLength(255).IsRequired();
         builder.Property(k => k.Status).HasConversion<string>().HasMaxLength(20).HasDefaultValue(ApiKeyStatus.Active);
+        builder.Property(k => k.Scope).HasConversion<string>().HasMaxLength(20).HasDefaultValue(ApiKeyScope.Full);
 
         builder.HasOne(k => k.User)
             .WithMany()
             .HasForeignKey(k => k.UserId)
             .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        // A Heartbeat-scoped key is bound to one check; deleting the check removes its ping token.
+        builder.HasOne<Check>()
+            .WithMany()
+            .HasForeignKey(k => k.CheckId)
+            .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
     }
 }

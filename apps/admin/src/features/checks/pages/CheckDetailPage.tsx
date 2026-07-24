@@ -22,6 +22,7 @@ import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGe
 import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
 import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
 import ScriptTestPanel from "@/features/checks/components/ScriptTestPanel";
+import HeartbeatPanel from "@/features/checks/components/HeartbeatPanel";
 import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
 import { CRON_PRESETS } from "@/constants/checks";
 import { checkTypesApi } from "@/lib/actions/checks";
@@ -207,6 +208,12 @@ function ConfigurationSection({ serviceSlug, checkSlug }: { serviceSlug: string;
             checkSlug={checkSlug}
             getTypeDataJson={() => JSON.stringify(configValues)}
           />
+        </div>
+      )}
+
+      {check?.type === "Heartbeat" && (
+        <div className="border-t pt-4">
+          <HeartbeatPanel serviceSlug={serviceSlug} checkSlug={checkSlug} />
         </div>
       )}
 

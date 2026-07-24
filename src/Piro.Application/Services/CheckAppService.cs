@@ -23,6 +23,7 @@ public class CheckAppService(
     ICronIntervalCalculator cronInterval,
     ICheckRegistry checkRegistry,
     ICheckHost checkHost,
+    ICheckInboundTokenService inboundTokens,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -102,6 +103,37 @@ public class CheckAppService(
         return new ScriptTestResultDto(status.ToString(), result.Message, latency, dimensions, logs);
     }
 
+    /// <summary>
+    /// The heartbeat token info for a check (RFC 0013): masked token + last-ping time, plus the check id
+    /// the caller needs to build the ping URL. Throws if the check isn't push-based. The raw token is
+    /// never returned here — only on create/rotate.
+    /// </summary>
+    public async Task<(int CheckId, CheckInboundTokenInfo? Token)> GetInboundTokenAsync(string serviceSlug, string checkSlug, CancellationToken ct = default)
+    {
+        var check = await ResolveInboundCheck(serviceSlug, checkSlug, ct);
+        return (check.Id, await inboundTokens.GetInfoAsync(check.Id, ct));
+    }
+
+    /// <summary>Rotates an inbound check's ping token (RFC 0013) and returns the new raw token + its check id.</summary>
+    public async Task<(int CheckId, string RawToken)> RotateInboundTokenAsync(string serviceSlug, string checkSlug, CancellationToken ct = default)
+    {
+        var check = await ResolveInboundCheck(serviceSlug, checkSlug, ct);
+        return (check.Id, await inboundTokens.CreateOrRotateAsync(check.Id, ct));
+    }
+
+    // A ping token only exists for a check whose type ships an inbound handler; that is the precise
+    // signal, keyed off the manifest/registry (never the check id).
+    private async Task<Check> ResolveInboundCheck(string serviceSlug, string checkSlug, CancellationToken ct)
+    {
+        var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
+            ?? throw new NotFoundException(nameof(Service), serviceSlug);
+        var check = await checkRepository.GetBySlugAsync(service.Id, checkSlug, ct)
+            ?? throw new NotFoundException(nameof(Check), checkSlug);
+        if (checkRegistry.Find(check.Type.ToString())?.ProvidedInboundHandler() is null)
+            throw new DomainValidationException($"Check '{checkSlug}' does not receive inbound pings and has no token.");
+        return check;
+    }
+
     public async Task<CheckDto> CreateAsync(string serviceSlug, CreateCheckRequest request, CancellationToken ct = default)
     {
         var service = await serviceRepository.GetBySlugAsync(serviceSlug, ct)
@@ -114,6 +146,7 @@ public class CheckAppService(
             ResolveSpec(request.Type, alertConfigRequest.Dimension);
 
         EnsureScheduleWithinBounds(request.Type, request.Cron, request.TypeDataJson);
+        EnsureSingleRegionIfDeclared(request.Type, request.IsMultiRegion);
 
         var check = new Check
         {
@@ -147,6 +180,13 @@ public class CheckAppService(
         }
 
         await scheduler.ScheduleAsync(created, ct);
+
+        // A check that ships an inbound handler is pinged by the target, so mint its scoped ping token
+        // now. Keyed on "has an inbound handler" (the precise signal for needing an inbound token), not
+        // on reading history (ConsumesCheckPoints) nor a check-id check.
+        if (checkRegistry.Find(created.Type.ToString())?.ProvidedInboundHandler() is not null)
+            await inboundTokens.CreateOrRotateAsync(created.Id, ct);
+
         return created.ToDto();
     }
 
@@ -183,11 +223,18 @@ public class CheckAppService(
     }
 
     /// <summary>
-    /// Enforces the schedule bounds from the check manifest (RFC 0011): the interval must be at
-    /// least 1 minute globally, at least the type's declared minimum, and strictly greater than the
-    /// check's own timeout (so a run always finishes before its next fire). An un-derivable cron is
-    /// left to the scheduler to reject.
+    /// Rejects multi-region for a check type whose manifest declares <c>SingleRegionOnly</c> (e.g.
+    /// Heartbeat, whose pings are ingested and evaluated in one place). The check declares this itself;
+    /// Piro never infers it from another capability. Data-driven off the manifest, never a check-id check.
     /// </summary>
+    private void EnsureSingleRegionIfDeclared(CheckType type, bool isMultiRegion)
+    {
+        if (!isMultiRegion) return;
+        var manifest = checkRegistry.Find(type.ToString())?.Manifest;
+        if (manifest?.SingleRegionOnly == true)
+            throw new DomainValidationException($"{manifest.Label} checks must run in a single region (disable multi-region).");
+    }
+
     private void EnsureScheduleWithinBounds(CheckType type, string cron, string typeDataJson)
     {
         if (cronInterval.SmallestInterval(cron) is not { } interval)
@@ -260,6 +307,7 @@ public class CheckAppService(
 
         // Type is immutable on update; validate the resulting cron/config against the check's own type.
         EnsureScheduleWithinBounds(check.Type, check.Cron, check.TypeDataJson);
+        EnsureSingleRegionIfDeclared(check.Type, check.IsMultiRegion);
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);

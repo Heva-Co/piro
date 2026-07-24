@@ -19,7 +19,9 @@ public record CheckTypeMetaDto(
     /// <summary>
     /// False for a declared type that has no registered check implementation yet — not runnable, shown as unavailable.
     /// </summary>
-    bool HasExecutor
+    bool HasExecutor,
+    /// <summary>True when this check type must run in a single region (the admin hides the multi-region toggle).</summary>
+    bool SingleRegionOnly
 );
 
 /// <summary>
