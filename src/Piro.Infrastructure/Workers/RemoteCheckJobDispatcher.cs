@@ -103,15 +103,40 @@ internal class RemoteCheckJobDispatcher(
     }
 
     /// <summary>
-    /// Records a visible <see cref="DataPointType.UNSCHEDULABLE"/> datapoint (RFC 0008 Part B, §4.6): workers
-    /// are connected but none match the check's required worker tags, so it cannot be placed. Distinct from
-    /// <see cref="DataPointType.MONITOR_OUTAGE"/> (a transient gap): this is a configuration error that
+    /// Records a <see cref="DataPointType.MONITOR_OUTAGE"/> datapoint (RFC 0008 §4.6): a worker that could
+    /// run this check exists but none is currently connected. A transient gap that heals on its own when a
+    /// worker returns. Not service downtime.
+    /// </summary>
+    public async Task RecordMonitorOutageAsync(Check check, string message, CancellationToken ct = default)
+    {
+        logger.LogWarning("Check {CheckId} skipped — {Message}. Writing MONITOR_OUTAGE datapoint.", check.Id, message);
+
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        timestamp -= timestamp % 60;
+
+        var point = new CheckDataPoint
+        {
+            CheckId = check.Id,
+            Timestamp = timestamp,
+            Status = ServiceStatus.NO_DATA,
+            DataType = DataPointType.MONITOR_OUTAGE,
+            WorkerRegion = "monitor",
+            ErrorMessage = message
+        };
+
+        await dataPointRepo.CreateAsync(point, ct);
+    }
+
+    /// <summary>
+    /// Records a visible <see cref="DataPointType.UNSCHEDULABLE"/> datapoint (RFC 0008 Part B, §4.6): no
+    /// registered worker can ever match the check's required worker tags, so it cannot be placed. Distinct
+    /// from <see cref="DataPointType.MONITOR_OUTAGE"/> (a transient gap): this is a configuration error that
     /// clears only when the check is edited. Not service downtime; the mirror of the MONITOR_OUTAGE write.
     /// </summary>
     public async Task RecordUnschedulableAsync(Check check, CancellationToken ct = default)
     {
         logger.LogWarning(
-            "Check {CheckId} has required worker tags that no connected worker matches — writing UNSCHEDULABLE datapoint.",
+            "Check {CheckId} is unschedulable: no registered worker can match its required worker tags. Writing UNSCHEDULABLE datapoint.",
             check.Id);
 
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();

@@ -37,22 +37,29 @@ internal class RoutingCheckJobDispatcher(
         var requirement = required
             .Select(rt => new RequiredWorkerTag(rt.Tag.Key, rt.Value))
             .ToArray();
-        var allWorkers = registry.GetAll();
-        var eligible = allWorkers
+        var eligible = registry.GetAll()
             .Where(w => WorkerTagMatcher.IsEligible(requirement, w.Tags))
             .ToList();
 
-        // Distinguish the two empty-match causes (§4.6). Some workers are connected but none match the
-        // required tags ⇒ a configuration error the operator must fix: record a visible UNSCHEDULABLE
-        // datapoint, distinct from the transient MONITOR_OUTAGE. If no workers are connected at all, fall
-        // through to DispatchToWorkersAsync, which records MONITOR_OUTAGE as before. Routing stays total.
-        if (eligible.Count == 0 && allWorkers.Count > 0)
+        if (eligible.Count > 0)
         {
-            await remote.RecordUnschedulableAsync(check, ct);
+            await remote.DispatchToWorkersAsync(check, eligible, ct);
             return;
         }
 
-        await remote.DispatchToWorkersAsync(check, eligible, ct);
+        // No LIVE worker matches. Distinguish the two empty-match causes (§4.6) against the set of
+        // REGISTERED workers (not just connected ones):
+        //   - a registered worker matches but none is currently live  ⇒ MONITOR_OUTAGE (transient; the
+        //     matching worker is down/disconnected and will heal when it returns).
+        //   - no registered worker can ever match the required tags    ⇒ UNSCHEDULABLE (a config error the
+        //     operator must fix by editing the check).
+        var registeredMatches = (await tags.GetAllWorkerTagSetsAsync(ct))
+            .Any(wt => WorkerTagMatcher.IsEligible(requirement, wt));
+
+        if (registeredMatches)
+            await remote.RecordMonitorOutageAsync(check, "A worker matching the required tags exists but is not connected", ct);
+        else
+            await remote.RecordUnschedulableAsync(check, ct);
     }
 
     private Task DispatchByRegionAsync(Check check, CancellationToken ct)

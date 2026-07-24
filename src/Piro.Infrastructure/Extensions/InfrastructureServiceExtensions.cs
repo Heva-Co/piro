@@ -19,7 +19,6 @@ using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Integrations.Actions;
 using Piro.Infrastructure.Integrations;
 using Piro.Infrastructure.Email;
-using Piro.Infrastructure.Checks;
 using Piro.Infrastructure.Integrations.OAuth;
 using Piro.Infrastructure.Security;
 using Microsoft.AspNetCore.SignalR;
@@ -326,6 +325,13 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Same RFC 0016 check SDK the API uses — a remote worker runs the identical set of checks.
         services.AddChecks();
         services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
+
+        // RegistryCheckExecutor takes a scoped CurrentCheckContext (RFC 0013), so the executor activates on
+        // the worker exactly as on the API. IOwnCheckPoints is intentionally NOT registered here: it needs
+        // the DB (ICheckDataPointRepository) the worker doesn't have, and its only consumer (Heartbeat) is
+        // single-region and never dispatched to a remote worker. Inbound token/ping services are likewise
+        // API-only (the worker never receives pings).
+        services.AddScoped<CurrentCheckContext>();
 
         return services;
     }

@@ -152,6 +152,11 @@ public class TagAppServiceTests
         public Task<IReadOnlyList<CheckRequiredWorkerTag>> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<CheckRequiredWorkerTag>>(RequiredWorkerTags.GetValueOrDefault(checkId, []));
 
+        public Task<IReadOnlyList<IReadOnlyDictionary<string, string?>>> GetAllWorkerTagSetsAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<IReadOnlyDictionary<string, string?>>>(
+                WorkerTags.Values.Select(list =>
+                    (IReadOnlyDictionary<string, string?>)list.ToDictionary(wt => wt.Tag.Key, wt => wt.Value, StringComparer.Ordinal)).ToList());
+
         public Task ReplaceRequiredWorkerTagsAsync(int checkId, IReadOnlyList<(Tag Tag, string? Value)> tags, CancellationToken ct = default)
         {
             RequiredWorkerTags[checkId] = tags

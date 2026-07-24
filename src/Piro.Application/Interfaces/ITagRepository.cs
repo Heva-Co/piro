@@ -56,6 +56,13 @@ public interface ITagRepository
     /// <summary>The check's required worker tags (join rows with their catalog key). Empty ⇒ run anywhere.</summary>
     Task<IReadOnlyList<CheckRequiredWorkerTag>> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Every registered worker's tag set (key → value), keyed by worker id, regardless of whether the
+    /// worker is currently connected. Used to tell a transient outage (a matching worker exists but is
+    /// down) from a permanent config error (no registered worker can ever match) — RFC 0008 §4.6.
+    /// </summary>
+    Task<IReadOnlyList<IReadOnlyDictionary<string, string?>>> GetAllWorkerTagSetsAsync(CancellationToken ct = default);
+
     /// <summary>Replaces a check's required-worker-tag set, resolving each key against the shared catalog.</summary>
     Task ReplaceRequiredWorkerTagsAsync(int checkId, IReadOnlyList<(Tag Tag, string? Value)> tags, CancellationToken ct = default);
 }
