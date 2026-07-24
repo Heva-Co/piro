@@ -6,6 +6,8 @@ import type { ConfigFieldSchema } from "@/lib/actions/checks";
 import StringListControl from "./StringListControl";
 import KeyValueControl from "./KeyValueControl";
 import ObjectArrayControl from "./ObjectArrayControl";
+import CodeEditor from "./CodeEditor";
+import { scriptCompletionSource } from "./scriptCompletions";
 
 interface Props {
   field: ConfigFieldSchema;
@@ -64,14 +66,24 @@ function FieldControl(props: Props) {
         />
       );
 
+    case "Code":
+      // The only Code field today is the Script check's body; its completions surface the piro:http API
+      // and check() return shape (and are inert in any other context).
+      return (
+        <CodeEditor
+          value={asString(value)}
+          onChange={onChange}
+          placeholder={field.placeholder ?? undefined}
+          completionSource={scriptCompletionSource}
+        />
+      );
+
     case "Multiline":
-    case "Code": // TODO(RFC 0010): swap for a CodeMirror editor once that dependency lands.
       return (
         <Textarea
           value={asString(value)}
           onChange={(e) => onChange(e.target.value)}
-          rows={field.type === "Code" ? 14 : 6}
-          className={field.type === "Code" ? "font-mono text-xs" : undefined}
+          rows={6}
           placeholder={field.placeholder ?? undefined}
         />
       );

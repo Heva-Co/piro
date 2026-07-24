@@ -81,4 +81,19 @@ public class ChecksController(CheckAppService checkApp, CheckRunnerService check
         var ran = await checkRunner.RunAsync(check.Id, ct);
         return Ok(ran is not null ? ran.ToDto() : check);
     }
+
+    /// <summary>
+    /// Dry-runs a testable check (the Script check) in debug mode: executes the script against the live
+    /// target, captures console.log, and returns the raw verdict WITHOUT persisting a datapoint or firing
+    /// an alert (RFC 0010 §4.8). The optional body carries candidate config so the operator can test
+    /// unsaved edits; an empty body tests the persisted config.
+    /// </summary>
+    [HttpPost("{checkSlug}/test")]
+    [ProducesResponseType<ScriptTestResultDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Test(string serviceSlug, string checkSlug, [FromBody] TestCheckRequest? request, CancellationToken ct) =>
+        Ok(await checkApp.TestAsync(serviceSlug, checkSlug, request?.TypeDataJson, ct));
 }
+
+/// <summary>Body for the check Test endpoint — the candidate config to test, or null to use the persisted one.</summary>
+public record TestCheckRequest(string? TypeDataJson);

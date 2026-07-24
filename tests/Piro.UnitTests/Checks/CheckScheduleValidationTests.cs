@@ -41,6 +41,7 @@ public class CheckScheduleValidationTests
             Substitute.For<IAlertConfigRepository>(),
             _cron,
             _registry,
+            Substitute.For<ICheckHost>(),
             Substitute.For<IUnitOfWork>());
     }
 
