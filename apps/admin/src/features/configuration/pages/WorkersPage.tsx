@@ -157,7 +157,9 @@ export default function WorkersPage() {
                   {w.name}
                   {w.isBuiltIn && <span className="ml-2 text-xs font-normal text-blue-600">(built-in)</span>}
                 </p>
-                <p className="text-xs text-muted-foreground font-mono">{w.region}{w.version ? ` · v${w.version}` : ""}</p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  Region: {w.region}{w.version ? ` · ${w.version}` : ""}
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 {w.isDefault && (

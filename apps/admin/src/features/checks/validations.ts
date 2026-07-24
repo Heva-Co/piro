@@ -60,8 +60,8 @@ const baseCheckSchema = z.object({
   isMultiRegion: z.boolean(),
   type: z.string(),
   config: z.record(z.string(), z.unknown()),
-  /** The chosen provider Integration id — only used by types whose manifest requires one (e.g. GCP). "" when none. */
-  integrationId: z.string(),
+  /** The chosen provider Integration id — only used by types whose manifest requires one (e.g. GCP). "" or absent when none. */
+  integrationId: z.string().optional(),
 });
 
 export const checkConfigSchema = baseCheckSchema.superRefine((values, ctx) => {
