@@ -23,7 +23,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
 | [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Proposed (PR #184, #185) | 0001 |
 | [0009](0009-system-notifications.md) | Notification system revamp: an event catalog, contracted payloads, and a durable push engine | **Implemented** (PR #200, #187) | 0008 |
-| [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | Accepted (#39) | 0011, 0016 |
+| [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | **Implemented** (PR #219, #39) | 0011, 0016 |
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | **Implemented** (PR #206) | 0003, 0004, 0011 |
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Accepted (#1) | 0011, 0016 |
@@ -31,7 +31,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
 
-Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0009, 0011, 0012, 0014, 0015, 0016**.
+Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0009, 0010, 0011, 0012, 0014, 0015, 0016**.
 
 ## Dependency graph
 
@@ -48,7 +48,7 @@ graph LR
   n0007["0007"]
   n0008["0008"]
   n0009["0009 ✓"]
-  n0010["0010"]
+  n0010["0010 ✓"]
   n0011["0011 ✓"]
   n0012["0012 ✓"]
   n0013["0013"]
@@ -81,6 +81,7 @@ graph LR
   class n0005 done;
   class n0006 done;
   class n0009 done;
+  class n0010 done;
   class n0011 done;
   class n0012 done;
   class n0014 done;
