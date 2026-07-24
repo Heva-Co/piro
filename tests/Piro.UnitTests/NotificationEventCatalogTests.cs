@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentAssertions;
 using Piro.Application.Models.NotificationEvents;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
 
@@ -108,7 +109,7 @@ public class NotificationEventCatalogTests
         ],
         ["system:integration:expired"] =
         [
-            "IntegrationId:Guid", "IntegrationName:String", "Type:IntegrationType", "Reason:String",
+            "IntegrationId:Guid", "IntegrationName:String", "Type:String", "Reason:String",
             "ExpiredAt:DateTimeOffset",
             "EventType:String", "Version:Int32",
         ],

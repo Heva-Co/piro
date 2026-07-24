@@ -1,12 +1,12 @@
 using Piro.Domain.Enums;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.DTOs;
 
 public record IntegrationDto(
     Guid Id,
     string Name,
-    IntegrationType Type,
-    IntegrationCategory Category,
+    string Type,
     string? Description,
     string ConfigJson,
     int CheckCount,
@@ -18,7 +18,7 @@ public record IntegrationDto(
 
 public record CreateIntegrationRequest(
     string Name,
-    IntegrationType Type,
+    string Type,
     string? Description,
     string ConfigJson,
     int? EscalationPolicyId = null

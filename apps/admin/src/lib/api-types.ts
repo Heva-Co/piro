@@ -1508,10 +1508,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Returns all manifested check types with their display metadata, minimum interval, allowed
-         *     alert-fors, required integration, and reflected config schema. Types with
-         *     `requiredIntegrationType != null` need that Integration to exist; types with
-         *     `hasExecutor == false` are declared but not yet runnable.
+         * Returns every registered check type with its display metadata, minimum interval, alert
+         *     dimensions, required integration, and reflected config schema. Types with
+         *     `requiredIntegrationType != null` need that Integration to exist.
          */
         get: {
             parameters: {
@@ -1535,51 +1534,6 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/config/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Parses a piro.yaml and returns the import plan without applying any changes (dry-run).
-         *     Pass `apply=true` to commit the changes.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ImportRequest"];
-                    "text/json": components["schemas"]["ImportRequest"];
-                    "application/*+json": components["schemas"]["ImportRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": unknown;
-                    };
-                };
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2727,57 +2681,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/integrations/oauth/{integrationId}/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Lists the remote resources (PagerDuty services) discoverable for an OAuth-connected integration,
-         *     live from the provider (RFC 0004 §4.4a) — never cached, so a service renamed/deleted upstream is
-         *     reflected immediately. Only the admin's chosen mapping is persisted.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    integrationId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DiscoveredResourceDto"][];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/integrations/oauth/{integrationId}/connect": {
         parameters: {
             query?: never;
@@ -3014,9 +2917,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Returns the manifest (category, direction, capabilities, ConfigJson schema) for every
-         *     non-obsolete IntegrationType — see RFC 0003. Reflected from each type's ConfigType, not
-         *     hand-authored, so it can't drift from what the code actually deserializes.
+         * Returns the manifest (category, derived direction, capabilities, ConfigJson schema) for every
+         *     registered integration (RFC 0016) — enumerated from the integration registry, reflected from
+         *     each integration's ConfigType, so it can't drift from what the code actually deserializes.
          */
         get: {
             parameters: {
@@ -3252,7 +3155,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    context?: components["schemas"]["ActionContext"];
+                    context?: components["schemas"]["UISurface"];
                 };
                 header?: never;
                 path?: never;
@@ -3343,7 +3246,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    context?: components["schemas"]["ActionContext"];
+                    context?: components["schemas"]["UISurface"];
                     targetId?: number;
                 };
                 header?: never;
@@ -3461,7 +3364,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    context?: components["schemas"]["ActionContext"];
+                    context?: components["schemas"]["UISurface"];
                     targetId?: number;
                 };
                 header?: never;
@@ -5691,6 +5594,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/postmortems/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Downloads the finalized report as a PDF. Only available once the report is Published. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/postmortems/{id}/incidents": {
         parameters: {
             query?: never;
@@ -6464,129 +6423,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/services/{serviceId}/integration-mappings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Lists the shared-channel integration mappings configured for a service. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    serviceId: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"][];
-                    };
-                };
-            };
-        };
-        /** Maps a service to a discovered remote resource, resolving/provisioning its routing key. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    serviceId: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
-                    "text/json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
-                    "application/*+json": components["schemas"]["UpsertServiceIntegrationMappingRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ServiceIntegrationMappingDto"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/services/{serviceId}/integration-mappings/{integrationId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Removes a service's mapping to an integration. */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    serviceId: number;
-                    integrationId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": unknown;
-                    };
-                };
-            };
-        };
         options?: never;
         head?: never;
         patch?: never;
@@ -7832,7 +7668,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/webhooks/gcp/{integrationId}": {
+    "/api/v1/webhooks/{integrationId}/{rest}": {
         parameters: {
             query?: never;
             header?: never;
@@ -7841,21 +7677,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Receives a GCP Cloud Monitoring alerting policy notification — RFC 0001 §4.8. Auth is a
-         *     query-string token (`auth_token`), since GCP's webhook notification channel supports
-         *     no custom headers. Always returns 200 for a request that was at least parseable, even if it
-         *     didn't produce an Alert, to avoid GCP retry-storming an endpoint that will never accept it;
-         *     only a wrong/missing token or an unknown Integration get a non-2xx.
-         */
         post: {
             parameters: {
-                query?: {
-                    auth_token?: string;
-                };
+                query?: never;
                 header?: never;
                 path: {
                     integrationId: string;
+                    rest: string;
                 };
                 cookie?: never;
             };
@@ -8088,8 +7916,6 @@ export interface components {
             name: string;
             password: string;
         };
-        /** @enum {unknown} */
-        ActionContext: "Alert" | "Incident" | "Maintenance";
         AddDependencyRequest: {
             dependsOnSlug: string;
             propagationMode: components["schemas"]["DependencyPropagationMode"];
@@ -8108,7 +7934,9 @@ export interface components {
             id: number;
             /** Format: int32 */
             checkId: number;
-            alertFor: components["schemas"]["AlertFor"];
+            dimension: string;
+            comparison: components["schemas"]["DimensionComparison"];
+            direction: components["schemas"]["ThresholdDirection"];
             alertValue: string;
             /** Format: int32 */
             failureThreshold: number;
@@ -8132,7 +7960,7 @@ export interface components {
             serviceName: null | string;
             /** Format: int32 */
             alertConfigId: null | number;
-            alertFor: null | components["schemas"]["AlertFor"];
+            dimension: null | string;
             alertValue: null | string;
             /** Format: int32 */
             failureThreshold: null | number;
@@ -8183,8 +8011,6 @@ export interface components {
             /** Format: int32 */
             escalationCurrentStep: null | number;
         };
-        /** @enum {unknown} */
-        AlertFor: "Status" | "Latency" | "CertExpiry" | "FailedNameServers";
         AlertMetricsDto: {
             /** Format: double */
             mttaSeconds: null | number;
@@ -8291,11 +8117,18 @@ export interface components {
             status: string;
             /** Format: double */
             latencyMs: null | number;
-            /** Format: double */
-            metricValue: null | number;
+            dimensions: {
+                [key: string]: number;
+            };
             dataType: null | string;
             errorMessage: null | string;
             workerRegion: string;
+        };
+        CheckDimensionDto: {
+            name: string;
+            comparison: components["schemas"]["DimensionComparison"];
+            direction: components["schemas"]["ThresholdDirection"];
+            unit: null | string;
         };
         CheckDto: {
             /** Format: int32 */
@@ -8354,7 +8187,7 @@ export interface components {
             description: string;
             /** Format: int32 */
             minIntervalSeconds: number;
-            allowedAlertFors: string[];
+            dimensions: components["schemas"]["CheckDimensionDto"][];
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
             requiredIntegrationType: null | string;
             hasExecutor: boolean;
@@ -8417,7 +8250,7 @@ export interface components {
             endsAt: string;
         };
         CreateAlertConfigRequest: {
-            alertFor: components["schemas"]["AlertFor"];
+            dimension: string;
             alertValue: string;
             /**
              * Format: int32
@@ -8467,7 +8300,7 @@ export interface components {
         };
         CreateIntegrationRequest: {
             name: string;
-            type: components["schemas"]["IntegrationType"];
+            type: string;
             description: null | string;
             configJson: string;
             /** Format: int32 */
@@ -8612,11 +8445,8 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
-        DiscoveredResourceDto: {
-            remoteId: string;
-            label: string;
-            routingKey: null | string;
-        };
+        /** @enum {unknown} */
+        DimensionComparison: "Threshold" | "Equality";
         EmailConfigResponse: {
             provider: string;
             smtpHost: null | string;
@@ -8633,7 +8463,7 @@ export interface components {
             /** Format: int32 */
             stepIndex: number;
             userName: string;
-            channelType: components["schemas"]["IntegrationType"];
+            channelType: string;
             succeeded: boolean;
             errorMessage: null | string;
             /** Format: date-time */
@@ -8675,13 +8505,13 @@ export interface components {
         /** @enum {unknown} */
         EventVisibility: "Private" | "Public";
         ExecuteIntegrationActionRequest: {
-            context: components["schemas"]["ActionContext"];
+            context: components["schemas"]["UISurface"];
             /** Format: int32 */
             targetId: number;
             input: null | components["schemas"]["JsonElement"];
         };
         ExternalReferenceDto: {
-            context: components["schemas"]["ActionContext"];
+            context: components["schemas"]["UISurface"];
             /** Format: int32 */
             targetId: number;
             /** Format: uuid */
@@ -8697,11 +8527,6 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
-        ImportRequest: {
-            yaml: string;
-            /** @default false */
-            apply: boolean;
-        };
         IncidentDto: {
             /** Format: int32 */
             id: number;
@@ -8796,15 +8621,12 @@ export interface components {
             label: string;
         };
         /** @enum {unknown} */
-        IntegrationCategory: "Notification" | "ThirdParty";
-        /** @enum {unknown} */
         IntegrationDirection: "Outbound" | "Inbound" | "Both";
         IntegrationDto: {
             /** Format: uuid */
             id: string;
             name: string;
-            type: components["schemas"]["IntegrationType"];
-            category: components["schemas"]["IntegrationCategory"];
+            type: string;
             description: null | string;
             configJson: string;
             /** Format: int32 */
@@ -8816,20 +8638,16 @@ export interface components {
             /** Format: int32 */
             escalationPolicyId: null | number;
         };
-        /** @enum {unknown} */
-        IntegrationType: "GoogleCloud" | "Jira" | "Email" | "Webhook" | "Slack" | "PagerDuty" | "GcpCloudMonitoringWebhook" | "MSTeams" | "Telegram" | "Twilio" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
         IntegrationTypeMetaDto: {
             type: string;
             label: null | string;
             description: null | string;
             iconifyIcon: null | string;
-            category: components["schemas"]["IntegrationCategory"];
             channelOnly: boolean;
             creatable: boolean;
             direction: components["schemas"]["IntegrationDirection"];
             capabilities: string[];
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
-            webhookPath: null | string;
         };
         InviteUserRequest: {
             email: string;
@@ -8933,7 +8751,7 @@ export interface components {
             /** Format: uuid */
             subscriptionId: null | string;
             targetKind: string;
-            integrationType: null | components["schemas"]["IntegrationType"];
+            integrationType: null | string;
             /** Format: uuid */
             integrationId: null | string;
             targetDescriptor: string;
@@ -8981,7 +8799,7 @@ export interface components {
             pageSize: number;
         };
         /** @enum {unknown} */
-        NotificationTargetKind: "Personal" | "Channel" | "Integration";
+        NotificationTargetKind: "Personal" | "Channel";
         OAuthCallbackRequest: {
             code: string;
             state: string;
@@ -9406,14 +9224,6 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
-        ServiceIntegrationMappingDto: {
-            /** Format: int32 */
-            serviceId: number;
-            /** Format: uuid */
-            integrationId: string;
-            remoteId: null | string;
-            remoteLabel: null | string;
-        };
         ServiceOverviewDto: {
             slug: string;
             name: string;
@@ -9497,11 +9307,15 @@ export interface components {
             providerId: null | string;
             authority: null | string;
         };
+        /** @enum {unknown} */
+        ThresholdDirection: "HigherIsWorse" | "LowerIsWorse";
         ToggleBuiltinRequest: {
             disabled: boolean;
         };
+        /** @enum {unknown} */
+        UISurface: "Alert" | "Incident" | "Maintenance";
         UpdateAlertConfigRequest: {
-            alertFor: null | components["schemas"]["AlertFor"];
+            dimension: null | string;
             alertValue: null | string;
             /** Format: int32 */
             failureThreshold: null | number;
@@ -9696,15 +9510,9 @@ export interface components {
             defaultRole: string;
             isEnabled: boolean;
         };
-        UpsertServiceIntegrationMappingRequest: {
-            /** Format: uuid */
-            integrationId: string;
-            remoteId: string;
-        };
         UpsertUserNotificationPreferenceRequest: {
-            channel: string;
             /** Format: uuid */
-            integrationId: null | string;
+            integrationInstanceId: string;
             handle: string;
         };
         UserDto: {
@@ -9728,9 +9536,9 @@ export interface components {
         UserNotificationPreferenceDto: {
             /** Format: int32 */
             id: number;
-            channel: string;
+            integrationId: string;
             /** Format: uuid */
-            integrationId: null | string;
+            integrationInstanceId: null | string;
             integrationName: null | string;
             handle: string;
             /** Format: int32 */

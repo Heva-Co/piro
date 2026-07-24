@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Application.DTOs;
 
@@ -8,7 +9,7 @@ namespace Piro.Application.DTOs;
 /// stored, opaque to Piro and to this DTO; the frontend does not interpret it.
 /// </summary>
 public sealed record ExternalReferenceDto(
-    ActionContext Context,
+    UISurface Context,
     int TargetId,
     Guid IntegrationId,
     string ActionId,

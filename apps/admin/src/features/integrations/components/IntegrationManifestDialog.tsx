@@ -1,5 +1,4 @@
 import { Icon } from "@iconify/react";
-import { ArrowLeftRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { IntegrationTypeMeta } from "@/lib/actions/integrations";
-import { capabilityLabel, directionLabel } from "../utils/manifestLabels";
+import { capabilityLabel } from "../utils/manifestLabels";
 import IntegrationManifestFieldRow from "./IntegrationManifestFieldRow";
 
 interface Props {
@@ -21,10 +20,10 @@ interface Props {
 }
 
 /**
- * Read-only reference for an integration type's manifest: identity, direction/category,
- * declared capabilities, and the full config field schema (with secret/required/generated
- * markers). Opened from the integrations list so an admin can see exactly what a provider needs
- * without leaving the page. Controlled: the list owns which type is shown.
+ * Read-only reference for an integration type's manifest: identity, declared capabilities, and the
+ * full config field schema (with secret/required/generated markers). Opened from the integrations list
+ * so an admin can see exactly what a provider needs without leaving the page. Controlled: the list owns
+ * which type is shown.
  */
 function IntegrationManifestDialog(props: Props) {
   const { typeMeta, open, onOpenChange } = props;
@@ -44,14 +43,11 @@ function IntegrationManifestDialog(props: Props) {
               )}
             </DialogHeader>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary">{typeMeta.category}</Badge>
-              <Badge variant="secondary" className="gap-1">
-                <ArrowLeftRight />
-                {directionLabel(typeMeta.direction)}
-              </Badge>
-              {typeMeta.channelOnly && <Badge variant="secondary">Per-channel</Badge>}
-            </div>
+            {typeMeta.channelOnly && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary">Per-channel</Badge>
+              </div>
+            )}
 
             {typeMeta.capabilities.length > 0 && (
               <div>
@@ -65,17 +61,6 @@ function IntegrationManifestDialog(props: Props) {
                     </Badge>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {typeMeta.webhookPath && (
-              <div>
-                <h3 className="mb-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                  Inbound webhook path
-                </h3>
-                <code className="block truncate rounded-md border bg-muted/50 px-2 py-1 text-xs">
-                  {typeMeta.webhookPath}
-                </code>
               </div>
             )}
 

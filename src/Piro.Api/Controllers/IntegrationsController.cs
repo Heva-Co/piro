@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
-using Piro.Application.Integrations.Actions;
 using Piro.Application.Extensions;
 using Piro.Application.Services;
-using Piro.Domain.Attributes;
-using Piro.Domain.Enums;
+using Piro.Contracts;
 using Piro.Domain.Exceptions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Api.Controllers;
 
@@ -14,21 +13,21 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/integrations")]
 [Produces("application/json")]
-public class IntegrationsController(IntegrationAppService integrationApp) : ControllerBase
+public class IntegrationsController(IntegrationAppService integrationApp, IIntegrationRegistry registry) : ControllerBase
 {
     /// <summary>
-    /// Returns the manifest (category, direction, capabilities, ConfigJson schema) for every
-    /// non-obsolete IntegrationType — see RFC 0003. Reflected from each type's ConfigType, not
-    /// hand-authored, so it can't drift from what the code actually deserializes.
+    /// Returns the manifest (category, derived direction, capabilities, ConfigJson schema) for every
+    /// registered integration (RFC 0016) — enumerated from the integration registry, reflected from
+    /// each integration's ConfigType, so it can't drift from what the code actually deserializes.
     /// </summary>
     [HttpGet("types")]
     [ProducesResponseType<IEnumerable<IntegrationTypeMetaDto>>(StatusCodes.Status200OK)]
     public IActionResult GetTypes()
     {
-        var types = Enum.GetValues<IntegrationType>()
-            .Select(t => t.ToMetaDto())
-            .Where(dto => dto is not null);
-
+        // Ordered A→Z by label
+        var types = registry.All
+            .Select(i => i.ToMetaDto())
+            .OrderBy(t => t.Label ?? t.Type, StringComparer.OrdinalIgnoreCase);
         return Ok(types);
     }
 
@@ -52,7 +51,7 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     [HttpGet("actions")]
     [ProducesResponseType<IReadOnlyList<IntegrationActionDescriptorDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActions(
-        [FromQuery] Domain.Enums.ActionContext context, CancellationToken ct) =>
+        [FromQuery] UISurface context, CancellationToken ct) =>
         Ok(await integrationApp.GetActionsAsync(context, ct));
 
     /// <summary>
@@ -72,7 +71,7 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetActionDraft(
         Guid id, string actionId,
-        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        [FromQuery] UISurface context, [FromQuery] int targetId, CancellationToken ct) =>
         Ok(await integrationApp.BuildActionDraftAsync(id, actionId, context, targetId, ct));
 
     /// <summary>Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4).</summary>
@@ -92,7 +91,7 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     [HttpGet("references")]
     [ProducesResponseType<IReadOnlyList<ExternalReferenceDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReferences(
-        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        [FromQuery] UISurface context, [FromQuery] int targetId, CancellationToken ct) =>
         Ok(await integrationApp.GetReferencesAsync(context, targetId, ct));
 
     [HttpPost]
@@ -100,7 +99,7 @@ public class IntegrationsController(IntegrationAppService integrationApp) : Cont
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateIntegrationRequest request, CancellationToken ct)
     {
-        if (request.Type.IsChannelOnly())
+        if (registry.Find(request.Type)?.Manifest.ChannelOnly == true)
             return BadRequest(new { error = $"Integration type '{request.Type}' does not support global credentials. Configure it directly on the Notification Channel." });
 
         var created = await integrationApp.CreateAsync(request, ct);

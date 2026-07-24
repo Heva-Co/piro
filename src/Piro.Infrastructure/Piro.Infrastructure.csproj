@@ -2,6 +2,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Piro.Application\Piro.Application.csproj" />
+    <ProjectReference Include="..\Piro.Checks\Piro.Checks.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Abstractions\Piro.Integrations.Abstractions.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Telegram\Piro.Integrations.Telegram.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Twilio\Piro.Integrations.Twilio.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Ntfy\Piro.Integrations.Ntfy.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.GoogleChat\Piro.Integrations.GoogleChat.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Webhook\Piro.Integrations.Webhook.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Jira\Piro.Integrations.Jira.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.Gcp\Piro.Integrations.Gcp.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.GoogleCloud\Piro.Integrations.GoogleCloud.csproj" />
+
   </ItemGroup>
 
   <ItemGroup>
@@ -34,7 +45,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Alerts\Templates\*.scriban" />
     <EmbeddedResource Include="Email\Templates\*.scriban" />
   </ItemGroup>
 

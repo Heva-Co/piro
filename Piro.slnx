@@ -2,7 +2,17 @@
   <Folder Name="/src/">
     <Project Path="src/Piro.Api/Piro.Api.csproj" />
     <Project Path="src/Piro.Application/Piro.Application.csproj" />
+    <Project Path="src/Piro.Contracts/Piro.Contracts.csproj" />
     <Project Path="src/Piro.Domain/Piro.Domain.csproj" />
+    <Project Path="src/Piro.Integrations.Abstractions/Piro.Integrations.Abstractions.csproj" />
+    <Project Path="src/Piro.Integrations.Telegram/Piro.Integrations.Telegram.csproj" />
+    <Project Path="src/Piro.Integrations.Twilio/Piro.Integrations.Twilio.csproj" />
+    <Project Path="src/Piro.Integrations.Ntfy/Piro.Integrations.Ntfy.csproj" />
+    <Project Path="src/Piro.Integrations.GoogleChat/Piro.Integrations.GoogleChat.csproj" />
+    <Project Path="src/Piro.Integrations.Webhook/Piro.Integrations.Webhook.csproj" />
+    <Project Path="src/Piro.Integrations.Jira/Piro.Integrations.Jira.csproj" />
+    <Project Path="src/Piro.Integrations.Gcp/Piro.Integrations.Gcp.csproj" />
+    <Project Path="src/Piro.Integrations.GoogleCloud/Piro.Integrations.GoogleCloud.csproj" />
     <Project Path="src/Piro.Infrastructure/Piro.Infrastructure.csproj" />
     <Project Path="src/Piro.Worker/Piro.Worker.csproj" />
   </Folder>

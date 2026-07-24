@@ -32,7 +32,7 @@ internal static class AlertProjections
         a.Service != null ? a.Service.Slug : null,
         a.Service != null ? a.Service.Name : null,
         a.AlertConfigId,
-        a.AlertConfig != null ? a.AlertConfig.AlertFor : (Piro.Domain.Enums.AlertFor?)null,
+        a.AlertConfig != null ? a.AlertConfig.Dimension : null,
         a.AlertConfig != null ? a.AlertConfig.AlertValue : null,
         a.AlertConfig != null ? a.AlertConfig.FailureThreshold : (int?)null,
         a.AlertConfig != null ? a.AlertConfig.SuccessThreshold : (int?)null,

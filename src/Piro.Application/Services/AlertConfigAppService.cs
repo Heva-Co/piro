@@ -1,6 +1,7 @@
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
+using Piro.Checks.Abstractions;
 using Piro.Domain.Entities;
 using Piro.Domain.Exceptions;
 using Piro.Domain.Extensions;
@@ -11,7 +12,8 @@ namespace Piro.Application.Services;
 public class AlertConfigAppService(
     IAlertConfigRepository alertConfigRepository,
     ICheckRepository checkRepository,
-    IServiceRepository serviceRepository)
+    IServiceRepository serviceRepository,
+    ICheckRegistry checkRegistry)
 {
     public async Task<IEnumerable<AlertConfigDto>> GetByCheckAsync(
         string serviceSlug, string checkSlug, CancellationToken ct = default)
@@ -35,12 +37,14 @@ public class AlertConfigAppService(
         string serviceSlug, string checkSlug, CreateAlertConfigRequest request, CancellationToken ct = default)
     {
         var check = await ResolveCheckAsync(serviceSlug, checkSlug, ct);
-        EnsureAlertForAllowed(check, request.AlertFor);
+        var spec = ResolveDimensionSpec(check, request.Dimension);
 
         var config = new AlertConfig
         {
             CheckId = check.Id,
-            AlertFor = request.AlertFor,
+            Dimension = spec.Name,
+            Comparison = spec.Comparison,
+            Direction = spec.Direction,
             AlertValue = request.AlertValue,
             FailureThreshold = request.FailureThreshold,
             SuccessThreshold = request.SuccessThreshold,
@@ -61,8 +65,13 @@ public class AlertConfigAppService(
             ?? throw new NotFoundException(nameof(AlertConfig), id.ToString());
         if (config.CheckId != check.Id) throw new NotFoundException(nameof(AlertConfig), id.ToString());
 
-        if (request.AlertFor is not null) EnsureAlertForAllowed(check, request.AlertFor.Value);
-        if (request.AlertFor is not null) config.AlertFor = request.AlertFor.Value;
+        if (request.Dimension is not null)
+        {
+            var spec = ResolveDimensionSpec(check, request.Dimension);
+            config.Dimension = spec.Name;
+            config.Comparison = spec.Comparison;
+            config.Direction = spec.Direction;
+        }
         if (request.AlertValue is not null) config.AlertValue = request.AlertValue;
         if (request.FailureThreshold is not null) config.FailureThreshold = request.FailureThreshold.Value;
         if (request.SuccessThreshold is not null) config.SuccessThreshold = request.SuccessThreshold.Value;
@@ -86,11 +95,22 @@ public class AlertConfigAppService(
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static void EnsureAlertForAllowed(Check check, Domain.Enums.AlertFor alertFor)
+    /// <summary>
+    /// Resolves the check's declared <see cref="DimensionSpec"/> for a dimension name, so the alert rule
+    /// copies its comparison kind and direction from the single source of truth (the check itself).
+    /// Throws when the check doesn't declare that dimension — the same guard the old
+    /// <c>AllowedAlertFors</c> gave, now driven by the check's own manifest.
+    /// </summary>
+    private DimensionSpec ResolveDimensionSpec(Check check, string dimension)
     {
-        if (!check.Type.AllowedAlertFors().Contains(alertFor))
-            throw new DomainValidationException(
-                $"{alertFor} is not a valid alert metric for a {check.Type} check.");
+        var checkImpl = checkRegistry.Find(check.Type.ToString())
+            ?? throw new DomainValidationException($"No check implementation is registered for a {check.Type} check.");
+
+        var spec = checkImpl.Manifest.Dimensions.FirstOrDefault(d => d.Name == dimension)
+            ?? throw new DomainValidationException(
+                $"\"{dimension}\" is not a valid alert dimension for a {check.Type} check.");
+
+        return spec;
     }
 
     private async Task<Check> ResolveCheckAsync(string serviceSlug, string checkSlug, CancellationToken ct)

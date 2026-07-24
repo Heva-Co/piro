@@ -1,22 +1,23 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Services;
+using Piro.Checks;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
 using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Integrations.Actions;
+using Piro.Infrastructure.Integrations;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
-using Piro.Infrastructure.Integrations.GoogleCloud;
 using Piro.Infrastructure.Integrations.OAuth;
 using Piro.Infrastructure.Security;
 using Microsoft.AspNetCore.SignalR;
@@ -25,11 +26,12 @@ using Microsoft.Extensions.Logging;
 using Piro.Infrastructure.Hubs;
 using Piro.Infrastructure.Jobs;
 using Piro.Infrastructure.Notifications;
-using Piro.Infrastructure.Notifications.Subscribers;
 using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
 using Piro.Infrastructure.Workers;
 using Quartz;
+using Piro.Contracts;
+using Piro.Integrations.Abstractions;
 
 
 namespace Piro.Infrastructure.Extensions;
@@ -70,7 +72,18 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
         services.AddDistributedMemoryCache();
-        services.AddDataProtection();
+
+        // Data Protection keyring — encrypts config secrets (SecretField) and stored OAuth tokens. The
+        // keyring must survive restarts/rebuilds: if the keys rotate, everything encrypted with the old
+        // keys (e.g. a stored clientSecret) becomes undecryptable ("The payload was invalid"). A fixed
+        // application name isolates the ring, and the keys are persisted to a stable directory
+        // (./EncryptionKeys by default, overridable via DataProtection:KeysDirectory — Docker points it
+        // at a mounted volume) instead of the framework's default container-ephemeral location.
+        var keysDirectory = configuration["DataProtection:KeysDirectory"] ?? "./EncryptionKeys";
+        Directory.CreateDirectory(keysDirectory);
+        services.AddDataProtection()
+            .SetApplicationName("Piro")
+            .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
         services.AddHttpClient("oidc-http", c =>
             {
                 c.Timeout = TimeSpan.FromSeconds(15);
@@ -129,15 +142,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 },
             });
 
-        services.AddScoped<ICheckExecutor, HttpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, PingCheckExecutor>();
-        services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
-        services.AddScoped<ICheckExecutor, SslCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GcpCloudRunJobCheckExecutor>();
-        services.AddSingleton<GcpTokenCache>();
-        services.AddScoped<IGcpTokenProvider, GcpTokenProvider>();
+        // The RFC 0016 check SDK: the registry of ICheck implementations, the allow-listed host, and the
+        // single adapter that bridges Piro's pipeline to it (replaces the seven per-type executors).
+        services.AddChecks();
+        services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
 
         // In-process event pipeline: check executions → service status recomputation
         services.AddSingleton(Channel.CreateUnbounded<CheckStatusChangedEvent>());
@@ -181,49 +189,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IJobStatusService, JobStatusService>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
-        // Integration repository
-        services.AddScoped<IIntegrationRepository, IntegrationRepository>();
-
-        // OAuth integration framework (RFC 0004) — generic OAuth client + encrypted token store.
-        services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
-        services.AddScoped<IOAuthClient, OAuthClient>();
-        services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
-        services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
-        services.AddScoped<IPagerDutyDiscoveryService, PagerDutyDiscoveryService>();
-        services.AddScoped<IJiraDiscoveryService, JiraDiscoveryService>();
-        services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
-
-        // Integration actions (RFC 0012). The host is the sole DB/OAuth seam an action sees.
-        services.AddScoped<IActionHost, ActionHost>();
-        services.AddScoped<IActionRegistry, ActionRegistry>();
-        // Action handlers — one IIntegrationAction per declared [IntegrationAction], joined to its
-        // manifest metadata by (Type, ActionId) in the registry.
-        services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
-        // Dynamic-options providers — populate select fields from the connected account at runtime.
-        services.AddScoped<IOptionsProvider, JiraProjectsOptionsProvider>();
-        services.AddScoped<IOptionsProvider, JiraIssueTypesOptionsProvider>();
-        // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
-        services.AddSingleton<IOAuthProviderDescriptor, PagerDutyOAuthProviderDescriptor>();
-        services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();
-        // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
-        services.AddHttpClient("oauth-integration-http", c =>
-            {
-                c.Timeout = TimeSpan.FromSeconds(15);
-                c.DefaultRequestVersion = System.Net.HttpVersion.Version11;
-                c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            })
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-            {
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-                ConnectTimeout = TimeSpan.FromSeconds(10),
-                ConnectCallback = async (context, ct) =>
-                {
-                    var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
-                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    await socket.ConnectAsync(new IPEndPoint(addresses[0], context.DnsEndPoint.Port), ct);
-                    return new NetworkStream(socket, ownsSocket: true);
-                },
-            });
+        // Integration surface (RFC 0004/0012/0016) — repository, OAuth framework, UI-action registry/host,
+        // the compile-time integration registry, every integration assembly and its handlers, and the
+        // startup hook. All wired in one place next to the integration code (see IntegrationServiceExtensions).
+        services.AddIntegrations();
 
         // On-call scheduling
         services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
@@ -257,32 +226,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
         services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
-        // Personal notification dispatchers (RFC 0009 mode 1) — registered as
-        // IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>>. The group-only
-        // types (Slack/GoogleChat/Discord/MsTeams/Opsgenie) are not registered here: their
-        // IChannelNotificationDispatcher.SendAsync is still a phase-5 stub. Pushover is left
-        // unregistered exactly as before (phase 1 preserves behavior — it is wired in a later phase).
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, EmailDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TelegramDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, TwilioSmsDispatcher>();
-        services.AddScoped<IPersonalNotificationDispatcher<AlertNotificationContext>, NtfyDispatcher>();
-
-        // Channel notification dispatchers (RFC 0009 mode 2) — post to a shared team channel.
-        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, GoogleChatDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<AlertNotificationContext>, WebhookDispatcher>();
-
-        // Incident notification dispatchers (RFC 0009 §4.2, phase 6) — Email (personal), Google Chat
-        // (channel), and the generic webhook (channel, RFC 0015) carry incident notifications as well as alerts.
-        services.AddScoped<IPersonalNotificationDispatcher<IncidentNotificationContext>, EmailDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, GoogleChatDispatcher>();
-        services.AddScoped<IChannelNotificationDispatcher<IncidentNotificationContext>, WebhookDispatcher>();
-
-        // Verification-code senders (RFC 0009 §4.9) — personal plain-text channels only.
-        services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
-        services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
-        services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
-        services.AddScoped<IVerificationCodeSender, NtfyDispatcher>();
-
         // Notification push engine (RFC 0009) — durable outbox + drain worker (phase 3) and the
         // subscription-matching processor (phase 4) that replaces the phase-3 no-op.
         services.AddScoped<INotificationEventPublisher, NotificationEventPublisher>();
@@ -297,19 +240,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<NotificationSubscriptionAppService>();
         services.AddScoped<DeliveryLogAppService>();
 
-        // Subscriber declarations (RFC 0009 §4.4) — each integration type declares which catalog events it
-        // handles and in which delivery mode. This is the menu the subscription UI offers per destination.
-        // Email and Google Chat carry incidents too; the others carry alerts only in v1.
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Email, NotificationTargetKind.Personal, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Telegram, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Twilio, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Ntfy, NotificationTargetKind.Personal, EventSubscriber.AlertEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.GoogleChat, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.Webhook, NotificationTargetKind.Channel, EventSubscriber.AlertAndIncidentEvents));
-        services.AddScoped<INotificationSubscriber>(_ => new EventSubscriber(IntegrationType.PagerDuty, NotificationTargetKind.Integration, EventSubscriber.AlertEvents));
+        // (RFC 0016) The old INotificationSubscriber/EventSubscriber declarations are gone: which
+        // catalog events an integration handles now lives on its manifest (SupportedEvents), read from
+        // the registry — issue #212. No per-type subscriber registration remains.
 
         // System-event dispatchers (RFC 0004) — trigger/resolve to a shared incident channel.
-        services.AddScoped<ISystemEventDispatcher, PagerDutyDispatcher>();
 
         // Worker repositories
         services.AddScoped<IWorkerRegistrationRepository, WorkerRegistrationRepository>();
@@ -323,11 +258,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // LocalCheckJobDispatcher: always available — runs checks in-process when built-in worker is active
         services.AddScoped<LocalCheckJobDispatcher>(sp =>
             new LocalCheckJobDispatcher(
-                sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
+                sp.GetRequiredService<ICheckExecutor>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                sp.GetRequiredService<ICheckDataPointRepository>(),
-                workerRegion,
-                sp.GetRequiredService<ILogger<LocalCheckJobDispatcher>>()));
+                workerRegion));
 
         // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
         // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it
@@ -337,7 +270,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 sp.GetRequiredService<IWorkerRegistry>(),
                 sp.GetRequiredService<IMultiRegionBatchTracker>(),
                 sp.GetRequiredService<ICheckDataPointRepository>(),
-                sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
+                sp.GetRequiredService<ICheckExecutor>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
                 apiIsWorker: false,   // multi-region fan-out never includes the built-in API worker directly
                 workerRegion,
@@ -372,12 +305,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddHttpClient("piro-http-noredirect")
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
-        services.AddScoped<ICheckExecutor, HttpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, PingCheckExecutor>();
-        services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
-        services.AddScoped<ICheckExecutor, SslCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
+        // Same RFC 0016 check SDK the API uses — a remote worker runs the identical set of checks.
+        services.AddChecks();
+        services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
 
         return services;
     }

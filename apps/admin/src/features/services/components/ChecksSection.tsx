@@ -1,7 +1,12 @@
+import { Activity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { ROUTES } from "@/constants/routes";
+import { QUERY_KEYS } from "@/constants/api";
 import { useChecks } from "@/hooks/useChecks";
+import { checkTypesApi } from "@/lib/actions/checks";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
@@ -11,13 +16,27 @@ interface Props {
 function ChecksSection({ slug }: Props) {
     const navigate = useNavigate();
     const { data: checks, isLoading } = useChecks(slug);
+    // Resolve the raw type discriminator (e.g. "GCP_CloudRunJob") to its human display name.
+    const { data: checkTypes = [] } = useQuery({
+        queryKey: QUERY_KEYS.CHECK_TYPES,
+        queryFn: checkTypesApi.list,
+    });
+    const typeLabel = (type: string) => checkTypes.find((t) => t.type === type)?.displayName ?? type;
 
     return (
         <div className="rounded-xl border bg-card overflow-hidden">
             {isLoading ? (
                 <div className="px-5 py-6 text-sm text-muted-foreground">Loading…</div>
             ) : !checks || checks.length === 0 ? (
-                <div className="px-5 py-8 text-sm text-muted-foreground text-center">No checks configured yet.</div>
+                <Empty className="py-10">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Activity />
+                        </EmptyMedia>
+                        <EmptyTitle>No checks configured yet</EmptyTitle>
+                        <EmptyDescription>Add a check to start probing this service.</EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
             ) : (
                 <table className="min-w-full text-sm">
                     <thead>
@@ -36,7 +55,7 @@ function ChecksSection({ slug }: Props) {
                                     {check.name}
                                 </td>
                                 <td className="px-5 py-3 text-muted-foreground">
-                                    {check.type}
+                                    {typeLabel(check.type)}
                                 </td>
                                 <td className="px-5 py-3">
                                     <StatusPill status={check.currentStatus} />

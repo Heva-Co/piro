@@ -21,7 +21,7 @@ export function MetricsSection() {
       <div className="mb-6 flex flex-col gap-6">
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-foreground">Incidents — This Month</h2>
+            <h2 className="font-semibold text-foreground">Incidents — Month to Date</h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <MetricStatTileSkeleton label="MTTA" />
@@ -35,7 +35,7 @@ export function MetricsSection() {
         </div>
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-foreground">Alerts — This Month</h2>
+            <h2 className="font-semibold text-foreground">Alerts — Month to Date</h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <MetricStatTileSkeleton label="MTTA" />
@@ -69,7 +69,7 @@ export function MetricsSection() {
       {/* ── Incidents ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-foreground">Incidents — This Month</h2>
+          <h2 className="font-semibold text-foreground">Incidents — Month to Date</h2>
           <span className="text-xs text-muted-foreground/70">{formatMonthRange(data.from, data.to)}</span>
         </div>
 
@@ -98,14 +98,14 @@ export function MetricsSection() {
           <VolumeLineChart
             title="Incident volume"
             data={dailyIncidentData}
-            emptyLabel="No incidents this month."
+            emptyLabel="No incidents month to date."
             seriesName="Incidents"
-            info="Number of incidents started on each day this month, grouped by their start date (UTC)."
+            info="Number of incidents started on each day month to date, grouped by their start date (UTC)."
           />
           <ByServiceBarChart
             title="Incidents by service"
             data={incidentServiceData}
-            emptyLabel="No incidents this month."
+            emptyLabel="No incidents month to date."
             seriesName="Incidents"
             info="Incidents started this month, counted per affected service. An incident affecting several services is counted once for each. Top 8 services shown."
           />
@@ -115,7 +115,7 @@ export function MetricsSection() {
       {/* ── Alerts ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-foreground">Alerts — This Month</h2>
+          <h2 className="font-semibold text-foreground">Alerts — Month to Date</h2>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -149,14 +149,14 @@ export function MetricsSection() {
           <VolumeLineChart
             title="Alert volume"
             data={dailyAlertData}
-            emptyLabel="No alerts this month."
+            emptyLabel="No alerts month to date."
             seriesName="Alerts"
-            info="Number of distinct alerts that fired on each day this month, grouped by fire date (UTC). Counts each alert once — repeated failures folded into one alert (its occurrence count) do not inflate this."
+            info="Number of distinct alerts that fired on each day month to date, grouped by fire date (UTC). Counts each alert once — repeated failures folded into one alert (its occurrence count) do not inflate this."
           />
           <ByServiceBarChart
             title="Alerts by service"
             data={alertServiceData}
-            emptyLabel="No alerts this month."
+            emptyLabel="No alerts month to date."
             seriesName="Alerts"
             info="Alerts fired this month, counted per service. External/orphan alerts with no associated service are excluded. Top 8 services shown."
           />

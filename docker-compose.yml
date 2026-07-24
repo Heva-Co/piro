@@ -26,8 +26,10 @@ services:
       - Auth__JwtSecret=${JWT_SECRET:?JWT_SECRET is required}
       - Auth__AccessTokenExpiryMinutes=${ACCESS_TOKEN_EXPIRY_MINUTES:-60}
       - Auth__RefreshTokenExpiryDays=${REFRESH_TOKEN_EXPIRY_DAYS:-30}
+      - DataProtection__KeysDirectory=/app/keys
     volumes:
       - api_uploads:/app/wwwroot/uploads
+      - api_keys:/app/keys
     depends_on:
       db:
         condition: service_healthy
@@ -57,3 +59,4 @@ services:
 volumes:
   postgres_data:
   api_uploads:
+  api_keys:

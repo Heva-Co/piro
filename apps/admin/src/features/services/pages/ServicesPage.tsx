@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Filter, Plus, Settings } from "lucide-react";
+import { Blend, Filter, Plus, Settings } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusBadge";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -13,6 +13,8 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from "@/components/ui/pagination";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import { Button } from "@/components/ui/button";
 import { useServices } from "@/hooks/useServices";
 import { ROUTES } from "@/constants/routes";
 
@@ -39,6 +41,7 @@ export default function ServicesPage() {
     <div className="flex flex-col">
       <PageHeader
         breadcrumbs={[{ label: "Services" }]}
+        subheader="The systems you monitor. Each service groups its checks and surfaces their combined status."
         actions={
           <button
             onClick={() => navigate(ROUTES.SERVICES.NEW)}
@@ -61,21 +64,20 @@ export default function ServicesPage() {
         ) : isError ? (
           <div className="px-6 py-8 text-sm text-destructive">Failed to load services.</div>
         ) : services.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-20">
-            <img src="/piro.svg" alt="Piro" className="h-16 w-16 opacity-20" />
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">No services yet</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Add your first service to start monitoring uptime.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate(ROUTES.SERVICES.NEW)}
-              className="flex items-center gap-1.5 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-colors"
-            >
-              <Plus size={14} /> New Service
-            </button>
-          </div>
+          <Empty className="py-20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Blend />
+              </EmptyMedia>
+              <EmptyTitle>No services yet</EmptyTitle>
+              <EmptyDescription>Add your first service to start monitoring uptime.</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button onClick={() => navigate(ROUTES.SERVICES.NEW)}>
+                <Plus size={14} /> New Service
+              </Button>
+            </EmptyContent>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>

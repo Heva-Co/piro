@@ -1,4 +1,6 @@
+import { Wrench } from "lucide-react";
 import ListItemSkeleton from "@/features/dashboard/components/ListItemSkeleton";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import type { MaintenanceListItem } from "@/lib/api";
 
 interface Props {
@@ -20,7 +22,15 @@ function ActiveMaintenancesCard(props: Props) {
           <ListItemSkeleton />
         </div>
       ) : maintenances.length === 0 ? (
-        <div className="p-4 text-sm text-muted-foreground">No active maintenances.</div>
+        <Empty className="py-10">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Wrench />
+            </EmptyMedia>
+            <EmptyTitle>No active maintenances</EmptyTitle>
+            <EmptyDescription>Scheduled maintenance windows will appear here.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <ul className="divide-y divide-border">
           {maintenances.map((m) => (

@@ -21,7 +21,7 @@ public class EscalationDeliveryLog
     public string UserName { get; set; } = string.Empty;
 
     /// <summary>The integration type used for this attempt (e.g. Telegram, Email, Pushover).</summary>
-    public Enums.IntegrationType ChannelType { get; set; }
+    public string ChannelType { get; set; }
 
     public bool Succeeded { get; set; }
 

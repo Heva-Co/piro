@@ -53,18 +53,22 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
     public async Task<IEnumerable<(long DayTimestamp, double Avg, double Min, double Max)>> GetDailyLatencyByServiceIdAsync(
         int serviceId, long from, long to, CancellationToken ct = default)
     {
+        // Latency lives in the jsonb Dimensions column now, so materialize the map and read it in memory
+        // rather than projecting a NotMapped property EF can't translate.
         var rows = await db.CheckDataPoints
-            .Where(p => p.Check.ServiceId == serviceId && p.Timestamp >= from && p.Timestamp <= to && p.LatencyMs.HasValue)
-            .Select(p => new { p.Timestamp, p.LatencyMs })
+            .Where(p => p.Check.ServiceId == serviceId && p.Timestamp >= from && p.Timestamp <= to)
+            .Select(p => new { p.Timestamp, p.Dimensions })
             .ToListAsync(ct);
 
         return rows
+            .Select(p => new { p.Timestamp, Latency = Latency(p.Dimensions) })
+            .Where(p => p.Latency.HasValue)
             .GroupBy(p => p.Timestamp / 86400)
             .Select(g => (
                 DayTimestamp: g.Key * 86400,
-                Avg: g.Average(p => p.LatencyMs!.Value),
-                Min: g.Min(p => p.LatencyMs!.Value),
-                Max: g.Max(p => p.LatencyMs!.Value)
+                Avg: g.Average(p => p.Latency!.Value),
+                Min: g.Min(p => p.Latency!.Value),
+                Max: g.Max(p => p.Latency!.Value)
             ))
             .OrderBy(d => d.DayTimestamp)
             .ToList();
@@ -75,10 +79,11 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
     {
         var rows = await db.CheckDataPoints
             .Where(p => p.CheckId == checkId && p.Timestamp >= from && p.Timestamp <= to)
-            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Status, p.LatencyMs })
+            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Status, p.Dimensions })
             .ToListAsync(ct);
 
         return rows
+            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Status, Latency = Latency(p.Dimensions) })
             .GroupBy(p => (p.WorkerRegion, Day: p.Timestamp / 86400))
             .Select(g => new CheckDailyStats(
                 Region: g.Key.WorkerRegion,
@@ -86,8 +91,8 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
                 CountUp: g.Count(p => p.Status == ServiceStatus.UP),
                 CountDown: g.Count(p => p.Status == ServiceStatus.DOWN || p.Status == ServiceStatus.FAILURE),
                 CountDegraded: g.Count(p => p.Status == ServiceStatus.DEGRADED),
-                AvgLatencyMs: g.Any(p => p.LatencyMs.HasValue)
-                    ? g.Where(p => p.LatencyMs.HasValue).Average(p => p.LatencyMs!.Value)
+                AvgLatencyMs: g.Any(p => p.Latency.HasValue)
+                    ? g.Where(p => p.Latency.HasValue).Average(p => p.Latency!.Value)
                     : null))
             .OrderBy(d => d.Region).ThenBy(d => d.DayTimestamp)
             .ToList();
@@ -105,20 +110,25 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
         int checkId, long from, long to, CancellationToken ct = default)
     {
         var rows = await db.CheckDataPoints
-            .Where(p => p.CheckId == checkId && p.Timestamp >= from && p.Timestamp <= to && p.LatencyMs.HasValue)
-            .Select(p => new { p.WorkerRegion, p.Timestamp, p.LatencyMs })
+            .Where(p => p.CheckId == checkId && p.Timestamp >= from && p.Timestamp <= to)
+            .Select(p => new { p.WorkerRegion, p.Timestamp, p.Dimensions })
             .ToListAsync(ct);
 
         return rows
+            .Select(p => new { p.WorkerRegion, p.Timestamp, Latency = Latency(p.Dimensions) })
+            .Where(p => p.Latency.HasValue)
             .GroupBy(p => (p.WorkerRegion, Day: p.Timestamp / 86400))
             .Select(g => (
                 Region: g.Key.WorkerRegion,
                 DayTimestamp: g.Key.Day * 86400,
-                Avg: g.Average(p => p.LatencyMs!.Value),
-                Min: g.Min(p => p.LatencyMs!.Value),
-                Max: g.Max(p => p.LatencyMs!.Value)
+                Avg: g.Average(p => p.Latency!.Value),
+                Min: g.Min(p => p.Latency!.Value),
+                Max: g.Max(p => p.Latency!.Value)
             ))
             .OrderBy(d => d.Region).ThenBy(d => d.DayTimestamp)
             .ToList();
     }
+
+    private static double? Latency(Dictionary<string, double> dimensions) =>
+        dimensions.TryGetValue("Latency", out var v) ? v : null;
 }

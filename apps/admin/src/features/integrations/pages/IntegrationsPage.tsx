@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { integrationsApi, integrationTypesApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -23,18 +24,16 @@ function IntegrationsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Integrations</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Manage shared provider credentials used by checks.
-          </p>
-        </div>
-        <Button onClick={() => navigate(ROUTES.INTEGRATIONS.NEW)}>
-          <Plus />
-          New Integration
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[{ label: "Integrations" }]}
+        subheader="Connected external services Piro uses to deliver notifications, run provider-backed checks, and take actions."
+        actions={
+          <Button onClick={() => navigate(ROUTES.INTEGRATIONS.NEW)}>
+            <Plus />
+            New Integration
+          </Button>
+        }
+      />
 
       <div className="overflow-hidden rounded-xl border bg-card">
         {isLoading ? (
