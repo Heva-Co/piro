@@ -169,6 +169,16 @@ export const ENDPOINTS = {
   // Check types metadata
   CHECK_TYPES: `${API_BASE}/checks/types`,
 
+  // Tags (RFC 0008) — addressed by numeric id / worker guid, not slug
+  SERVICE_TAGS: (id: number) => `${API_BASE}/services/${id}/tags`,
+  CHECK_TAGS: (id: number) => `${API_BASE}/checks/${id}/tags`,
+  WORKER_TAGS: (id: string) => `${API_BASE}/workers/${id}/tags`,
+  SERVICE_SYSTEM_TAG: (id: number, key: string) => `${API_BASE}/services/${id}/system-tags/${key}`,
+  CHECK_SYSTEM_TAG: (id: number, key: string) => `${API_BASE}/checks/${id}/system-tags/${key}`,
+  CHECK_REQUIRED_WORKER_TAGS: (id: number) => `${API_BASE}/checks/${id}/required-worker-tags`,
+  TAG_KEYS: `${API_BASE}/tags/keys`,
+  TAG_VALUES: `${API_BASE}/tags/values`,
+
   // On-call schedules
   ONCALL_SCHEDULES: `${API_BASE}/oncall/schedules`,
   ONCALL_SCHEDULES_MEMBERS: `${API_BASE}/oncall/schedules/members`,
@@ -252,6 +262,12 @@ export const QUERY_KEYS = {
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => ["integrations", id, "webhook-logs"] as const,
   INTEGRATION_OAUTH_STATUS: (id: number | string) => ["integrations", id, "oauth-status"] as const,
   CHECK_TYPES: ["check-types"] as const,
+  SERVICE_TAGS: (id: number) => ["service-tags", id] as const,
+  CHECK_TAGS: (id: number) => ["check-tags", id] as const,
+  WORKER_TAGS: (id: string) => ["worker-tags", id] as const,
+  CHECK_REQUIRED_WORKER_TAGS: (id: number) => ["check-required-worker-tags", id] as const,
+  TAG_KEYS: (prefix: string) => ["tag-keys", prefix] as const,
+  TAG_VALUES: (key: string) => ["tag-values", key] as const,
   ONCALL_SCHEDULES: ["oncall-schedules"] as const,
   ONCALL_SCHEDULES_MEMBERS: ["oncall-schedules", "members"] as const,
   ONCALL_SCHEDULE: (id: number | string) => ["oncall-schedules", id] as const,

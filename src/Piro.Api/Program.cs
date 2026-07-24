@@ -178,6 +178,7 @@ builder.Services.AddAuthentication(opts =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ServiceAppService>();
 builder.Services.AddScoped<CheckAppService>();
+builder.Services.AddScoped<TagAppService>();
 builder.Services.AddScoped<DependencyService>();
 builder.Services.AddScoped<AlertLifecycleService>();
 builder.Services.AddScoped<AlertEvaluationService>();

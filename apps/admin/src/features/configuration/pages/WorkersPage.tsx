@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Server, Copy, AlertCircle, Pencil, Power, Star } from "lucide-react";
+import { Plus, Trash2, Server, Copy, AlertCircle, Pencil, Power, Star, Tags as TagsIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { workersApi, type Worker } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
+import WorkerTagsDialog from "@/features/configuration/components/WorkerTagsDialog";
 
 type ModalState = "none" | "create" | "token" | "editRegion";
 
@@ -37,6 +38,7 @@ export default function WorkersPage() {
   const [editingWorker, setEditingWorker] = useState<{ id: string; region: string } | null>(null);
   const [editRegion, setEditRegion] = useState("");
   const [editError, setEditError] = useState("");
+  const [tagsWorker, setTagsWorker] = useState<{ id: string; name: string } | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () => workersApi.create(workerName, workerRegion, isDefault),
@@ -111,9 +113,9 @@ export default function WorkersPage() {
         }
       />
       <p className="text-sm text-muted-foreground -mt-4 mb-6">
-        Remote check workers execute single-region checks (when they're the default worker) or
-        participate in every multi-region check. The region label is for display and latency
-        reporting only — it does not route checks to a specific worker.
+        Remote check workers run checks alongside the built-in worker. A check with no required worker
+        tags runs on every connected worker; to pin a check to specific workers, give it required worker
+        tags that match a worker's tags (e.g. its region).
       </p>
 
       <div className="flex flex-col gap-4">
@@ -121,7 +123,7 @@ export default function WorkersPage() {
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3">
             <AlertCircle size={16} className="text-amber-600 shrink-0" />
             <p className="text-sm text-amber-800">
-              No default worker connected — non-multi-region checks are not executing. Register and connect a worker marked as <strong>default</strong>.
+              No default worker connected — checks that require the default worker are not executing. Register and connect a worker marked as <strong>default</strong>.
             </p>
           </div>
         )}
@@ -155,7 +157,9 @@ export default function WorkersPage() {
                   {w.name}
                   {w.isBuiltIn && <span className="ml-2 text-xs font-normal text-blue-600">(built-in)</span>}
                 </p>
-                <p className="text-xs text-muted-foreground font-mono">{w.region}{w.version ? ` · v${w.version}` : ""}</p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  Region: {w.region}{w.version ? ` · ${w.version}` : ""}
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 {w.isDefault && (
@@ -181,6 +185,9 @@ export default function WorkersPage() {
                       <Star size={15} />
                     </Button>
                   )}
+                  <Button variant="ghost" size="icon" title="Edit tags" onClick={() => setTagsWorker({ id: w.id, name: w.name })}>
+                    <TagsIcon size={15} />
+                  </Button>
                   <Button variant="ghost" size="icon" title="Edit region" onClick={() => openEditRegion(w)}>
                     <Pencil size={15} />
                   </Button>
@@ -237,7 +244,7 @@ export default function WorkersPage() {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded" />
-              <span className="text-sm">Set as default worker <span className="text-muted-foreground">(receives non-multi-region checks when the API worker is disabled)</span></span>
+              <span className="text-sm">Set as default worker <span className="text-muted-foreground">(runs checks that require the default worker when the API worker is disabled)</span></span>
             </label>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeModal}>Cancel</Button>
@@ -305,6 +312,8 @@ export default function WorkersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <WorkerTagsDialog worker={tagsWorker} onClose={() => setTagsWorker(null)} />
     </div>
   );
 }

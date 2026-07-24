@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench } from "lucide-react";
+import { Bell, Play, Save, Settings, AlertTriangle, ClipboardList, Clock, Wrench, Tags as TagsIcon, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import {
   useCheck,
@@ -21,6 +21,8 @@ import { validateConfig } from "@/components/config-form/validators";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
 import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
 import { AlertConfigsSection } from "@/features/checks/components/AlertConfigsSection";
+import CheckTagsSection from "@/features/checks/components/CheckTagsSection";
+import CheckRequiredWorkerTagsSection from "@/features/checks/components/CheckRequiredWorkerTagsSection";
 import ScriptTestPanel from "@/features/checks/components/ScriptTestPanel";
 import HeartbeatPanel from "@/features/checks/components/HeartbeatPanel";
 import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
@@ -56,9 +58,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       cron: "* * * * *",
       showCustomCron: false,
       isActive: true,
-      isMultiRegion: false,
       type: "HTTP",
       config: {},
+      integrationId: "",
     },
   });
 
@@ -72,9 +74,9 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       cron: check.cron ?? "* * * * *",
       showCustomCron: !isPreset,
       isActive: check.isActive,
-      isMultiRegion: check.isMultiRegion,
       type: check.type,
       config: {},
+      integrationId: check.integrationId != null ? String(check.integrationId) : "",
     });
   }, [check, methods]);
 
@@ -86,7 +88,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         description: values.description || undefined,
         cron: values.cron,
         isActive: values.isActive,
-        isMultiRegion: values.isMultiRegion,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -103,7 +104,10 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(handleSave)} className="flex flex-col gap-5">
+      <form
+        onSubmit={methods.handleSubmit(handleSave, () => setError("Please fix the highlighted fields before saving."))}
+        className="flex flex-col gap-5"
+      >
         {error && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
@@ -111,8 +115,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         )}
         <CheckGeneralSettingsFields typeNode={typeNode} />
         <div className="flex justify-end">
-          <button type="submit" disabled={updateCheck.isPending}
-            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+          <button type="submit" disabled={updateCheck.isPending || !methods.formState.isDirty}
+            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
             <Save size={14} />
             {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
           </button>
@@ -309,6 +313,24 @@ export default function CheckDetailPage() {
       </SectionAccordion>
 
       <SectionAccordion
+        title="Tags"
+        description="Organize this check and its service with key/value tags"
+        icon={<TagsIcon size={16} className="text-muted-foreground" />}
+      >
+        <CheckTagsSection checkId={check.id} />
+      </SectionAccordion>
+
+      {!typeMeta?.singleRegionOnly && (
+        <SectionAccordion
+          title="Required worker tags"
+          description="Restrict which workers may run this check"
+          icon={<Filter size={16} className="text-muted-foreground" />}
+        >
+          <CheckRequiredWorkerTagsSection checkId={check.id} />
+        </SectionAccordion>
+      )}
+
+      <SectionAccordion
         title={
           hasNoAlerts ? (
             <span className="flex items-center gap-2">
@@ -341,7 +363,7 @@ export default function CheckDetailPage() {
 
       <SectionAccordion
         title="Status History"
-        description="Uptime and status over the last 14 days"
+        description="Uptime and status over the last 14 days. Scheduling gaps (monitor outage, unschedulable) never ran on a worker and are not shown here."
         icon={<Clock size={16} className="text-muted-foreground" />}
       >
         <StatusHistorySection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />

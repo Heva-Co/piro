@@ -17,11 +17,8 @@ public static class CheckExtensions
         c.Type, 
         c.Cron, 
         c.TypeDataJson,
-        c.CurrentStatus, 
-        c.IsActive, 
-        c.IsMultiRegion,
-        c.HistoryDaysDesktop, 
-        c.HistoryDaysMobile,
+        c.CurrentStatus,
+        c.IsActive,
         c.CreatedAt, 
         c.UpdatedAt, 
         c.IntegrationId

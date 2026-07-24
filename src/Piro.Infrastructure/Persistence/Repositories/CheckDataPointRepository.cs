@@ -89,8 +89,10 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
                 Region: g.Key.WorkerRegion,
                 DayTimestamp: g.Key.Day * 86400,
                 CountUp: g.Count(p => p.Status == ServiceStatus.UP),
-                CountDown: g.Count(p => p.Status == ServiceStatus.DOWN || p.Status == ServiceStatus.FAILURE),
+                CountDown: g.Count(p => p.Status == ServiceStatus.DOWN),
                 CountDegraded: g.Count(p => p.Status == ServiceStatus.DEGRADED),
+                // A check-execution error is its own category, not downtime (§4.6).
+                CountError: g.Count(p => p.Status == ServiceStatus.FAILURE),
                 AvgLatencyMs: g.Any(p => p.Latency.HasValue)
                     ? g.Where(p => p.Latency.HasValue).Average(p => p.Latency!.Value)
                     : null))

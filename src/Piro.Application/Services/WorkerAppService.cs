@@ -9,7 +9,8 @@ namespace Piro.Application.Services;
 /// <summary>Manages worker registration lifecycle: token generation, listing, and deletion.</summary>
 public class WorkerAppService(
     IWorkerRegistrationRepository workerRepo,
-    IWorkerRegistry registry)
+    IWorkerRegistry registry,
+    ISystemTagReconciler systemTags)
 {
     /// <summary>
     /// Registers a new worker, generates a long-lived worker token, and returns it once.
@@ -36,6 +37,9 @@ public class WorkerAppService(
         // requests can't both observe zero existing defaults and leave two set.
         if (request.IsDefault)
             await workerRepo.SetAsDefaultAsync(registration, ct);
+
+        // Materialize the worker's stored piro:* system tags from its fields (RFC 0008 §4.2).
+        await systemTags.ReconcileWorkerAsync(registration, ct);
 
         return new CreateWorkerResponse(
             registration.Id,
@@ -86,6 +90,9 @@ public class WorkerAppService(
 
         if (request.IsDefault is true)
             await workerRepo.SetAsDefaultAsync(registration, ct);
+
+        // Re-materialize piro:region / piro:default / piro:builtin from the worker's fields (RFC 0008 §4.2).
+        await systemTags.ReconcileWorkerAsync(registration, ct);
     }
 
     /// <summary>Deactivates a worker registration and revokes its token.</summary>

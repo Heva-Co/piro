@@ -139,8 +139,10 @@ public class WorkerSignalRService(
         }
         catch (Exception ex)
         {
+            // An error running the check (bad config, DI/executor failure) is a FAILURE, not the target
+            // being DOWN — it must not read as service downtime. Mirrors RegistryCheckExecutor's mapping.
             logger.LogError(ex, "Unhandled error executing check {CheckId}.", msg.CheckId);
-            result = CheckExecutionResult.Of(ServiceStatus.DOWN, ex.Message);
+            result = CheckExecutionResult.Of(ServiceStatus.FAILURE, ex.Message);
         }
 
         var response = new WorkerResultMessage(

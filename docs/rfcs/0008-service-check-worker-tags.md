@@ -1,7 +1,7 @@
 ---
 rfc: 8
 title: "Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling"
-status: proposed
+status: accepted
 created: 2026-07-17
 tracking-issue: 185
 depends-on: ["0001"]
@@ -10,7 +10,7 @@ proposal-pr: 184
 
 # RFC 0008 — Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling
 
-Status: proposal
+Status: accepted
 Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-17
 
@@ -256,18 +256,25 @@ Nothing changes on the worker process. A worker today runs whatever `WorkerExecu
 The requirement in issue #113 is to route a check to specific workers by tag: "run this DNS check from EU, US,
 and Asia workers"; "run this HTTP latency check from EU only"; "run this compliance check only in-jurisdiction."
 
+> **Implemented.** Part B shipped as described below. A design review chose the dedicated-table storage
+> (Option C) over reusing `CheckTag`, and `IsMultiRegion` was removed rather than deprecated (§4.6).
+
 The model is a flat tag intersection, check → worker only.
 
 - Worker side: a worker's tags (§4.1's `WorkerTag` rows, including the system `piro:region`) are its
   advertised placement facts. A worker declares nothing about which checks it wants; it runs what it's given.
-- Check side: a check has an optional set of **required worker tags**, expressed as ordinary `CheckTag`
-  rows under a reserved key (e.g. `piro:worker-tag`), or a small dedicated `Check.WorkerTags` set. These are the
-  keys/values a worker must carry to be eligible.
+- Check side: a check has an optional set of **required worker tags**. These are stored in a dedicated
+  `CheckRequiredWorkerTag(CheckId, TagId, Value)` join table that reuses the shared `Tag` key catalog but is
+  NOT the `CheckTag` table (Option C, decided by design review). A required worker tag is a constraint the
+  check places on *other* entities (workers), not a label describing the check, so it stays out of the
+  check's own effective-tags and service→check inheritance by construction, not by a filter every read site
+  must remember. It references the same vocabulary workers advertise (e.g. `piro:region=eu`), so it is
+  FK-validated and autocompletable against real worker tags.
 - The rule: a check *C* runs on a live worker *W* iff:
 
   ```
-  1. W is alive (registry liveness, WorkerRegistry.cs) — and, if C's type is SingleRegionOnly, W is the built-in/default worker (§4.6)
-  2. C.requiredWorkerTags is empty  → any live W (today's behavior)
+  1. W is alive (registry liveness, WorkerRegistry.cs)
+  2. C.requiredWorkerTags is empty  → every live W (default: run everywhere)
      otherwise                      → W.tags ∩ C.requiredWorkerTags is non-empty
   ```
 
@@ -276,23 +283,34 @@ least one runs it (matching issue #113's "workers whose Tags intersect WorkerTag
 no `NotIn`/`Exists`, no worker-side selector, no `CheckSelectorMode`. If scheduling ever needs a richer grammar,
 that is an additive change, and it is not built on speculation.
 
-Facts act as pre-filters, not negotiable tags. `SingleRegionOnly` (type-level, from the
-manifest) and machine-owned `piro:*` facts are applied as **hard pre-filters** before the intersection: an
-operator's `requiredWorkerTags` can only narrow the eligible set, never widen past a hard constraint. A
-`SingleRegionOnly` check is pinned to the single worker (§4.6) no matter what tags the operator sets, and the
-matcher intersects within the already-constrained set. This keeps the immovable facts and the negotiable
-preferences separated at the match layer, so a stray operator tag cannot escape a mandatory constraint.
+The default is "run everywhere". With no required tags a check runs on every live worker, which in a
+single-node deployment is just the built-in worker. Single-region is expressed by requiring a worker tag
+such as `piro:default` (the built-in/default worker carries the reconciled `piro:builtin`/`piro:default`
+tags). `SingleRegionOnly` (type-level, from the manifest) is a hard constraint enforced separately: a
+`SingleRegionOnly` check type (e.g. Heartbeat, RFC 0013) cannot declare required worker tags at all
+(`EnsureCanRequireWorkerTagsAsync` rejects it), so it is never fanned out.
 
-### 4.6 Part B — subsuming `IsMultiRegion`, and the `Unschedulable` datapoint
+### 4.6 Part B — removing `IsMultiRegion`, worker transport, and the `Unschedulable` datapoint
 
-`IsMultiRegion` becomes expressible with the flat worker-tag match (§4.5):
+`IsMultiRegion` is **removed**, not deprecated. It was redundant once the flat worker-tag match (§4.5) is the
+sole routing path: `IsMultiRegion == true` is just an empty `requiredWorkerTags` (run everywhere), and
+`IsMultiRegion == false` is expressed by requiring a worker tag such as `piro:default`. The column, its
+DTO fields, the admin toggle, and the reconciled `piro:multi-region` system tag are all dropped (a design
+review confirmed the removal; this being pre-1.0 dev, no data is migrated). `CheckManifest.SingleRegionOnly`
+(RFC 0013) remains the hard constraint for check types that must not fan out (Heartbeat): such a type cannot
+declare required worker tags at all, enforced by `EnsureCanRequireWorkerTagsAsync`
+(`src/Piro.Application/Services/CheckAppService.cs`); the admin hides the worker-tag editor for it.
 
-- `IsMultiRegion == true`  ≡  empty `requiredWorkerTags` → the check runs on **every** live worker (today's fan-out).
-- `IsMultiRegion == false` ≡  `requiredWorkerTags = { piro:builtin }` (falling back to `piro:default`, §8) → the check runs on the built-in/default worker only.
-
-During the transition the `piro:multi-region` system tag is derived from the flag (§4.2), so both representations agree. Once Part B is the sole routing path, `IsMultiRegion` is redundant and can be deprecated (`[Obsolete]`, kept as a derived view) rather than dropped, matching how the codebase already deprecates fields it can't remove cleanly (`Check.HistoryDaysDesktop`).
-
-`CheckManifest.SingleRegionOnly` (RFC 0013) is a hard pre-filter, not a tag. A check type can declare it must run single-region, as the Heartbeat check does (RFC 0013 §4.6). This is stronger than the per-instance flag: type-level, mandatory, not user-overridable. The matcher applies it before the tag intersection (§4.5): a `SingleRegionOnly` check is pinned to the built-in/default worker regardless of any `requiredWorkerTags` the operator sets, and the multi-worker form is rejected at validation, exactly as `EnsureSingleRegionIfDeclared` already rejects `IsMultiRegion = true` for such a type (`src/Piro.Application/Services/CheckAppService.cs`). The admin hides the worker-tag UI for it just as it hides the multi-region toggle.
+**Worker transport is typed, so routing never dispatches to a phantom connection.** The built-in API worker
+executes checks in-process, but it is registered in the in-memory worker registry under a synthetic
+`ConnectionId` (`__api_worker__`) that is not a real SignalR connection. A design review found that fanning
+out over the registry would send that entry a hub message that silently vanishes (and double-counts the
+batch). The fix: `WorkerInfo` carries a typed `IsInProcess` discriminant. `RoutingCheckJobDispatcher`
+decides *which* workers run a check (by tags); `RemoteCheckJobDispatcher` then dispatches each by its
+transport, in-process entries via the local executor, real workers over SignalR, so the synthetic
+connection is never sent a hub message. This deleted `LocalCheckJobDispatcher`, the `apiIsWorker` flag, and
+`DispatchToDefaultWorkerAsync`. (A cleaner future end-state, the built-in becoming a real self-connecting
+SignalR client so the synthetic entry disappears entirely, was deferred as too large for this change.)
 
 The matcher lands in `RoutingCheckJobDispatcher.DispatchAsync`, the existing routing choke point. Instead of the `IsMultiRegion` branch, it computes the matching worker subset from `registry.GetAll()` (an in-memory list, no per-tick DB hit) and hands that subset to the fan-out. `RemoteCheckJobDispatcher.DispatchAsync` already loops per-connection over the worker list, so restricting it to a filtered subset is a natural narrowing of an existing loop. The dead `WorkerRegistry.GetConnectionIdForRegion` is removed or folded into the tag matcher.
 
@@ -306,7 +324,7 @@ Routing stays total: a check never silently fails to run. When the matching subs
 | Operator action | Wait / check worker health | Fix the check's worker tags |
 | UI | "monitoring gap" | "check misconfigured: no worker matches its tags" |
 
-Concretely, an empty match distinguishes two cases. If some workers exist but none intersect the required tags (or the constraint is unsatisfiable), it is `Unschedulable`; if no workers were connected at all, it is the existing `MONITOR_OUTAGE`. Both are non-alerting-by-default datapoints kept out of uptime math (neither is service downtime), and both are visible on the check so the failure is never silent.
+Concretely, when no *live* worker matches, the distinction is made against the *registered* workers (not just the connected ones, this is what makes it correct). If a registered worker *could* match the required tags but none is currently connected, it is `MONITOR_OUTAGE`, a transient gap that heals when that worker reconnects. Only if *no registered worker can ever match* is it `Unschedulable`, a genuine config error. (Implemented via `ITagRepository.GetAllWorkerTagSetsAsync` over the registered workers.) Both carry `Status = NO_DATA`, so both are kept out of uptime math (neither is service downtime) by the same mechanism, and both are visible on the check so the failure is never silent.
 
 An optional notification sits on top of that. For an operator who wants to be paged that a check is misconfigured, an `Unschedulable` datapoint may additionally raise an orphan `Alert` (nullable `Alert.CheckId`, no `AlertConfig` needed, since the codebase already supports `AlertConfig`-less alerts, FK `SetNull`) tagged with a new `AlertSource.SchedulingFailure` (`AlertSource` is designed to be extended, RFC 0001 §4.4). That is a notification layer on top of the visible datapoint, not a replacement for it. The floor is that `Unschedulable` is seen and distinguishable, whether or not it pages. (§8 covers the "no escalation policy → email a system address" fallback for the alerting layer.)
 
@@ -407,7 +425,7 @@ This section names the screens and controls, not their visual design (§2). The 
 
 ### 4.10 What does NOT change
 
-- **The dispatch decision in Part A.** `RoutingCheckJobDispatcher.DispatchAsync` (`src/Piro.Infrastructure/Workers/RoutingCheckJobDispatcher.cs:18-25`) is untouched until Part B. Adding tags does not, by itself, change where any check runs.
+- **The dispatch decision in Part A.** Adding tags does not, by itself, change where any check runs; the routing rewrite is Part B (§4.6), where `RoutingCheckJobDispatcher` becomes tag-driven.
 - **The SignalR contract and the worker binary.** `WorkerExecuteMessage`/`WorkerResultMessage` (`src/Piro.Application/Models/Worker/WorkerMessages.cs`), `WorkerHub` (`src/Piro.Infrastructure/Hubs/WorkerHub.cs`), and `WorkerSignalRService` (`src/Piro.Worker/WorkerSignalRService.cs`) are unchanged: selection stays API-side (§4.4).
 - **The datapoint pipeline.** `Unschedulable` is a new `DataPointType`, written through the same ingestion path as `MONITOR_OUTAGE` today, with no new pipeline. It is a visible datapoint, not a status.
 - **The notification pipeline (only if the optional alert layer is built).** `INotificationDispatcher`, `EscalationCheckerService`, and the dispatchers under `src/Piro.Infrastructure/Alerts/` are reused as-is; an `Unschedulable`-triggered alert would be a new source of `Alert` rows (`AlertSource.SchedulingFailure`), not a parallel notifier. This layer is optional (§4.6): the datapoint stands on its own without it.
@@ -425,11 +443,15 @@ New tables (one migration, auto-applied on startup, `db.Database.Migrate()`, `sr
 - **`CheckTags`**, composite PK `(CheckId, TagId)`, `Value` (nullable), same shape.
 - **`WorkerTags`**, composite PK `(WorkerRegistrationId, TagId)`, `Value` (nullable), same shape.
 
-Part B needs no selector columns; the worker-tag match reuses the tag join tables:
-a worker's eligibility tags are its `WorkerTag` rows, and a check's required worker tags are `CheckTag` rows
-under a reserved key (e.g. `piro:worker-tag`), or a small dedicated `Check.WorkerTags` set if a first-class
-column reads cleaner. No `WorkerRegistration.CheckSelectorMode` / `CheckSelectorJson` /
-`Check.WorkerSelectorJson` columns are added. The only Part B enum addition is the datapoint type below.
+Part B adds one table and no selector columns. A worker's eligibility tags are its `WorkerTag` rows; a
+check's required worker tags are stored in a dedicated **`CheckRequiredWorkerTag`** join table, composite PK
+`(CheckId, TagId)`, `Value` (nullable), both FKs `OnDelete(Cascade)`, same shape as the other joins. It
+reuses the `Tag` key catalog but is deliberately separate from `CheckTag` (Option C, design review), so
+required worker tags never enter effective-tags/inheritance. No `WorkerRegistration.CheckSelectorMode` /
+`CheckSelectorJson` / `Check.WorkerSelectorJson` columns are added, and no reserved-key overload of
+`CheckTag`. Part B also **drops the `Check.IsMultiRegion` column** (removed, not deprecated, §4.6; pre-1.0
+dev, no data migrated). The worker's transport (`WorkerInfo.IsInProcess`, §4.6) is an in-memory registry
+field, not a persisted column. Enum additions are the datapoint type below.
 
 Part C is CI/lint, not a runtime table: no `TagPolicies` table, no `TaggableEntity`
 enum. Governance is a config-validation pass, deferred until a concrete runtime need appears (a typo'd worker
@@ -442,31 +464,36 @@ New enums:
 - **`DataPointType.Unschedulable`**, appended to `DataPointType` (`src/Piro.Domain/Enums/DataPointType.cs`), the sibling of `MONITOR_OUTAGE`: a config error (no worker can match), distinct from a transient gap (§4.6). Part B. Persisted as a string, so appending is safe.
 - **`AlertSource.SchedulingFailure`**, appended after `GcpCloudMonitoring` (`src/Piro.Domain/Enums/AlertSource.cs`), only if the optional alert-on-`Unschedulable` layer (§4.6) is built. Persisted as a string, so ordinal stability isn't required.
 
-New DbSets on `PiroDbContext`: `Tags`, `ServiceTags`, `CheckTags`, `WorkerTags` (Part A). Configs auto-discovered via `ApplyConfigurationsFromAssembly`, no manual registration. (No `TagPolicies`, since Part C is CI/lint, not a table.)
+New DbSets on `PiroDbContext`: `Tags`, `ServiceTags`, `CheckTags`, `WorkerTags` (Part A) and `CheckRequiredWorkerTags` (Part B). Configs auto-discovered via `ApplyConfigurationsFromAssembly`, no manual registration. (No `TagPolicies`, since Part C is CI/lint, not a table.)
 
-**No changes to:** `Service`/`Check`/`WorkerRegistration` existing columns (Part A adds only navigations; Part B may add a small `Check.WorkerTags` set); `Alert`/`AlertConfig` columns (the optional unschedulable alert reuses nullable `Alert.CheckId`/`ServiceId`); `WorkerMessages`; any `ServiceStatus` / `AlertSeverity` enum. (`AlertFor` and the `IntegrationType` enum no longer exist, since RFC 0016 removed them.)
+**Changes to `Check` columns:** Part A adds only navigations; Part B **removes `IsMultiRegion`** (§4.6). **No changes to:** `WorkerRegistration` columns; `Alert`/`AlertConfig` columns (the optional unschedulable alert reuses nullable `Alert.CheckId`/`ServiceId`); `WorkerMessages`; any `ServiceStatus` / `AlertSeverity` enum. (`AlertFor` and the `IntegrationType` enum no longer exist, since RFC 0016 removed them.)
 
 ## 6. Phased plan
 
+> **Status: Part A and Part B are implemented** (phases 1-4 and the `IsMultiRegion` removal). Part C
+> (governance lint) and the optional `AlertSource.SchedulingFailure` alert layer are not built.
+
 Ship Part A first (a real shared dependency: #203 needs the tag model plus selector grammar, and #113 needs worker/check tags), then Part B, then Part C only if a runtime need appears. Each phase is independently shippable, and the RFC is stoppable after any of them.
 
-**Part A, tag metadata (ship first):**
+**Part A, tag metadata (ship first) — done:**
 
 1. **Tag model.** `Tag`/`ServiceTag`/`CheckTag`/`WorkerTag` entities, `TagSource`, migration (new tables only, greenfield, low-risk), EF configs, validation (`TagConstants`), CRUD plus autocomplete API (§4.7), effective-tag union (§4.3). Delivers organizational value on its own.
 2. **System tags plus the selector grammar.** The `SystemTags` catalog plus `SystemTagAssignment` (§4.2); write-through reconciliation of the stored `piro:*` tags via a shared component (§4.2, §8); on-read computed `piro:has-incident`/`piro:has-alerts`; and the `anyOf`/`allOf` selector grammar as a parser/matcher used for event filtering (RFC 0009 Phase 7 / #203 matches it against a service's effective tags), not for scheduling. This is what unblocks #203. Depends on Phase 1.
 
-**Part B, worker-tag scheduling (later, on demand from a real multi-worker deployment):**
+**Part B, worker-tag scheduling — done:**
 
-3. **Worker-tag match.** A check's `requiredWorkerTags` (§4.5), the flat intersection matcher, and rewiring `RoutingCheckJobDispatcher` to pre-filter (`SingleRegionOnly`) then intersect over `registry.GetAll()`. `IsMultiRegion` is now derived (§4.6) but not yet removed. This is issue #113. No selector columns, no worker-side selector.
+3. **Worker-tag match.** A check's `requiredWorkerTags` (§4.5, stored in the dedicated `CheckRequiredWorkerTag` table), the flat intersection matcher, and rewiring `RoutingCheckJobDispatcher` to intersect over `registry.GetAll()` and dispatch each eligible worker by transport (§4.6). `IsMultiRegion` was removed (§4.6), not deprecated. This is issue #113. No selector columns, no worker-side selector.
 4. **`Unschedulable` datapoint.** `DataPointType.Unschedulable` (§4.6) written when workers exist but none match (distinct from the existing `MONITOR_OUTAGE`), plus its UI treatment. Routing stays total from Phase 3; this phase makes the config-error case visible and distinguishable. **Optional add-on:** the `AlertSource.SchedulingFailure` alert-on-`Unschedulable` layer (§4.6) plus its `AlertNotificationContext` title case, split out so the datapoint can ship and be observed before it pages.
 
 **Part C, governance (deferred; CI/lint, not a runtime table):**
 
 5. **Tag-vocabulary lint (if/when needed).** A config-validation pass (CI or a pre-save check) that reports non-conforming tag keys/values against declared conventions. No `TagPolicy` table, no runtime write-gate: a typo'd worker tag already surfaces as a visible `Unschedulable` datapoint (§4.6), so runtime enforcement isn't load-bearing. Promote to a runtime table only if a concrete need appears.
 
-**Cleanup (optional, later):**
+**Cleanup — done as part of Part B:**
 
-6. **Deprecate `IsMultiRegion`.** Annotate `[Obsolete]`, migrate remaining consumers (`CheckAppService`, `CheckExtensions`, the routing dispatcher) to the worker-tag representation, and keep the flag as a derived view. Fold `SingleRegionOnly`-declaring types in as the pinned single-worker pre-filter (§4.6).
+6. **Remove `IsMultiRegion`.** The flag and its consumers (`CheckAppService`, `CheckExtensions`, the routing dispatcher, DTOs, admin toggle, `piro:multi-region` reconciliation) were removed, not deprecated: routing is purely tag-based, and `SingleRegionOnly` types are enforced by `EnsureCanRequireWorkerTagsAsync` (§4.6). The dispatch of each eligible worker by transport (`WorkerInfo.IsInProcess`) replaced the built-in's synthetic-connection special case; `LocalCheckJobDispatcher`, `apiIsWorker`, and `DispatchToDefaultWorkerAsync` are gone.
+
+**Remaining follow-ups (not built):** Part C governance lint (phase 5); the optional `AlertSource.SchedulingFailure` alert-on-`Unschedulable` layer (§4.6); and, longer-term, making the built-in worker a real self-connecting SignalR client so the synthetic registry entry disappears entirely (§4.6).
 
 ## 7. Alternatives considered
 
