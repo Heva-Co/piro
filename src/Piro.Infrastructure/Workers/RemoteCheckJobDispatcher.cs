@@ -30,7 +30,6 @@ internal class RemoteCheckJobDispatcher(
     ICheckDataPointRepository dataPointRepo,
     ICheckExecutor executor,
     ICheckResultIngester ingester,
-    bool apiIsWorker,
     string localWorkerRegion,
     ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher
 {
@@ -45,13 +44,10 @@ internal class RemoteCheckJobDispatcher(
     /// </summary>
     public async Task DispatchToWorkersAsync(Check check, IReadOnlyList<WorkerInfo> workers, CancellationToken ct = default)
     {
-        var totalCount = workers.Count + (apiIsWorker ? 1 : 0);
-
-        if (totalCount == 0)
+        if (workers.Count == 0)
         {
             logger.LogWarning(
-                "No remote workers connected. Multi-region check {CheckId} skipped — writing MONITOR_OUTAGE datapoint.",
-                check.Id);
+                "No workers to run check {CheckId}. Writing MONITOR_OUTAGE datapoint.", check.Id);
 
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             timestamp -= timestamp % 60;
@@ -63,20 +59,24 @@ internal class RemoteCheckJobDispatcher(
                 Status = ServiceStatus.NO_DATA,
                 DataType = DataPointType.MONITOR_OUTAGE,
                 WorkerRegion = "monitor",
-                ErrorMessage = "No remote workers connected"
+                ErrorMessage = "No workers connected"
             };
 
             await dataPointRepo.CreateAsync(gapPoint, ct);
-
             return;
         }
 
         var batchId = Guid.NewGuid().ToString("N");
-        batchTracker.RegisterBatch(batchId, check.Id, totalCount);
+        batchTracker.RegisterBatch(batchId, check.Id, workers.Count);
 
-        // Fan-out: same check dispatched to every connected remote worker
-        var remoteTasks = workers.Select(worker =>
+        // Dispatch each worker by its transport: the built-in worker (IsInProcess) runs locally, real
+        // SignalR workers get a hub message. This is why routing must never send Execute() to the built-in's
+        // synthetic ConnectionId — it has no hub receiver and the send would silently vanish.
+        var tasks = workers.Select(worker =>
         {
+            if (worker.IsInProcess)
+                return RunLocalWorkerAsync(check, batchId, ct);
+
             var message = new WorkerExecuteMessage(
                 JobId: Guid.NewGuid().ToString(),
                 CheckId: check.Id,
@@ -85,21 +85,13 @@ internal class RemoteCheckJobDispatcher(
                 BatchId: batchId);
 
             logger.LogDebug(
-                "Dispatching multi-region check {CheckId} to worker {WorkerId} (region={Region}, batch={BatchId}).",
+                "Dispatching check {CheckId} to worker {WorkerId} (region={Region}, batch={BatchId}).",
                 check.Id, worker.WorkerId, worker.Region, batchId);
 
             return hubContext.Clients.Client(worker.ConnectionId).Execute(message);
         });
 
-        var allTasks = new List<Task>(remoteTasks.Cast<Task>());
-
-        // API participates as a local worker — run in-process and feed result into the batch
-        if (apiIsWorker)
-        {
-            allTasks.Add(RunLocalWorkerAsync(check, batchId, ct));
-        }
-
-        await Task.WhenAll(allTasks);
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>
@@ -153,50 +145,6 @@ internal class RemoteCheckJobDispatcher(
         };
 
         await dataPointRepo.CreateAsync(point, ct);
-    }
-
-    /// <summary>
-    /// Routes a non-multi-region check to the single worker marked as default.
-    /// Writes a MONITOR_OUTAGE data point if no default worker is connected.
-    /// </summary>
-    public async Task DispatchToDefaultWorkerAsync(Check check, CancellationToken ct = default)
-    {
-        var defaultWorker = registry.GetDefaultWorker();
-        if (defaultWorker is null)
-        {
-            logger.LogWarning(
-                "No default worker connected. Check {CheckId} skipped — writing MONITOR_OUTAGE datapoint.", check.Id);
-
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            timestamp -= timestamp % 60;
-
-            var gapPoint = new CheckDataPoint
-            {
-                CheckId = check.Id,
-                Timestamp = timestamp,
-                Status = ServiceStatus.NO_DATA,
-                DataType = DataPointType.MONITOR_OUTAGE,
-                WorkerRegion = "monitor",
-                ErrorMessage = "No default worker connected"
-            };
-
-            await dataPointRepo.CreateAsync(gapPoint, ct);
-
-            return;
-        }
-
-        var message = new WorkerExecuteMessage(
-            JobId: Guid.NewGuid().ToString(),
-            CheckId: check.Id,
-            CheckType: check.Type,
-            TypeDataJson: check.TypeDataJson,
-            BatchId: null);
-
-        logger.LogDebug(
-            "Dispatching check {CheckId} to default worker {WorkerId} (region={Region}).",
-            check.Id, defaultWorker.WorkerId, defaultWorker.Region);
-
-        await hubContext.Clients.Client(defaultWorker.ConnectionId).Execute(message);
     }
 
     private async Task RunLocalWorkerAsync(Check check, string batchId, CancellationToken ct)

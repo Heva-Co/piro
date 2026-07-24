@@ -5,18 +5,19 @@ using Piro.Domain.Tags;
 namespace Piro.Infrastructure.Workers;
 
 /// <summary>
-/// Routes each check to the appropriate dispatcher. When a check declares no required worker tags (RFC 0008
-/// Part B), routing is the classic <see cref="Check.IsMultiRegion"/> decision:
+/// Routes each check to the workers that should run it (RFC 0008 Part B). Scheduling is purely tag-based:
 /// <list type="bullet">
-///   <item><see langword="false"/> — <see cref="LocalCheckJobDispatcher"/>: in-process, embedded worker.</item>
-///   <item><see langword="true"/>  — <see cref="RemoteCheckJobDispatcher"/>: fan-out to all connected workers.</item>
+///   <item>No required worker tags ⇒ the check runs on every live worker (the built-in in-process worker
+///   plus any connected remote workers). In a single-node deployment that is just the built-in.</item>
+///   <item>Required worker tags ⇒ the check runs only on live workers whose tags match (flat intersection,
+///   §4.5). Single-region is expressed by requiring a worker tag such as <c>piro:default</c>.</item>
 /// </list>
-/// When a check DOES declare required worker tags, it is tag-scheduled: routing computes the eligible worker
-/// subset (a flat tag intersection, §4.5) and fans out to just those workers. An empty required set means
-/// "run anywhere", so tagging is opt-in and the default path is unchanged.
+/// Each eligible worker is dispatched by its own transport (in-process vs SignalR) inside
+/// <see cref="RemoteCheckJobDispatcher.DispatchToWorkersAsync"/>, so there is no synthetic-connection
+/// special case here. When workers exist but none match, that is distinguished as MONITOR_OUTAGE (a
+/// matching worker is registered but offline) vs UNSCHEDULABLE (no registered worker can ever match), §4.6.
 /// </summary>
 internal class RoutingCheckJobDispatcher(
-    LocalCheckJobDispatcher local,
     RemoteCheckJobDispatcher remote,
     IWorkerRegistry registry,
     ITagRepository tags) : ICheckJobDispatcher
@@ -25,15 +26,14 @@ internal class RoutingCheckJobDispatcher(
     {
         var required = await tags.GetRequiredWorkerTagsAsync(check.Id, ct);
 
-        // No required worker tags ⇒ today's behavior: IsMultiRegion decides local vs. fan-out.
+        // No required tags ⇒ run on every live worker (built-in + remotes). DispatchToWorkersAsync routes
+        // each by transport and records MONITOR_OUTAGE if the set is empty, so routing stays total.
         if (required.Count == 0)
         {
-            await DispatchByRegionAsync(check, ct);
+            await remote.DispatchToWorkersAsync(check, registry.GetAll(), ct);
             return;
         }
 
-        // Tag-scheduled: run only on workers whose tags match the check's requirement (§4.5). This
-        // overrides the local/remote choice because the eligible workers may be remote.
         var requirement = required
             .Select(rt => new RequiredWorkerTag(rt.Tag.Key, rt.Value))
             .ToArray();
@@ -47,12 +47,9 @@ internal class RoutingCheckJobDispatcher(
             return;
         }
 
-        // No LIVE worker matches. Distinguish the two empty-match causes (§4.6) against the set of
-        // REGISTERED workers (not just connected ones):
-        //   - a registered worker matches but none is currently live  ⇒ MONITOR_OUTAGE (transient; the
-        //     matching worker is down/disconnected and will heal when it returns).
-        //   - no registered worker can ever match the required tags    ⇒ UNSCHEDULABLE (a config error the
-        //     operator must fix by editing the check).
+        // No live worker matches. Distinguish the two empty-match causes against the REGISTERED workers:
+        // a registered-but-offline match is a transient MONITOR_OUTAGE; no registered worker able to match
+        // is a permanent UNSCHEDULABLE config error (§4.6).
         var registeredMatches = (await tags.GetAllWorkerTagSetsAsync(ct))
             .Any(wt => WorkerTagMatcher.IsEligible(requirement, wt));
 
@@ -60,14 +57,5 @@ internal class RoutingCheckJobDispatcher(
             await remote.RecordMonitorOutageAsync(check, "A worker matching the required tags exists but is not connected", ct);
         else
             await remote.RecordUnschedulableAsync(check, ct);
-    }
-
-    private Task DispatchByRegionAsync(Check check, CancellationToken ct)
-    {
-        // Built-in API worker is active when it has a live registry entry.
-        var apiIsWorker = registry.GetByConnectionId(ApiWorkerHostedService.ApiWorkerConnectionId) is not null;
-        if (apiIsWorker)
-            return check.IsMultiRegion ? remote.DispatchAsync(check, ct) : local.DispatchAsync(check, ct);
-        return check.IsMultiRegion ? remote.DispatchAsync(check, ct) : remote.DispatchToDefaultWorkerAsync(check, ct);
     }
 }

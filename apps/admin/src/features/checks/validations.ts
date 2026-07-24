@@ -57,7 +57,6 @@ const baseCheckSchema = z.object({
   cron: z.string(),
   showCustomCron: z.boolean(),
   isActive: z.boolean(),
-  isMultiRegion: z.boolean(),
   type: z.string(),
   config: z.record(z.string(), z.unknown()),
   /** The chosen provider Integration id — only used by types whose manifest requires one (e.g. GCP). "" or absent when none. */

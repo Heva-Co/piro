@@ -14,11 +14,6 @@ public class SystemTagReconciler(ITagRepository tags) : ISystemTagReconciler
     {
         // piro:check-type: valued, mirrors Check.Type (lower-cased to match tag-value conventions).
         await tags.SetCheckSystemTagAsync(check.Id, "piro:check-type", check.Type.ToString().ToLowerInvariant(), ct);
-
-        // piro:multi-region: key-only flag, present iff IsMultiRegion.
-        await SetFlagAsync(check.IsMultiRegion,
-            () => tags.SetCheckSystemTagAsync(check.Id, "piro:multi-region", null, ct),
-            () => tags.RemoveCheckSystemTagAsync(check.Id, "piro:multi-region", ct));
     }
 
     public async Task ReconcileWorkerAsync(WorkerRegistration worker, CancellationToken ct = default)

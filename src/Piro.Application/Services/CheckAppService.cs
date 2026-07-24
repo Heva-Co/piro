@@ -34,7 +34,7 @@ public class CheckAppService(
             r.Check.Id, r.Check.Service.Slug, r.Check.Service.Name,
             r.Check.Slug, r.Check.Name, r.Check.Description,
             r.Check.Type, r.Check.Cron, r.Check.CurrentStatus,
-            r.Check.IsActive, r.Check.IsMultiRegion, r.Check.UpdatedAt, r.LastErrorMessage));
+            r.Check.IsActive, r.Check.UpdatedAt, r.LastErrorMessage));
     }
 
     public async Task<IEnumerable<CheckDto>> GetByServiceSlugAsync(string serviceSlug, CancellationToken ct = default)
@@ -147,7 +147,6 @@ public class CheckAppService(
             ResolveSpec(request.Type, alertConfigRequest.Dimension);
 
         EnsureScheduleWithinBounds(request.Type, request.Cron, request.TypeDataJson);
-        EnsureSingleRegionIfDeclared(request.Type, request.IsMultiRegion);
 
         var check = new Check
         {
@@ -160,7 +159,6 @@ public class CheckAppService(
             TypeDataJson = request.TypeDataJson,
             CurrentStatus = ServiceStatus.NO_DATA,
             IsActive = request.IsActive,
-            IsMultiRegion = request.IsMultiRegion,
             IntegrationId = request.IntegrationId
         };
 
@@ -224,19 +222,6 @@ public class CheckAppService(
             ?? throw new DomainValidationException($"No check implementation is registered for a {type} check.");
         return checkImpl.Manifest.Dimensions.FirstOrDefault(d => d.Name == dimension)
             ?? throw new DomainValidationException($"\"{dimension}\" is not a valid alert dimension for a {type} check.");
-    }
-
-    /// <summary>
-    /// Rejects multi-region for a check type whose manifest declares <c>SingleRegionOnly</c> (e.g.
-    /// Heartbeat, whose pings are ingested and evaluated in one place). The check declares this itself;
-    /// Piro never infers it from another capability. Data-driven off the manifest, never a check-id check.
-    /// </summary>
-    private void EnsureSingleRegionIfDeclared(CheckType type, bool isMultiRegion)
-    {
-        if (!isMultiRegion) return;
-        var manifest = checkRegistry.Find(type.ToString())?.Manifest;
-        if (manifest?.SingleRegionOnly == true)
-            throw new DomainValidationException($"{manifest.Label} checks must run in a single region (disable multi-region).");
     }
 
     /// <summary>
@@ -318,14 +303,10 @@ public class CheckAppService(
         if (request.Cron is not null) check.Cron = request.Cron;
         if (request.TypeDataJson is not null) check.TypeDataJson = request.TypeDataJson;
         if (request.IsActive is not null) check.IsActive = request.IsActive.Value;
-        if (request.IsMultiRegion is not null) check.IsMultiRegion = request.IsMultiRegion.Value;
-        if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
-        if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
 
         // Type is immutable on update; validate the resulting cron/config against the check's own type.
         EnsureScheduleWithinBounds(check.Type, check.Cron, check.TypeDataJson);
-        EnsureSingleRegionIfDeclared(check.Type, check.IsMultiRegion);
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);

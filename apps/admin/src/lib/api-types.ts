@@ -8997,11 +8997,6 @@ export interface components {
             typeDataJson: string;
             currentStatus: components["schemas"]["ServiceStatus"];
             isActive: boolean;
-            isMultiRegion: boolean;
-            /** Format: int32 */
-            historyDaysDesktop: null | number;
-            /** Format: int32 */
-            historyDaysMobile: null | number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -9038,7 +9033,6 @@ export interface components {
             cron: string;
             currentStatus: components["schemas"]["ServiceStatus"];
             isActive: boolean;
-            isMultiRegion: boolean;
             /** Format: date-time */
             updatedAt: string;
             lastErrorMessage: null | string;
@@ -9148,8 +9142,6 @@ export interface components {
             typeDataJson: string;
             /** @default true */
             isActive: boolean;
-            /** @default false */
-            isMultiRegion: boolean;
             /** Format: uuid */
             integrationId?: null | string;
             alertConfigs?: null | components["schemas"]["CreateAlertConfigRequest"][];
@@ -10227,11 +10219,6 @@ export interface components {
             cron: null | string;
             typeDataJson: null | string;
             isActive: null | boolean;
-            isMultiRegion: null | boolean;
-            /** Format: int32 */
-            historyDaysDesktop: null | number;
-            /** Format: int32 */
-            historyDaysMobile: null | number;
             /** Format: uuid */
             integrationId?: null | string;
         };
