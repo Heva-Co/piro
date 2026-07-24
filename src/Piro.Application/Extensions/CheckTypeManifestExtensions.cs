@@ -23,7 +23,8 @@ public static class CheckTypeManifestExtensions
             [.. manifest.Dimensions.Select(d => new CheckDimensionDto(d.Name, d.Comparison, d.Direction, d.Unit))],
             ConfigSchemaBuilder.For(manifest.ConfigType),
             manifest.RequiredIntegration,
-            HasExecutor: true
+            HasExecutor: true,
+            SingleRegionOnly: manifest.SingleRegionOnly
         );
     }
 }

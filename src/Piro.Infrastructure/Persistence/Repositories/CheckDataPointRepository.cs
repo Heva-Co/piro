@@ -106,6 +106,14 @@ internal class CheckDataPointRepository(PiroDbContext db, ILogger<CheckDataPoint
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<CheckDataPoint?> GetLatestByCheckIdAsync(int checkId, CancellationToken ct = default)
+    {
+        return await db.CheckDataPoints
+            .Where(p => p.CheckId == checkId)
+            .OrderByDescending(p => p.Timestamp)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<IEnumerable<(string Region, long DayTimestamp, double Avg, double Min, double Max)>> GetDailyLatencyByRegionAsync(
         int checkId, long from, long to, CancellationToken ct = default)
     {

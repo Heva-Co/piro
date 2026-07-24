@@ -1102,6 +1102,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checks/{checkId}/inbound/{rest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    checkId: number;
+                    rest: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    checkId: number;
+                    rest: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services/{serviceSlug}/checks": {
         parameters: {
             query?: never;
@@ -1504,6 +1560,105 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["ScriptTestResultDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/inbound-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbound-token info for a check that receives inbound requests (RFC 0013): the masked token,
+         *     last-used time, and the base inbound URL. The raw token is not returned here — only on rotate.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckInboundTokenDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/inbound-token/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotates a check's inbound token (RFC 0013) and returns the new raw token + full inbound URL, shown once. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckInboundTokenRotateResultDto"];
                     };
                 };
                 /** @description Not Found */
@@ -8214,6 +8369,16 @@ export interface components {
             /** Format: uuid */
             integrationId: null | string;
         };
+        CheckInboundTokenDto: {
+            inboundUrl: null | string;
+            maskedToken: null | string;
+            /** Format: date-time */
+            lastUsedAt: null | string;
+        };
+        CheckInboundTokenRotateResultDto: {
+            rawToken: string;
+            inboundUrl: string;
+        };
         CheckRefDto: {
             /** Format: int32 */
             id: number;
@@ -8250,6 +8415,7 @@ export interface components {
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
             requiredIntegrationType: null | string;
             hasExecutor: boolean;
+            singleRegionOnly: boolean;
         };
         CompleteSetupRequest: {
             email: string;
