@@ -37,9 +37,20 @@ internal class RoutingCheckJobDispatcher(
         var requirement = required
             .Select(rt => new RequiredWorkerTag(rt.Tag.Key, rt.Value))
             .ToArray();
-        var eligible = registry.GetAll()
+        var allWorkers = registry.GetAll();
+        var eligible = allWorkers
             .Where(w => WorkerTagMatcher.IsEligible(requirement, w.Tags))
             .ToList();
+
+        // Distinguish the two empty-match causes (§4.6). Some workers are connected but none match the
+        // required tags ⇒ a configuration error the operator must fix: record a visible UNSCHEDULABLE
+        // datapoint, distinct from the transient MONITOR_OUTAGE. If no workers are connected at all, fall
+        // through to DispatchToWorkersAsync, which records MONITOR_OUTAGE as before. Routing stays total.
+        if (eligible.Count == 0 && allWorkers.Count > 0)
+        {
+            await remote.RecordUnschedulableAsync(check, ct);
+            return;
+        }
 
         await remote.DispatchToWorkersAsync(check, eligible, ct);
     }
