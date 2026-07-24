@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Piro.Checks.Abstractions;
 
@@ -21,8 +22,20 @@ public static class CheckServiceExtensions
         services.AddSingleton<ICheck, PingCheck>();
         services.AddSingleton<ICheck, SslCheck>();
         services.AddSingleton<ICheck, GrpcCheck>();
+        services.AddSingleton<ICheck, ScriptCheck>();
 
         services.AddSingleton<ICheckRegistry, CheckRegistry>();
+
+        // The Script check's outbound HTTP goes through its own SSRF-guarded client (RFC 0010 §4.4),
+        // separate from the shared "piro-http" so existing checks are unaffected. The guard validates the
+        // resolved IP at connect time — rejecting loopback, link-local/metadata, and private ranges.
+        services.AddHttpClient(ScriptCheck.ScriptHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                ConnectTimeout = TimeSpan.FromSeconds(10),
+                ConnectCallback = ScriptSsrfGuard.ConnectAsync,
+            });
 
         // Base allow-list: the shared infrastructure the built-in checks may resolve through the host.
         // Integrations that ship a check add their own allowed types (e.g. GoogleCloud → IGcpTokenProvider).

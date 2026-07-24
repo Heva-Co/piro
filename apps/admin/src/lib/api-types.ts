@@ -1464,6 +1464,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dry-runs a testable check (the Script check) in debug mode: executes the script against the live
+         *     target, captures console.log, and returns the raw verdict WITHOUT persisting a datapoint or firing
+         *     an alert (RFC 0010 §4.8). The optional body carries candidate config so the operator can test
+         *     unsaved edits; an empty body tests the persisted config.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["TestCheckRequest"];
+                    "text/json": null | components["schemas"]["TestCheckRequest"];
+                    "application/*+json": null | components["schemas"]["TestCheckRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScriptTestResultDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/checks": {
         parameters: {
             query?: never;
@@ -8180,7 +8239,7 @@ export interface components {
             lastErrorMessage: null | string;
         };
         /** @enum {unknown} */
-        CheckType: "HTTP" | "DNS" | "TCP" | "Ping" | "SSL" | "Heartbeat" | "GRPC" | "GCP_CloudRunJob";
+        CheckType: "HTTP" | "DNS" | "TCP" | "Ping" | "SSL" | "Heartbeat" | "GRPC" | "GCP_CloudRunJob" | "Script";
         CheckTypeMetaDto: {
             type: string;
             displayName: string;
@@ -9161,6 +9220,16 @@ export interface components {
             overridesToCreate: components["schemas"]["CreateOnCallOverrideRequest"][];
             overrideIdsToDelete: number[];
         };
+        ScriptTestResultDto: {
+            outcome: string;
+            message: null | string;
+            /** Format: double */
+            latencyMs: null | number;
+            dimensions: {
+                [key: string]: number;
+            };
+            logs: string[];
+        };
         SearchResultDto: {
             type: string;
             title: string;
@@ -9299,6 +9368,10 @@ export interface components {
             metaTitle: null | string;
             metaDescription: null | string;
             ogImageUrl: null | string;
+        };
+        /** @description Body for the check Test endpoint — the candidate config to test, or null to use the persisted one. */
+        TestCheckRequest: {
+            typeDataJson: null | string;
         };
         TestEmailResponse: {
             message: string;

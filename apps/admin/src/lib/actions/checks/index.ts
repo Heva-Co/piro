@@ -13,6 +13,7 @@ export type UpdateCheckRequest = components["schemas"]["UpdateCheckRequest"];
 export type CheckTypeMeta = components["schemas"]["CheckTypeMetaDto"];
 /** A single config field's schema — shared with integrations (see lib/actions/integrations). */
 export type ConfigFieldSchema = components["schemas"]["ConfigFieldSchemaDto"];
+export type ScriptTestResult = components["schemas"]["ScriptTestResultDto"];
 
 export const checkTypesApi = {
   list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
@@ -38,6 +39,13 @@ export const checksApi = {
 
   run: (serviceSlug: string, checkSlug: string) =>
     api.post(ENDPOINTS.SERVICE_CHECK_RUN(serviceSlug, checkSlug)),
+
+  // Dry-run a testable (Script) check against the live target: runs in debug mode, captures console.log,
+  // and returns the raw verdict without persisting or alerting. `typeDataJson` tests unsaved edits.
+  test: (serviceSlug: string, checkSlug: string, typeDataJson?: string) =>
+    api
+      .post<ScriptTestResult>(ENDPOINTS.SERVICE_CHECK_TEST(serviceSlug, checkSlug), { typeDataJson })
+      .then((r) => r.data),
 
   logs: (
     serviceSlug: string,
