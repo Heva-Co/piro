@@ -23,6 +23,7 @@ type DaySlot = {
 const COLOR_UP       = "#22c55e";
 const COLOR_DOWN     = "#ef4444";
 const COLOR_DEGRADED = "#eab308";
+const COLOR_ERROR    = "#f97316"; // check-execution error (FAILURE): not up/down/degraded, its own color
 const GAP = 2;
 
 function noDataColor() {
@@ -49,6 +50,7 @@ function buildSlots(data: CheckDailyStats[], days: number, timeZone: string): Da
         countUp: existing.countUp + d.countUp,
         countDown: existing.countDown + d.countDown,
         countDegraded: existing.countDegraded + d.countDegraded,
+        countError: existing.countError + d.countError,
       });
     }
   }
@@ -168,15 +170,17 @@ function UptimeCanvas({
           ctx.fillStyle = noDataColor();
           ctx.fillRect(x, y, actualBW, scaledH);
         } else {
-          const { countUp, countDown, countDegraded } = slot.stats;
-          const total = countUp + countDown + countDegraded;
+          const { countUp, countDown, countDegraded, countError } = slot.stats;
+          const total = countUp + countDown + countDegraded + countError;
           const getH = (c: number) => c === 0 ? 0 : Math.max(2, Math.round((c / total) * scaledH));
           const downH = getH(countDown);
           const degH  = getH(countDegraded);
-          const upH   = countUp > 0 ? Math.max(0, scaledH - downH - degH) : 0;
+          const errH  = getH(countError);
+          const upH   = countUp > 0 ? Math.max(0, scaledH - downH - degH - errH) : 0;
 
           let cy = y + scaledH;
           if (downH > 0) { cy -= downH; ctx.fillStyle = COLOR_DOWN;     ctx.fillRect(x, cy, actualBW, downH); }
+          if (errH  > 0) { cy -= errH;  ctx.fillStyle = COLOR_ERROR;    ctx.fillRect(x, cy, actualBW, errH);  }
           if (degH  > 0) { cy -= degH;  ctx.fillStyle = COLOR_DEGRADED; ctx.fillRect(x, cy, actualBW, degH);  }
           if (upH   > 0) {              ctx.fillStyle = COLOR_UP;       ctx.fillRect(x, y,  actualBW, upH);   }
         }
@@ -251,7 +255,10 @@ export function StatusHistoryBar({ data, days = 14 }: { data: CheckDailyStats[];
   const [hovered, setHovered] = useState<{ day: DaySlot; clientX: number; clientY: number } | null>(null);
   const { activeTimeZone } = useTimezone();
 
-  const regions = useMemo(() => Array.from(new Set(data.map((d) => d.region))).sort(), [data]);
+  // "monitor" is the sentinel region for datapoints that never ran on a worker (MONITOR_OUTAGE /
+  // UNSCHEDULABLE); it isn't a real region and must not appear as an uptime row.
+  const regionData = useMemo(() => data.filter((d) => d.region !== "monitor"), [data]);
+  const regions = useMemo(() => Array.from(new Set(regionData.map((d) => d.region))).sort(), [regionData]);
   const isMultiRegion = regions.length > 1;
 
   const rows = useMemo(() => {
@@ -283,7 +290,8 @@ export function StatusHistoryBar({ data, days = 14 }: { data: CheckDailyStats[];
         {[
           { color: COLOR_UP,       label: "Up"       },
           { color: COLOR_DEGRADED, label: "Degraded" },
-          { color: COLOR_DOWN,     label: "Down / Failure" },
+          { color: COLOR_DOWN,     label: "Down"     },
+          { color: COLOR_ERROR,    label: "Error"    },
         ].map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1.5">
             <span className="inline-block size-2.5 rounded-sm" style={{ background: color }} />
@@ -304,7 +312,8 @@ export function StatusHistoryBar({ data, days = 14 }: { data: CheckDailyStats[];
           <p className="font-semibold">{hovered.day.date}</p>
           {hovered.day.stats ? (
             <>
-              {hovered.day.stats.countDown > 0   && <p className="text-red-500">{hovered.day.stats.countDown} down/failure</p>}
+              {hovered.day.stats.countDown > 0   && <p className="text-red-500">{hovered.day.stats.countDown} down</p>}
+              {hovered.day.stats.countError > 0  && <p style={{ color: COLOR_ERROR }}>{hovered.day.stats.countError} error</p>}
               {hovered.day.stats.countDegraded > 0 && <p className="text-amber-500">{hovered.day.stats.countDegraded} degraded</p>}
               <p className="text-green-500">{hovered.day.stats.countUp} up</p>
               {hovered.day.stats.avgLatencyMs != null && (

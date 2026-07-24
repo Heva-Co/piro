@@ -61,4 +61,7 @@ public record CheckDailyStats(
     int CountUp,
     int CountDown,
     int CountDegraded,
+    // Executions that errored (the check itself could not run, ServiceStatus.FAILURE) — NOT the target
+    // being down. Kept separate so it neither counts as downtime in uptime math nor renders as red (§4.6).
+    int CountError,
     double? AvgLatencyMs);

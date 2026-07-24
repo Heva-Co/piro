@@ -382,6 +382,6 @@ public class CheckAppService(
         var from = to - (long)days * 86400;
 
         var stats = await dataPointRepository.GetDailyStatsByCheckIdAsync(check.Id, from, to, ct);
-        return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.AvgLatencyMs));
+        return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.CountError, s.AvgLatencyMs));
     }
 }
