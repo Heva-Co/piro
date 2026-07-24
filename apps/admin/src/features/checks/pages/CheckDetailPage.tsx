@@ -61,6 +61,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       isMultiRegion: false,
       type: "HTTP",
       config: {},
+      integrationId: "",
     },
   });
 
@@ -77,6 +78,7 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       isMultiRegion: check.isMultiRegion,
       type: check.type,
       config: {},
+      integrationId: check.integrationId != null ? String(check.integrationId) : "",
     });
   }, [check, methods]);
 
@@ -105,7 +107,10 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(handleSave)} className="flex flex-col gap-5">
+      <form
+        onSubmit={methods.handleSubmit(handleSave, () => setError("Please fix the highlighted fields before saving."))}
+        className="flex flex-col gap-5"
+      >
         {error && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
@@ -113,8 +118,8 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         )}
         <CheckGeneralSettingsFields typeNode={typeNode} />
         <div className="flex justify-end">
-          <button type="submit" disabled={updateCheck.isPending}
-            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
+          <button type="submit" disabled={updateCheck.isPending || !methods.formState.isDirty}
+            className="flex items-center gap-2 rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
             <Save size={14} />
             {saved ? "Saved!" : updateCheck.isPending ? "Saving…" : "Save changes"}
           </button>
@@ -361,7 +366,7 @@ export default function CheckDetailPage() {
 
       <SectionAccordion
         title="Status History"
-        description="Uptime and status over the last 14 days"
+        description="Uptime and status over the last 14 days. Scheduling gaps (monitor outage, unschedulable) never ran on a worker and are not shown here."
         icon={<Clock size={16} className="text-muted-foreground" />}
       >
         <StatusHistorySection serviceSlug={serviceSlug!} checkSlug={checkSlug!} />

@@ -8960,6 +8960,8 @@ export interface components {
             countDown: number;
             /** Format: int32 */
             countDegraded: number;
+            /** Format: int32 */
+            countError: number;
             /** Format: double */
             avgLatencyMs: null | number;
         };

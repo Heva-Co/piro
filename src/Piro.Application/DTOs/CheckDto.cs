@@ -95,5 +95,6 @@ public record CheckDailyStatsDto(
     int CountUp,
     int CountDown,
     int CountDegraded,
+    int CountError,
     double? AvgLatencyMs
 );

@@ -49,8 +49,9 @@ export default function CheckLogsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / 20));
   const paginated = filtered.slice((page - 1) * 20, page * 20);
 
-  // Collect unique regions from data
-  const regions = Array.from(new Set((logs ?? []).map((l) => l.workerRegion).filter(Boolean)));
+  // Collect unique regions from data. "monitor" is the sentinel WorkerRegion for datapoints that never
+  // ran on a worker (MONITOR_OUTAGE / UNSCHEDULABLE), not a real region — exclude it from the filter.
+  const regions = Array.from(new Set((logs ?? []).map((l) => l.workerRegion).filter((r) => r && r !== "monitor")));
 
   function handleLimitChange(newLimit: number) {
     setLimit(newLimit);
@@ -215,7 +216,7 @@ export default function CheckLogsPage() {
                     <td className="px-5 py-2.5 text-sm text-muted-foreground">
                       {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "—"}
                     </td>
-                    <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion ?? "—"}</td>
+                    <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.workerRegion && log.workerRegion !== "monitor" ? log.workerRegion : "—"}</td>
                     <td className="px-5 py-2.5 text-xs text-muted-foreground">{log.errorMessage ?? ""}</td>
                   </tr>
                 ))}

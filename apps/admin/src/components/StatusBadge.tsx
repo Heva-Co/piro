@@ -8,7 +8,12 @@ const STATUS_STYLES: Record<string, { classes: string; label: string }> = {
   NO_DATA: { classes: "bg-muted text-muted-foreground", label: "No Data" },
   FAILURE: { classes: "bg-orange-500 text-white", label: "Check Error" },
   MONITOR_OUTAGE: { classes: "bg-yellow-100 text-yellow-800 border border-yellow-300", label: "Monitor Outage" },
+  UNSCHEDULABLE: { classes: "bg-orange-100 text-orange-800 border border-orange-300", label: "Unschedulable" },
 };
+
+// Data-point types that describe WHY there is no result, shown in place of the neutral NO_DATA status
+// so the operator sees the cause (a transient gap vs. a config error) without it counting as downtime.
+const DATATYPE_OVERRIDES = new Set(["MONITOR_OUTAGE", "UNSCHEDULABLE"]);
 
 interface StatusPillProps {
   status: string;
@@ -17,7 +22,7 @@ interface StatusPillProps {
 }
 
 export function StatusPill({ status, dataType, className }: StatusPillProps) {
-  const key = dataType === "MONITOR_OUTAGE" ? "MONITOR_OUTAGE" : (status ?? "").toUpperCase();
+  const key = dataType && DATATYPE_OVERRIDES.has(dataType) ? dataType : (status ?? "").toUpperCase();
   const { classes, label } = STATUS_STYLES[key] ?? STATUS_STYLES["NO_DATA"];
 
   return (
