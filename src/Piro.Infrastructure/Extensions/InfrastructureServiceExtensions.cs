@@ -298,7 +298,8 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
             new RoutingCheckJobDispatcher(
                 sp.GetRequiredService<LocalCheckJobDispatcher>(),
                 sp.GetRequiredService<RemoteCheckJobDispatcher>(),
-                sp.GetRequiredService<IWorkerRegistry>()));
+                sp.GetRequiredService<IWorkerRegistry>(),
+                sp.GetRequiredService<ITagRepository>()));
 
         // Built-in API worker: always registered so the DB record + UI entry always exist.
         // Supports runtime enable/disable via ApiWorkerHostedService.Enable()/Disable() without restart.

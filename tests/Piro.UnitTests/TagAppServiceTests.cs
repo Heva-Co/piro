@@ -146,6 +146,19 @@ public class TagAppServiceTests
             WorkerTags.GetValueOrDefault(workerId, []).RemoveAll(w => w.Tag.Key == key);
             return Task.CompletedTask;
         }
+
+        public Dictionary<int, List<CheckRequiredWorkerTag>> RequiredWorkerTags { get; } = [];
+
+        public Task<IReadOnlyList<CheckRequiredWorkerTag>> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<CheckRequiredWorkerTag>>(RequiredWorkerTags.GetValueOrDefault(checkId, []));
+
+        public Task ReplaceRequiredWorkerTagsAsync(int checkId, IReadOnlyList<(Tag Tag, string? Value)> tags, CancellationToken ct = default)
+        {
+            RequiredWorkerTags[checkId] = tags
+                .Select(t => new CheckRequiredWorkerTag { CheckId = checkId, TagId = t.Tag.Id, Value = t.Value, Tag = t.Tag })
+                .ToList();
+            return Task.CompletedTask;
+        }
     }
 
     private static ReplaceTagsRequest Req(params TagDto[] tags) => new(tags);
@@ -385,5 +398,73 @@ public class TagAppServiceTests
 
         var result = await svc.GetServiceTagsAsync(1, default);
         result.Tags.Should().NotContain(t => t.Key == "piro:3rd-party");
+    }
+
+    // ---- Part B: required worker tags ----
+
+    [Fact]
+    public async Task ReplaceRequiredWorkerTags_AcceptsPiroWorkerVocabularyKey()
+    {
+        var repo = new FakeTagRepository();
+        repo.Checks.Add(10);
+        var svc = NewService(repo);
+
+        // piro:region is a worker key; allowed here even though it's rejected on the check's own user tags
+        var result = await svc.ReplaceRequiredWorkerTagsAsync(10, Req(new TagDto("piro:region", "eu")), default);
+
+        result.Tags.Should().ContainSingle(t => t.Key == "piro:region" && t.Value == "eu");
+    }
+
+    [Fact]
+    public async Task ReplaceRequiredWorkerTags_AcceptsUserKeyAndKeyOnly()
+    {
+        var repo = new FakeTagRepository();
+        repo.Checks.Add(10);
+        var svc = NewService(repo);
+
+        var result = await svc.ReplaceRequiredWorkerTagsAsync(10,
+            Req(new TagDto("gpu", null), new TagDto("compliance", "hipaa")), default);
+
+        result.Tags.Should().Contain(t => t.Key == "gpu" && t.Value == null);
+        result.Tags.Should().Contain(t => t.Key == "compliance" && t.Value == "hipaa");
+    }
+
+    [Fact]
+    public async Task ReplaceRequiredWorkerTags_RejectsOverCeiling()
+    {
+        var repo = new FakeTagRepository();
+        repo.Checks.Add(10);
+        var svc = NewService(repo);
+        var many = Enumerable.Range(0, TagConstants.MaxTagsPerEntity + 1)
+            .Select(i => new TagDto($"k{i}", null)).ToArray();
+
+        var act = () => svc.ReplaceRequiredWorkerTagsAsync(10, Req(many), default);
+
+        await act.Should().ThrowAsync<DomainValidationException>().WithMessage("*at most*");
+    }
+
+    [Fact]
+    public async Task GetRequiredWorkerTags_UnknownCheck_Throws()
+    {
+        var svc = NewService(new FakeTagRepository());
+        var act = () => svc.GetRequiredWorkerTagsAsync(404, default);
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task ReplaceRequiredWorkerTags_IsSeparateFromCheckOwnTags()
+    {
+        var repo = new FakeTagRepository();
+        repo.Checks.Add(10);
+        repo.Services.Add(1);
+        repo.CheckParents[10] = 1;
+        var svc = NewService(repo);
+
+        await svc.ReplaceRequiredWorkerTagsAsync(10, Req(new TagDto("piro:region", "eu")), default);
+
+        // required worker tags must NOT appear in the check's own/effective metadata tags
+        var checkTags = await svc.GetCheckTagsAsync(10, default);
+        checkTags.Own.Should().BeEmpty();
+        checkTags.Effective.Should().NotContain(t => t.Key == "piro:region");
     }
 }

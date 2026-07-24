@@ -54,4 +54,5 @@ public class Check
     public ICollection<CheckDataPoint> DataPoints { get; set; } = [];
     public ICollection<AlertConfig> AlertConfigs { get; set; } = [];
     public ICollection<CheckTag> CheckTags { get; set; } = [];
+    public ICollection<CheckRequiredWorkerTag> RequiredWorkerTags { get; set; } = [];
 }

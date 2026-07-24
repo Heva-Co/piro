@@ -21,4 +21,5 @@ public class Tag
     public ICollection<ServiceTag> ServiceTags { get; set; } = [];
     public ICollection<CheckTag> CheckTags { get; set; } = [];
     public ICollection<WorkerTag> WorkerTags { get; set; } = [];
+    public ICollection<CheckRequiredWorkerTag> CheckRequiredWorkerTags { get; set; } = [];
 }
