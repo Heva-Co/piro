@@ -239,6 +239,20 @@ public class CheckAppService(
             throw new DomainValidationException($"{manifest.Label} checks must run in a single region (disable multi-region).");
     }
 
+    /// <summary>
+    /// Guards the required-worker-tags write path (RFC 0008 Part B, §4.6): a <c>SingleRegionOnly</c> check
+    /// type is pinned to the built-in/default worker, so required worker tags cannot apply to it. Throws if
+    /// the check does not exist or its type is single-region-only.
+    /// </summary>
+    public async Task EnsureCanRequireWorkerTagsAsync(int checkId, CancellationToken ct = default)
+    {
+        var check = await checkRepository.GetByIdAsync(checkId, ct)
+            ?? throw new NotFoundException(nameof(Check), checkId);
+        var manifest = checkRegistry.Find(check.Type.ToString())?.Manifest;
+        if (manifest?.SingleRegionOnly == true)
+            throw new DomainValidationException($"{manifest.Label} checks run in a single region and cannot require worker tags.");
+    }
+
     private void EnsureScheduleWithinBounds(CheckType type, string cron, string typeDataJson)
     {
         if (cronInterval.SmallestInterval(cron) is not { } interval)

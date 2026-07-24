@@ -25,4 +25,13 @@ public record WorkerInfo(
     DateTime ConnectedAt,
     DateTime LastHeartbeat,
     string? Version = null,
-    bool IsDefault = false);
+    bool IsDefault = false)
+{
+    /// <summary>
+    /// The worker's advertised tags (key → value, value null for a key-only tag), loaded at connect time.
+    /// Used by the Part B scheduler to match a check's required worker tags (RFC 0008 §4.5). Empty when the
+    /// worker carries no tags.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?> Tags { get; init; } =
+        new Dictionary<string, string?>(StringComparer.Ordinal);
+}

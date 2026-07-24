@@ -50,4 +50,12 @@ public interface ITagRepository
     Task RemoveServiceSystemTagAsync(int serviceId, string key, CancellationToken ct = default);
     Task RemoveCheckSystemTagAsync(int checkId, string key, CancellationToken ct = default);
     Task RemoveWorkerSystemTagAsync(Guid workerId, string key, CancellationToken ct = default);
+
+    // Required worker tags (Part B scheduling): a check's constraint on which workers may run it.
+
+    /// <summary>The check's required worker tags (join rows with their catalog key). Empty ⇒ run anywhere.</summary>
+    Task<IReadOnlyList<CheckRequiredWorkerTag>> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default);
+
+    /// <summary>Replaces a check's required-worker-tag set, resolving each key against the shared catalog.</summary>
+    Task ReplaceRequiredWorkerTagsAsync(int checkId, IReadOnlyList<(Tag Tag, string? Value)> tags, CancellationToken ct = default);
 }

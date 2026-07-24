@@ -34,9 +34,17 @@ internal class RemoteCheckJobDispatcher(
     string localWorkerRegion,
     ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher
 {
-    public async Task DispatchAsync(Check check, CancellationToken ct = default)
+    public Task DispatchAsync(Check check, CancellationToken ct = default) =>
+        DispatchToWorkersAsync(check, registry.GetAll(), ct);
+
+    /// <summary>
+    /// Fans a check out to a specific set of workers (RFC 0008 Part B: the tag-eligible subset). When
+    /// <paramref name="workers"/> is the full registry this is the classic multi-region fan-out. The
+    /// built-in API worker still participates when active. An empty set with no API worker records a
+    /// <see cref="DataPointType.MONITOR_OUTAGE"/>, keeping routing total.
+    /// </summary>
+    public async Task DispatchToWorkersAsync(Check check, IReadOnlyList<WorkerInfo> workers, CancellationToken ct = default)
     {
-        var workers = registry.GetAll();
         var totalCount = workers.Count + (apiIsWorker ? 1 : 0);
 
         if (totalCount == 0)

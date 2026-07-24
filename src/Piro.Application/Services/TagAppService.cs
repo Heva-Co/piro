@@ -80,6 +80,58 @@ public class TagAppService(ITagRepository tags, IEnumerable<IComputedSystemTagBa
         return await GetWorkerTagsAsync(workerId, ct);
     }
 
+    /// <summary>A check's required worker tags (RFC 0008 Part B, §4.5). Empty ⇒ the check runs on any worker.</summary>
+    public async Task<EntityTagsDto> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default)
+    {
+        if (!await tags.CheckExistsAsync(checkId, ct))
+            throw new NotFoundException(nameof(Check), checkId);
+        var rows = await tags.GetRequiredWorkerTagsAsync(checkId, ct);
+        return new EntityTagsDto([.. rows.Select(rt => new TagDto(rt.Tag.Key, rt.Value))]);
+    }
+
+    /// <summary>
+    /// Replaces a check's required-worker-tag set. Each key references the shared worker-tag vocabulary, so
+    /// both user keys and <c>piro:*</c> worker keys (e.g. <c>piro:region</c>) are allowed here, unlike the
+    /// check's own user-tag set. Values and lengths are validated; the per-entity ceiling applies.
+    /// </summary>
+    public async Task<EntityTagsDto> ReplaceRequiredWorkerTagsAsync(int checkId, ReplaceTagsRequest request, CancellationToken ct = default)
+    {
+        if (!await tags.CheckExistsAsync(checkId, ct))
+            throw new NotFoundException(nameof(Check), checkId);
+
+        var byKey = new Dictionary<string, string?>();
+        foreach (var tag in request.Tags)
+        {
+            var key = tag.Key?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(key))
+                throw new DomainValidationException("A required worker tag must name a key.");
+            if (key.Length > TagConstants.MaxKeyLength)
+                throw new DomainValidationException($"Tag key '{key}' exceeds the maximum length of {TagConstants.MaxKeyLength}.");
+
+            var value = string.IsNullOrWhiteSpace(tag.Value) ? null : tag.Value.Trim();
+            var valueError = TagValidation.ValidateValue(key, value);
+            if (valueError is not null)
+                throw new DomainValidationException(valueError);
+
+            byKey[key] = value;
+        }
+
+        if (byKey.Count > TagConstants.MaxTagsPerEntity)
+            throw new DomainValidationException($"A check may require at most {TagConstants.MaxTagsPerEntity} worker tags; {byKey.Count} were supplied.");
+
+        var resolved = new List<(Tag, string?)>(byKey.Count);
+        foreach (var (key, value) in byKey)
+        {
+            // A piro:* worker key is System-source; any other key is User-source. Reuse the catalog either way.
+            var source = key.StartsWith(TagConstants.SystemNamespace, StringComparison.Ordinal) ? TagSource.System : TagSource.User;
+            var tag = await tags.GetOrCreateTagAsync(key, source, ct);
+            resolved.Add((tag, value));
+        }
+
+        await tags.ReplaceRequiredWorkerTagsAsync(checkId, resolved, ct);
+        return await GetRequiredWorkerTagsAsync(checkId, ct);
+    }
+
     public Task<IReadOnlyList<string>> GetKeysAsync(string? prefix, CancellationToken ct = default) =>
         tags.GetUserKeysAsync(prefix, ct);
 

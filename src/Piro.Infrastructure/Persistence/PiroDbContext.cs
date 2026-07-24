@@ -53,6 +53,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<ServiceTag> ServiceTags => Set<ServiceTag>();
     public DbSet<CheckTag> CheckTags => Set<CheckTag>();
     public DbSet<WorkerTag> WorkerTags => Set<WorkerTag>();
+    public DbSet<CheckRequiredWorkerTag> CheckRequiredWorkerTags => Set<CheckRequiredWorkerTag>();
 
     // On-call scheduling
     public DbSet<OnCallSchedule> OnCallSchedules => Set<OnCallSchedule>();

@@ -12,7 +12,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1")]
 [Produces("application/json")]
-public class TagsController(TagAppService tagApp) : ControllerBase
+public class TagsController(TagAppService tagApp, CheckAppService checkApp) : ControllerBase
 {
     /// <summary>Lists a service's own tags.</summary>
     [HttpGet("services/{id:int}/tags")]
@@ -118,6 +118,27 @@ public class TagsController(TagAppService tagApp) : ControllerBase
     {
         await tagApp.UnassignCheckSystemTagAsync(id, key, ct);
         return NoContent();
+    }
+
+    /// <summary>Lists a check's required worker tags (Part B scheduling). Empty ⇒ the check runs on any worker.</summary>
+    [HttpGet("checks/{id:int}/required-worker-tags")]
+    [ProducesResponseType<EntityTagsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRequiredWorkerTags(int id, CancellationToken ct)
+    {
+        return Ok(await tagApp.GetRequiredWorkerTagsAsync(id, ct));
+    }
+
+    /// <summary>Replaces a check's required-worker-tag set. Rejected for single-region-only check types.</summary>
+    [HttpPut("checks/{id:int}/required-worker-tags")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType<EntityTagsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReplaceRequiredWorkerTags(int id, [FromBody] ReplaceTagsRequest request, CancellationToken ct)
+    {
+        await checkApp.EnsureCanRequireWorkerTagsAsync(id, ct);
+        return Ok(await tagApp.ReplaceRequiredWorkerTagsAsync(id, request, ct));
     }
 
     /// <summary>Autocomplete: distinct user tag keys, optionally filtered by prefix.</summary>
