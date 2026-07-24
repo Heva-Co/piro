@@ -33,7 +33,6 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
   const { register, control, watch, setValue, formState: { errors } } = useFormContext<CheckConfigFormValues>();
   const showCustomCron = watch("showCustomCron");
   const cron = watch("cron");
-  const isActive = watch("isActive");
   const isMultiRegion = watch("isMultiRegion");
   const name = watch("name");
   const type = watch("type");
@@ -42,7 +41,8 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
   const { data: checkTypes = [] } = useQuery({ queryKey: QUERY_KEYS.CHECK_TYPES, queryFn: checkTypesApi.list });
   const singleRegionOnly = checkTypes.find((t) => t.type === type)?.singleRegionOnly ?? false;
   useEffect(() => {
-    if (singleRegionOnly && isMultiRegion) setValue("isMultiRegion", false);
+    // Auto-normalization, not a user edit, so don't mark the form dirty (keeps Save disabled until real edits).
+    if (singleRegionOnly && isMultiRegion) setValue("isMultiRegion", false, { shouldDirty: false });
   }, [singleRegionOnly, isMultiRegion, setValue]);
 
   const slugManual = useRef(false);
@@ -132,18 +132,22 @@ export function CheckGeneralSettingsFields({ typeNode, slugEditable = false }: P
       <div className="grid grid-cols-2 gap-4">
         <Field >
           <label className="text-sm font-semibold">Active</label>
-          <div className="flex items-center gap-2.5">
-            <Switch checked={isActive} onCheckedChange={(v) => setValue("isActive", v)} />
-            <FieldDescription>{isActive ? "Check is running" : "Check is paused"}</FieldDescription>
-          </div>
+          <Controller name="isActive" control={control} render={({ field }) => (
+            <div className="flex items-center gap-2.5">
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+              <FieldDescription>{field.value ? "Check is running" : "Check is paused"}</FieldDescription>
+            </div>
+          )} />
         </Field>
         {!singleRegionOnly && (
           <Field >
             <label className="text-sm font-semibold">Multi-region</label>
-            <div className="flex items-center gap-2.5">
-              <Switch checked={isMultiRegion} onCheckedChange={(v) => setValue("isMultiRegion", v)} />
-              <FieldDescription >{isMultiRegion ? "Enabled" : "Disabled"}</FieldDescription>
-            </div>
+            <Controller name="isMultiRegion" control={control} render={({ field }) => (
+              <div className="flex items-center gap-2.5">
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <FieldDescription >{field.value ? "Enabled" : "Disabled"}</FieldDescription>
+              </div>
+            )} />
           </Field>
         )}
       </div>
