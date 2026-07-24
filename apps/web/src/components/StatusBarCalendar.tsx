@@ -72,6 +72,24 @@ export function StatusBarCalendar({
     [data]
   );
 
+  // The CURRENT (animated) scale/opacity of each bar. The rAF loop eases these toward each bar's
+  // target for the hovered index every frame, so hover in/out AND moving the focus between bars all
+  // transition smoothly instead of snapping. drawBars reads these live values.
+  const highlightRef = useRef<number | null>(null);
+  const barStateRef = useRef<{ scale: number; opacity: number }[]>([]);
+  const rafRef = useRef<number | null>(null);
+
+  /** The steady-state scale/opacity a bar should have given the hovered index. */
+  const targetFor = useCallback(
+    (i: number, highlightIndex: number | null): { scale: number; opacity: number } => {
+      if (highlightIndex === null) return { scale: 1, opacity: 1 };
+      if (i === highlightIndex) return { scale: 1.15, opacity: 1 };
+      if (i === highlightIndex - 1 || i === highlightIndex + 1) return { scale: 1.08, opacity: 0.9 };
+      return { scale: 1, opacity: 0.5 };
+    },
+    []
+  );
+
   const drawBars = useCallback(
     (width: number, highlightIndex: number | null = null) => {
       const canvas = canvasRef.current;
@@ -88,6 +106,8 @@ export function StatusBarCalendar({
       const barWidth = calcBarWidth(width);
       ctx.clearRect(0, 0, width, totalHeight);
 
+      const barState = barStateRef.current;
+
       for (let i = 0; i < data.length; i++) {
         const x = Math.round(i * (barWidth + GAP));
         const nextX = Math.round((i + 1) * (barWidth + GAP));
@@ -95,19 +115,11 @@ export function StatusBarCalendar({
         const item = data[i];
         const total = item.countUp + item.countDown + item.countDegraded + item.countMaintenance;
 
-        let scale = 1,
-          opacity = 1;
-        if (highlightIndex !== null) {
-          if (i === highlightIndex) {
-            scale = 1.15;
-            opacity = 1;
-          } else if (i === highlightIndex - 1 || i === highlightIndex + 1) {
-            scale = 1.08;
-            opacity = 0.9;
-          } else {
-            opacity = 0.5;
-          }
-        }
+        // Read the bar's live animated scale/opacity (eased toward its target by the rAF loop).
+        // Falls back to the exact target if the animation state isn't seeded yet (e.g. static redraws).
+        const s = barState[i] ?? targetFor(i, highlightIndex);
+        const scale = s.scale;
+        const opacity = s.opacity;
 
         ctx.globalAlpha = opacity;
         const scaledH = barHeight * scale;
@@ -185,6 +197,50 @@ export function StatusBarCalendar({
     [data, barHeight, radius, dpr, calcBarWidth]
   );
 
+  // Animate each bar's progress toward its target (1 when affected by the hovered index, 0 at rest)
+  // and redraw per frame until every bar has settled. Cheap linear-ish ease; ~150ms feel.
+  const animateHighlight = useCallback(
+    (highlightIndex: number | null) => {
+      highlightRef.current = highlightIndex;
+      if (rafRef.current !== null) return; // a loop is already running; it reads highlightRef
+
+      const step = () => {
+        const n = data?.length ?? 0;
+        if (barStateRef.current.length !== n)
+          barStateRef.current = Array.from({ length: n }, () => ({ scale: 1, opacity: 1 }));
+        const barState = barStateRef.current;
+        const hi = highlightRef.current;
+        let settled = true;
+
+        const EASE = 0.2; // fraction of the remaining distance closed each frame (~150ms feel)
+        for (let i = 0; i < n; i++) {
+          const target = targetFor(i, hi);
+          const s = barState[i];
+          s.scale += (target.scale - s.scale) * EASE;
+          s.opacity += (target.opacity - s.opacity) * EASE;
+          // Snap when close enough so the loop can settle and stop.
+          if (Math.abs(target.scale - s.scale) < 0.001) s.scale = target.scale;
+          if (Math.abs(target.opacity - s.opacity) < 0.001) s.opacity = target.opacity;
+          if (s.scale !== target.scale || s.opacity !== target.opacity) settled = false;
+        }
+
+        drawBars(canvasWidth, hi);
+
+        if (settled) {
+          rafRef.current = null;
+        } else {
+          rafRef.current = requestAnimationFrame(step);
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(step);
+    },
+    [data, canvasWidth, drawBars, targetFor]
+  );
+
+  // Stop any in-flight animation frame on unmount.
+  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+
   // Observe container width
   useEffect(() => {
     const el = containerRef.current;
@@ -235,13 +291,13 @@ export function StatusBarCalendar({
       setHoveredBar({ index: found, x: barX, data: data[found] });
       if (hoveredIndexRef.current !== found) {
         hoveredIndexRef.current = found;
-        drawBars(canvasWidth, found);
+        animateHighlight(found);
       }
     } else {
       setHoveredBar(null);
       if (hoveredIndexRef.current !== null) {
         hoveredIndexRef.current = null;
-        drawBars(canvasWidth, null);
+        animateHighlight(null);
       }
     }
   }
@@ -250,7 +306,7 @@ export function StatusBarCalendar({
     setHoveredBar(null);
     if (hoveredIndexRef.current !== null) {
       hoveredIndexRef.current = null;
-      drawBars(canvasWidth, null);
+      animateHighlight(null);
     }
   }
 

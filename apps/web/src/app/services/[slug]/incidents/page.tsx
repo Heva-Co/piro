@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { resolveHistoryDays } from "@/src/lib/utils";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/src/components/ui/empty";
 import { servicesApi } from "@/src/lib/actions/services";
 import { incidentsApi } from "@/src/lib/actions/incidents";
 import { ServiceStatusCard } from "@/src/components/ServiceStatusCard";
@@ -75,7 +77,15 @@ async function IncidentsTabContentSection(props: { slug: string }) {
   return (
     <div className="p-5 flex flex-col gap-3">
       {serviceIncidents.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No incidents recorded</p>
+        <Empty className="py-10">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldCheck />
+            </EmptyMedia>
+            <EmptyTitle>No incidents recorded</EmptyTitle>
+            <EmptyDescription>This service has had no reported incidents in this period.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         serviceIncidents.map((incident) => <IncidentCard key={incident.id} incident={incident} />)
       )}

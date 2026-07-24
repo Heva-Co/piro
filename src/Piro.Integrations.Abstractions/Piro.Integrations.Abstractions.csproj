@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Piro.Contracts\Piro.Contracts.csproj" />
+    <!-- Integrations can ship checks (RFC 0016): IIntegration.ProvidedChecks() returns ICheck. -->
+    <ProjectReference Include="..\Piro.Checks.Abstractions\Piro.Checks.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

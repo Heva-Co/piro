@@ -1,1 +1,0 @@
-{{~ if is_recovery ~}}[Piro] RECOVERED: {{ title }} is now {{ current_status }}.{{~ else ~}}[Piro] {{ severity }}: {{ title }} is {{ current_status }}. {{ fired_at }}{{~ end ~}}{{~ if check_url ~}} {{ check_url }}{{~ end ~}}

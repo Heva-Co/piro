@@ -13,7 +13,7 @@ public class NotificationSubscription
 {
     public Guid Id { get; set; }
 
-    /// <summary>Human label, e.g. "Prod alerts → PagerDuty".</summary>
+    /// <summary>Human label, e.g. "Prod alerts → Telegram".</summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

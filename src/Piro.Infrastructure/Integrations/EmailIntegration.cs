@@ -16,7 +16,6 @@ internal sealed class EmailIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsPersonalNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(EmptyConfig),
         ChannelOnly = true,

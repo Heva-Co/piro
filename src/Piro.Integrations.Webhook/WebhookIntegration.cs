@@ -13,7 +13,6 @@ public sealed class WebhookIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsChannelNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(WebhookConfig),
         Label = "Webhook",

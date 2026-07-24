@@ -12,11 +12,37 @@ namespace Piro.Integrations.Ntfy;
 /// wording that used to live in the <c>ntfy_title</c>/<c>ntfy_body</c> Scriban templates is ported
 /// inline here. It references no Piro.Domain type, no repository, no secret store (RFC 0016 §4.2b).
 /// </summary>
-public sealed class NtfyNotificationDispatcher : IIntegrationEventHandler
+public sealed class NtfyNotificationDispatcher : IIntegrationEventHandler, IVerificationCodeSender
 {
     private const string DefaultServer = "https://ntfy.sh";
 
     public string IntegrationId => "Ntfy";
+
+    /// <summary>Posts a one-time verification code to the topic as plain text.</summary>
+    public async Task<bool> SendCodeAsync(Guid? integrationId, string handle, string code, IIntegrationHost host, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(handle) || integrationId is not { } id)
+            return false;
+
+        var config = await host.GetConfigAsync<NtfyConfig>(id, ct);
+        var serverUrl = string.IsNullOrWhiteSpace(config?.ServerUrl) ? DefaultServer : config.ServerUrl;
+        var url = $"{serverUrl.TrimEnd('/')}/{handle}";
+
+        var client = host.GetRequiredService<HttpClient>();
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(code, Encoding.UTF8, "text/plain"),
+        };
+        request.Headers.Add("Title", "Piro verification code");
+        if (!string.IsNullOrWhiteSpace(config?.Token))
+            request.Headers.Add("Authorization", $"Bearer {config.Token}");
+
+        HttpResponseMessage response;
+        try { response = await client.SendAsync(request, ct); }
+        catch (TaskCanceledException) { throw new InvalidOperationException("ntfy request timed out."); }
+
+        return response.IsSuccessStatusCode;
+    }
 
     public async Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
     {

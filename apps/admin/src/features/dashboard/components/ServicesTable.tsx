@@ -1,7 +1,8 @@
-
+import { Server } from "lucide-react";
 import StatusPill from "@/components/StatusBadge";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import type { Service } from "@/lib/actions/services";
 
 const COLUMNS = ["Name", "Slug", "Status"];
@@ -25,7 +26,15 @@ function ServicesTable(props: Props) {
       ) : isLoading ? (
         <TableSkeleton columns={COLUMNS} />
       ) : services.length === 0 ? (
-        <div className="p-6 text-sm text-muted-foreground">No services found.</div>
+        <Empty className="py-12">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Server />
+            </EmptyMedia>
+            <EmptyTitle>No services found</EmptyTitle>
+            <EmptyDescription>Create a service to start monitoring its checks.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <Table className="min-w-full text-sm">
           <TableHeader>

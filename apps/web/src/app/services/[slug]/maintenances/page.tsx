@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { Wrench } from "lucide-react";
 import { resolveHistoryDays } from "@/src/lib/utils";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/src/components/ui/empty";
 import { servicesApi } from "@/src/lib/actions/services";
 import { incidentsApi } from "@/src/lib/actions/incidents";
 import { maintenancesApi } from "@/src/lib/actions/maintenances";
@@ -72,9 +74,15 @@ async function MaintenancesTabContentSection(props: { slug: string }) {
   return (
     <div className="p-5 flex flex-col gap-3">
       {serviceMaintenances.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          No maintenances scheduled
-        </p>
+        <Empty className="py-10">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Wrench />
+            </EmptyMedia>
+            <EmptyTitle>No maintenances scheduled</EmptyTitle>
+            <EmptyDescription>Planned maintenance windows for this service will show up here.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         serviceMaintenances.map((m) => <MaintenanceCard key={m.id} maintenance={m} />)
       )}

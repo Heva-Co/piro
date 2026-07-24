@@ -284,32 +284,10 @@ export const usersApi = {
 
 // Profile — see lib/actions/profile
 
-/** Personal channels a user can pick for on-call notifications. Kept in sync with PersonalNotificationChannel on the backend. */
-export const PERSONAL_NOTIFICATION_CHANNELS = {
-  Email: "Email",
-  Telegram: "Telegram",
-  TwilioSms: "TwilioSms",
-  Ntfy: "Ntfy",
-} as const;
-
-export type PersonalNotificationChannelType = keyof typeof PERSONAL_NOTIFICATION_CHANNELS;
-
-export interface UserNotificationPreference {
-  id: number;
-  channel: PersonalNotificationChannelType;
-  integrationId: string | null;
-  integrationName: string | null;
-  handle: string;
-  priority: number;
-  isVerified: boolean;
-  isAccountFallback: boolean;
-}
-
-export interface UpsertNotificationPreference {
-  channel: PersonalNotificationChannelType;
-  integrationId: string | null;
-  handle: string;
-}
+// Notification preferences: types are generated from the backend OpenAPI spec (see AGENTS.md), so a
+// preference is identified by the integration instance it delivers through — its type is the channel.
+export type UserNotificationPreference = components["schemas"]["UserNotificationPreferenceDto"];
+export type UpsertNotificationPreference = components["schemas"]["UpsertUserNotificationPreferenceRequest"];
 
 // ─── Site config ─────────────────────────────────────────────────────────────
 
@@ -543,13 +521,6 @@ export const searchApi = {
     api.get<SearchResult[]>(ENDPOINTS.SEARCH, { params: { q } }).then((r) => r.data),
 };
 
-// ─── Config import ────────────────────────────────────────────────────────────
-
-export const configApi = {
-  import: (yaml: string) =>
-    api.post(ENDPOINTS.CONFIG_IMPORT, { yaml }),
-};
-
 // ─── Health ───────────────────────────────────────────────────────────────────
 
 export interface HealthResponse {
@@ -570,7 +541,6 @@ export const INTEGRATION_TYPES = {
   Email: "Email",
   Webhook: "Webhook",
   Slack: "Slack",
-  PagerDuty: "PagerDuty",
   MSTeams: "MSTeams",
   Telegram: "Telegram",
   Twilio: "Twilio",
@@ -582,14 +552,6 @@ export const INTEGRATION_TYPES = {
 } as const;
 
 export type IntegrationType = keyof typeof INTEGRATION_TYPES;
-
-export const INTEGRATION_CATEGORIES = {
-  Notification: "Notification", 
-  ThirdParty: "ThirdParty"
-}
-
-export type NotificationCategoryType = keyof typeof INTEGRATION_CATEGORIES;
-
 
 // ─── Check Types ──────────────────────────────────────────────────────────────
 // Moved to lib/actions/checks (aliases the generated CheckTypeMetaDto, RFC 0011).

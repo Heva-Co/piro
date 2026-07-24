@@ -8,7 +8,7 @@ import { PiroLogoLoader } from "@/components/PiroLogoLoader";
  * Integration OAuth callback handler (RFC 0004).
  *
  * Flow:
- * 1. The provider (PagerDuty) redirects the browser here with ?code=...&state=...
+ * 1. The provider (e.g. Jira) redirects the browser here with ?code=...&state=...
  * 2. This page relays code+state to POST /api/v1/integrations/oauth/callback
  * 3. The backend exchanges the code and stores the encrypted token, keyed by the integration the
  *    connect flow was started for (carried in the state), then returns which integration connected

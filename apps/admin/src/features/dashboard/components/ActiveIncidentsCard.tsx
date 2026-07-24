@@ -1,5 +1,7 @@
+import { ShieldCheck } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import ListItemSkeleton from "@/features/dashboard/components/ListItemSkeleton";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import type { Incident } from "@/lib/actions/incidents";
 
 interface Props {
@@ -22,7 +24,15 @@ function ActiveIncidentsCard(props: Props) {
           <ListItemSkeleton />
         </div>
       ) : active.length === 0 ? (
-        <div className="p-4 text-sm text-muted-foreground">No active incidents.</div>
+        <Empty className="py-10">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldCheck />
+            </EmptyMedia>
+            <EmptyTitle>No active incidents</EmptyTitle>
+            <EmptyDescription>All monitored services are operating normally.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <ul className="divide-y divide-border">
           {active.map((incident) => (

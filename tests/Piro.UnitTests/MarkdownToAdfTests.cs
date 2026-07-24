@@ -7,14 +7,14 @@ namespace Piro.UnitTests;
 /// <summary>
 /// Verifies the Markdown→ADF conversion Jira issue bodies use (RFC 0012 §4.6): the small subset Piro's
 /// drafts generate maps to valid ADF, and unrecognized input degrades to a paragraph rather than throwing.
-/// MarkdownToAdf is internal to Piro.Infrastructure, so these drive it via reflection.
+/// MarkdownToAdf is internal to Piro.Integrations.Jira, so these drive it via reflection.
 /// </summary>
 public class MarkdownToAdfTests
 {
     private static JsonNode Convert(string markdown)
     {
-        var type = System.Reflection.Assembly.Load("Piro.Infrastructure")
-            .GetType("Piro.Infrastructure.Integrations.Actions.MarkdownToAdf")!;
+        var type = System.Reflection.Assembly.Load("Piro.Integrations.Jira")
+            .GetType("Piro.Integrations.Jira.MarkdownToAdf")!;
         var method = type.GetMethod("Convert", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
         var result = method.Invoke(null, [markdown])!;
         // Re-parse through JsonNode so tests assert on a stable shape regardless of the concrete node type.

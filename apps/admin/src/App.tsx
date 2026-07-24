@@ -53,7 +53,6 @@ import SsoPage from "@/features/configuration/pages/SsoPage";
 import SsoProviderFormPage from "@/features/configuration/pages/SsoProviderFormPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
-import ImportPage from "@/features/configuration/pages/ImportPage";
 import JobsPage from "@/features/configuration/pages/JobsPage";
 import DataRetentionPage from "@/features/configuration/pages/DataRetentionPage";
 import OnCallSchedulesPage from "@/features/oncall/pages/OnCallSchedulesPage";
@@ -163,7 +162,6 @@ export default function App() {
               <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
               <Route path={ROUTES.CONFIG.USER_DETAIL(":id")} element={<UserDetailPage />} />
               <Route path={ROUTES.CONFIG.WORKERS} element={<WorkersPage />} />
-              <Route path={ROUTES.CONFIG.IMPORT} element={<ImportPage />} />
               <Route path={ROUTES.CONFIG.JOBS} element={<JobsPage />} />
               <Route path={ROUTES.CONFIG.DATA_RETENTION} element={<DataRetentionPage />} />
 

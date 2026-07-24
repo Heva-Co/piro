@@ -1,14 +1,15 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Piro.Application.Integrations.Actions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
 using Piro.Application.Services;
+using Piro.Checks;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
@@ -17,7 +18,6 @@ using Piro.Infrastructure.Integrations.Actions;
 using Piro.Infrastructure.Integrations;
 using Piro.Infrastructure.Email;
 using Piro.Infrastructure.Checks;
-using Piro.Infrastructure.Integrations.GoogleCloud;
 using Piro.Infrastructure.Integrations.OAuth;
 using Piro.Infrastructure.Security;
 using Microsoft.AspNetCore.SignalR;
@@ -72,7 +72,18 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
         services.AddDistributedMemoryCache();
-        services.AddDataProtection();
+
+        // Data Protection keyring — encrypts config secrets (SecretField) and stored OAuth tokens. The
+        // keyring must survive restarts/rebuilds: if the keys rotate, everything encrypted with the old
+        // keys (e.g. a stored clientSecret) becomes undecryptable ("The payload was invalid"). A fixed
+        // application name isolates the ring, and the keys are persisted to a stable directory
+        // (./EncryptionKeys by default, overridable via DataProtection:KeysDirectory — Docker points it
+        // at a mounted volume) instead of the framework's default container-ephemeral location.
+        var keysDirectory = configuration["DataProtection:KeysDirectory"] ?? "./EncryptionKeys";
+        Directory.CreateDirectory(keysDirectory);
+        services.AddDataProtection()
+            .SetApplicationName("Piro")
+            .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
         services.AddHttpClient("oidc-http", c =>
             {
                 c.Timeout = TimeSpan.FromSeconds(15);
@@ -131,15 +142,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 },
             });
 
-        services.AddScoped<ICheckExecutor, HttpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, PingCheckExecutor>();
-        services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
-        services.AddScoped<ICheckExecutor, SslCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GcpCloudRunJobCheckExecutor>();
-        services.AddSingleton<GcpTokenCache>();
-        services.AddScoped<IGcpTokenProvider, GcpTokenProvider>();
+        // The RFC 0016 check SDK: the registry of ICheck implementations, the allow-listed host, and the
+        // single adapter that bridges Piro's pipeline to it (replaces the seven per-type executors).
+        services.AddChecks();
+        services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
 
         // In-process event pipeline: check executions → service status recomputation
         services.AddSingleton(Channel.CreateUnbounded<CheckStatusChangedEvent>());
@@ -183,47 +189,10 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IJobStatusService, JobStatusService>();
         services.AddScoped<IRRuleExpander, RRuleExpander>();
 
-        // Integration repository
-        services.AddScoped<IIntegrationRepository, IntegrationRepository>();
-
-        // OAuth integration framework (RFC 0004) — generic OAuth client + encrypted token store.
-        services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
-        services.AddScoped<IOAuthClient, OAuthClient>();
-        services.AddSingleton<ISecretProtector, DataProtectorSecretProtector>();
-        services.AddScoped<IOAuthTokenProvider, OAuthTokenProvider>();
-        services.AddScoped<IJiraDiscoveryService, JiraDiscoveryService>();
-        services.AddScoped<IServiceIntegrationMappingRepository, ServiceIntegrationMappingRepository>();
-
-        // Integration actions (RFC 0012). The host is the sole DB/OAuth seam an action sees.
-        services.AddScoped<IActionHost, ActionHost>();
-        services.AddScoped<IActionRegistry, ActionRegistry>();
-        // Action handlers — one IIntegrationAction per declared [IntegrationAction], joined to its
-        // manifest metadata by (Type, ActionId) in the registry.
-        services.AddScoped<IIntegrationAction, JiraCreateIssueAction>();
-        // Dynamic-options providers — populate select fields from the connected account at runtime.
-        services.AddScoped<IOptionsProvider, JiraProjectsOptionsProvider>();
-        services.AddScoped<IOptionsProvider, JiraIssueTypesOptionsProvider>();
-        // Provider descriptors — one per third-party OAuth service (resolved as IEnumerable).
-        services.AddSingleton<IOAuthProviderDescriptor, JiraOAuthProviderDescriptor>();
-        // Dedicated HTTP client for third-party OAuth token endpoints — HTTP/1.1, IPv4-forced (mirrors oidc-http).
-        services.AddHttpClient("oauth-integration-http", c =>
-            {
-                c.Timeout = TimeSpan.FromSeconds(15);
-                c.DefaultRequestVersion = System.Net.HttpVersion.Version11;
-                c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-            })
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-            {
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-                ConnectTimeout = TimeSpan.FromSeconds(10),
-                ConnectCallback = async (context, ct) =>
-                {
-                    var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
-                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-                    await socket.ConnectAsync(new IPEndPoint(addresses[0], context.DnsEndPoint.Port), ct);
-                    return new NetworkStream(socket, ownsSocket: true);
-                },
-            });
+        // Integration surface (RFC 0004/0012/0016) — repository, OAuth framework, UI-action registry/host,
+        // the compile-time integration registry, every integration assembly and its handlers, and the
+        // startup hook. All wired in one place next to the integration code (see IntegrationServiceExtensions).
+        services.AddIntegrations();
 
         // On-call scheduling
         services.AddScoped<IOnCallScheduleRepository, OnCallScheduleRepository>();
@@ -257,37 +226,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<ISiteConfigRepository, SiteConfigRepository>();
         services.AddScoped<ISiteUrlBuilder, SiteUrlBuilder>();
 
-        // Integration SDK (RFC 0016) — the explicit compile-time registry + the per-integration
-        // assemblies. Each integration self-describes (IIntegration) and delivers via a single
-        // IIntegrationEventHandler against the neutral Event hierarchy, reaching Piro only through
-        // IIntegrationHost. Email stays here in Infrastructure (its SMTP transport is core infra).
-        services.AddScoped<IIntegrationHost, IntegrationHost>();
-        services.AddSingleton<IIntegrationRegistry, IntegrationRegistry>();
-
-        services.AddSingleton<IIntegration, Piro.Integrations.Telegram.TelegramIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.Twilio.TwilioIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.Ntfy.NtfyIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.GoogleChat.GoogleChatIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.Webhook.WebhookIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.Jira.JiraIntegration>();
-        services.AddSingleton<IIntegration, Piro.Integrations.Gcp.GcpCloudMonitoringWebhookIntegration>();
-        services.AddSingleton<IIntegration, EmailIntegration>();
-        services.AddSingleton<IIntegration, GoogleCloudIntegration>();
-
-        services.AddScoped<IIntegrationEventHandler, EmailDispatcher>();
-        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Telegram.TelegramNotificationDispatcher>();
-        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Twilio.TwilioNotificationDispatcher>();
-        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Ntfy.NtfyNotificationDispatcher>();
-        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.GoogleChat.GoogleChatNotificationDispatcher>();
-        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
-
-        // Verification-code senders (RFC 0009 §4.9) — a distinct concern from notification dispatch,
-        // kept in Infrastructure. Email plus the personal plain-text channels.
-        services.AddScoped<IVerificationCodeSender, EmailDispatcher>();
-        services.AddScoped<IVerificationCodeSender, TelegramDispatcher>();
-        services.AddScoped<IVerificationCodeSender, TwilioSmsDispatcher>();
-        services.AddScoped<IVerificationCodeSender, NtfyDispatcher>();
-
         // Notification push engine (RFC 0009) — durable outbox + drain worker (phase 3) and the
         // subscription-matching processor (phase 4) that replaces the phase-3 no-op.
         services.AddScoped<INotificationEventPublisher, NotificationEventPublisher>();
@@ -320,11 +258,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // LocalCheckJobDispatcher: always available — runs checks in-process when built-in worker is active
         services.AddScoped<LocalCheckJobDispatcher>(sp =>
             new LocalCheckJobDispatcher(
-                sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
+                sp.GetRequiredService<ICheckExecutor>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                sp.GetRequiredService<ICheckDataPointRepository>(),
-                workerRegion,
-                sp.GetRequiredService<ILogger<LocalCheckJobDispatcher>>()));
+                workerRegion));
 
         // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
         // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it
@@ -334,7 +270,7 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 sp.GetRequiredService<IWorkerRegistry>(),
                 sp.GetRequiredService<IMultiRegionBatchTracker>(),
                 sp.GetRequiredService<ICheckDataPointRepository>(),
-                sp.GetRequiredService<IEnumerable<ICheckExecutor>>(),
+                sp.GetRequiredService<ICheckExecutor>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
                 apiIsWorker: false,   // multi-region fan-out never includes the built-in API worker directly
                 workerRegion,
@@ -369,12 +305,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddHttpClient("piro-http-noredirect")
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
-        services.AddScoped<ICheckExecutor, HttpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, PingCheckExecutor>();
-        services.AddScoped<ICheckExecutor, TcpCheckExecutor>();
-        services.AddScoped<ICheckExecutor, DnsCheckExecutor>();
-        services.AddScoped<ICheckExecutor, SslCheckExecutor>();
-        services.AddScoped<ICheckExecutor, GrpcCheckExecutor>();
+        // Same RFC 0016 check SDK the API uses — a remote worker runs the identical set of checks.
+        services.AddChecks();
+        services.AddScoped<ICheckExecutor, RegistryCheckExecutor>();
 
         return services;
     }

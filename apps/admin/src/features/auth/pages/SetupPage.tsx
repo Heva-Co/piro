@@ -447,7 +447,7 @@ export default function SetupPage() {
                           }}
                         >
                           <SelectTrigger className="w-full">
-                            <SelectValue />
+                            <SelectValue>{field.value === "smtp" ? "SMTP" : "Resend"}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="smtp">SMTP</SelectItem>

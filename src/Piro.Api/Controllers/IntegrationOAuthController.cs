@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
+using Piro.Contracts;
 using Piro.Infrastructure.Integrations.OAuth;
+using Piro.Integrations.Jira;
 
 namespace Piro.Api.Controllers;
 
@@ -117,7 +119,6 @@ public class IntegrationOAuthController(
 
     private static string? ProviderIdFor(string integrationId) => integrationId switch
     {
-        "PagerDuty" => "pagerduty",
         "Jira" => "jira",
         _ => null
     };

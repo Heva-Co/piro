@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Domain.Entities;
 
@@ -10,7 +11,7 @@ namespace Piro.Domain.Entities;
 /// <para>
 /// One polymorphic table rather than columns-per-entity or per-integration: the alternative forces a
 /// migration for every (entity × integration) pair and can't represent "an object with both a Jira and a
-/// future Linear ticket." Same trade RFC 0004 makes with <c>ServiceIntegrationMapping.MappingJson</c>.
+/// future Linear ticket."
 /// </para>
 /// </summary>
 public class ExternalReference
@@ -18,7 +19,7 @@ public class ExternalReference
     public int Id { get; set; }
 
     /// <summary>Which kind of local object this points at (Alert/Incident/Maintenance). Polymorphic — deliberately not a FK; there is no common base to reference.</summary>
-    public ActionContext TargetType { get; set; }
+    public UISurface TargetType { get; set; }
 
     /// <summary>The local object's int Id (Alert.Id / Incident.Id / Maintenance.Id — all int).</summary>
     public int TargetId { get; set; }
@@ -43,7 +44,7 @@ public class ExternalReference
     /// Provider-specific coordinates as an opaque JSON blob — the escape valve that lets an integration
     /// keep whatever it needs (Slack's message ts, Linear's team id, …) without the table or the host
     /// contract growing a per-provider field. Piro stores and returns it verbatim; only the integration
-    /// that wrote it interprets it. Defaults to <c>"{}"</c>, mirroring <c>ServiceIntegrationMapping.MappingJson</c>.
+    /// that wrote it interprets it. Defaults to <c>"{}"</c>.
     /// </summary>
     public string MetadataJson { get; set; } = "{}";
 

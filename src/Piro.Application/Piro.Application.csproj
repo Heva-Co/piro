@@ -3,12 +3,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Piro.Contracts\Piro.Contracts.csproj" />
     <ProjectReference Include="..\Piro.Domain\Piro.Domain.csproj" />
+    <ProjectReference Include="..\Piro.Checks.Abstractions\Piro.Checks.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="MediatR" Version="14.1.0" />
-    <PackageReference Include="YamlDotNet" Version="17.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

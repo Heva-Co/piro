@@ -105,7 +105,7 @@ public sealed class MultiRegionBatchTracker(
 
         var firstError = results.FirstOrDefault(r => r.ErrorMessage is not null)?.ErrorMessage;
 
-        var aggregated = new CheckExecutionResult(worstStatus, avgLatency, firstError);
+        var aggregated = CheckExecutionResult.WithLatency(worstStatus, avgLatency, firstError);
 
         logger.LogDebug(
             "Batch for check {CheckId} complete ({Reason}). {Count}/{Total} results — aggregated status: {Status}.",

@@ -170,8 +170,10 @@ public class PostmortemPdfGenerator : IPostmortemPdfGenerator
                             {
                                 var label = item.IsAnnotation
                                     ? $"Note{(string.IsNullOrWhiteSpace(item.ActorName) ? "" : $" · {item.ActorName}")}"
-                                    : $"{item.Source} · #{item.IncidentId} {item.IncidentTitle}";
-                                t.Span(label).FontColor(Colors.Grey.Darken1).FontSize(9);
+                                    : $"{SourceLabel(item.Source)} · #{item.IncidentId} {item.IncidentTitle}";
+                                // Line() (not Span()) so the label finishes its own line; otherwise the
+                                // body text below glues onto the end of the label ("...failingRequest timed out.").
+                                t.Line(label).FontColor(Colors.Grey.Darken1).FontSize(9);
                                 if (!string.IsNullOrWhiteSpace(item.Text))
                                     t.Line(item.Text);
                             });
@@ -180,6 +182,36 @@ public class PostmortemPdfGenerator : IPostmortemPdfGenerator
                 });
             }
         });
+    }
+
+    // Human-readable labels for timeline "source" ids, mirroring the admin's timelineLabels.ts so the
+    // PDF reads the same as the on-screen timeline ("alert:Fired" -> "Alert fired") rather than dumping
+    // the raw technical id.
+    private static readonly IReadOnlyDictionary<string, string> SourceLabels = new Dictionary<string, string>
+    {
+        ["incident:Created"] = "Incident created",
+        ["incident:StatusChanged"] = "Status changed",
+        ["incident:CommentPosted"] = "Comment posted",
+        ["incident:Acknowledged"] = "Acknowledged",
+        ["incident:ServiceAdded"] = "Service added",
+        ["incident:ServiceRemoved"] = "Service removed",
+        ["incident:MergedTo"] = "Merged into another incident",
+        ["incident:MergedFrom"] = "Absorbed another incident",
+        ["incident:Published"] = "Published",
+        ["incident:Unpublished"] = "Unpublished",
+        ["incident:AlertFired"] = "Alert fired",
+        ["incident:ImpactChanged"] = "Impact changed",
+        ["alert:Fired"] = "Alert fired",
+        ["alert:Resolved"] = "Alert resolved",
+    };
+
+    private static string SourceLabel(string source)
+    {
+        if (SourceLabels.TryGetValue(source, out var label))
+            return label;
+        // Fall back to a de-prefixed, spaced version ("incident:SomethingNew" -> "Something New").
+        var bare = source.Contains(':') ? source[(source.IndexOf(':') + 1)..] : source;
+        return System.Text.RegularExpressions.Regex.Replace(bare, "([a-z])([A-Z])", "$1 $2");
     }
 
     private static string FormatDate(DateTimeOffset? d) =>

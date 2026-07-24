@@ -17,7 +17,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0001](0001-third-party-alert-ingestion.md) | Third-party alert ingestion (GCP Cloud Monitoring) | **Implemented** (PR #173) | — |
 | [0002](0002-raw-measurement-vs-alert-severity.md) | Separate raw measurement from alert severity (Prometheus/Alertmanager-style) | **Implemented** (PR #165) | — |
 | [0003](0003-integration-manifest.md) | Integration manifest | **Implemented** (PR #172) | — |
-| [0004](0004-pagerduty-dispatcher.md) | OAuth integration framework with resource discovery (PagerDuty as first consumer) | **Implemented** (PR #193) | 0001, 0003 |
+| [0004](0004-pagerduty-dispatcher.md) | OAuth integration framework with resource discovery (PagerDuty as first consumer) | Withdrawn (PR #193, by 0015) | 0001, 0003 |
 | [0005](0005-incident-postmortems.md) | Postmortems (standalone post-incident review reports) | **Implemented** (PR #205) | — |
 | [0006](0006-escalation-limits.md) | Escalation limits: per-step retries with a terminal state | **Implemented** (PR #182, #178) | — |
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
@@ -29,9 +29,9 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
-| [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | Accepted (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
+| [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
 
-Implemented (frozen): **0001, 0002, 0003, 0004, 0005, 0006, 0009, 0011, 0012, 0014, 0015**.
+Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0009, 0011, 0012, 0014, 0015, 0016**.
 
 ## Dependency graph
 
@@ -42,7 +42,7 @@ graph LR
   n0001["0001 ✓"]
   n0002["0002 ✓"]
   n0003["0003 ✓"]
-  n0004["0004 ✓"]
+  n0004["0004"]
   n0005["0005 ✓"]
   n0006["0006 ✓"]
   n0007["0007"]
@@ -54,7 +54,7 @@ graph LR
   n0013["0013"]
   n0014["0014 ✓"]
   n0015["0015 ✓"]
-  n0016["0016"]
+  n0016["0016 ✓"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
@@ -76,7 +76,6 @@ graph LR
   class n0001 done;
   class n0002 done;
   class n0003 done;
-  class n0004 done;
   class n0005 done;
   class n0006 done;
   class n0009 done;
@@ -84,6 +83,7 @@ graph LR
   class n0012 done;
   class n0014 done;
   class n0015 done;
+  class n0016 done;
 ```
 
 <!-- END GENERATED INDEX -->

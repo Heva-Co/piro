@@ -17,21 +17,23 @@ interface Props {
 /**
  * Pre-built webhook URL for any inbound-webhook IntegrationType (RFC 0001 §4.8) — the auth token
  * is embedded in the query string since most third-party webhook dialogs only accept one plain
- * "Endpoint URL" field, no custom headers. Renders nothing for a type with no webhookPath (i.e.
- * every non-webhook type) — not GCP-specific, any future inbound webhook type reuses this as-is.
+ * "Endpoint URL" field, no custom headers. The route is resolved by the integration instance's id,
+ * so the URL is /webhooks/{integrationId}; the integration's registered handler owns the rest. Renders
+ * nothing for a type that isn't an inbound webhook (no CreatesAlerts capability) — not GCP-specific,
+ * any future inbound webhook type reuses this as-is.
  */
 export function IntegrationWebhookUrlField(props: Props) {
   const { integrationId, typeMeta, configValues } = props;
   const [copied, setCopied] = useState(false);
 
-  if (!typeMeta.webhookPath) return null;
+  if (!typeMeta.capabilities.includes("CreatesAlerts")) return null;
 
   const tokenField = typeMeta.configSchema.find((f) => f.isGenerated && f.isSecret);
   const rawToken = tokenField ? configValues[tokenField.key] : undefined;
   const token = typeof rawToken === "string" ? rawToken : "";
   const isTokenKnown = token !== "" && token !== MASKED_SECRET_VALUE;
 
-  const url = `${API_BASE}/webhooks/${typeMeta.webhookPath}/${integrationId}?auth_token=${isTokenKnown ? token : "…"}`;
+  const url = `${API_BASE}/webhooks/${integrationId}?auth_token=${isTokenKnown ? token : "…"}`;
 
   function handleCopy() {
     navigator.clipboard.writeText(url);

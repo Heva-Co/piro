@@ -11,7 +11,9 @@ internal class UserNotificationPreferenceConfiguration : IEntityTypeConfiguratio
         builder.ToTable("UserNotificationPreferences");
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Handle).HasMaxLength(500).IsRequired();
-        builder.HasIndex(p => new { p.UserId, p.Channel, p.IntegrationId }).IsUnique();
+        // Unique per user + instance + handle — a user can't duplicate the same destination, but two
+        // different users may share the same integration instance (a shared Telegram bot, say).
+        builder.HasIndex(p => new { p.UserId, p.IntegrationInstanceId, p.Handle }).IsUnique();
         builder.HasIndex(p => p.UserId);
         builder.HasOne(p => p.User)
             .WithMany(u => u.NotificationPreferences)
@@ -19,7 +21,7 @@ internal class UserNotificationPreferenceConfiguration : IEntityTypeConfiguratio
             .OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(p => p.Integration)
             .WithMany()
-            .HasForeignKey(p => p.IntegrationId)
+            .HasForeignKey(p => p.IntegrationInstanceId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

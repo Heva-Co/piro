@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
-using Piro.Application.Integrations.Actions;
 using Piro.Application.Extensions;
 using Piro.Application.Services;
 using Piro.Contracts;
@@ -25,7 +24,10 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     [ProducesResponseType<IEnumerable<IntegrationTypeMetaDto>>(StatusCodes.Status200OK)]
     public IActionResult GetTypes()
     {
-        var types = registry.All.Select(i => i.ToMetaDto());
+        // Ordered A→Z by label
+        var types = registry.All
+            .Select(i => i.ToMetaDto())
+            .OrderBy(t => t.Label ?? t.Type, StringComparer.OrdinalIgnoreCase);
         return Ok(types);
     }
 
@@ -49,7 +51,7 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     [HttpGet("actions")]
     [ProducesResponseType<IReadOnlyList<IntegrationActionDescriptorDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActions(
-        [FromQuery] Domain.Enums.ActionContext context, CancellationToken ct) =>
+        [FromQuery] UISurface context, CancellationToken ct) =>
         Ok(await integrationApp.GetActionsAsync(context, ct));
 
     /// <summary>
@@ -69,7 +71,7 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetActionDraft(
         Guid id, string actionId,
-        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        [FromQuery] UISurface context, [FromQuery] int targetId, CancellationToken ct) =>
         Ok(await integrationApp.BuildActionDraftAsync(id, actionId, context, targetId, ct));
 
     /// <summary>Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4).</summary>
@@ -89,7 +91,7 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     [HttpGet("references")]
     [ProducesResponseType<IReadOnlyList<ExternalReferenceDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReferences(
-        [FromQuery] Domain.Enums.ActionContext context, [FromQuery] int targetId, CancellationToken ct) =>
+        [FromQuery] UISurface context, [FromQuery] int targetId, CancellationToken ct) =>
         Ok(await integrationApp.GetReferencesAsync(context, targetId, ct));
 
     [HttpPost]

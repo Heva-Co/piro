@@ -75,14 +75,15 @@ public record CheckSummaryDto(
 );
 
 /// <summary>
-/// A single execution log entry for a check. <c>MetricValue</c> is the raw non-latency metric
-/// (e.g. days until cert expiry) — see <see cref="Piro.Domain.Entities.CheckDataPoint.MetricValue"/>.
+/// A single execution log entry for a check. <c>Dimensions</c> carries every numeric measurement the
+/// check reported, keyed by dimension name (e.g. "Latency", "CertExpiry"); <c>LatencyMs</c> is a
+/// convenience projection of the "Latency" entry. See <see cref="Piro.Domain.Entities.CheckDataPoint"/>.
 /// </summary>
 public record CheckDataPointDto(
     long Timestamp,
     string Status,
     double? LatencyMs,
-    double? MetricValue,
+    IReadOnlyDictionary<string, double> Dimensions,
     string? DataType,
     string? ErrorMessage,
     string WorkerRegion

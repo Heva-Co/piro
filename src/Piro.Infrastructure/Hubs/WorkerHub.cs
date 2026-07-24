@@ -93,7 +93,7 @@ public class WorkerHub(
         var ct = Context.ConnectionAborted;
         var region = Context.Items["WorkerRegion"] as string ?? "default";
         var status = Enum.Parse<ServiceStatus>(message.Status, ignoreCase: true);
-        var result = new CheckExecutionResult(status, message.LatencyMs, message.ErrorMessage);
+        var result = new CheckExecutionResult(status, message.Dimensions, message.ErrorMessage);
 
         try
         {

@@ -8,6 +8,7 @@ using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Services;
 
@@ -18,7 +19,9 @@ public class UserManagementService(
     IConfiguration configuration,
     ISiteConfigRepository siteConfigRepo,
     IIntegrationRepository integrationRepo,
+    IIntegrationRegistry integrationRegistry,
     IUserNotificationPreferenceRepository prefRepo,
+    IIntegrationHost integrationHost,
     IEnumerable<IVerificationCodeSender> codeSenders) : IUserManagementService
 {
     private const string InvitationTokenPurpose = "Invitation";
@@ -152,7 +155,6 @@ public class UserManagementService(
         await prefRepo.CreateAsync(new UserNotificationPreference
         {
             UserId = matched.Id,
-            Channel = PersonalNotificationChannel.Email,
             Handle = matched.Email!,
             Priority = 0,
             VerifiedAt = DateTimeOffset.UtcNow,
@@ -271,9 +273,7 @@ public class UserManagementService(
 
     public async Task<UserNotificationPreferenceDto> CreateNotificationPreferenceAsync(int userId, UpsertUserNotificationPreferenceRequest request, CancellationToken ct = default)
     {
-        var channel = ParseChannel(request.Channel);
-        if (channel.RequiresIntegration() && request.IntegrationId is null)
-            throw new DomainValidationException($"Channel '{channel}' requires a configured platform integration.");
+        await ValidatePersonalIntegrationAsync(request.IntegrationInstanceId, ct);
 
         var existing = await prefRepo.GetByUserIdAsync(userId, ct);
         var priority = existing.Count > 0 ? existing.Max(p => p.Priority) + 1 : 0;
@@ -281,8 +281,7 @@ public class UserManagementService(
         var created = await prefRepo.CreateAsync(new UserNotificationPreference
         {
             UserId = userId,
-            Channel = channel,
-            IntegrationId = channel.RequiresIntegration() ? request.IntegrationId : null,
+            IntegrationInstanceId = request.IntegrationInstanceId,
             Handle = request.Handle,
             Priority = priority,
         }, ct);
@@ -296,25 +295,38 @@ public class UserManagementService(
         if (pref is null || pref.UserId != userId)
             throw new NotFoundException(nameof(UserNotificationPreference), preferenceId.ToString());
 
-        // The account-fallback row can't be re-channeled/re-handled from the client — its
-        // Channel/Handle always mirror the account email, kept in sync elsewhere.
+        // The account-fallback row can't be re-pointed/re-handled from the client — it always mirrors
+        // the account email, kept in sync elsewhere.
         if (pref.IsAccountFallback)
             throw new DomainValidationException("The account fallback preference cannot be edited.");
 
-        var channel = ParseChannel(request.Channel);
-        if (channel.RequiresIntegration() && request.IntegrationId is null)
-            throw new DomainValidationException($"Channel '{channel}' requires a configured platform integration.");
+        await ValidatePersonalIntegrationAsync(request.IntegrationInstanceId, ct);
 
-        // A handle or channel change invalidates any prior verification.
-        var handleChanged = pref.Handle != request.Handle || pref.Channel != channel;
+        // A handle or integration-instance change invalidates any prior verification.
+        var changed = pref.Handle != request.Handle || pref.IntegrationInstanceId != request.IntegrationInstanceId;
 
-        pref.Channel = channel;
-        pref.IntegrationId = channel.RequiresIntegration() ? request.IntegrationId : null;
+        pref.IntegrationInstanceId = request.IntegrationInstanceId;
         pref.Handle = request.Handle;
-        if (handleChanged) pref.VerifiedAt = null;
+        if (changed) pref.VerifiedAt = null;
 
         await prefRepo.UpdateAsync(pref, ct);
         return MapPref(await prefRepo.GetByIdAsync(pref.Id, ct) ?? pref);
+    }
+
+    /// <summary>
+    /// A user-added preference must point at a real integration instance whose type supports personal
+    /// notifications (its manifest declares <see cref="IntegrationCapability.SendsPersonalNotification"/>).
+    /// The account-email fallback is auto-managed and never comes through here.
+    /// </summary>
+    private async Task ValidatePersonalIntegrationAsync(Guid integrationInstanceId, CancellationToken ct)
+    {
+        var integration = await integrationRepo.GetByIdAsync(integrationInstanceId, ct)
+            ?? throw new NotFoundException(nameof(Integration), integrationInstanceId.ToString());
+
+        var manifest = integrationRegistry.Find(integration.Type)?.Manifest;
+        if (manifest is null || !manifest.Capabilities.HasFlag(IntegrationCapability.SendsPersonalNotification))
+            throw new DomainValidationException(
+                $"Integration type \"{integration.Type}\" cannot be used for a personal notification preference.");
     }
 
     public async Task<List<UserNotificationPreferenceDto>> ReorderNotificationPreferencesAsync(int userId, ReorderUserNotificationPreferencesRequest request, CancellationToken ct = default)
@@ -347,11 +359,6 @@ public class UserManagementService(
         await prefRepo.DeleteAsync(pref, ct);
     }
 
-    private static PersonalNotificationChannel ParseChannel(string channel) =>
-        Enum.TryParse<PersonalNotificationChannel>(channel, out var parsed)
-            ? parsed
-            : throw new DomainValidationException($"Unknown notification channel '{channel}'.");
-
     public async Task SendNotificationPreferenceCodeAsync(int userId, int preferenceId, CancellationToken ct = default)
     {
         var pref = await prefRepo.GetByIdAsync(preferenceId, ct);
@@ -361,17 +368,18 @@ public class UserManagementService(
         var user = await userManager.FindByIdAsync(userId.ToString())
             ?? throw new NotFoundException(nameof(AppUser), userId);
 
-        if (!_codeSenders.TryGetValue(pref.Channel.ToIntegrationId(), out var codeSender))
-            throw new DomainValidationException($"Channel '{pref.Channel}' does not support verification.");
+        var integrationId = pref.ResolveIntegrationId();
+        if (!_codeSenders.TryGetValue(integrationId, out var codeSender))
+            throw new DomainValidationException($"Integration \"{integrationId}\" does not support verification.");
 
         var code = await userManager.GenerateUserTokenAsync(
-            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle));
+            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(integrationId, pref.Handle));
 
         var sent = await codeSender.SendCodeAsync(
-            pref.Integration, pref.Handle, $"Your Piro verification code is {code}. It expires shortly.", ct);
+            pref.IntegrationInstanceId, pref.Handle, $"Your Piro verification code is {code}. It expires shortly.", integrationHost, ct);
 
         if (!sent)
-            throw new DomainValidationException($"Failed to send a verification code via {pref.Channel} to '{pref.Handle}'.");
+            throw new DomainValidationException($"Failed to send a verification code via {integrationId} to '{pref.Handle}'.");
     }
 
     public async Task<UserNotificationPreferenceDto> ConfirmNotificationPreferenceCodeAsync(int userId, int preferenceId, string code, CancellationToken ct = default)
@@ -384,7 +392,7 @@ public class UserManagementService(
             ?? throw new NotFoundException(nameof(AppUser), userId);
 
         var valid = await userManager.VerifyUserTokenAsync(
-            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.Channel, pref.Handle), code);
+            user, TokenOptions.DefaultPhoneProvider, VerificationPurpose(pref.ResolveIntegrationId(), pref.Handle), code);
         if (!valid)
             throw new DomainValidationException("Invalid or expired verification code.");
 
@@ -393,14 +401,14 @@ public class UserManagementService(
         return MapPref(pref);
     }
 
-    /// <summary>Token purpose scoped to the exact channel+handle pair, so a code sent for one handle can't confirm a different one.</summary>
-    private static string VerificationPurpose(PersonalNotificationChannel channel, string handle) =>
-        $"{NotificationVerificationPurpose}:{channel}:{handle}";
+    /// <summary>Token purpose scoped to the exact integration+handle pair, so a code sent for one handle can't confirm a different one.</summary>
+    private static string VerificationPurpose(string integrationId, string handle) =>
+        $"{NotificationVerificationPurpose}:{integrationId}:{handle}";
 
     private static UserNotificationPreferenceDto MapPref(UserNotificationPreference p) => new(
         p.Id,
-        p.Channel.ToString(),
-        p.IntegrationId,
+        p.ResolveIntegrationId(),
+        p.IntegrationInstanceId,
         p.Integration?.Name,
         p.Handle,
         p.Priority,

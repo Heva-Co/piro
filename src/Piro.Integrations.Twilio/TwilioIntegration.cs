@@ -13,7 +13,6 @@ public sealed class TwilioIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsPersonalNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(TwilioConfig),
         Label = "Twilio",

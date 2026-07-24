@@ -12,7 +12,7 @@ public static class CheckDataPoinExtensions
         p.Timestamp,
         p.Status.ToString(),
         p.LatencyMs,
-        p.MetricValue,
+        p.Dimensions,
         p.DataType?.ToString(),
         p.ErrorMessage,
         p.WorkerRegion

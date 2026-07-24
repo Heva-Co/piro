@@ -57,6 +57,14 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         public T GetRequiredService<T>() where T : notnull => throw new NotSupportedException();
         public Task<TConfig?> GetConfigAsync<TConfig>(Guid integrationId, CancellationToken ct = default) where TConfig : class =>
             Task.FromResult<TConfig?>(null);
+        public Task<string> GetBearerTokenAsync(Guid integrationId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+        public Task<bool> IsOAuthConnectedAsync(Guid integrationId, CancellationToken ct = default) =>
+            Task.FromResult(false);
+        public Task<string?> GetConfigValueAsync(Guid integrationId, string key, CancellationToken ct = default) =>
+            Task.FromResult<string?>(null);
+        public Task SetConfigValuesAsync(Guid integrationId, IReadOnlyDictionary<string, string?> values, CancellationToken ct = default) =>
+            Task.CompletedTask;
     }
 
     private SubscriptionMatchingProcessor NewProcessor(params IIntegrationEventHandler[] handlers) =>
@@ -77,7 +85,7 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         _db.UserNotificationPreferences.Add(new UserNotificationPreference
         {
             UserId = user.Id,
-            Channel = PersonalNotificationChannel.Email,
+            IsAccountFallback = true, // Email account fallback — no integration instance
             Handle = email,
             Priority = 0,
             VerifiedAt = DateTimeOffset.UtcNow,

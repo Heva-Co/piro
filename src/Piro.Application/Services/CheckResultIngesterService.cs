@@ -37,8 +37,7 @@ public class CheckResultIngesterService(
             CheckId = checkId,
             Timestamp = timestamp,
             Status = result.Status,
-            LatencyMs = result.LatencyMs,
-            MetricValue = result.MetricValue,
+            Dimensions = new Dictionary<string, double>(result.Dimensions),
             DataType = DataPointType.REALTIME,
             ErrorMessage = result.ErrorMessage,
             WorkerRegion = workerRegion

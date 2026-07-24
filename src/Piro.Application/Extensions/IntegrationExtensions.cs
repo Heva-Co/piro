@@ -29,16 +29,20 @@ public static class IntegrationExtensions
     /// Maps an <see cref="Integration"/> entity to its outbound DTO representation, masking secret
     /// config keys.
     /// </summary>
-    public static IntegrationDto ToDto(this Integration i, IIntegrationRegistry registry, bool revealGeneratedFields = false)
+    /// <param name="revealProtector">
+    /// When revealing generated fields (create/regenerate response), the protector used to DECRYPT them —
+    /// their stored value is ciphertext, and the admin needs the real value once. Required whenever
+    /// <paramref name="revealGeneratedFields"/> is true; without it a revealed field would leak ciphertext.
+    /// </param>
+    public static IntegrationDto ToDto(this Integration i, IIntegrationRegistry registry, bool revealGeneratedFields = false, ISecretProtector? revealProtector = null)
     {
         var manifest = registry.Find(i.Type)?.Manifest;
         return new(
             i.Id,
             i.Name,
             i.Type,
-            manifest?.Category ?? IntegrationCategory.Notification,
             i.Description,
-            MaskSecrets(manifest?.ConfigType, i.ConfigJson, revealGeneratedFields),
+            MaskSecrets(manifest?.ConfigType, i.ConfigJson, revealGeneratedFields, revealProtector),
             i.Checks.Count,
             i.CreatedAt,
             i.UpdatedAt,
@@ -55,7 +59,7 @@ public static class IntegrationExtensions
     /// <see cref="GeneratedFieldAttribute"/> (e.g. a webhook auth token) — set only on the response
     /// to the create call, the one time an admin can see a server-generated secret's real value.
     /// </summary>
-    public static string MaskSecrets(Type? configType, string configJson, bool revealGeneratedFields = false)
+    public static string MaskSecrets(Type? configType, string configJson, bool revealGeneratedFields = false, ISecretProtector? revealProtector = null)
     {
         var secretKeys = GetSecretKeys(configType);
         if (secretKeys.Length == 0)
@@ -78,11 +82,21 @@ public static class IntegrationExtensions
 
         foreach (var key in secretKeys)
         {
-            if (generatedKeys.Contains(key))
+            if (obj[key] is not JsonValue value || value.GetValueKind() != JsonValueKind.String || string.IsNullOrEmpty(value.GetValue<string>()))
                 continue;
 
-            if (obj[key] is JsonValue value && value.GetValueKind() == JsonValueKind.String && !string.IsNullOrEmpty(value.GetValue<string>()))
-                obj[key] = MaskedSecretValue;
+            // A revealed generated field must be shown DECRYPTED (it's stored as ciphertext) — the one
+            // time the admin sees the real value. Everything else secret is masked.
+            if (generatedKeys.Contains(key))
+            {
+                var stored = value.GetValue<string>();
+                obj[key] = revealProtector is not null && revealProtector.IsProtected(stored)
+                    ? revealProtector.Unprotect(stored)
+                    : stored;
+                continue;
+            }
+
+            obj[key] = MaskedSecretValue;
         }
 
         return obj.ToJsonString();

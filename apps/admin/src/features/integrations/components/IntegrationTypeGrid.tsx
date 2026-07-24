@@ -32,33 +32,17 @@ export function IntegrationTypeGrid(props: Props) {
     );
 
   // Non-creatable types (e.g. Email) have a valid dispatcher but are configured platform-wide
-  // (Settings > Email), not by creating an Integration with its own ConfigJson.
+  // (Settings > Email), not by creating an Integration with its own ConfigJson. The backend already
+  // returns the types sorted A→Z by label, so no client-side ordering is needed here.
   const creatableTypes = types.filter((t) => t.creatable);
-  const thirdParty = creatableTypes.filter((t) => t.category === "ThirdParty");
-  const notification = creatableTypes.filter((t) => t.category === "Notification");
 
   return (
     <div className="flex flex-col gap-8">
-      {thirdParty.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Third-party</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {thirdParty.map((t) => (
-              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} onViewManifest={setManifestType} />
-            ))}
-          </div>
-        </section>
-      )}
-      {notification.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notification</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {notification.map((t) => (
-              <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} onViewManifest={setManifestType} />
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {creatableTypes.map((t) => (
+          <IntegrationTypeCard key={t.type} typeMeta={t} onSelect={onSelect} onViewManifest={setManifestType} />
+        ))}
+      </div>
 
       <IntegrationManifestDialog
         typeMeta={manifestType}

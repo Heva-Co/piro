@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Activity } from "lucide-react";
 import type { DailyStatsDto } from "@/src/lib/actions/services";
 import { formatLatency } from "@/src/lib/utils";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/src/components/ui/empty";
 import { LatencyTrendChart } from "./LatencyTrendChart";
 
 type LatencyMetric = "avg" | "min" | "max";
@@ -24,9 +26,15 @@ export function LatencyTabContent({
 
   if (overallAvgLatencyMs === null) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        No latency data available
-      </p>
+      <Empty className="py-10">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Activity />
+          </EmptyMedia>
+          <EmptyTitle>No latency data available</EmptyTitle>
+          <EmptyDescription>Latency appears here once this service&apos;s checks have run.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

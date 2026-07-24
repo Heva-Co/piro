@@ -1,11 +1,10 @@
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
-using Piro.Domain.Checks.Config;
+using Piro.Checks.Abstractions;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
-using Piro.Domain.Extensions;
 
 namespace Piro.Application.Services;
 
@@ -22,6 +21,7 @@ public class CheckAppService(
     ICheckDataPointRepository dataPointRepository,
     IAlertConfigRepository alertConfigRepository,
     ICronIntervalCalculator cronInterval,
+    ICheckRegistry checkRegistry,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -60,7 +60,7 @@ public class CheckAppService(
             throw new DomainValidationException($"A check with slug '{request.Slug}' already exists in service '{serviceSlug}'.");
 
         foreach (var alertConfigRequest in request.AlertConfigs ?? [])
-            EnsureAlertForAllowed(request.Type, alertConfigRequest.AlertFor);
+            ResolveSpec(request.Type, alertConfigRequest.Dimension);
 
         EnsureScheduleWithinBounds(request.Type, request.Cron, request.TypeDataJson);
 
@@ -101,10 +101,13 @@ public class CheckAppService(
 
     private async Task CreateAlertConfigAsync(Check check, CreateAlertConfigRequest request, CancellationToken ct)
     {
+        var spec = ResolveSpec(check.Type, request.Dimension);
         var config = new AlertConfig
         {
             CheckId = check.Id,
-            AlertFor = request.AlertFor,
+            Dimension = spec.Name,
+            Comparison = spec.Comparison,
+            Direction = spec.Direction,
             AlertValue = request.AlertValue,
             FailureThreshold = request.FailureThreshold,
             SuccessThreshold = request.SuccessThreshold,
@@ -115,10 +118,17 @@ public class CheckAppService(
         await alertConfigRepository.CreateAsync(config, ct);
     }
 
-    private static void EnsureAlertForAllowed(CheckType type, AlertFor alertFor)
+    /// <summary>
+    /// Resolves the check's declared <see cref="DimensionSpec"/> for a dimension name from the registry,
+    /// so an alert rule copies its comparison/direction from the single source of truth (the check) and
+    /// an unknown dimension is rejected — the guard the old <c>AllowedAlertFors</c> gave.
+    /// </summary>
+    private DimensionSpec ResolveSpec(CheckType type, string dimension)
     {
-        if (!type.AllowedAlertFors().Contains(alertFor))
-            throw new DomainValidationException($"{alertFor} is not a valid alert metric for a {type} check.");
+        var checkImpl = checkRegistry.Find(type.ToString())
+            ?? throw new DomainValidationException($"No check implementation is registered for a {type} check.");
+        return checkImpl.Manifest.Dimensions.FirstOrDefault(d => d.Name == dimension)
+            ?? throw new DomainValidationException($"\"{dimension}\" is not a valid alert dimension for a {type} check.");
     }
 
     /// <summary>
@@ -135,7 +145,14 @@ public class CheckAppService(
         if (interval < TimeSpan.FromMinutes(1))
             throw new DomainValidationException("Check interval must be at least 1 minute.");
 
-        type.EnsureIntervalAllowed(interval);
+        var manifest = checkRegistry.Find(type.ToString())?.Manifest;
+        if (manifest is not null)
+        {
+            var min = TimeSpan.FromSeconds(manifest.DefaultIntervalSeconds);
+            if (interval < min)
+                throw new DomainValidationException(
+                    $"{manifest.Label} checks must run no more often than every {min.TotalMinutes:0} minute(s).");
+        }
 
         var timeout = TimeoutFromTypeData(type, typeDataJson);
         if (timeout is { } t && t >= interval)
@@ -144,30 +161,34 @@ public class CheckAppService(
     }
 
     /// <summary>
-    /// Extracts the configured timeout from a check's TypeDataJson, or null for a type that has no
-    /// timeout field (DNS/SSL/GCP). Only HTTP/TCP/Ping/gRPC carry a TimeoutMs.
+    /// Extracts the configured timeout from a check's TypeDataJson, or null for a type whose config has
+    /// no <c>TimeoutMs</c> field. Reads it from the check's own config type (resolved from the registry)
+    /// by reflection, so no per-type switch or Domain-side config classes are needed.
     /// </summary>
-    private static TimeSpan? TimeoutFromTypeData(CheckType type, string typeDataJson)
+    private TimeSpan? TimeoutFromTypeData(CheckType type, string typeDataJson)
     {
-        var ms = type switch
+        var configType = checkRegistry.Find(type.ToString())?.Manifest.ConfigType;
+        if (configType is null) return null;
+
+        var prop = configType.GetProperty("TimeoutMs");
+        if (prop is null) return null;
+
+        object? config;
+        try { config = System.Text.Json.JsonSerializer.Deserialize(typeDataJson, configType, _typeDataJson); }
+        catch (System.Text.Json.JsonException) { return null; }
+        if (config is null) return null;
+
+        return prop.GetValue(config) switch
         {
-            CheckType.HTTP => Deserialize<HttpCheckConfig>(typeDataJson)?.TimeoutMs,
-            CheckType.TCP => Deserialize<TcpCheckConfig>(typeDataJson)?.TimeoutMs,
-            CheckType.Ping => Deserialize<PingCheckConfig>(typeDataJson)?.TimeoutMs,
-            CheckType.GRPC => Deserialize<GrpcCheckConfig>(typeDataJson)?.TimeoutMs,
-            _ => null
+            int ms => TimeSpan.FromMilliseconds(ms),
+            long ms => TimeSpan.FromMilliseconds(ms),
+            double ms => TimeSpan.FromMilliseconds(ms),
+            _ => null,
         };
-        return ms is { } value ? TimeSpan.FromMilliseconds(value) : null;
     }
 
     private static readonly System.Text.Json.JsonSerializerOptions _typeDataJson =
         new() { PropertyNameCaseInsensitive = true };
-
-    private static T? Deserialize<T>(string json)
-    {
-        try { return System.Text.Json.JsonSerializer.Deserialize<T>(json, _typeDataJson); }
-        catch (System.Text.Json.JsonException) { return default; }
-    }
 
     public async Task<CheckDto> UpdateAsync(string serviceSlug, string checkSlug, UpdateCheckRequest request, CancellationToken ct = default)
     {

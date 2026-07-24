@@ -13,7 +13,6 @@ public sealed class GoogleChatIntegration : IIntegration
 
     public IntegrationManifest Manifest => new()
     {
-        Category = IntegrationCategory.Notification,
         Capabilities = IntegrationCapability.SendsChannelNotification | IntegrationCapability.SubscribesToEvents,
         ConfigType = typeof(GoogleChatConfig),
         Label = "Google Chat",

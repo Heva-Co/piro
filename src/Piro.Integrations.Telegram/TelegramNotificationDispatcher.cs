@@ -12,7 +12,7 @@ namespace Piro.Integrations.Telegram;
 /// references no Piro.Domain type, no repository, no secret store — the boundary is the assembly's
 /// reference graph plus the host window (RFC 0016 §4.2b).
 /// </summary>
-public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler
+public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler, IVerificationCodeSender
 {
     private const string ApiBase = "https://api.telegram.org";
 
@@ -27,21 +27,52 @@ public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler
         if (config is null || string.IsNullOrWhiteSpace(config.BotToken))
             return false;
 
-        await SendMessageAsync(host, config.BotToken, ctx.Target, Render(evt), ct);
+        await SendMessageAsync(host, config.BotToken, ctx.Target, Render(evt, host), ct);
         return true;
     }
 
-    private static string Render(Event evt)
+    /// <summary>Sends a one-time verification code to a chat as plain text — same transport, no template.</summary>
+    public async Task<bool> SendCodeAsync(Guid? integrationId, string handle, string code, IIntegrationHost host, CancellationToken ct = default)
     {
-        var status = evt.IsResolvedLike() ? "✅ Resolved" : $"⚠️ {evt.Severity}";
-        var sb = new StringBuilder();
-        sb.AppendLine($"*{Escape(evt.Title)}*");
-        sb.AppendLine(status);
-        if (evt is AlertEvent { Description: { } d } && !string.IsNullOrWhiteSpace(d))
-            sb.AppendLine(Escape(d));
-        if (evt.FiredAtDisplay is { } when) sb.AppendLine(when);
-        if (evt.Url is { } url) sb.AppendLine(url);
-        return sb.ToString().TrimEnd();
+        if (string.IsNullOrWhiteSpace(handle) || integrationId is not { } id)
+            return false;
+
+        var config = await host.GetConfigAsync<TelegramConfig>(id, ct);
+        if (config is null || string.IsNullOrWhiteSpace(config.BotToken))
+            return false;
+
+        await SendMessageAsync(host, config.BotToken, handle, code, ct);
+        return true;
+    }
+
+    // The Telegram message body lives as a Scriban template embedded in this assembly (Templates/
+    // notification.scriban), rendered through the host's parser (RFC 0016) rather than concatenated in
+    // C#. The model carries the already-escaped/derived fields (legacy-Markdown escaping and the
+    // resolved-vs-severity status can't be expressed in the template).
+    private static readonly string MessageTemplate = LoadTemplate("notification.scriban");
+
+    private static string Render(Event evt, IIntegrationHost host)
+    {
+        var parser = host.GetRequiredService<ITemplateParser>();
+        var model = new
+        {
+            title = Escape(evt.Title),
+            status = evt.IsResolvedLike() ? "✅ Resolved" : $"⚠️ {evt.Severity}",
+            description = evt is AlertEvent { Description: { } d } && !string.IsNullOrWhiteSpace(d) ? Escape(d) : null,
+            fired_at = evt.FiredAtDisplay,
+            url = evt.Url,
+        };
+        return parser.Render(MessageTemplate, model).TrimEnd();
+    }
+
+    private static string LoadTemplate(string fileName)
+    {
+        var assembly = typeof(TelegramNotificationDispatcher).Assembly;
+        var resource = assembly.GetManifestResourceNames()
+            .Single(n => n.EndsWith($".Templates.{fileName}", StringComparison.Ordinal));
+        using var stream = assembly.GetManifestResourceStream(resource)!;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     private async Task SendMessageAsync(IIntegrationHost host, string botToken, string chatId, string text, CancellationToken ct)

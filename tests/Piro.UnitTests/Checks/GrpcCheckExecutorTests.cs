@@ -1,62 +1,59 @@
-using System.Text.Json;
 using FluentAssertions;
-using Piro.Domain.Entities;
-using Piro.Domain.Enums;
-using Piro.Infrastructure.Checks;
+using Piro.Checks;
+using Piro.Checks.Abstractions;
 
 namespace Piro.UnitTests.Checks;
 
+/// <summary>
+/// Tests <see cref="GrpcCheck"/> (RFC 0016). The gRPC SDK owns its own transport, so the check needs no
+/// service from the host — a host that throws on any resolution is a fine stand-in. A missing host/port
+/// is an Error (the check can't run); a refused/timed-out call is a Down (a real target failure).
+/// </summary>
 public class GrpcCheckExecutorTests
 {
-    private static readonly GrpcCheckExecutor _sut = new();
-
-    private static Check MakeCheck(object config) => new()
+    private sealed class ThrowingHost : ICheckHost
     {
-        Id = 1, Slug = "test", Name = "Test",
-        TypeDataJson = JsonSerializer.Serialize(config),
-        Type = CheckType.GRPC,
-    };
+        public T GetRequiredService<T>() where T : notnull =>
+            throw new InvalidOperationException($"gRPC check must not resolve {typeof(T).Name}.");
+    }
+
+    private static readonly ThrowingHost _host = new();
+
+    private static Task<CheckProbeResult> Probe(GrpcCheckConfig config) =>
+        new GrpcCheck().ProbeAsync(config, _host);
 
     [Fact]
-    public async Task Returns_Failure_When_Host_Not_Configured()
+    public async Task Returns_Error_When_Host_Not_Configured()
     {
-        var check = MakeCheck(new { host = "", port = 50051 });
+        var result = await Probe(new() { Host = "", Port = 50051 });
 
-        var result = await _sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.FAILURE);
-        result.ErrorMessage.Should().Contain("Host or port");
+        result.Outcome.Should().Be(CheckOutcome.Error);
+        result.Message.Should().Contain("Host or port");
     }
 
     [Fact]
-    public async Task Returns_Failure_When_Port_Is_Zero()
+    public async Task Returns_Error_When_Port_Is_Zero()
     {
-        var check = MakeCheck(new { host = "example.com", port = 0 });
+        var result = await Probe(new() { Host = "example.com", Port = 0 });
 
-        var result = await _sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.FAILURE);
+        result.Outcome.Should().Be(CheckOutcome.Error);
     }
 
     [Fact]
     public async Task Returns_Down_When_Connection_Refused()
     {
         // Port 1 on localhost is nearly always closed — the channel can't connect.
-        var check = MakeCheck(new { host = "127.0.0.1", port = 1, tls = false, timeout = 2000 });
+        var result = await Probe(new() { Host = "127.0.0.1", Port = 1, Tls = false, TimeoutMs = 2000 });
 
-        var result = await _sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.Outcome.Should().Be(CheckOutcome.Down);
     }
 
     [Fact]
     public async Task Returns_Down_On_Timeout()
     {
         // 192.0.2.1 is a TEST-NET address — packets are dropped, so the call deadlines out.
-        var check = MakeCheck(new { host = "192.0.2.1", port = 50051, tls = false, timeout = 500 });
+        var result = await Probe(new() { Host = "192.0.2.1", Port = 50051, Tls = false, TimeoutMs = 500 });
 
-        var result = await _sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.Outcome.Should().Be(CheckOutcome.Down);
     }
 }

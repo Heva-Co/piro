@@ -1,15 +1,39 @@
+import { ClipboardList } from "lucide-react";
 import { StatusPill } from "@/components/StatusBadge";
 import { useCheckLogs } from "@/hooks/useChecks";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import { type CheckDimension, dimensionLabel, isNumericDimension } from "@/types/checks";
 
-function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; checkSlug: string }) {
+interface Props {
+    serviceSlug: string;
+    checkSlug: string;
+    /** The check's declared dimensions — drives one column per numeric measurement (RFC 0016). */
+    dimensions: readonly CheckDimension[];
+}
+
+function RecentLogsSection(props: Props) {
+    const { serviceSlug, checkSlug, dimensions } = props;
     const { data: logs, isLoading } = useCheckLogs(serviceSlug, checkSlug);
     const { formatTimestamp } = useFormattedDate();
+
+    // A column per numeric dimension the check reports (Status is a category, shown in its own column).
+    const metricDimensions = dimensions.filter(isNumericDimension);
 
     if (isLoading) return <div className="text-sm text-muted-foreground py-2">Loading…</div>;
 
     if (!logs || logs.length === 0) {
-        return <div className="text-sm text-muted-foreground text-center py-6">No logs yet.</div>;
+        return (
+            <Empty className="py-10">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <ClipboardList />
+                    </EmptyMedia>
+                    <EmptyTitle>No logs yet</EmptyTitle>
+                    <EmptyDescription>Execution results appear here after this check runs.</EmptyDescription>
+                </EmptyHeader>
+            </Empty>
+        );
     }
 
     return (
@@ -19,7 +43,11 @@ function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; ch
                     <tr className="border-b bg-muted/40">
                         <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Time</th>
                         <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
-                        <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Latency</th>
+                        {metricDimensions.map((d) => (
+                            <th key={d.name} className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                                {dimensionLabel(d.name)}{d.unit ? ` (${d.unit})` : ""}
+                            </th>
+                        ))}
                         <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Region</th>
                         <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground">Message</th>
                     </tr>
@@ -33,9 +61,14 @@ function RecentLogsSection({ serviceSlug, checkSlug }: { serviceSlug: string; ch
                             <td className="px-5 py-2.5">
                                 <StatusPill status={log.status} dataType={log.dataType} />
                             </td>
-                            <td className="px-5 py-2.5 text-sm text-muted-foreground">
-                                {log.latencyMs != null ? `${Math.round(log.latencyMs)} ms` : "N/A"}
-                            </td>
+                            {metricDimensions.map((d) => {
+                                const value = log.dimensions?.[d.name];
+                                return (
+                                    <td key={d.name} className="px-5 py-2.5 text-sm text-muted-foreground">
+                                        {value != null ? Math.round(value * 100) / 100 : "—"}
+                                    </td>
+                                );
+                            })}
                             <td className="px-5 py-2.5 text-xs text-muted-foreground">
                                 {log.workerRegion}
                             </td>

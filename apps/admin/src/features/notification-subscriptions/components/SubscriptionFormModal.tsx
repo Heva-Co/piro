@@ -25,7 +25,7 @@ import { usersApi } from "@/lib/api";
 
 // Capabilities that make an integration a valid notification destination (outbound). Inbound types
 // (e.g. GoogleCloud, GcpCloudMonitoringWebhook — CreatesAlerts) must not appear as a destination.
-const OUTBOUND_CAPABILITIES = ["SendsPersonalNotification", "SendsChannelNotification", "SendsAlertEvents"];
+const OUTBOUND_CAPABILITIES = ["SendsPersonalNotification", "SendsChannelNotification"];
 
 // Destination is a single encoded value ("person:3" / "integration:<guid>"); the target kind is
 // derived from it — a person is Personal, a notification integration posts to a Group, a third-party
@@ -109,10 +109,7 @@ function SubscriptionFormModal(props: Props) {
   );
 
   const destination = watch("destination");
-  const [destKind, destId] = destination ? destination.split(":") : ["", ""];
-  const selectedIntegration =
-    destKind === "integration" ? notifiableIntegrations.find((i) => i.id === destId) : undefined;
-  const integrationTargetKind = selectedIntegration?.category === "ThirdParty" ? "Integration" : "Channel";
+  const [destKind] = destination ? destination.split(":") : [""];
 
   // Human label for the currently selected destination — SelectValue would otherwise show the raw
   // encoded value ("person:3").
@@ -134,7 +131,7 @@ function SubscriptionFormModal(props: Props) {
       name: values.name.trim(),
       events: values.events,
       minSeverity: values.minSeverity,
-      targetKind: isPerson ? "Personal" : integrationTargetKind,
+      targetKind: isPerson ? "Personal" : "Channel",
       userId: isPerson ? Number(id) : null,
       integrationId: isPerson ? null : id,
       target: isPerson ? null : values.target?.trim() || null,
@@ -190,8 +187,7 @@ function SubscriptionFormModal(props: Props) {
               {errors.destination && <p className="text-xs text-destructive">{errors.destination.message}</p>}
               {destKind === "integration" && (
                 <p className="text-xs text-muted-foreground">
-                  Delivered as <span className="font-medium">{integrationTargetKind}</span>. Group/integration
-                  delivery ships in a later phase.
+                  Delivered to the integration's channel.
                 </p>
               )}
             </div>

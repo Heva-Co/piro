@@ -8,10 +8,10 @@ namespace Piro.Integrations.Jira;
 /// not dispatch notifications — it contributes a user-initiated "Create Jira ticket" button to Alert,
 /// Incident and Maintenance detail pages, and links the created ticket back to the Piro object.
 /// <para>
-/// Identity + manifest only. The action behavior (create-issue), its dynamic-options providers
-/// (jira-projects, jira-issue-types), and the OAuth 3LO connection descriptor/discovery still live in
-/// Infrastructure and are NOT moved here yet — they depend on host seams (IActionHost /
-/// IOAuthTokenProvider) that the isolated abstractions do not yet expose. See the migration note.
+/// Fully self-contained now: identity + manifest is pure data, and <see cref="Configure"/> registers the
+/// create-issue action and its dynamic-options providers imperatively at startup. It reaches Piro only
+/// through <see cref="IIntegrationHost"/> (OAuth token + its own config) and the UI registrar
+/// <see cref="IUIExtensionHost"/>; nothing Jira touches a Piro repository or the DbContext.
 /// </para>
 /// </summary>
 public sealed class JiraIntegration : IIntegration
@@ -23,15 +23,8 @@ public sealed class JiraIntegration : IIntegration
     /// ThirdParty integration that requires an OAuth connection and extends the UI with an action button.
     /// SupportedEvents is empty — Jira is not a notification target, so SubscribesToEvents is NOT set.
     /// </summary>
-    /// <remarks>
-    /// The "create-issue" action's metadata (label, contexts, input/draft) and behavior still live with
-    /// RFC 0012's action layer in Infrastructure, reached through <c>IActionHost</c>; this manifest only
-    /// declares the <see cref="IntegrationCapability.ExtendsUserInterface"/> capability. Carrying action
-    /// descriptors on the manifest is a follow-up once the action layer is folded in (see RFC 0016 §4.6).
-    /// </remarks>
     public IntegrationManifest Manifest { get; } = new()
     {
-        Category = IntegrationCategory.ThirdParty,
         Capabilities = IntegrationCapability.RequiresOAuthConnection | IntegrationCapability.ExtendsUserInterface,
         ConfigType = typeof(JiraConfig),
         Label = "Jira",
@@ -39,4 +32,16 @@ public sealed class JiraIntegration : IIntegration
         IconifyIcon = "logos:jira",
         SupportedEvents = [],
     };
+
+    /// <summary>
+    /// Registers Jira's UI contributions at startup: the "Create Jira ticket" action and the two
+    /// dynamic-options providers (projects, issue types) its config form/dialog cascade off.
+    /// </summary>
+    public void Configure(IIntegrationHost host)
+    {
+        var ui = host.GetRequiredService<IUIExtensionHost>();
+        ui.AddAction(new JiraCreateIssueAction());
+        ui.AddOptionsProvider(new JiraProjectsOptionsProvider());
+        ui.AddOptionsProvider(new JiraIssueTypesOptionsProvider());
+    }
 }

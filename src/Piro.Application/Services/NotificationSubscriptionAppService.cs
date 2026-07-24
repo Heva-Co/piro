@@ -6,16 +6,20 @@ using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
 using Piro.Domain.Extensions;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Services;
 
 /// <summary>
 /// CRUD for notification subscriptions (RFC 0009 §4.4). Validates that chosen events belong to the
 /// closed catalog and that the destination is complete and coherent with its <see cref="NotificationTargetKind"/>.
+/// When the destination is an integration, it also enforces that the integration actually supports
+/// event-subscriptions and handles each chosen event (RFC 0016 §4.5, issue #212).
 /// </summary>
 public class NotificationSubscriptionAppService(
     INotificationSubscriptionRepository repo,
-    IIntegrationRepository integrationRepo)
+    IIntegrationRepository integrationRepo,
+    IIntegrationRegistry integrationRegistry)
 {
     /// <summary>
     /// The closed event catalog exposed to the subscription UI (RFC 0009 §4.2).
@@ -110,15 +114,38 @@ public class NotificationSubscriptionAppService(
                 break;
 
             case NotificationTargetKind.Channel:
-            case NotificationTargetKind.Integration:
                 if (request.IntegrationId is null)
                     throw new DomainValidationException($"A {request.TargetKind} subscription requires a target integration.");
-                _ = await integrationRepo.GetByIdAsync(request.IntegrationId.Value, ct)
+                var integration = await integrationRepo.GetByIdAsync(request.IntegrationId.Value, ct)
                     ?? throw new NotFoundException(nameof(Integration), request.IntegrationId.Value.ToString());
+                ValidateIntegrationHandlesEvents(integration, request.Events);
                 break;
 
             default:
                 throw new DomainValidationException($"Unsupported target kind {request.TargetKind}.");
         }
+    }
+
+    /// <summary>
+    /// The #212 guard (RFC 0016 §4.5): an integration may only be subscribed to events it actually
+    /// handles. Resolves the integration's manifest from the registry by its string id and rejects the
+    /// subscription if the integration does not declare <see cref="IntegrationCapability.SubscribesToEvents"/>
+    /// or if any chosen event is outside its <c>SupportedEvents</c> (honoring wildcards). An unknown/legacy
+    /// integration id (no registered manifest) is treated as not subscribable.
+    /// </summary>
+    private void ValidateIntegrationHandlesEvents(Integration integration, IReadOnlyList<string> events)
+    {
+        var manifest = integrationRegistry.Find(integration.Type)?.Manifest
+            ?? throw new DomainValidationException(
+                $"Integration type \"{integration.Type}\" is not a known integration and cannot receive event subscriptions.");
+
+        if (!manifest.Capabilities.HasFlag(IntegrationCapability.SubscribesToEvents))
+            throw new DomainValidationException(
+                $"Integration type \"{integration.Type}\" does not support event subscriptions.");
+
+        var unsupported = events.Where(e => !manifest.HandlesEvent(e)).ToList();
+        if (unsupported.Count > 0)
+            throw new DomainValidationException(
+                $"Integration type \"{integration.Type}\" does not handle these events: {string.Join(", ", unsupported)}.");
     }
 }

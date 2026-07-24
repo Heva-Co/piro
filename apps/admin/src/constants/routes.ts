@@ -75,7 +75,6 @@ export const ROUTES = {
     USER_DETAIL: (id: number | string) => `/admin/configuration/users/${id}`,
     WORKERS: "/admin/configuration/workers",
     WORKERS_NEW: "/admin/configuration/workers/new",
-    IMPORT: "/admin/configuration/import",
     JOBS: "/admin/configuration/jobs",
     DATA_RETENTION: "/admin/configuration/data-retention",
   },

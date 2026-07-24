@@ -13,7 +13,7 @@ namespace Piro.Integrations.Twilio;
 /// renders the neutral event to plain text itself. The Twilio SDK owns its own HTTP client, so this
 /// dispatcher needs no HttpClient from the host. References no Piro.Domain/Infrastructure type.
 /// </summary>
-public sealed class TwilioNotificationDispatcher : IIntegrationEventHandler
+public sealed class TwilioNotificationDispatcher : IIntegrationEventHandler, IVerificationCodeSender
 {
     public string IntegrationId => "Twilio";
 
@@ -30,6 +30,23 @@ public sealed class TwilioNotificationDispatcher : IIntegrationEventHandler
             to: new PhoneNumber(ctx.Target),
             from: new PhoneNumber(config.FromNumber),
             body: Render(evt));
+        return true;
+    }
+
+    /// <summary>Sends a one-time verification code as an SMS.</summary>
+    public async Task<bool> SendCodeAsync(Guid? integrationId, string handle, string code, IIntegrationHost host, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(handle) || integrationId is not { } id)
+            return false;
+
+        var config = await host.GetConfigAsync<TwilioConfig>(id, ct);
+        if (config is null) return false;
+
+        TwilioClient.Init(config.AccountSid, config.AuthToken);
+        await MessageResource.CreateAsync(
+            to: new PhoneNumber(handle),
+            from: new PhoneNumber(config.FromNumber),
+            body: code);
         return true;
     }
 

@@ -1,37 +1,29 @@
 using Piro.Application.DTOs;
-using Piro.Domain.Enums;
-using Piro.Domain.Extensions;
+using Piro.Checks.Abstractions;
 using Piro.Contracts;
 
 namespace Piro.Application.Extensions;
 
 /// <summary>
-/// Projects a <see cref="CheckType"/>'s manifest (RFC 0011) into its wire-level
-/// <see cref="CheckTypeMetaDto"/> — display metadata plus the reflected config schema (via the
-/// shared <see cref="ConfigSchemaBuilder"/>). Mirrors <see cref="IntegrationManifestExtensions"/>.
+/// Projects a registered <see cref="ICheck"/>'s <see cref="CheckManifest"/> into its wire-level
+/// <see cref="CheckTypeMetaDto"/> — display metadata, its dimensions, and the reflected config schema
+/// (via the shared <see cref="ConfigSchemaBuilder"/>). Mirrors <see cref="IntegrationManifestExtensions"/>.
 /// </summary>
 public static class CheckTypeManifestExtensions
 {
-    /// <summary>
-    /// Returns the wire-level manifest for this type, or null for a type with none (the
-    /// not-yet-implemented Heartbeat / GRPC). <paramref name="hasExecutor"/> says whether a runnable
-    /// executor is registered for it.
-    /// </summary>
-    public static CheckTypeMetaDto? ToMetaDto(this CheckType type, bool hasExecutor)
+    /// <summary>Returns the wire-level manifest for a registered check.</summary>
+    public static CheckTypeMetaDto ToMetaDto(this ICheck check)
     {
-        var manifest = type.GetManifest();
-        if (manifest is null)
-            return null;
-
+        var manifest = check.Manifest;
         return new CheckTypeMetaDto(
-            type.ToString(),
-            manifest.DisplayName,
+            check.CheckId,
+            manifest.Label,
             manifest.Description,
-            manifest.MinIntervalSeconds,
-            manifest.AllowedAlertFors.Select(a => a.ToString()).ToArray(),
+            manifest.DefaultIntervalSeconds,
+            [.. manifest.Dimensions.Select(d => new CheckDimensionDto(d.Name, d.Comparison, d.Direction, d.Unit))],
             ConfigSchemaBuilder.For(manifest.ConfigType),
-            manifest.RequiredIntegration?.ToString(),
-            hasExecutor
+            manifest.RequiredIntegration,
+            HasExecutor: true
         );
     }
 }
