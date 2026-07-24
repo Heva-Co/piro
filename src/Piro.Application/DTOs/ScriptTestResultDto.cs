@@ -6,7 +6,7 @@ namespace Piro.Application.DTOs;
 /// outcome; UP/DEGRADED/DOWN is the alert policy's decision once the check is saved with an AlertConfig.
 /// Never persisted; returned in the HTTP response only.
 /// </summary>
-/// <param name="Outcome">The raw probe outcome: "Up", "Down", or "Error" (a broken script).</param>
+/// <param name="Outcome">The mapped ServiceStatus ("UP", "DOWN", "FAILURE") — ready for the shared status pill.</param>
 /// <param name="Message">Human-readable detail for a Down/Error; null on a clean Up.</param>
 /// <param name="LatencyMs">Whole-script wall-clock time.</param>
 /// <param name="Dimensions">Numeric measurements the script emitted (e.g. "Severity"), by name.</param>

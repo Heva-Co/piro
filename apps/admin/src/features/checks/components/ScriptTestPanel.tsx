@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FlaskConical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "@/components/StatusBadge";
 import { checksApi, type ScriptTestResult } from "@/lib/actions/checks";
 
 interface Props {
@@ -10,12 +10,6 @@ interface Props {
     /** Returns the current (possibly unsaved) config as a JSON string, so the operator tests live edits. */
     getTypeDataJson: () => string;
 }
-
-const OUTCOME_STYLE: Record<string, string> = {
-    Up: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
-    Down: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
-    Error: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-};
 
 /**
  * Dry-runs a Script check against the live target and shows the raw verdict + captured console.log,
@@ -65,7 +59,7 @@ function ScriptTestPanel(props: Props) {
             {result && (
                 <div className="rounded-lg border bg-card p-4 flex flex-col gap-3">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <Badge className={OUTCOME_STYLE[result.outcome] ?? ""}>{result.outcome}</Badge>
+                        <StatusPill status={result.outcome} />
                         {result.latencyMs != null && (
                             <span className="text-xs text-muted-foreground">{Math.round(result.latencyMs)} ms</span>
                         )}
