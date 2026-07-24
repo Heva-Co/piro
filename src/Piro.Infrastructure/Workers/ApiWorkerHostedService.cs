@@ -157,6 +157,17 @@ public sealed class ApiWorkerHostedService(
             ConnectedAt: now,
             LastHeartbeat: now,
             Version: ApiVersion,
-            IsDefault: true));
+            IsDefault: true)
+        {
+            IsInProcess = true,
+            // The built-in worker's reconciled placement tags, so a tag-scheduled check can require it
+            // (e.g. requiredWorkerTags = piro:default) and match in-process (RFC 0008 §4.5/§4.6).
+            Tags = new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["piro:builtin"] = null,
+                ["piro:default"] = null,
+                ["piro:region"] = workerRegion,
+            },
+        });
     }
 }

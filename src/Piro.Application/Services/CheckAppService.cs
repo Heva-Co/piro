@@ -24,6 +24,7 @@ public class CheckAppService(
     ICheckRegistry checkRegistry,
     ICheckHost checkHost,
     ICheckInboundTokenService inboundTokens,
+    ISystemTagReconciler systemTags,
     IUnitOfWork unitOfWork)
 {
     public async Task<IEnumerable<CheckSummaryDto>> GetAllAsync(CancellationToken ct = default)
@@ -33,7 +34,7 @@ public class CheckAppService(
             r.Check.Id, r.Check.Service.Slug, r.Check.Service.Name,
             r.Check.Slug, r.Check.Name, r.Check.Description,
             r.Check.Type, r.Check.Cron, r.Check.CurrentStatus,
-            r.Check.IsActive, r.Check.IsMultiRegion, r.Check.UpdatedAt, r.LastErrorMessage));
+            r.Check.IsActive, r.Check.UpdatedAt, r.LastErrorMessage));
     }
 
     public async Task<IEnumerable<CheckDto>> GetByServiceSlugAsync(string serviceSlug, CancellationToken ct = default)
@@ -146,7 +147,6 @@ public class CheckAppService(
             ResolveSpec(request.Type, alertConfigRequest.Dimension);
 
         EnsureScheduleWithinBounds(request.Type, request.Cron, request.TypeDataJson);
-        EnsureSingleRegionIfDeclared(request.Type, request.IsMultiRegion);
 
         var check = new Check
         {
@@ -159,7 +159,6 @@ public class CheckAppService(
             TypeDataJson = request.TypeDataJson,
             CurrentStatus = ServiceStatus.NO_DATA,
             IsActive = request.IsActive,
-            IsMultiRegion = request.IsMultiRegion,
             IntegrationId = request.IntegrationId
         };
 
@@ -186,6 +185,9 @@ public class CheckAppService(
         // on reading history (ConsumesCheckPoints) nor a check-id check.
         if (checkRegistry.Find(created.Type.ToString())?.ProvidedInboundHandler() is not null)
             await inboundTokens.CreateOrRotateAsync(created.Id, ct);
+
+        // Materialize the check's stored piro:* system tags from its fields (RFC 0008 §4.2).
+        await systemTags.ReconcileCheckAsync(created, ct);
 
         return created.ToDto();
     }
@@ -223,16 +225,17 @@ public class CheckAppService(
     }
 
     /// <summary>
-    /// Rejects multi-region for a check type whose manifest declares <c>SingleRegionOnly</c> (e.g.
-    /// Heartbeat, whose pings are ingested and evaluated in one place). The check declares this itself;
-    /// Piro never infers it from another capability. Data-driven off the manifest, never a check-id check.
+    /// Guards the required-worker-tags write path (RFC 0008 Part B, §4.6): a <c>SingleRegionOnly</c> check
+    /// type is pinned to the built-in/default worker, so required worker tags cannot apply to it. Throws if
+    /// the check does not exist or its type is single-region-only.
     /// </summary>
-    private void EnsureSingleRegionIfDeclared(CheckType type, bool isMultiRegion)
+    public async Task EnsureCanRequireWorkerTagsAsync(int checkId, CancellationToken ct = default)
     {
-        if (!isMultiRegion) return;
-        var manifest = checkRegistry.Find(type.ToString())?.Manifest;
+        var check = await checkRepository.GetByIdAsync(checkId, ct)
+            ?? throw new NotFoundException(nameof(Check), checkId);
+        var manifest = checkRegistry.Find(check.Type.ToString())?.Manifest;
         if (manifest?.SingleRegionOnly == true)
-            throw new DomainValidationException($"{manifest.Label} checks must run in a single region (disable multi-region).");
+            throw new DomainValidationException($"{manifest.Label} checks run in a single region and cannot require worker tags.");
     }
 
     private void EnsureScheduleWithinBounds(CheckType type, string cron, string typeDataJson)
@@ -300,17 +303,17 @@ public class CheckAppService(
         if (request.Cron is not null) check.Cron = request.Cron;
         if (request.TypeDataJson is not null) check.TypeDataJson = request.TypeDataJson;
         if (request.IsActive is not null) check.IsActive = request.IsActive.Value;
-        if (request.IsMultiRegion is not null) check.IsMultiRegion = request.IsMultiRegion.Value;
-        if (request.HistoryDaysDesktop is not null) check.HistoryDaysDesktop = request.HistoryDaysDesktop;
-        if (request.HistoryDaysMobile is not null) check.HistoryDaysMobile = request.HistoryDaysMobile;
         if (request.IntegrationId is not null) check.IntegrationId = request.IntegrationId;
 
         // Type is immutable on update; validate the resulting cron/config against the check's own type.
         EnsureScheduleWithinBounds(check.Type, check.Cron, check.TypeDataJson);
-        EnsureSingleRegionIfDeclared(check.Type, check.IsMultiRegion);
 
         var updated = await checkRepository.UpdateAsync(check, ct);
         await scheduler.ScheduleAsync(updated, ct);
+
+        // Re-materialize piro:check-type / piro:multi-region if the source fields changed (RFC 0008 §4.2).
+        await systemTags.ReconcileCheckAsync(updated, ct);
+
         return updated.ToDto();
     }
 
@@ -360,6 +363,6 @@ public class CheckAppService(
         var from = to - (long)days * 86400;
 
         var stats = await dataPointRepository.GetDailyStatsByCheckIdAsync(check.Id, from, to, ct);
-        return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.AvgLatencyMs));
+        return stats.Select(s => new CheckDailyStatsDto(s.Region, s.DayTimestamp, s.CountUp, s.CountDown, s.CountDegraded, s.CountError, s.AvgLatencyMs));
     }
 }

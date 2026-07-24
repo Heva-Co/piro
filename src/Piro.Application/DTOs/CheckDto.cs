@@ -15,9 +15,6 @@ public record CheckDto(
     string TypeDataJson,
     ServiceStatus CurrentStatus,
     bool IsActive,
-    bool IsMultiRegion,
-    int? HistoryDaysDesktop,
-    int? HistoryDaysMobile,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     Guid? IntegrationId
@@ -37,7 +34,6 @@ public record CreateCheckRequest(
     [Required] string Cron,
     [Required] string TypeDataJson,
     bool IsActive = true,
-    bool IsMultiRegion = false,
     Guid? IntegrationId = null,
     IReadOnlyList<CreateAlertConfigRequest>? AlertConfigs = null
 );
@@ -49,11 +45,6 @@ public record UpdateCheckRequest(
     string? Cron,
     string? TypeDataJson,
     bool? IsActive,
-    bool? IsMultiRegion,
-    [property: Obsolete]
-    int? HistoryDaysDesktop,
-    [property: Obsolete]
-    int? HistoryDaysMobile,
     Guid? IntegrationId = null
 );
 
@@ -69,7 +60,6 @@ public record CheckSummaryDto(
     string Cron,
     ServiceStatus CurrentStatus,
     bool IsActive,
-    bool IsMultiRegion,
     DateTime UpdatedAt,
     string? LastErrorMessage
 );
@@ -95,5 +85,6 @@ public record CheckDailyStatsDto(
     int CountUp,
     int CountDown,
     int CountDegraded,
+    int CountError,
     double? AvgLatencyMs
 );

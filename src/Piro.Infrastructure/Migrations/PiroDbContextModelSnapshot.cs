@@ -533,19 +533,10 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<int?>("HistoryDaysDesktop")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("HistoryDaysMobile")
-                        .HasColumnType("integer");
-
                     b.Property<Guid?>("IntegrationId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsMultiRegion")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
@@ -620,6 +611,48 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("CheckId", "Timestamp");
 
                     b.ToTable("CheckDataPoints");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.CheckRequiredWorkerTag", b =>
+                {
+                    b.Property<int>("CheckId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("CheckId", "TagId");
+
+                    b.HasIndex("CheckId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("CheckRequiredWorkerTags");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.CheckTag", b =>
+                {
+                    b.Property<int>("CheckId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("CheckId", "TagId");
+
+                    b.HasIndex("CheckId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("CheckTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.EscalationDeliveryLog", b =>
@@ -2044,6 +2077,27 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("ServiceDependencies");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.ServiceTag", b =>
+                {
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("ServiceId", "TagId");
+
+                    b.HasIndex("ServiceId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("ServiceTags");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.SiteData", b =>
                 {
                     b.Property<int>("Id")
@@ -2080,6 +2134,31 @@ namespace Piro.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("SiteData");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("character varying(63)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
@@ -2198,6 +2277,27 @@ namespace Piro.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("WorkerRegistrations");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.WorkerTag", b =>
+                {
+                    b.Property<Guid>("WorkerRegistrationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("WorkerRegistrationId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("WorkerRegistrationId");
+
+                    b.ToTable("WorkerTags");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -2349,6 +2449,44 @@ namespace Piro.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Check");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.CheckRequiredWorkerTag", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Check", "Check")
+                        .WithMany("RequiredWorkerTags")
+                        .HasForeignKey("CheckId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.Tag", "Tag")
+                        .WithMany("CheckRequiredWorkerTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Check");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.CheckTag", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Check", "Check")
+                        .WithMany("CheckTags")
+                        .HasForeignKey("CheckId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.Tag", "Tag")
+                        .WithMany("CheckTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Check");
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.EscalationDeliveryLog", b =>
@@ -2690,6 +2828,25 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.ServiceTag", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Service", "Service")
+                        .WithMany("ServiceTags")
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.Tag", "Tag")
+                        .WithMany("ServiceTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Service");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Integration", "Integration")
@@ -2719,6 +2876,25 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Integration");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.WorkerTag", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.Tag", "Tag")
+                        .WithMany("WorkerTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Piro.Domain.Entities.WorkerRegistration", "Worker")
+                        .WithMany("WorkerTags")
+                        .HasForeignKey("WorkerRegistrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tag");
+
+                    b.Navigation("Worker");
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.Alert", b =>
                 {
                     b.Navigation("EscalationDeliveryLogs");
@@ -2738,7 +2914,11 @@ namespace Piro.Infrastructure.Migrations
                 {
                     b.Navigation("AlertConfigs");
 
+                    b.Navigation("CheckTags");
+
                     b.Navigation("DataPoints");
+
+                    b.Navigation("RequiredWorkerTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
@@ -2819,11 +2999,29 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("MaintenanceServices");
 
                     b.Navigation("PageServices");
+
+                    b.Navigation("ServiceTags");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.Tag", b =>
+                {
+                    b.Navigation("CheckRequiredWorkerTags");
+
+                    b.Navigation("CheckTags");
+
+                    b.Navigation("ServiceTags");
+
+                    b.Navigation("WorkerTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.WebhookRequestLog", b =>
                 {
                     b.Navigation("Alert");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.WorkerRegistration", b =>
+                {
+                    b.Navigation("WorkerTags");
                 });
 #pragma warning restore 612, 618
         }

@@ -20,4 +20,12 @@ public enum DataPointType
     /// The gap reflects monitor unavailability, not service downtime.
     /// </summary>
     MONITOR_OUTAGE,
+
+    /// <summary>
+    /// Workers were connected, but none matched the check's required worker tags, so the check could not
+    /// be placed (RFC 0008 Part B, §4.6). Unlike <see cref="MONITOR_OUTAGE"/> (a transient gap that heals
+    /// when a worker returns), this is a configuration error: the required tags are impossible or typo'd,
+    /// and it clears only when the check is edited. Not service downtime; kept out of uptime math.
+    /// </summary>
+    UNSCHEDULABLE,
 }

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertTriangle, ClipboardList, Settings } from "lucide-react";
+import { AlertTriangle, ClipboardList, Settings, Tags as TagsIcon } from "lucide-react";
 import { StatusPill } from "@/components/StatusBadge";
 import { useService, useDeleteService } from "@/hooks/useServices";
 import { useChecks } from "@/hooks/useChecks";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import ChecksSection from "../components/ChecksSection";
 import GeneralSettingsSection from "../components/GeneralSettingsSection";
+import ServiceTagsSection from "../components/ServiceTagsSection";
 
 export default function ServiceDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -62,6 +63,14 @@ export default function ServiceDetailPage() {
           defaultOpen
         >
           <GeneralSettingsSection slug={slug!} />
+        </SectionAccordion>
+
+        <SectionAccordion
+          title="Tags"
+          description="Organize this service with key/value tags; its checks inherit them"
+          icon={<TagsIcon size={16} className="text-muted-foreground" />}
+        >
+          <ServiceTagsSection serviceId={service.id} />
         </SectionAccordion>
 
         <SectionAccordion

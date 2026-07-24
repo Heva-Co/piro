@@ -70,7 +70,9 @@ function RecentLogsSection(props: Props) {
                                 );
                             })}
                             <td className="px-5 py-2.5 text-xs text-muted-foreground">
-                                {log.workerRegion}
+                                {/* MONITOR_OUTAGE / UNSCHEDULABLE never ran on a worker; their WorkerRegion is
+                                    the "monitor" sentinel, so show — rather than a fake region. */}
+                                {log.workerRegion && log.workerRegion !== "monitor" ? log.workerRegion : "—"}
                             </td>
                             <td className="px-5 py-2.5 text-xs text-muted-foreground">
                                 {log.errorMessage ?? ""}

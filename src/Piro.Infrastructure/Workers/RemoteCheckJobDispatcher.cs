@@ -30,20 +30,24 @@ internal class RemoteCheckJobDispatcher(
     ICheckDataPointRepository dataPointRepo,
     ICheckExecutor executor,
     ICheckResultIngester ingester,
-    bool apiIsWorker,
     string localWorkerRegion,
-    ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher
+    ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher, IWorkerFanoutDispatcher
 {
-    public async Task DispatchAsync(Check check, CancellationToken ct = default)
-    {
-        var workers = registry.GetAll();
-        var totalCount = workers.Count + (apiIsWorker ? 1 : 0);
+    public Task DispatchAsync(Check check, CancellationToken ct = default) =>
+        DispatchToWorkersAsync(check, registry.GetAll(), ct);
 
-        if (totalCount == 0)
+    /// <summary>
+    /// Fans a check out to a specific set of workers (RFC 0008 Part B: the tag-eligible subset). When
+    /// <paramref name="workers"/> is the full registry this is the classic multi-region fan-out. The
+    /// built-in API worker still participates when active. An empty set with no API worker records a
+    /// <see cref="DataPointType.MONITOR_OUTAGE"/>, keeping routing total.
+    /// </summary>
+    public async Task DispatchToWorkersAsync(Check check, IReadOnlyList<WorkerInfo> workers, CancellationToken ct = default)
+    {
+        if (workers.Count == 0)
         {
             logger.LogWarning(
-                "No remote workers connected. Multi-region check {CheckId} skipped — writing MONITOR_OUTAGE datapoint.",
-                check.Id);
+                "No workers to run check {CheckId}. Writing MONITOR_OUTAGE datapoint.", check.Id);
 
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             timestamp -= timestamp % 60;
@@ -55,20 +59,24 @@ internal class RemoteCheckJobDispatcher(
                 Status = ServiceStatus.NO_DATA,
                 DataType = DataPointType.MONITOR_OUTAGE,
                 WorkerRegion = "monitor",
-                ErrorMessage = "No remote workers connected"
+                ErrorMessage = "No workers connected"
             };
 
             await dataPointRepo.CreateAsync(gapPoint, ct);
-
             return;
         }
 
         var batchId = Guid.NewGuid().ToString("N");
-        batchTracker.RegisterBatch(batchId, check.Id, totalCount);
+        batchTracker.RegisterBatch(batchId, check.Id, workers.Count);
 
-        // Fan-out: same check dispatched to every connected remote worker
-        var remoteTasks = workers.Select(worker =>
+        // Dispatch each worker by its transport: the built-in worker (IsInProcess) runs locally, real
+        // SignalR workers get a hub message. This is why routing must never send Execute() to the built-in's
+        // synthetic ConnectionId — it has no hub receiver and the send would silently vanish.
+        var tasks = workers.Select(worker =>
         {
+            if (worker.IsInProcess)
+                return RunLocalWorkerAsync(check, batchId, ct);
+
             var message = new WorkerExecuteMessage(
                 JobId: Guid.NewGuid().ToString(),
                 CheckId: check.Id,
@@ -77,65 +85,66 @@ internal class RemoteCheckJobDispatcher(
                 BatchId: batchId);
 
             logger.LogDebug(
-                "Dispatching multi-region check {CheckId} to worker {WorkerId} (region={Region}, batch={BatchId}).",
+                "Dispatching check {CheckId} to worker {WorkerId} (region={Region}, batch={BatchId}).",
                 check.Id, worker.WorkerId, worker.Region, batchId);
 
             return hubContext.Clients.Client(worker.ConnectionId).Execute(message);
         });
 
-        var allTasks = new List<Task>(remoteTasks.Cast<Task>());
-
-        // API participates as a local worker — run in-process and feed result into the batch
-        if (apiIsWorker)
-        {
-            allTasks.Add(RunLocalWorkerAsync(check, batchId, ct));
-        }
-
-        await Task.WhenAll(allTasks);
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>
-    /// Routes a non-multi-region check to the single worker marked as default.
-    /// Writes a MONITOR_OUTAGE data point if no default worker is connected.
+    /// Records a <see cref="DataPointType.MONITOR_OUTAGE"/> datapoint (RFC 0008 §4.6): a worker that could
+    /// run this check exists but none is currently connected. A transient gap that heals on its own when a
+    /// worker returns. Not service downtime.
     /// </summary>
-    public async Task DispatchToDefaultWorkerAsync(Check check, CancellationToken ct = default)
+    public async Task RecordMonitorOutageAsync(Check check, string message, CancellationToken ct = default)
     {
-        var defaultWorker = registry.GetDefaultWorker();
-        if (defaultWorker is null)
+        logger.LogWarning("Check {CheckId} skipped — {Message}. Writing MONITOR_OUTAGE datapoint.", check.Id, message);
+
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        timestamp -= timestamp % 60;
+
+        var point = new CheckDataPoint
         {
-            logger.LogWarning(
-                "No default worker connected. Check {CheckId} skipped — writing MONITOR_OUTAGE datapoint.", check.Id);
+            CheckId = check.Id,
+            Timestamp = timestamp,
+            Status = ServiceStatus.NO_DATA,
+            DataType = DataPointType.MONITOR_OUTAGE,
+            WorkerRegion = "monitor",
+            ErrorMessage = message
+        };
 
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            timestamp -= timestamp % 60;
+        await dataPointRepo.CreateAsync(point, ct);
+    }
 
-            var gapPoint = new CheckDataPoint
-            {
-                CheckId = check.Id,
-                Timestamp = timestamp,
-                Status = ServiceStatus.NO_DATA,
-                DataType = DataPointType.MONITOR_OUTAGE,
-                WorkerRegion = "monitor",
-                ErrorMessage = "No default worker connected"
-            };
+    /// <summary>
+    /// Records a visible <see cref="DataPointType.UNSCHEDULABLE"/> datapoint (RFC 0008 Part B, §4.6): no
+    /// registered worker can ever match the check's required worker tags, so it cannot be placed. Distinct
+    /// from <see cref="DataPointType.MONITOR_OUTAGE"/> (a transient gap): this is a configuration error that
+    /// clears only when the check is edited. Not service downtime; the mirror of the MONITOR_OUTAGE write.
+    /// </summary>
+    public async Task RecordUnschedulableAsync(Check check, CancellationToken ct = default)
+    {
+        logger.LogWarning(
+            "Check {CheckId} is unschedulable: no registered worker can match its required worker tags. Writing UNSCHEDULABLE datapoint.",
+            check.Id);
 
-            await dataPointRepo.CreateAsync(gapPoint, ct);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        timestamp -= timestamp % 60;
 
-            return;
-        }
+        var point = new CheckDataPoint
+        {
+            CheckId = check.Id,
+            Timestamp = timestamp,
+            Status = ServiceStatus.NO_DATA,
+            DataType = DataPointType.UNSCHEDULABLE,
+            WorkerRegion = "monitor",
+            ErrorMessage = "No connected worker matches the check's required worker tags"
+        };
 
-        var message = new WorkerExecuteMessage(
-            JobId: Guid.NewGuid().ToString(),
-            CheckId: check.Id,
-            CheckType: check.Type,
-            TypeDataJson: check.TypeDataJson,
-            BatchId: null);
-
-        logger.LogDebug(
-            "Dispatching check {CheckId} to default worker {WorkerId} (region={Region}).",
-            check.Id, defaultWorker.WorkerId, defaultWorker.Region);
-
-        await hubContext.Clients.Client(defaultWorker.ConnectionId).Execute(message);
+        await dataPointRepo.CreateAsync(point, ct);
     }
 
     private async Task RunLocalWorkerAsync(Check check, string batchId, CancellationToken ct)

@@ -48,6 +48,13 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
     public DbSet<ExternalReference> ExternalReferences => Set<ExternalReference>();
 
+    // Tags (RFC 0008)
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<ServiceTag> ServiceTags => Set<ServiceTag>();
+    public DbSet<CheckTag> CheckTags => Set<CheckTag>();
+    public DbSet<WorkerTag> WorkerTags => Set<WorkerTag>();
+    public DbSet<CheckRequiredWorkerTag> CheckRequiredWorkerTags => Set<CheckRequiredWorkerTag>();
+
     // On-call scheduling
     public DbSet<OnCallSchedule> OnCallSchedules => Set<OnCallSchedule>();
     public DbSet<OnCallLayer> OnCallLayers => Set<OnCallLayer>();

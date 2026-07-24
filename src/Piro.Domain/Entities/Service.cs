@@ -57,4 +57,5 @@ public class Service
     public ICollection<PageService> PageServices { get; set; } = [];
     public ICollection<IncidentService> IncidentServices { get; set; } = [];
     public ICollection<MaintenanceService> MaintenanceServices { get; set; } = [];
+    public ICollection<ServiceTag> ServiceTags { get; set; } = [];
 }

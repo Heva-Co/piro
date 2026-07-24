@@ -17,6 +17,7 @@ namespace Piro.Infrastructure.Hubs;
 public class WorkerHub(
     IWorkerRegistry registry,
     IWorkerRegistrationRepository workerRepo,
+    ITagRepository tagRepo,
     ICheckResultIngester ingester,
     IMultiRegionBatchTracker batchTracker,
     IHubContext<AdminHub, IAdminClient> adminHub,
@@ -57,13 +58,21 @@ public class WorkerHub(
         Context.Items["WorkerRegistrationId"] = registration.Id;
         Context.Items["WorkerRegion"] = registration.Region;
 
+        // Load the worker's advertised tags once at connect time so the Part B scheduler can match a
+        // check's required worker tags in-memory (RFC 0008 §4.5), no per-dispatch DB hit.
+        var workerTagRows = await tagRepo.GetWorkerTagsAsync(registration.Id);
+        var workerTags = workerTagRows.ToDictionary(wt => wt.Tag.Key, wt => wt.Value, StringComparer.Ordinal);
+
         registry.Register(Context.ConnectionId, new WorkerInfo(
             registration.Id,
             Context.ConnectionId,
             registration.Region,
             DateTime.UtcNow,
             DateTime.UtcNow,
-            IsDefault: registration.IsDefault));
+            IsDefault: registration.IsDefault)
+        {
+            Tags = workerTags
+        });
 
         registration.LastHeartbeat = DateTime.UtcNow;
         await workerRepo.UpdateAsync(registration);

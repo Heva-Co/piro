@@ -66,7 +66,6 @@ export default function CheckFormPage() {
       cron: "* * * * *",
       showCustomCron: false,
       isActive: true,
-      isMultiRegion: false,
       type: "HTTP",
       config: {},
       integrationId: "",
@@ -104,7 +103,6 @@ export default function CheckFormPage() {
         cron: values.cron,
         typeDataJson: JSON.stringify(values.config ?? {}),
         isActive: values.isActive,
-        isMultiRegion: values.isMultiRegion,
         integrationId: values.integrationId || undefined,
         alertConfigs: alertDrafts,
       });
