@@ -26,5 +26,11 @@ public class ApiKey
     /// <summary>When this key last successfully authenticated a request, if ever.</summary>
     public DateTime? LastUsedAt { get; set; }
 
+    /// <summary>What this key authorizes. Full = user credential; CheckInbound = one-check inbound token.</summary>
+    public ApiKeyScope Scope { get; set; } = ApiKeyScope.Full;
+
+    /// <summary>The check a CheckInbound-scoped key is bound to. Null for Full keys.</summary>
+    public int? CheckId { get; set; }
+
     public AppUser? User { get; set; }
 }

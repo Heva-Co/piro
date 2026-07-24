@@ -14,6 +14,8 @@ export type CheckTypeMeta = components["schemas"]["CheckTypeMetaDto"];
 /** A single config field's schema — shared with integrations (see lib/actions/integrations). */
 export type ConfigFieldSchema = components["schemas"]["ConfigFieldSchemaDto"];
 export type ScriptTestResult = components["schemas"]["ScriptTestResultDto"];
+export type CheckInboundToken = components["schemas"]["CheckInboundTokenDto"];
+export type CheckInboundTokenRotateResult = components["schemas"]["CheckInboundTokenRotateResultDto"];
 
 export const checkTypesApi = {
   list: () => api.get<CheckTypeMeta[]>(ENDPOINTS.CHECK_TYPES).then((r) => r.data),
@@ -45,6 +47,17 @@ export const checksApi = {
   test: (serviceSlug: string, checkSlug: string, typeDataJson?: string) =>
     api
       .post<ScriptTestResult>(ENDPOINTS.SERVICE_CHECK_TEST(serviceSlug, checkSlug), { typeDataJson })
+      .then((r) => r.data),
+
+  // Inbound-token checks (push-based, e.g. Heartbeat): read the token info, or rotate it (raw token once).
+  inboundToken: (serviceSlug: string, checkSlug: string) =>
+    api
+      .get<CheckInboundToken>(ENDPOINTS.SERVICE_CHECK_INBOUND_TOKEN(serviceSlug, checkSlug))
+      .then((r) => r.data),
+
+  rotateInboundToken: (serviceSlug: string, checkSlug: string) =>
+    api
+      .post<CheckInboundTokenRotateResult>(ENDPOINTS.SERVICE_CHECK_INBOUND_TOKEN_ROTATE(serviceSlug, checkSlug))
       .then((r) => r.data),
 
   logs: (

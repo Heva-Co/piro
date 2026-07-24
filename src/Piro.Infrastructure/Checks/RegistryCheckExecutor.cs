@@ -15,7 +15,7 @@ namespace Piro.Infrastructure.Checks;
 /// <see cref="CheckExecutionResult"/>. Replaces the seven per-type executors — a new check is just a new
 /// registry entry, never a new executor here.
 /// </summary>
-internal sealed class RegistryCheckExecutor(ICheckRegistry registry, ICheckHost host) : ICheckExecutor
+internal sealed class RegistryCheckExecutor(ICheckRegistry registry, ICheckHost host, CurrentCheckContext currentCheck) : ICheckExecutor
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -24,6 +24,12 @@ internal sealed class RegistryCheckExecutor(ICheckRegistry registry, ICheckHost 
         var checkImpl = registry.Find(check.Type.ToString());
         if (checkImpl is null)
             return CheckExecutionResult.Of(ServiceStatus.NO_DATA, $"No check is registered for type {check.Type}.");
+
+        // A check that reads its own history (RFC 0013 — Heartbeat) declares ConsumesCheckPoints; bind the
+        // scoped reader to THIS check so its IOwnCheckPoints returns only this check's points. Declared,
+        // not name-matched — the boundary is untouched for every check that leaves the flag false.
+        if (checkImpl.Manifest.ConsumesCheckPoints)
+            currentCheck.CheckId = check.Id;
 
         object config;
         try

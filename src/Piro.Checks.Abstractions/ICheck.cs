@@ -26,6 +26,15 @@ public interface ICheck
     /// check must not decide severity and must not throw for an expected failure.
     /// </summary>
     Task<CheckProbeResult> ProbeAsync(object config, ICheckHost host, CancellationToken ct = default);
+
+    /// <summary>
+    /// The inbound handler this check ships, or null if it has none (the default). A push-based check
+    /// (RFC 0013 — Heartbeat) returns a handler here; Piro's single generic inbound endpoint resolves the
+    /// check by id, looks up its handler, and dispatches — so the endpoint exists only because the check
+    /// is registered (a ping to a check whose type ships no handler is a 404), mirroring how integration
+    /// webhooks are dispatched. Pure data, like the manifest: safe to read at design time.
+    /// </summary>
+    ICheckInboundHandler? ProvidedInboundHandler() => null;
 }
 
 /// <summary>
@@ -57,4 +66,7 @@ public abstract class Check<TConfig> : ICheck<TConfig> where TConfig : class
                 ?? throw new InvalidOperationException(
                     $"Check '{CheckId}' expected config of type {typeof(TConfig).Name} but got {config?.GetType().Name ?? "null"}."),
             host, ct);
+
+    /// <summary>Override to ship an inbound handler (RFC 0013). Default: none.</summary>
+    public virtual ICheckInboundHandler? ProvidedInboundHandler() => null;
 }
