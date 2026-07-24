@@ -113,9 +113,9 @@ export default function WorkersPage() {
         }
       />
       <p className="text-sm text-muted-foreground -mt-4 mb-6">
-        Remote check workers execute single-region checks (when they're the default worker) or
-        participate in every multi-region check. The region label is for display and latency
-        reporting only — it does not route checks to a specific worker.
+        Remote check workers run checks alongside the built-in worker. A check with no required worker
+        tags runs on every connected worker; to pin a check to specific workers, give it required worker
+        tags that match a worker's tags (e.g. its region).
       </p>
 
       <div className="flex flex-col gap-4">
@@ -123,7 +123,7 @@ export default function WorkersPage() {
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-center gap-3">
             <AlertCircle size={16} className="text-amber-600 shrink-0" />
             <p className="text-sm text-amber-800">
-              No default worker connected — non-multi-region checks are not executing. Register and connect a worker marked as <strong>default</strong>.
+              No default worker connected — checks that require the default worker are not executing. Register and connect a worker marked as <strong>default</strong>.
             </p>
           </div>
         )}
@@ -244,7 +244,7 @@ export default function WorkersPage() {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded" />
-              <span className="text-sm">Set as default worker <span className="text-muted-foreground">(receives non-multi-region checks when the API worker is disabled)</span></span>
+              <span className="text-sm">Set as default worker <span className="text-muted-foreground">(runs checks that require the default worker when the API worker is disabled)</span></span>
             </label>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeModal}>Cancel</Button>

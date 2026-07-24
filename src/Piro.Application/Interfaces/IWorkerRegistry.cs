@@ -28,6 +28,13 @@ public record WorkerInfo(
     bool IsDefault = false)
 {
     /// <summary>
+    /// True for the built-in API worker, which executes checks IN-PROCESS rather than over SignalR. Its
+    /// <see cref="ConnectionId"/> is a synthetic sentinel, not a real hub connection, so the dispatcher
+    /// must run it via the local executor instead of sending a hub message that would silently go nowhere.
+    /// </summary>
+    public bool IsInProcess { get; init; }
+
+    /// <summary>
     /// The worker's advertised tags (key → value, value null for a key-only tag), loaded at connect time.
     /// Used by the Part B scheduler to match a check's required worker tags (RFC 0008 §4.5). Empty when the
     /// worker carries no tags.

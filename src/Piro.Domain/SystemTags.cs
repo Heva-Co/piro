@@ -32,7 +32,6 @@ public static class SystemTags
     public static readonly IReadOnlyList<SystemTagDefinition> All =
     [
         new("piro:check-type",   SystemTagAssignment.Reconciled, Stored: true),
-        new("piro:multi-region", SystemTagAssignment.Reconciled, Stored: true),
         new("piro:region",       SystemTagAssignment.Reconciled, Stored: true),
         new("piro:builtin",      SystemTagAssignment.Reconciled, Stored: true),
         new("piro:default",      SystemTagAssignment.Reconciled, Stored: true),

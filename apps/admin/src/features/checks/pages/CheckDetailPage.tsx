@@ -58,7 +58,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       cron: "* * * * *",
       showCustomCron: false,
       isActive: true,
-      isMultiRegion: false,
       type: "HTTP",
       config: {},
       integrationId: "",
@@ -75,7 +74,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
       cron: check.cron ?? "* * * * *",
       showCustomCron: !isPreset,
       isActive: check.isActive,
-      isMultiRegion: check.isMultiRegion,
       type: check.type,
       config: {},
       integrationId: check.integrationId != null ? String(check.integrationId) : "",
@@ -90,7 +88,6 @@ function GeneralSettingsSection({ serviceSlug, checkSlug }: { serviceSlug: strin
         description: values.description || undefined,
         cron: values.cron,
         isActive: values.isActive,
-        isMultiRegion: values.isMultiRegion,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

@@ -271,15 +271,8 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // PIRO_WORKER_REGION: region label for in-process check results (defaults to "default")
         var workerRegion = configuration["PIRO_WORKER_REGION"] ?? "default";
 
-        // LocalCheckJobDispatcher: always available — runs checks in-process when built-in worker is active
-        services.AddScoped<LocalCheckJobDispatcher>(sp =>
-            new LocalCheckJobDispatcher(
-                sp.GetRequiredService<ICheckExecutor>(),
-                sp.GetRequiredService<ICheckResultIngester>(),
-                workerRegion));
-
-        // RemoteCheckJobDispatcher: fans out to all connected SignalR workers
-        // apiIsWorker is resolved at dispatch time via registry — pass false here, routing handles it
+        // RemoteCheckJobDispatcher: dispatches a check to a set of live workers, each by its transport —
+        // the built-in worker (IsInProcess) runs locally, real workers get a SignalR message.
         services.AddScoped<RemoteCheckJobDispatcher>(sp =>
             new RemoteCheckJobDispatcher(
                 sp.GetRequiredService<IHubContext<WorkerHub, IWorkerClient>>(),
@@ -288,14 +281,12 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 sp.GetRequiredService<ICheckDataPointRepository>(),
                 sp.GetRequiredService<ICheckExecutor>(),
                 sp.GetRequiredService<ICheckResultIngester>(),
-                apiIsWorker: false,   // multi-region fan-out never includes the built-in API worker directly
                 workerRegion,
                 sp.GetRequiredService<ILogger<RemoteCheckJobDispatcher>>()));
 
-        // RoutingCheckJobDispatcher: checks registry at dispatch time to decide if built-in API worker is active
+        // RoutingCheckJobDispatcher: tag-based routing (RFC 0008 Part B); no IsMultiRegion.
         services.AddScoped<ICheckJobDispatcher>(sp =>
             new RoutingCheckJobDispatcher(
-                sp.GetRequiredService<LocalCheckJobDispatcher>(),
                 sp.GetRequiredService<RemoteCheckJobDispatcher>(),
                 sp.GetRequiredService<IWorkerRegistry>(),
                 sp.GetRequiredService<ITagRepository>()));
