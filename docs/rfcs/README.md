@@ -21,7 +21,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0005](0005-incident-postmortems.md) | Postmortems (standalone post-incident review reports) | **Implemented** (PR #205) | — |
 | [0006](0006-escalation-limits.md) | Escalation limits: per-step retries with a terminal state | **Implemented** (PR #182, #178) | — |
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
-| [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Proposed (PR #184, #185) | 0001 |
+| [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Accepted (PR #184, #185) | 0001 |
 | [0009](0009-system-notifications.md) | Notification system revamp: an event catalog, contracted payloads, and a durable push engine | **Implemented** (PR #200, #187) | 0008 |
 | [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | **Implemented** (PR #219, #39) | 0011, 0016 |
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
