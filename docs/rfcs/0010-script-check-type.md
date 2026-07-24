@@ -1,16 +1,30 @@
 ---
 rfc: 10
 title: "Script check type (sandboxed JavaScript, operator-driven HTTP)"
-status: proposed
+status: accepted
 created: 2026-07-17
-depends-on: ["0011"]
+depends-on: ["0011", "0016"]
+tracking-issue: 39
 ---
 
 # RFC 0010 — Script check type (sandboxed JavaScript, operator-driven HTTP)
 
-Status: proposal
+Status: accepted
 Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-17
+
+> **Revised 2026-07-24 for the RFC 0016 check SDK.** This RFC was first written against the pre-0016
+> architecture (`ICheckExecutor.ExecuteAsync(Check check, ...)`, the `CheckType` enum, `AllowedAlertFors`,
+> `CheckExecutionResult`, checks in `Piro.Infrastructure/Checks/`, and a `check()` that returned
+> `UP`/`DEGRADED`/`DOWN`). RFC 0016 replaced all of that: a check is a self-describing `ICheck` /
+> `Check<TConfig>` whose `ProbeAsync(TConfig config, ICheckHost host, ct)` returns a raw `CheckProbeResult`
+> (`Up`/`Down`/`Error` + dimensions), reaches Piro only through an allow-listed `ICheckHost`, and **never
+> decides severity** — `DEGRADED` is the alert policy's decision, derived from the check's declared
+> `DimensionSpec`s. The one operator-facing consequence: **`check()` no longer returns `DEGRADED`.** It
+> returns `up` plus optional dimensions; the policy raises severity from those, exactly as the HTTP check
+> now does with its `BodyRuleFailures` dimension (soft-rule failures keep the probe `Up` but feed a count
+> the policy can threshold to DEGRADED). §3–§5 are rewritten to that model; the sandbox, `piro:http`
+> module, SSRF guard, two-run-modes, and editor design are unchanged.
 
 ## 1. Problem
 
@@ -29,7 +43,7 @@ Watching a status page like Stripe's Atlassian-style feed (`GET /api/v2/status.j
 
 A brief detour proved a plain "custom failure message with `{$.json.path}` placeholders" is a dead end: a template can substitute a field but can't branch, and the moment the operator needs "DOWN vs DEGRADED depending on the value" the template has to grow an expression language — at which point it *is* a scripting language, minus the sandbox story.
 
-This RFC proposes a first-class **`Script` check type**: the operator writes a small JavaScript function that **makes its own HTTP request(s)** — importing an `http` module for that — runs arbitrary read-only logic over the response(s), and returns `{ status, message }`. Piro does **not** pre-fetch anything; the script is the sole driver of what to call, when, and how many times. Its output is mapped into the **exact same `CheckExecutionResult`** every other executor produces (`src/Piro.Application/Models/CheckExecutionResult.cs:6-11`), so alerting, dedup, and notifications work through the existing pipeline with **no special path** (§4.5).
+This RFC proposes a first-class **`Script` check type**: the operator writes a small JavaScript function that **makes its own HTTP request(s)** — importing an `http` module for that — runs arbitrary read-only logic over the response(s), and returns a raw verdict `{ up, message?, dimensions? }`. Piro does **not** pre-fetch anything; the script is the sole driver of what to call, when, and how many times. Its output becomes an ordinary `CheckProbeResult` (RFC 0016) — `Up`/`Down` plus any dimensions it measured — so alerting, dedup, and notifications work through the existing pipeline with **no special path** (§4.5). Like every RFC 0016 check, the script reports raw state; **severity (including DEGRADED) is the alert policy's call**, derived from the dimensions the script emits (§4.2).
 
 The contract is:
 
@@ -38,8 +52,8 @@ import http from 'piro:http';
 
 export function check() {
   const r = http.get('https://www.stripestatus.com/api/v2/status.json');
-  if (r.json.status.indicator === 'none') return { status: 'UP' };
-  return { status: 'DOWN', message: 'Stripe: ' + r.json.status.description };
+  if (r.json.status.indicator === 'none') return { up: true };
+  return { up: false, message: 'Stripe: ' + r.json.status.description };
 }
 ```
 
@@ -47,10 +61,11 @@ export function check() {
 
 ## 2. Non-goals
 
-- **A general compute/automation runtime.** This is a *check* — it observes and returns a verdict. It is not a place to run cron logic, mutate Piro state, or orchestrate side effects. The only egress is read-only HTTP GET via the `piro:http` module (§4.3), and the only output is `{ status, message }`.
+- **A general compute/automation runtime.** This is a *check* — it observes and returns a verdict. It is not a place to run cron logic, mutate Piro state, or orchestrate side effects. The only egress is read-only HTTP GET via the `piro:http` module (§4.3), and the only output is `{ up, message?, dimensions? }`.
+- **The script deciding severity.** `check()` returns a raw `up` boolean plus optional dimensions; it cannot return `DEGRADED` (or any severity). Turning outcome + dimensions into UP/DEGRADED/DOWN is the alert policy's job (RFC 0016), the same for a script as for HTTP. A script that wants a "degraded" middle ground emits a numeric dimension and the policy thresholds it (§4.2).
 - **Write access to anything.** No filesystem, no database, no environment variables, no Piro entities, no CLR interop. The sandbox is deny-by-default (§4.4): the script can only `import` modules Piro has put on the allowlist (§4.2), and today that is exactly one — `piro:http`.
 - **Arbitrary npm / ES modules.** `import` resolves **only** Piro-provided `piro:*` modules from an in-memory allowlist (§4.2); there is no `node_modules`, no filesystem module resolution, no network module fetch. `import x from 'node:fs'` (or any unlisted specifier) fails at load.
-- **Languages other than JavaScript.** Lua/WASM/C#-scripting were weighed (§7); v1 is JavaScript via Jint. Not a plugin system for arbitrary engines.
+- **Languages other than JavaScript.** Lua/WASM/C#-scripting were weighed (§7); v1 is JavaScript via Jint. Not a plugin system for arbitrary engines. (Per the issue this implements, this is also explicitly **not** an OS script/binary runner — no shell command, child process, or exit-code contract; that framing was rejected for its arbitrary-execution blast radius.)
 - **`POST`/other verbs or a full HTTP client in `http`.** v1 exposes `http.get` only (§4.3). Verbs with bodies widen the abuse surface for no status-page use case on the table. A future `http.post` is an additive change to the same module, not a new contract.
 - **Persisting script logs in production.** `console.log` is captured only in the on-demand debug run (§4.6); in scheduled production runs it is a no-op. Piro grows **no** log-storage column for scripts (§5).
 - **Replacing the HTTP check.** The HTTP check with response rules stays exactly as-is for the common "assert status code + one path" case. Script is the escape hatch for logic that doesn't fit, not a deprecation of rules.
@@ -58,49 +73,69 @@ export function check() {
 
 ## 3. Design principle
 
-**The script is a self-contained `check() → {status, message}` function that pulls its capabilities via `import` and whose output is an ordinary `CheckExecutionResult`; every hard problem it raises — sandboxing, egress, timeout — is solved at the executor boundary, and nothing downstream of the executor learns that a script was involved.** Everything below traces to this: the executor is one more `ICheckExecutor` picked up by the existing dictionary dispatch (§4.1); capabilities are a Piro-controlled module allowlist so the surface grows without changing the contract (§4.2); the result flows through `CheckResultIngesterService`/`AlertEvaluationService` untouched (§4.5); the two "modes" (§4.6) differ **only** in what `console.log` does, so there is a single execution path and no "worked in test, failed in prod" gap.
+**The script is a self-contained `check() → { up, message?, dimensions? }` function that pulls its capabilities via `import` and whose output is an ordinary `CheckProbeResult`; every hard problem it raises — sandboxing, egress, timeout — is solved inside the check's `ProbeAsync`, and nothing downstream learns that a script was involved.** Everything below traces to this: `ScriptCheck` is one more RFC 0016 `ICheck` picked up by the check registry (§4.1); capabilities are a Piro-controlled module allowlist resolved through the `ICheckHost` so the surface grows without changing the contract (§4.2); the raw result flows through the same ingester → alert-evaluation path every check uses, with the alert policy deciding severity from the declared dimensions (§4.5); the two "modes" (§4.6) differ **only** in what `console.log` does, so there is a single execution path and no "worked in test, failed in prod" gap.
 
 ## 4. Design
 
-```
-  CONFIG (Check.TypeDataJson, deserialized to ScriptCheckData)
-    { script, timeoutMs, maxResponseBytes }          ← no url/method/headers; the script drives HTTP
-        │
-        ▼
-  ScriptCheckExecutor.ExecuteAsync(check, ct)                    [Infrastructure/Checks]
-        │  1. new Jint Engine { TimeoutInterval=timeoutMs, MaxStatements, LimitMemory, no CLR }
-        │  2. register ESM module  'piro:http'  (default export: SSRF-guarded http.get)
-        │            + console  (→ buffer in debug | no-op in production)
-        │  3. import the operator's script as a module; resolve its exported check()
-        │  4. sw = start;  invoke check();  LatencyMs = wall-clock of the whole script
-        │  5. map return → CheckExecutionResult
-        ▼
-  CheckExecutionResult(Status ∈ {UP,DEGRADED,DOWN} | FAILURE, LatencyMs=script wall-clock, ErrorMessage=message)
-        │                                    ▲ invalid return / throw / timeout / disallowed import ⇒ FAILURE
-        │
-        ├── production run ──▶ CheckResultIngesterService.IngestAsync           [unchanged]
-        │                        → CheckDataPoint(ErrorMessage=message)
-        │                        → AlertEvaluationService → AlertLifecycleService
-        │                          (fingerprint dedup, OccurrenceCount, notifications)
-        │
-        └── debug run ───────▶ POST /…/checks/{slug}/test
-                                 → { result: {status,message,latencyMs}, logs: [...] }   (not persisted)
+```mermaid
+flowchart TD
+    CFG["Check config (TypeDataJson → ScriptCheckConfig)<br/>{ script, timeoutMs, maxResponseBytes }<br/>no url/method/headers — the script drives HTTP"] --> PA
 
-  user script:   import http from 'piro:http';
-                 export function check() { const r = http.get(url); return { status, message } }
+    subgraph probe["ScriptCheck.ProbeAsync(config, host) — Piro.Checks/Script"]
+        PA["1. new Jint Engine (TimeoutInterval, MaxStatements, LimitMemory, no CLR)<br/>2. register ESM 'piro:http' (SSRF-guarded http.get) + console<br/>3. import script, resolve exported check()<br/>4. invoke check(); latency = whole-script wall-clock<br/>5. map return → CheckProbeResult"] --> RES
+    end
+
+    RES["CheckProbeResult<br/>Up / Down (+ dimensions, message) — never DEGRADED<br/>throw / timeout / bad return / disallowed import ⇒ Error"]
+
+    RES -->|"production tick"| ING["RegistryCheckExecutor maps → ICheckResultIngester.IngestAsync<br/>CheckDataPoint(message) → alert evaluation<br/>policy derives UP/DEGRADED/DOWN from dimensions"]
+    RES -->|"debug run"| TEST["POST .../checks/{slug}/test<br/>{ result: {up, message, dimensions, latencyMs}, logs: [...] }<br/>(not persisted)"]
 ```
 
-### 4.1 `ScriptCheckExecutor` and the `Script` check type
+The operator's script:
 
-A new `CheckType.Script` value (appended to the enum at `src/Piro.Domain/Enums/CheckType.cs:6-13`, after `GCP_CloudRunJob`) and a new `ScriptCheckExecutor : ICheckExecutor` (`src/Piro.Infrastructure/Checks/ScriptCheckExecutor.cs`, new file) whose `CheckType` property returns `CheckType.Script` (mirroring `HttpCheckExecutor.cs:21`).
+```js
+import http from 'piro:http';
+export function check() { const r = http.get(url); return { up, message, dimensions }; }
+```
 
-This reuses the executor plumbing **entirely**. Executors are registered as plain scoped `ICheckExecutor` services (`InfrastructureServiceExtensions.cs:119-124`), and each dispatcher builds a `Dictionary<CheckType, ICheckExecutor>` at runtime via `.ToDictionary(e => e.CheckType)` (`LocalCheckJobDispatcher.cs:23-24`, `RemoteCheckJobDispatcher.cs:37`, `WorkerSignalRService.cs:125-127`). So once `ScriptCheckExecutor` is registered, dispatch picks it up by its `CheckType` with **zero dispatcher changes** — the only coupling is the property value.
+### 4.1 `ScriptCheck` and the `Script` check type
 
-It must be registered in **both** DI blocks — `AddInfrastructure` (`InfrastructureServiceExtensions.cs:119-124`, the API/in-process worker) **and** `AddWorkerInfrastructure` (`:274-278`, the standalone worker) — because both the standalone worker (`WorkerSignalRService.cs:145`) and the API-as-worker (`RemoteCheckJobDispatcher.cs:91-93`, when `PIRO_API_WORKER=true`, the single-region default) invoke `ExecuteAsync`. Since executors live in `Piro.Infrastructure`, which both API and Worker reference, the Jint dependency (§5) becomes available in both processes automatically.
+A new `ScriptCheck : Check<ScriptCheckConfig>` in `Piro.Checks/Script/`, mirroring the other checks
+(`HttpCheck`, `SslCheck`). Its `CheckId` is the string `"Script"` (the RFC 0016 discriminator, persisted
+on every `Check` row); no `CheckType` enum is involved (RFC 0016 killed it).
 
-Like `HttpCheckExecutor`, the executor injects `IHttpClientFactory` via primary constructor and resolves the named `"piro-http"` client (`HttpCheckExecutor.cs:17,33`) — but here that client backs the `piro:http` module's `http.get` (§4.3), the **only** outbound path (there is no separate Piro-issued primary fetch). The client carries the new SSRF `ConnectCallback` (§4.4).
+```csharp
+public sealed class ScriptCheck : Check<ScriptCheckConfig>
+{
+    public override string CheckId => "Script";
+    public override CheckManifest Manifest => new()
+    {
+        Label = "Script",
+        Description = "Run a small sandboxed JavaScript check() that drives its own HTTP and returns a verdict.",
+        ConfigType = typeof(ScriptCheckConfig),
+        Dimensions = [CommonDimensions.Status, CommonDimensions.Latency],  // + any the script emits (§4.2)
+        DefaultIntervalSeconds = 300,   // 5-min floor: a script runs arbitrary code (§5)
+    };
+    public override Task<CheckProbeResult> ProbeAsync(ScriptCheckConfig config, ICheckHost host, CancellationToken ct = default) { ... }
+}
+```
 
-**`CheckTypeExtensions.AllowedAlertFors` must gain a `Script` case.** Its `switch` has a `default` that `throw`s `NotSupportedException` (`src/Piro.Domain/Extensions/CheckTypeExtensions.cs`), so a new `CheckType` with no case is a hard runtime failure the moment anything asks for its allowed `AlertFor`s. A script returns a status verdict (UP/DEGRADED/DOWN), so its allowed set mirrors `HTTP`'s status-oriented set, not a metric one.
+This reuses the RFC 0016 check plumbing **entirely**: registering `ScriptCheck` in the check registry is
+all that is needed for the scheduler → `RegistryCheckExecutor` path to pick it up and for it to appear in
+`GET /api/v1/checks/types` with an auto-generated config form. There is no per-type executor and no
+dispatcher change — `RegistryCheckExecutor` is the single adapter for every check.
+
+**HTTP egress comes through the host, not an injected client.** The check resolves an `IHttpClientFactory`
+via `host.GetRequiredService<IHttpClientFactory>()` (already on the check-host allow-list, used by the
+HTTP and GCP checks) and takes the named `"piro-http"` client, which backs the `piro:http` module's
+`http.get` (§4.3) — the **only** outbound path. That client carries the SSRF `ConnectCallback` (§4.4). The
+check never sees a repository, the `Check` entity, or the DbContext; the boundary is unchanged.
+
+**Alert dimensions are declared, not switched on.** The manifest's `Dimensions` list (`Status`, `Latency`,
+plus any the script emits) is what the generic alert evaluator uses — there is no `AllowedAlertFors` switch
+to extend (that mechanism was replaced by `DimensionSpec` in RFC 0016). A script's verdict is status-oriented
+(`Up`/`Down` + optional numeric dimensions), so `Status` is always present and any script-emitted metric is
+declared alongside it.
 
 ### 4.2 The script contract, the module system, and injected APIs
 
@@ -111,11 +146,13 @@ import http from 'piro:http';
 
 export function check() {
   const r = http.get('https://www.stripestatus.com/api/v2/status.json');
-  return { status: 'UP' | 'DEGRADED' | 'DOWN', message?: string };
+  return { up: boolean, message?: string, dimensions?: { [name: string]: number } };
 }
 ```
 
 `check()` takes **no parameters** — every capability arrives through `import`. There is no Piro-issued "primary response": the script decides which URL(s) to fetch and when. This is what makes the Stripe case (§1) and multi-endpoint feeds (a summary + an incidents call) both natural — the script simply calls `http.get` as many times as it needs.
+
+**The return is a raw verdict, not a severity.** `up` is the outcome (`true` → `Up`, `false` → `Down`); `message` is the human detail; `dimensions` is an optional bag of named numeric measurements the script wants the alert policy to be able to threshold. The script **cannot** return `DEGRADED` — that is the policy's decision. To express a "degraded" middle ground, the script emits a numeric dimension (e.g. `{ dimensions: { Severity: 1 } }`, or a domain metric like an error-rate percentage) that it also **declares in the manifest** so the alert form offers it; the operator then configures a threshold that maps to a DEGRADED-severity alert. This is exactly the pattern the HTTP check uses with its `BodyRuleFailures` dimension (a soft-rule failure keeps the probe `Up` but raises the count the policy alerts on).
 
 **The module allowlist.** `import` resolves against a Piro-controlled, **in-memory** allowlist — not `node_modules`, not the filesystem, not the network. Each allowed module is registered on the Jint engine before the script runs; any `import` of an unregistered specifier fails at module-load and maps to `FAILURE` (§4.4). A spike confirmed both halves: `import http from 'piro:http'` resolves to a C#-backed object and its export is invocable, while `import fs from 'node:fs'` is rejected with *"Module 'node:fs' is not available."* The v1 allowlist is exactly one module:
 
@@ -129,18 +166,25 @@ Extending the surface later is purely additive: register `piro:dns`, `piro:crypt
 
 **Editor typing (JS runtime, TS-grade ergonomics).** The runtime is plain JavaScript — Jint executes JS, not TypeScript, and no transpile step is introduced (rejected in §7). To give operators autocomplete and type-checking *as they write*, the admin editor (§4.7) loads a hand-maintained **`.d.ts`** describing the `piro:http` module, the `HttpResponse` shape, and the `check` return type. The operator gets a TypeScript-like authoring experience; what is stored and run is the JS they typed. The ESM `import … export function check()` syntax is valid in both JS and TS, so nothing about the contract changes.
 
-**The Stripe case, fully expressed** (the motivating example from §1):
+**The Stripe case, fully expressed** (the motivating example from §1). The script maps Stripe's
+`indicator` to a numeric `Severity` dimension and reports `up` — the alert policy turns `Severity` into
+DEGRADED vs DOWN via thresholds, so the script never names a severity:
 
 ```js
 import http from 'piro:http';
 
+// The check declares a "Severity" dimension in its manifest; the operator sets thresholds:
+//   Severity >= 1  → DEGRADED-severity alert,  Severity >= 2 → DOWN-severity alert.
 export function check() {
   const s = http.get('https://www.stripestatus.com/api/v2/status.json').json.status;
-  if (s.indicator === 'none')  return { status: 'UP' };
-  if (s.indicator === 'minor') return { status: 'DEGRADED', message: 'Stripe: ' + s.description };
-  return { status: 'DOWN', message: 'Stripe: ' + s.description + ' (' + s.indicator + ')' };
+  if (s.indicator === 'none')  return { up: true, dimensions: { Severity: 0 } };
+  if (s.indicator === 'minor') return { up: true, message: 'Stripe: ' + s.description, dimensions: { Severity: 1 } };
+  return { up: false, message: 'Stripe: ' + s.description + ' (' + s.indicator + ')', dimensions: { Severity: 2 } };
 }
 ```
+
+(If the operator only cares about hard up/down, they skip the dimension entirely and return `{ up }` — the
+"degraded middle" is opt-in, expressed as a measurement plus a threshold, never as a status the script picks.)
 
 ### 4.3 The `piro:http` module — GET only, full-object return, opt-in per-call timeout
 
@@ -179,28 +223,28 @@ The `AllowlistModuleLoader` is a custom `IModuleLoader` that resolves specifiers
 
 **The `Engine` is ephemeral — one per `ExecuteAsync`, never shared or cached.** Jint's `Engine` is **not thread-safe**, and Piro runs checks concurrently (Quartz `MaxConcurrency = ProcessorCount * 2`, `InfrastructureServiceExtensions.cs:136`), so distinct script checks execute on parallel threads. A shared/pooled engine would corrupt state across those threads. The executor therefore constructs a fresh `Engine` inside each `ExecuteAsync` call and discards it when the method returns — the construction cost is negligible next to the network calls the script makes, and it guarantees no cross-check state leakage (a script cannot stash a value in one run and read it in another). This is a hard invariant, not an optimization choice.
 
-**Timeout is kill-and-report against the whole script.** `timeoutMs` (default 10 000, §5) is the total budget for `check()` — all its logic plus every `http.get` it makes. If the script runs past it (e.g. a 10 s budget reached at 11 s), Jint's `TimeoutInterval` aborts it and the executor returns `FAILURE` with `"Script timed out after {timeoutMs} ms."`. There is no separate network budget; a per-call `{ timeoutMs }` on an individual `http.get` (§4.3) is an optional refinement *within* this total.
+**Timeout is kill-and-report against the whole script.** `timeoutMs` (default 10 000, §5) is the total budget for `check()` — all its logic plus every `http.get` it makes. If the script runs past it (e.g. a 10 s budget reached at 11 s), Jint's `TimeoutInterval` aborts it and `ProbeAsync` returns `CheckProbeResult.Failed("Script timed out after {timeoutMs} ms.")` (outcome `Error`). There is no separate network budget; a per-call `{ timeoutMs }` on an individual `http.get` (§4.3) is an optional refinement *within* this total.
 
-**Latency = whole-script wall-clock.** With no Piro-issued primary fetch, `CheckExecutionResult.LatencyMs` is the wall-clock time of the entire `check()` invocation (JS logic + all `http.get` calls) — measured by a stopwatch around `engine.Invoke(check)`. This is what the operator perceives as "how long the check took," and it feeds the same latency datapoint every other check type reports.
+**Latency = whole-script wall-clock.** With no Piro-issued primary fetch, the reported `Latency` dimension is the wall-clock time of the entire `check()` invocation (JS logic + all `http.get` calls) — measured by a stopwatch around `engine.Invoke(check)` and emitted via `CommonDimensions.Latency.Measure(ms)`. This is what the operator perceives as "how long the check took," and it feeds the same latency dimension every other check reports.
 
 **SSRF guard — new, because none exists to reuse.** There is today **no** private-IP / metadata-endpoint protection anywhere: `piro-http`/`piro-http-noredirect` have no `ConnectCallback` at all (`InfrastructureServiceExtensions.cs:94-96`), and the two handlers that *do* have one (`oidc-http` `:76-82`, `piro-webhook` `:110-116`) resolve DNS only to force IPv4, with an explicit comment to that effect (`:109`) and no address validation. So this RFC **introduces** a guard: a shared `SocketsHttpHandler.ConnectCallback` that resolves the host and **rejects** loopback (`127/8`, `::1`), link-local / cloud metadata (`169.254/16`, notably `169.254.169.254`), and RFC-1918 private ranges (`10/8`, `172.16/12`, `192.168/16`), plus `localhost`/`metadata.google.internal` by name. Because the guard validates the **resolved IP** (not the hostname), it also defeats DNS-rebinding — a host that resolves to a public IP at check-authoring time but a private one at run time is caught at connect. The guard is applied to the `"piro-http"` client that backs `piro:http` — and since *all* of a script's network egress goes through that one module, there is a single guarded choke point with no unguarded path around it. **It is retrofittable to `piro-webhook` and the HTTP check's own clients** (which are equally unguarded today), so this RFC's guard doubles as the fix for a pre-existing exposure — but hardening those other paths is called out as follow-up, not folded into this RFC's blast radius.
 
 **Threat model.** The script author is the Piro **operator**, not an anonymous end user — someone who already has server access. The guard therefore targets *accidental* SSRF (a copy-pasted script pointed at an internal URL) and defense-in-depth against a compromised-config scenario, not a fully hostile tenant. This is why deny-by-default + resource limits + IP guard is proportionate, and a full VM/WASM jail (§7) is not.
 
-**Failure mapping.** A script that throws, times out, exceeds a limit, returns a non-object, or returns a `status` outside `{UP, DEGRADED, DOWN}` produces `CheckExecutionResult(ServiceStatus.FAILURE, …)` with a diagnostic `ErrorMessage`. This is deliberate: `FAILURE` is the "executor itself couldn't produce a verdict" state (`ServiceStatus` doc-comment, `src/Piro.Domain/Enums/ServiceStatus.cs`), and — crucially — `CheckResultIngesterService` **skips alert evaluation when status is `FAILURE`** (`src/Piro.Application/Services/CheckResultIngesterService.cs:65`). So a broken script does **not** spam alerts; it records a `FAILURE` datapoint the operator sees on the check, exactly as an unregistered check type or a crashed executor does today.
+**Failure mapping.** A script that throws, times out, exceeds a limit, or returns something that is not `{ up: boolean, ... }` produces `CheckProbeResult.Failed(...)` (outcome `Error`) with a diagnostic message. `RegistryCheckExecutor` maps `Error` to the `FAILURE` status, which the ingester **excludes from alert evaluation** — so a broken script does **not** spam alerts; it records a `FAILURE` datapoint the operator sees on the check, exactly as an unregistered check type or a crashed executor does. This is the RFC 0016 `CheckOutcome.Error` contract ("the check itself failed to run — the policy treats this apart from a real Down"), not a Script-specific rule.
 
-The script may return only `UP`/`DEGRADED`/`DOWN`. `MAINTENANCE` is Piro-owned (maintenance windows) and `FAILURE`/`NO_DATA` are executor-internal — none are script-selectable.
+The script chooses only `up: true`/`false`. It cannot select a status string, a severity, or `Error`/`NO_DATA` — those are Piro-owned (severity is the policy's; `Error`/`NO_DATA` are outcomes Piro assigns).
 
 ### 4.5 What flows downstream — reuse, no parallel path
 
-The executor returns a `CheckExecutionResult` **identical in shape** to every other executor's, so the entire post-execution pipeline is reused verbatim:
+`ScriptCheck.ProbeAsync` returns a `CheckProbeResult` **identical in shape** to every other check's, so `RegistryCheckExecutor` and the entire post-execution pipeline are reused verbatim:
 
-- `LocalCheckJobDispatcher` (or the worker) calls `CheckResultIngesterService.IngestAsync` (`LocalCheckJobDispatcher.cs:51-52`).
-- The `message` lands in `CheckDataPoint.ErrorMessage` (`CheckResultIngesterService.cs:43`; field at `src/Piro.Domain/Entities/CheckDataPoint.cs:31`).
-- `AlertEvaluationService.EvaluateAsync` runs (`CheckResultIngesterService.cs:67`), and `BuildMessage` uses `latest.ErrorMessage` as the alert's frozen text (`AlertEvaluationService.cs:164-168`) — i.e. **the script's `message` becomes the alert message with no new code**.
-- `AlertLifecycleService.RecordOccurrenceAsync` fingerprints that message and folds repeats into `OccurrenceCount` (`AlertLifecycleService.cs:35-43`).
+- `RegistryCheckExecutor` maps the outcome to a status and the dimensions to the datapoint, then the dispatcher calls `ICheckResultIngester.IngestAsync`.
+- The `message` lands in `CheckDataPoint`'s message field and becomes the alert's frozen text — **the script's `message` becomes the alert message with no new code**.
+- The generic alert evaluator reads the check's declared `Dimensions` (Status, Latency, plus any the script emitted such as `Severity`) and applies the operator's `AlertConfig` thresholds — **this is where DEGRADED vs DOWN is decided**, uniformly with every other check.
+- `AlertLifecycleService` fingerprints the message and folds repeats into `OccurrenceCount`.
 
-The check is configured with an ordinary `AlertConfig` (`src/Piro.Domain/Entities/AlertConfig.cs`) whose severity/thresholds/escalation behave the same as for an HTTP check. **No `AlertConfig`, `AlertLifecycleService`, `AlertEvaluationService`, notification-dispatcher, or escalation change is required** — this is the point of mapping the script to `CheckExecutionResult` rather than inventing a script-specific alert path.
+The check is configured with an ordinary `AlertConfig` whose severity/thresholds/escalation behave exactly as for an HTTP check. **No alert-pipeline change is required** — this is the point of returning an ordinary `CheckProbeResult` rather than inventing a script-specific alert path or letting the script name a severity.
 
 **The one downstream subtlety — dedup (documented, not code-changed).** Fingerprinting is exact-match over the normalized message (`AlertLifecycleService.Fingerprint`, `:143-148`: trim + lowercase + collapse whitespace). If a script embeds a **volatile** value in `message` (a timestamp, a rotating incident id, a counter), every run yields a different fingerprint, so each occurrence opens a *new* alert instead of incrementing `OccurrenceCount` on the existing one — the "Occurrence: 13" folding breaks. This is not a Script-specific bug (any check whose message varies per run hits it), but Script makes it easy to trigger — most directly via `Date` (available in the JS environment, §4.2): a `message` that includes `new Date().toISOString()` or `Date.now()` changes every run. The mitigation is **documentation + UI guidance** (§4.7), not a mechanism change: advise keeping `message` stable for a given failure condition and putting volatile detail (timestamps, ids) in `console.log` (debug-only) rather than the returned message. Auto-normalizing volatile substrings out of the fingerprint is explicitly rejected (§7) — it guesses at intent and would mask genuinely distinct failures.
 
@@ -214,7 +258,7 @@ There are two ways a script runs, differing in **exactly one thing** — what `c
 | `console.log` | **no-op** (executes without error, captures nothing) | captured to an in-memory buffer, returned to the caller |
 | `http.get` | real, SSRF-guarded | **real, SSRF-guarded** (identical — not mocked) |
 | Result persisted? | yes (`CheckDataPoint`, alert eval) | **no** (returned in the HTTP response only) |
-| Output | `CheckExecutionResult` | `{ result: {status, message, latencyMs}, logs: [...] }` |
+| Output | `CheckProbeResult` | `{ result: {up, message, dimensions, latencyMs}, logs: [...] }` |
 
 Keeping `http.get` **real in debug** (a design decision) means the operator tests the *exact* code path production runs — eliminating the classic "passed in test, failed live" gap that a mocked egress would create. The only asymmetry is log capture, which cannot change the verdict.
 
@@ -224,22 +268,40 @@ Mechanically, the mode is a parameter to a shared internal run method; both call
 
 ### 4.7 UI — Script config editor and the Test panel (`apps/admin`)
 
-The admin panel is the Vite SPA (`apps/admin`); its API types are generated from the backend OpenAPI spec, so every shape below derives from the `ScriptCheckData` DTO (§5) and the test endpoint (§4.8). Two surfaces:
+The admin panel is the Vite SPA (`apps/admin`). Since RFC 0011/0016 the check config form is **entirely
+schema-driven**: `SchemaConfigSection` renders `DynamicConfigForm` from the type's `configSchema` (reflected
+from `ScriptCheckConfig`), so there is **no per-type `ScriptConfig.tsx` to write** — declaring the config
+record is enough for the form to appear. Because the script drives its own HTTP (§4.2), there is no
+URL/method/headers form; the schema surfaces the `Script` code field plus the numeric limits.
 
-**(a) `ScriptConfig.tsx` — the per-type config editor.** The check form (`apps/admin/src/features/checks/pages/CheckFormPage.tsx`) renders per-type fields through a renderer registry, `CHECK_TYPE_CONFIG_RENDERERS` (`apps/admin/src/features/checks/components/CheckTypeConfigFields.tsx:10-19`), with each type's component under `.../components/check-types/` (`HttpConfig.tsx`, `SslConfig.tsx`, …). This RFC adds `check-types/ScriptConfig.tsx` and registers it in that map. Modeled on `HttpConfig.tsx` (which uses `useFormContext`), it renders:
+**(a) The code field — a CodeMirror upgrade already stubbed for this RFC.** `ScriptCheckConfig.Script`
+carries `[CodeField]`, which the schema engine emits as `ConfigFieldType.Code`. `FieldControl` already
+renders `Code` today (as a monospace `<textarea>`) with an explicit `TODO(RFC 0010): swap for a CodeMirror
+editor once that dependency lands`. This RFC lands that dependency: a shared `CodeEditor.tsx` wrapping
+**CodeMirror 6** (`@uiw/react-codemirror` + `@codemirror/lang-javascript`) with JS highlighting, line
+numbers, bracket matching, and a theme-aware look; `FieldControl`'s `Code` case renders it instead of the
+textarea, so **every** `Code` field (not just Script) gets the editor. A hand-maintained `.d.ts` for
+`piro:http` / `HttpResponse` / the `check` return type is loaded for autocomplete (JS runtime, TS-grade
+ergonomics, §4.2). The field seeds a template and shows the §4.5 dedup warning inline. `@codemirror/lint`
+renders a Test-panel FAILURE that carries a line as an inline diagnostic on that line.
 
-Because the script drives its own HTTP (§4.2), there is **no** URL/method/headers form — those live inside the script. The editor renders:
+  CodeMirror 6 (not Monaco) is modular, bundles cleanly under Vite without Monaco's web-worker setup, and
+  is proportionate to a ~20-line function. It can be `React.lazy`-split so non-code pages don't pay for it.
 
-- **Script** — a real **code editor** (not a plain textarea) bound to `script`, required. This is a new shared `CodeEditor.tsx` component wrapping **CodeMirror 6** (`@uiw/react-codemirror` + `@codemirror/lang-javascript`), giving JavaScript syntax highlighting, line numbers, bracket matching, and auto-indent. It is theme-aware (light/dark, matching the admin's existing theme) and reused anywhere the admin later needs code entry. A **`.d.ts`** describing `piro:http`, the `HttpResponse` shape, and the `check` return type is loaded into the editor's language support so the operator gets autocomplete and type-checking as they write (JS runtime, TS-grade ergonomics — §4.2). The editor seeds a template (`import http from 'piro:http'; export function check() { … }`) and shows an inline warning: *"Keep `message` stable for a given failure — volatile values (timestamps, ids) split one alert into many"* (the §4.5 dedup guidance, surfaced where it's authored). CodeMirror's `@codemirror/lint` gutter is wired so that a FAILURE from the Test panel (§4.7b) — a Jint parse/runtime error carrying a line — is rendered as an inline diagnostic on the offending line, not just as text below.
+The numeric limits (`timeoutMs`, `maxResponseBytes`, §5) render as ordinary number fields from the same
+schema. Validation and defaults come from the schema too (`seedDefaults(typeMeta.configSchema)`), so there
+is no hand-written Zod branch or `typeDataJson` serializer to add — another consequence of the schema-driven
+form replacing the old per-type wiring.
 
-  CodeMirror 6 (not Monaco) is chosen because it is modular and lightweight, bundles cleanly under Vite without the web-worker configuration Monaco's editor requires, and is proportionate to editing a ~20-line function. The admin already ships `highlight.js` (`apps/admin/src/lib/highlight.ts`) but only for **read-only** rendering (`PayloadDialog.tsx:36`, JSON only) — it is not an editable editor and only registers the `json` language, so it does not serve this need.
-- **Limits** (numbers with defaults, §5): `timeoutMs` (whole-script wall-clock) and `maxResponseBytes`. There is no `httpGetTimeoutMs` field — a per-call timeout is opt-in inside the script (`http.get(url, { timeoutMs })`, §4.3).
-
-Validation joins the existing flat Zod schema: fields added to `baseCheckSchema`, a `case 'Script'` in the per-type `superRefine`, and defaults in `CHECK_CONFIG_DEFAULTS` (`apps/admin/src/features/checks/validations.ts`). The `typeDataJson` serializer gains a `Script` branch (`apps/admin/src/features/checks/utils/typeDataJson.ts:5-41`).
-
-**(b) The Test panel.** A **"Test"** button in `ScriptConfig.tsx` (distinct from the existing "Run now" on `CheckDetailPage.tsx:293-300`, which triggers the *real, persisted* scheduled run) posts the current form's config to the debug endpoint (§4.8) and renders the response inline: the returned **status** (colored badge — green UP / amber DEGRADED / red DOWN, or a distinct FAILURE state), the **message**, **latencyMs**, and a scrollable **logs** list (the captured `console.log` lines). This is the payoff of debug mode — the operator iterates the script against the live endpoint and sees both the verdict and their log output without saving or firing an alert. A new action module method (`checksApi.test`, mirroring the existing `run`/`logs` in `apps/admin/src/lib/actions/checks/index.ts`) calls it.
-
-The FAILURE state (invalid return, timeout, thrown error, blocked SSRF) renders its diagnostic `ErrorMessage` in the panel so the operator can fix the script — this is where blocked-host and timeout messages surface.
+**(b) The Test panel.** A **"Test"** button (distinct from the detail page's "Run now", which triggers the
+*real, persisted* run) posts the current form's config to the debug endpoint (§4.8) and renders the response
+inline: the returned outcome (**up/down** badge, or a distinct **FAILURE** state), the **message**, the
+**latency** and any **dimensions** the script emitted, and a scrollable **logs** list (captured `console.log`).
+The operator iterates the script against the live endpoint and sees the verdict + logs without saving or
+firing an alert. A new `checksApi.test` action method (mirroring the existing `run`/`logs`) calls it. The
+Test panel shows the raw outcome, **not** a severity — severity is the alert policy's, decided from the
+dimensions once the check is saved with an `AlertConfig`. The FAILURE state renders its diagnostic message
+(blocked SSRF host, timeout, thrown error) so the operator can fix the script.
 
 ### 4.8 API — the debug endpoint
 
@@ -249,26 +311,25 @@ One new endpoint on `ChecksController` (`src/Piro.Api/Controllers/ChecksControll
 POST /api/v1/services/{serviceSlug}/checks/{checkSlug}/test   -> { result, logs }
 ```
 
-Unlike `run` — which calls `checkRunner.RunAsync` and goes through the full persist-and-alert path — `test` invokes the executor **in debug mode** and returns `{ result: { status, message, latencyMs }, logs: string[] }` **without** writing a `CheckDataPoint` or touching alert evaluation. To support editing-before-saving, it accepts the candidate `ScriptCheckData` in the request body (so the operator tests unsaved edits), falling back to the persisted config when the body is empty. `http.get` runs for real under the same SSRF guard.
+Unlike `run` — which calls `checkRunner.RunAsync` and goes through the full persist-and-alert path — `test` runs the `ScriptCheck` **in debug mode** and returns `{ result: { up, message, dimensions, latencyMs }, logs: string[] }` **without** writing a `CheckDataPoint` or touching alert evaluation. To support editing-before-saving, it accepts the candidate `ScriptCheckConfig` in the request body (so the operator tests unsaved edits), falling back to the persisted config when the body is empty. `http.get` runs for real under the same SSRF guard. The response carries the raw outcome and dimensions, not a status/severity — mirroring what the check itself returns.
 
 ### 4.9 What does NOT change
 
-- **The dispatch mechanism.** `RoutingCheckJobDispatcher`/`LocalCheckJobDispatcher`/`RemoteCheckJobDispatcher` and the SignalR `WorkerExecuteMessage` contract are untouched — a `Script` check is dispatched by the same `Dictionary<CheckType, ICheckExecutor>` lookup as every other type (§4.1), and the script rides the existing `TypeDataJson` field of `WorkerExecuteMessage` with no new wire field (subject to the size ceiling noted in §8). The worker binary needs no code change; it gains Jint transitively via `Piro.Infrastructure` (§5).
-- **The alert pipeline.** `AlertConfig`, `AlertEvaluationService`, `AlertLifecycleService`, `CheckResultIngesterService`, `INotificationDispatcher` and every dispatcher under `src/Piro.Infrastructure/Alerts/`, and `EscalationCheckerService` are reused as-is (§4.5). Script is a new *producer* of an ordinary `CheckExecutionResult`, not a parallel evaluator.
-- **`CheckExecutionResult` and `CheckDataPoint` schema.** No new fields (§5). The script's `message` reuses `ErrorMessage`; debug logs are never persisted, so they need no column.
-- **The HTTP check.** `HttpCheckExecutor` and `HttpResponseRule` are unchanged; Script is additive, not a replacement (§2).
-- **The YAML importer.** `YamlImportService` parses `type:` via `Enum.TryParse<CheckType>(…, ignoreCase: true)` (`YamlImportService.cs:101`) and stores the free-form `type_data:` map verbatim into `TypeDataJson` (`:104,153`), so a `type: script` with a `type_data:` carrying `script`/`timeout`/`maxResponseBytes` works with **no importer change** (§5).
-- **`ServiceStatus` semantics and the public status page.** No new status value; a script returns existing UP/DEGRADED/DOWN, and a broken script is `FAILURE` (non-alerting), exactly as today.
+- **The dispatch mechanism and the check SDK.** The scheduler → `RegistryCheckExecutor` path, the routing/dispatch, and the SignalR `WorkerExecuteMessage` contract are untouched — `ScriptCheck` is resolved from the check registry by its `"Script"` discriminator like every other check, and its config rides the existing `TypeDataJson` field with no new wire field (subject to the size ceiling in §8). No change to `ICheck` / `ICheckHost` / `CheckManifest` / `CheckProbeResult`; Script only *uses* them. The worker gains Jint transitively via `Piro.Checks` (§5).
+- **The alert pipeline.** `AlertConfig`, the generic alert evaluator, `AlertLifecycleService`, the ingester, notification dispatchers, and escalation are reused as-is (§4.5). Script is a new *producer* of an ordinary `CheckProbeResult`, not a parallel evaluator, and it does **not** decide severity.
+- **`CheckProbeResult` / `CheckDataPoint` schema.** No new fields (§5). The script's `message` reuses the datapoint message; its dimensions reuse the existing jsonb dimensions bag; debug logs are never persisted, so they need no column.
+- **The HTTP check.** `HttpCheck` and its response rules are unchanged; Script is additive, not a replacement (§2).
+- **`ServiceStatus` semantics and the public status page.** No new status value; the check reports `Up`/`Down`, the policy derives UP/DEGRADED/DOWN, and a broken script is `FAILURE` (non-alerting), exactly as today.
 
 ## 5. Data / schema scope
 
-- **New enum value:** `CheckType.Script`, appended after `GCP_CloudRunJob` (`src/Piro.Domain/Enums/CheckType.cs:13`). `CheckType` is persisted as a string, so ordinal position is irrelevant; append for tidiness.
-- **New config record:** `ScriptCheckConfig` in `src/Piro.Domain/Checks/Config/` (alongside the other `*CheckConfig` records — RFC 0011 moved them there and out of `Application/Models/TypeData/`), round-tripped through the existing `Check.TypeDataJson` string column (`src/Piro.Domain/Entities/Check.cs:26`). No `url`/`method`/`headers` — the script issues its own requests via `piro:http` (§4.2). Fields:
+- **New check class + discriminator:** `ScriptCheck` with `CheckId = "Script"` (RFC 0016 string discriminator; no `CheckType` enum — it was killed by RFC 0016). Registered in the check registry.
+- **New config record:** `ScriptCheckConfig` in `Piro.Checks/Script/` (beside the check, where the other check configs live), round-tripped through the existing `Check.TypeDataJson` string column. No `url`/`method`/`headers` — the script issues its own requests via `piro:http` (§4.2). Fields:
 
   ```csharp
   public record ScriptCheckConfig
   {
-      [CodeField]  // renders in the code editor (RFC 0011's ConfigFieldType.Code)
+      [CodeField]  // ConfigFieldType.Code — already exists in Piro.Contracts; FieldControl renders it
       public string Script { get; init; } = string.Empty;   // the ESM: import + export function check()
       [JsonPropertyName("timeout")]
       public int TimeoutMs { get; init; } = 10_000;          // whole-script wall-clock; kill-and-report on overrun
@@ -276,25 +337,29 @@ Unlike `run` — which calls `checkRunner.RunAsync` and goes through the full pe
   }
   ```
 
+  `[CodeField]` and `ConfigFieldType.Code` **already exist** (`Piro.Contracts`), with `FieldControl`
+  already rendering the type and a `TODO(RFC 0010)` to upgrade it to CodeMirror (§4.7) — so the config
+  form needs no new field-type work, only the editor upgrade.
+
   A per-`http.get` timeout is **not** a field here — it is passed opt-in inside the script (`http.get(url, { timeoutMs })`, §4.3), always within the whole-script `TimeoutMs` budget.
 
 - **Script size limit — 4 KB (v1).** The `Script` string is capped at **4096 bytes (UTF-8)**, validated on write in `CheckAppService` (the same guard site as `EnsureScheduleWithinBounds`, RFC 0011) and mirrored in the editor for immediate feedback; the backend is authoritative. 4 KB is a conservative v1 ceiling — comfortably under the SignalR frame (§8), and generous for a status-page check (the Stripe example is ~200 bytes) while foreclosing pathological payloads. It is deliberately raisable later (a named constant, not a magic number), hence "v1".
 
-- **Minimum interval: 5 minutes, declared in the check manifest (RFC 0011), not hard-coded here.** Because a script runs arbitrary code, its schedule floor is more conservative than other types' — 5 minutes vs the 1-minute global floor. This RFC does **not** invent the interval-validation mechanism: it declares `Script`'s `minCron = 5m` as an entry in the per-`CheckType` manifest that RFC 0011 introduces, and RFC 0011's validation (`timeoutMs < interval`, `interval ≥ type.minCron`) enforces it uniformly. Until RFC 0011 lands, `Script` ships with a local guard of the same rule so it is never unbounded. `TimeoutMs`'s effective ceiling is therefore the check's own interval (a 5-minute script can have at most a ~5-minute timeout), which combined with `[DisallowConcurrentExecution]` (`CheckExecutionJob.cs:10`) means a script run always finishes before its next scheduled fire — no overlap accumulation.
+- **Minimum interval: 5 minutes, declared in the manifest.** Because a script runs arbitrary code, its schedule floor is more conservative than other types' — 5 minutes vs the 1-minute global floor. This is expressed via the check's `CheckManifest` (`DefaultIntervalSeconds = 300` and the interval-limit validation RFC 0011 enforces), not a hard-coded special case. `TimeoutMs`'s effective ceiling is the check's own interval, which combined with `[DisallowConcurrentExecution]` means a script run always finishes before its next scheduled fire — no overlap accumulation.
 
-- **No new DB migration.** `Script` config lives in the existing `TypeDataJson` column; no new entity, table, or column. `CheckDataPoint`/`Alert`/`AlertConfig`/`CheckExecutionResult` are unchanged (§4.9).
-- **New NuGet dependency:** `Jint` added to `src/Piro.Infrastructure/Piro.Infrastructure.csproj` (the repo uses **decentralized** package management — inline `Version` per `.csproj`, no `Directory.Packages.props`). Because both `Piro.Api` and `Piro.Worker` reference `Piro.Infrastructure`, Jint reaches both processes with no additional `.csproj` edits.
-- **New frontend dependencies (`apps/admin`):** `@uiw/react-codemirror`, `@codemirror/lang-javascript`, and (for inline lint) `@codemirror/lint`, added via `pnpm`. These back the `CodeEditor.tsx` component (§4.7). No backend or `apps/web` impact.
-- **No changes to:** `CheckExecutionResult`, `CheckDataPoint`, `Alert`, `AlertConfig`, `ServiceStatus`, `AlertSource`, `AlertFor`, `AlertSeverity`; the SignalR `WorkerExecuteMessage`/`WorkerResultMessage`; the YAML models (the loose `type_data:` map already accommodates it).
+- **No new DB migration.** `Script` config lives in the existing `TypeDataJson` column; no new entity, table, or column. `CheckDataPoint`/`Alert`/`AlertConfig`/`CheckProbeResult` are unchanged (§4.9).
+- **New NuGet dependency:** `Jint` added to `src/Piro.Checks/Piro.Checks.csproj` (the check lives there; decentralized package management, inline `Version` per `.csproj`). Because both `Piro.Api` and `Piro.Worker` transitively reference `Piro.Checks`, Jint reaches both processes with no additional `.csproj` edits.
+- **New frontend dependencies (`apps/admin`):** `@uiw/react-codemirror`, `@codemirror/lang-javascript`, and (for inline lint) `@codemirror/lint`, added via `pnpm`. These back the `CodeEditor.tsx` that `FieldControl`'s `Code` case renders (§4.7). No backend or `apps/web` impact.
+- **No changes to:** `CheckProbeResult`, `CheckDataPoint`, `Alert`, `AlertConfig`, `ServiceStatus`, `AlertSeverity`, the check SDK contracts (`ICheck`/`ICheckHost`/`CheckManifest`), or the SignalR worker messages.
 
 ## 6. Phased plan
 
 Each phase is independently shippable.
 
-1. **Executor + sandbox core (backend).** `CheckType.Script`, `ScriptCheckData`, `ScriptCheckExecutor` with the Jint engine + limits (`EnableModules` with the allowlist loader, `TimeoutInterval`=`timeoutMs`/`MaxStatements`/`LimitMemory`/no-CLR), the ESM import + `export function check()` invocation, whole-script wall-clock latency, the return→`CheckExecutionResult` mapping (incl. FAILURE cases: throw, timeout, disallowed import, bad return), the `CheckTypeExtensions.AllowedAlertFors` case, and DI registration in both blocks. `console.log` is a no-op (production semantics). Ships with the `piro:http` module and its guard (Phase 2) — because the script *cannot do anything* without egress, this phase and Phase 2 are effectively co-dependent and may ship together; they are split only to let the security surface be reviewed on its own.
+1. **`ScriptCheck` + sandbox core (backend).** The `ScriptCheck : Check<ScriptCheckConfig>` with its manifest (Status/Latency dimensions, 5-min floor) and registry registration, the Jint engine + limits inside `ProbeAsync` (`EnableModules` with the allowlist loader, `TimeoutInterval`=`timeoutMs`/`MaxStatements`/`LimitMemory`/no-CLR), the ESM import + `export function check()` invocation, whole-script wall-clock latency, and the return→`CheckProbeResult` mapping (incl. `Error` cases: throw, timeout, disallowed import, bad return). `console.log` is a no-op (production semantics). Ships with the `piro:http` module and its guard (Phase 2) — because the script *cannot do anything* without egress, this phase and Phase 2 are effectively co-dependent and may ship together; they are split only to let the security surface be reviewed on its own.
 2. **SSRF guard + `piro:http` module.** The shared `ConnectCallback` IP guard on `"piro-http"`, and the `piro:http` module exposing `http.get` (GET only, opt-in per-call `timeoutMs`, `maxResponseBytes` cap, full-object return). This is the security-sensitive surface, reviewed on its own.
 3. **Debug mode + test endpoint (backend).** The shared run method parameterized by mode, `console.log` buffer capture in debug, and `POST …/checks/{slug}/test` returning `{result, logs}`.
-4. **Admin UI.** The shared `CodeEditor.tsx` (CodeMirror 6) component, `ScriptConfig.tsx` + renderer-registry entry, Zod/serializer wiring, and the Test panel calling Phase 3 (with FAILURE diagnostics fed back into the editor's lint gutter). Depends on 3.
+4. **Admin UI.** The shared `CodeEditor.tsx` (CodeMirror 6) wired into `FieldControl`'s `Code` case (replacing the textarea stub for every `Code` field), and the Test panel calling Phase 3 (with FAILURE diagnostics fed into the editor's lint gutter). No per-type config component or Zod/serializer wiring — the schema-driven form already renders the fields (§4.7). Depends on 3.
 5. **Retrofit the SSRF guard to `piro-webhook` and the HTTP check clients (optional, follow-up).** Extend Phase 2's guard to the other currently-unguarded outbound paths (`InfrastructureServiceExtensions.cs:94-96,110-116`). Outside this feature's core but closes a pre-existing exposure the guard makes trivial to fix.
 
 ## 7. Alternatives considered
@@ -309,7 +374,7 @@ Each phase is independently shippable.
 - **Passing capabilities as `check(...)` parameters instead of `import`.** Rejected — parameters don't scale: every new capability (`http`, then `dns`, `crypto`, templating) grows the signature and every existing script must be aware of positions. `import x from 'piro:x'` lets a script pull *only* what it uses, keeps `check()` parameterless and stable, and makes the capability set a documented allowlist rather than an ever-widening argument list (§4.2). The spike confirmed Jint's ESM support makes this clean.
 - **Piro pre-fetching a "primary response" and injecting it as `res`.** Rejected (this was an earlier draft of this very RFC) — it forced a `url`/`method`/`headers` config *and* let the script fetch more via `http.get`, so there were two egress paths (one guarded implicitly, one explicitly) and an awkward split between "the response Piro got for you" and "responses you got yourself." Letting the script make *all* calls through the single `piro:http` module is simpler, gives one guarded choke point (§4.4), and makes multi-endpoint feeds first-class instead of a bolt-on.
 - **TypeScript as the script language (transpiled at runtime).** Rejected — Jint executes JavaScript, not TypeScript, so this would require a TS→JS transpiler running inside the .NET backend (the TS compiler is itself JS/Node, absent here) — a heavy, fragile dependency for the benefit. Instead the runtime is plain JS and the *editor* loads a `.d.ts` (§4.2, §4.7) to give TypeScript-grade autocomplete and type-checking while authoring; the ESM `import`/`export` syntax is identical in both, so the operator writes what reads like typed code and Jint runs the JS unchanged.
-- **A script-specific alert path / new `AlertSource`.** Rejected — the whole design principle (§3) is that a script produces an ordinary `CheckExecutionResult`, so it flows through `AlertEvaluationService`/`AlertLifecycleService` unchanged (§4.5). A parallel path would duplicate the pipeline for no gain.
+- **A script-specific alert path, or letting the script name a severity.** Rejected — the whole design principle (§3) is that a script produces an ordinary `CheckProbeResult` (raw `Up`/`Down` + dimensions), so it flows through the generic alert evaluator unchanged (§4.5) and DEGRADED is the policy's call. A parallel path, or a `check()` that returns `DEGRADED`, would both duplicate/short-circuit the pipeline and break the RFC 0016 "check reports raw, policy decides" invariant for no gain.
 - **Auto-normalizing volatile substrings out of the fingerprint** (to "fix" the §4.5 dedup foot-gun automatically). Rejected — stripping timestamps/ids by heuristic guesses at intent and would silently merge genuinely distinct failures. Guidance + a stable-message convention (§4.5, §4.7) is correct; the fingerprint stays exact-match.
 - **A plain monospace `<textarea>` (or the `highlight.js`-overlay hack) instead of CodeMirror for the script editor.** Rejected — a textarea gives no line numbers, no highlighting, and nowhere to render Jint's line-anchored errors; the "transparent textarea over a highlighted `<pre>`" trick reuses the already-installed `highlight.js` but is fragile (scroll/wrap desync, no reliable gutter, no lint). For a field where operators author real logic and need error feedback, a proper editor (CodeMirror 6) is worth one modular dependency. **Monaco** was rejected in turn: it is VS Code's editor, heavy, and needs web-worker configuration under Vite — over-scoped for a ~20-line function.
 - **Persisting `console.log` output in production** (e.g. a new `CheckDataPoint.Logs` column). Rejected — no clear retention story (a permanently-failing check spams rows), it adds a schema column for a debug-only concern, and the debug endpoint (§4.8) already gives operators logs when they need them. Production `console.log` is a no-op (§4.6).

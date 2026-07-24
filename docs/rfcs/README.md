@@ -23,10 +23,10 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0007](0007-service-impact-analysis.md) | Service impact analysis (blast radius & propagation reasons) | Proposed (PR #183) | 0001 |
 | [0008](0008-service-check-worker-tags.md) | Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling | Proposed (PR #184, #185) | 0001 |
 | [0009](0009-system-notifications.md) | Notification system revamp: an event catalog, contracted payloads, and a durable push engine | **Implemented** (PR #200, #187) | 0008 |
-| [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | Proposed | 0011 |
+| [0010](0010-script-check-type.md) | Script check type (sandboxed JavaScript, operator-driven HTTP) | Accepted (#39) | 0011, 0016 |
 | [0011](0011-check-manifest-and-interval-limits.md) | Check manifest, config-as-schema, and interval/timeout limits | **Implemented** (PR #189, #188) | 0003 |
 | [0012](0012-integration-actions-with-dynamic-ui.md) | Integration actions with dynamic UI (Jira ticket creation as first consumer) | **Implemented** (PR #206) | 0003, 0004, 0011 |
-| [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Proposed | 0011 |
+| [0013](0013-heartbeat-check-type.md) | Heartbeat check type | Accepted (#1) | 0011, 0016 |
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
@@ -61,11 +61,13 @@ graph LR
   n0001 --> n0008
   n0008 --> n0009
   n0011 --> n0010
+  n0016 --> n0010
   n0003 --> n0011
   n0003 --> n0012
   n0004 --> n0012
   n0011 --> n0012
   n0011 --> n0013
+  n0016 --> n0013
   n0009 --> n0015
   n0003 --> n0016
   n0009 --> n0016
