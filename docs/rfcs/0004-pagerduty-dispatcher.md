@@ -1,18 +1,37 @@
 ---
 rfc: 4
 title: "OAuth integration framework with resource discovery (PagerDuty as first consumer)"
-status: implemented
+status: withdrawn
 created: 2026-07-16
 depends-on: ["0001", "0003"]
 proposal-pr: null
 implementation-pr: 193
+superseded-by: 15
 ---
 
 # RFC 0004 — OAuth integration framework with resource discovery (PagerDuty as first consumer)
 
-Status: proposal
+Status: withdrawn
 Author: Arael Espinosa (assisted draft)
 Date: 2026-07-16
+
+> **Withdrawn (2026-07-24).** This RFC was implemented (PR #193): the OAuth framework,
+> the encrypted token store, PagerDuty's Events API v2 dispatcher, and per-service
+> routing-key discovery all shipped. It has since been **withdrawn** and the PagerDuty
+> integration **removed** (RFC 0016), because **Piro now provides on-call itself via
+> escalation policies (RFC 0015)** — an external paging provider is redundant with the
+> product's own capability. The PagerDuty assembly, config, dispatcher, OAuth descriptor,
+> discovery service, and service-integration-mapping controller were deleted.
+>
+> This is a **reversible** decision. The `"PagerDuty"` integration discriminator was a
+> permanent string (RFC 0016 §3), so if a concrete need to page through PagerDuty
+> specifically returns, the integration can be re-introduced under that same id as a fresh
+> `IIntegration`, with any previously-stored rows keeping their identity and no data
+> migration required. The reusable parts this RFC pioneered — the OAuth-client framework
+> and encrypted token store — were **kept**: they still back RFC 0012's Jira integration.
+> What was withdrawn is PagerDuty as a paging destination, not the OAuth framework itself.
+>
+> The design below is preserved as-implemented for historical reference.
 
 ## 1. Problem
 

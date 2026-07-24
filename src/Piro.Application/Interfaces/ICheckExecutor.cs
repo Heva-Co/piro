@@ -1,14 +1,14 @@
 using Piro.Application.Models;
 using Piro.Domain.Entities;
-using Piro.Domain.Enums;
 
 namespace Piro.Application.Interfaces;
 
-/// <summary>Executes a monitoring check of a specific type and returns a result.</summary>
+/// <summary>
+/// Runs a monitoring check and returns its result. A single implementation resolves the right check
+/// from the registry by the check's type discriminator, deserializes its config, runs the probe, and
+/// maps the raw outcome to a <see cref="CheckExecutionResult"/> — there is no per-type executor.
+/// </summary>
 public interface ICheckExecutor
 {
-    /// <summary>The check type this executor handles.</summary>
-    CheckType CheckType { get; }
-
     Task<CheckExecutionResult> ExecuteAsync(Check check, CancellationToken ct = default);
 }

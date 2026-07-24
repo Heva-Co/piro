@@ -80,11 +80,15 @@ export const checkConfigSchema = baseCheckSchema.superRefine((values, ctx) => {
 
 export type CheckConfigFormValues = z.infer<typeof baseCheckSchema>;
 
-const NUMERIC_ALERT_FORS = new Set(["Latency", "FailedNameServers", "CertExpiry"]);
-
-/** Values edited by a single AlertConfigRow — one config for one check, whatever its AlertFor. */
+/**
+ * Values edited by a single AlertConfigRow — one rule for one check. `dimension` is the alerted
+ * dimension's name; `isNumeric` is a transient flag the row sets from the dimension's declared
+ * comparison (Threshold → numeric value, Equality → status Select), so the schema validates the value
+ * shape without hardcoding which dimensions are numeric.
+ */
 const baseAlertConfigSchema = z.object({
-  alertFor: z.string(),
+  dimension: z.string().min(1, "Dimension is required."),
+  isNumeric: z.boolean(),
   alertValue: z.string(),
   failureThreshold: z.number(),
   successThreshold: z.number(),
@@ -95,7 +99,7 @@ const baseAlertConfigSchema = z.object({
 export const alertConfigSchema = baseAlertConfigSchema.superRefine((values, ctx) => {
   if (!values.alertValue.trim()) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Value is required.", path: ["alertValue"] });
-  } else if (NUMERIC_ALERT_FORS.has(values.alertFor) && (!/^\d+(\.\d+)?$/.test(values.alertValue) || Number(values.alertValue) < 0)) {
+  } else if (values.isNumeric && (!/^\d+(\.\d+)?$/.test(values.alertValue) || Number(values.alertValue) < 0)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must be a non-negative number.", path: ["alertValue"] });
   }
   if (!values.failureThreshold || values.failureThreshold < 1) {

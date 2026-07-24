@@ -53,7 +53,7 @@ public record NotificationDeliveryLogDto(
     string EventType,
     Guid? SubscriptionId,
     string TargetKind,
-    IntegrationType? IntegrationType,
+    string? IntegrationType,
     Guid? IntegrationId,
     string TargetDescriptor,
     DeliveryStatus Status,

@@ -2,22 +2,23 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Piro.Application.Interfaces;
-using Piro.Application.Models;
 using Piro.Application.Models.NotificationEvents;
+using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Notifications;
 using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
+using Piro.Integrations.Abstractions;
 using Testcontainers.PostgreSql;
 
 namespace Piro.IntegrationTests;
 
 /// <summary>
-/// Exercises the RFC 0009 phase-4 subscription matching + personal delivery against real Postgres:
-/// severity gating, delivery to a Personal destination via a fake dispatcher, DeliveryLog recording,
-/// and effectively-once idempotency on replay.
+/// Exercises the RFC 0009/0016 subscription matching + delivery against real Postgres: severity
+/// gating, event membership, delivery to a Personal or Channel destination via a fake
+/// <see cref="IIntegrationEventHandler"/>, DeliveryLog recording, and effectively-once idempotency
+/// on replay.
 /// </summary>
 public class SubscriptionMatchingProcessorTests : IAsyncLifetime
 {
@@ -38,34 +39,41 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         await _container.DisposeAsync();
     }
 
-    // Records every (handle, content) it was asked to deliver.
-    private sealed class FakeEmailDispatcher : IPersonalNotificationDispatcher<AlertNotificationContext>
+    // Records every (target, event) it was asked to handle, for one integration id.
+    private sealed class FakeEventHandler(string integrationId) : IIntegrationEventHandler
     {
-        public List<(string handle, AlertNotificationContext content)> Sent { get; } = [];
-        public IntegrationType Type => IntegrationType.Email;
-        public Task<bool> SendAsync(Integration? i, string handle, AlertNotificationContext c, CancellationToken ct = default)
+        public List<(string? target, Event evt)> Handled { get; } = [];
+        public string IntegrationId => integrationId;
+        public Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx, IIntegrationHost host, CancellationToken ct = default)
         {
-            Sent.Add((handle, c));
+            Handled.Add((ctx.Target, evt));
             return Task.FromResult(true);
         }
     }
 
-    private SubscriptionMatchingProcessor NewProcessor(
-        FakeEmailDispatcher dispatcher,
-        IEnumerable<IChannelNotificationDispatcher<AlertNotificationContext>>? group = null,
-        IEnumerable<ISystemEventDispatcher>? systemEvent = null,
-        IEnumerable<IPersonalNotificationDispatcher<IncidentNotificationContext>>? incidentPersonal = null,
-        IEnumerable<IChannelNotificationDispatcher<IncidentNotificationContext>>? incidentChannel = null) =>
+    // A no-op host — the fake handler never asks it for anything.
+    private sealed class FakeHost : IIntegrationHost
+    {
+        public T GetRequiredService<T>() where T : notnull => throw new NotSupportedException();
+        public Task<TConfig?> GetConfigAsync<TConfig>(Guid integrationId, CancellationToken ct = default) where TConfig : class =>
+            Task.FromResult<TConfig?>(null);
+        public Task<string> GetBearerTokenAsync(Guid integrationId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+        public Task<bool> IsOAuthConnectedAsync(Guid integrationId, CancellationToken ct = default) =>
+            Task.FromResult(false);
+        public Task<string?> GetConfigValueAsync(Guid integrationId, string key, CancellationToken ct = default) =>
+            Task.FromResult<string?>(null);
+        public Task SetConfigValuesAsync(Guid integrationId, IReadOnlyDictionary<string, string?> values, CancellationToken ct = default) =>
+            Task.CompletedTask;
+    }
+
+    private SubscriptionMatchingProcessor NewProcessor(params IIntegrationEventHandler[] handlers) =>
         new(
             new NotificationSubscriptionRepository(_db),
             new UserNotificationPreferenceRepository(_db),
             new NotificationDeliveryLogRepository(_db),
-            new ServiceIntegrationMappingRepository(_db),
-            [dispatcher],
-            group ?? [],
-            incidentPersonal ?? [],
-            incidentChannel ?? [],
-            systemEvent ?? [],
+            handlers,
+            new FakeHost(),
             NullLogger<SubscriptionMatchingProcessor>.Instance);
 
     private async Task<AppUser> SeedUserWithVerifiedEmailPrefAsync(string email)
@@ -77,7 +85,7 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         _db.UserNotificationPreferences.Add(new UserNotificationPreference
         {
             UserId = user.Id,
-            Channel = PersonalNotificationChannel.Email,
+            IsAccountFallback = true, // Email account fallback — no integration instance
             Handle = email,
             Priority = 0,
             VerifiedAt = DateTimeOffset.UtcNow,
@@ -108,7 +116,7 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         var payload = new AlertCreatedPayload(alertId, "api", "http", severity, [], false, null, DateTimeOffset.UtcNow, ServiceId: serviceId);
         return new NotificationEventOutbox
         {
-            Id = alertId, // in tests, use alertId as the row id for a stable idempotency key
+            Id = alertId,
             EventType = "alert:created",
             OrderingKey = $"alert:{alertId}",
             PayloadJson = JsonSerializer.Serialize(payload),
@@ -121,12 +129,12 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
     {
         var user = await SeedUserWithVerifiedEmailPrefAsync("jane@example.com");
         await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Warning, "alert:created");
-        var dispatcher = new FakeEmailDispatcher();
+        var handler = new FakeEventHandler("Email");
 
-        await NewProcessor(dispatcher).ProcessAsync(AlertCreatedRow(alertId: 100, AlertSeverity.Critical), default);
+        await NewProcessor(handler).ProcessAsync(AlertCreatedRow(alertId: 100, AlertSeverity.Critical), default);
 
-        dispatcher.Sent.Should().ContainSingle();
-        dispatcher.Sent[0].handle.Should().Be("jane@example.com");
+        handler.Handled.Should().ContainSingle();
+        handler.Handled[0].target.Should().Be("jane@example.com");
 
         var log = await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync();
         log.Status.Should().Be(DeliveryStatus.Delivered);
@@ -139,11 +147,11 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
     {
         var user = await SeedUserWithVerifiedEmailPrefAsync("jane2@example.com");
         await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Critical, "alert:created");
-        var dispatcher = new FakeEmailDispatcher();
+        var handler = new FakeEventHandler("Email");
 
-        await NewProcessor(dispatcher).ProcessAsync(AlertCreatedRow(alertId: 101, AlertSeverity.Warning), default);
+        await NewProcessor(handler).ProcessAsync(AlertCreatedRow(alertId: 101, AlertSeverity.Warning), default);
 
-        dispatcher.Sent.Should().BeEmpty();
+        handler.Handled.Should().BeEmpty();
         (await _db.NotificationDeliveryLogs.CountAsync()).Should().Be(0);
     }
 
@@ -151,12 +159,12 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
     public async Task DoesNotDeliver_WhenEventNotSubscribed()
     {
         var user = await SeedUserWithVerifiedEmailPrefAsync("jane3@example.com");
-        await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Warning, "alert:resolved"); // not created
-        var dispatcher = new FakeEmailDispatcher();
+        await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Warning, "alert:resolved");
+        var handler = new FakeEventHandler("Email");
 
-        await NewProcessor(dispatcher).ProcessAsync(AlertCreatedRow(alertId: 102, AlertSeverity.Critical), default);
+        await NewProcessor(handler).ProcessAsync(AlertCreatedRow(alertId: 102, AlertSeverity.Critical), default);
 
-        dispatcher.Sent.Should().BeEmpty();
+        handler.Handled.Should().BeEmpty();
     }
 
     [Fact]
@@ -164,41 +172,20 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
     {
         var user = await SeedUserWithVerifiedEmailPrefAsync("jane4@example.com");
         await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Warning, "alert:created");
-        var dispatcher = new FakeEmailDispatcher();
+        var handler = new FakeEventHandler("Email");
         var row = AlertCreatedRow(alertId: 103, AlertSeverity.Critical);
 
-        await NewProcessor(dispatcher).ProcessAsync(row, default);
-        await NewProcessor(dispatcher).ProcessAsync(row, default); // replay same event
+        await NewProcessor(handler).ProcessAsync(row, default);
+        await NewProcessor(handler).ProcessAsync(row, default);
 
-        dispatcher.Sent.Should().ContainSingle("the idempotency key blocks a second delivery");
+        handler.Handled.Should().ContainSingle("the idempotency key blocks a second delivery");
         (await _db.NotificationDeliveryLogs.CountAsync()).Should().Be(1);
     }
 
-    private sealed class FakeChannelDispatcher(IntegrationType type) : IChannelNotificationDispatcher<AlertNotificationContext>
-    {
-        public List<string?> Posted { get; } = [];
-        public IntegrationType Type => type;
-        public Task<bool> SendAsync(Integration integration, string? target, AlertNotificationContext c, CancellationToken ct = default)
-        {
-            Posted.Add(target);
-            return Task.FromResult(true);
-        }
-    }
-
-    private sealed class FakeSystemEventDispatcher(IntegrationType type) : ISystemEventDispatcher
-    {
-        public List<(string routingKey, string dedupKey, string action)> Events { get; } = [];
-        public IntegrationType Type => type;
-        public Task<bool> TriggerAsync(string routingKey, string dedupKey, AlertNotificationContext context, CancellationToken ct = default)
-        { Events.Add((routingKey, dedupKey, "trigger")); return Task.FromResult(true); }
-        public Task<bool> ResolveAsync(string routingKey, string dedupKey, CancellationToken ct = default)
-        { Events.Add((routingKey, dedupKey, "resolve")); return Task.FromResult(true); }
-    }
-
     [Fact]
-    public async Task GroupDestination_DeliversViaGroupDispatcher()
+    public async Task ChannelDestination_DeliversViaIntegrationHandler()
     {
-        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.GoogleChat, Name = "Ops Space" };
+        var integration = new Integration { Id = Guid.NewGuid(), Type = "GoogleChat", Name = "Ops Space" };
         _db.Integrations.Add(integration);
         _db.NotificationSubscriptions.Add(new NotificationSubscription
         {
@@ -207,140 +194,13 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
             IntegrationId = integration.Id, Enabled = true,
         });
         await _db.SaveChangesAsync();
-        var group = new FakeChannelDispatcher(IntegrationType.GoogleChat);
+        var handler = new FakeEventHandler("GoogleChat");
 
-        await NewProcessor(new FakeEmailDispatcher(), group: [group])
-            .ProcessAsync(AlertCreatedRow(alertId: 200, AlertSeverity.Critical), default);
+        await NewProcessor(handler).ProcessAsync(AlertCreatedRow(alertId: 200, AlertSeverity.Critical), default);
 
-        group.Posted.Should().ContainSingle();
+        handler.Handled.Should().ContainSingle();
         var log = await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync();
         log.Status.Should().Be(DeliveryStatus.Delivered);
         log.TargetKind.Should().Be("Channel");
-    }
-
-    [Fact]
-    public async Task IntegrationDestination_ResolvesRoutingKeyFromMapping_AndTriggers()
-    {
-        // A service, a PagerDuty integration, and their mapping carrying the routing key (RFC 0004).
-        var service = new Service { Name = "API", Slug = "api" };
-        _db.Services.Add(service);
-        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.PagerDuty, Name = "PD" };
-        _db.Integrations.Add(integration);
-        await _db.SaveChangesAsync();
-        _db.ServiceIntegrationMappings.Add(new ServiceIntegrationMapping
-        {
-            ServiceId = service.Id, IntegrationId = integration.Id,
-            MappingJson = "{\"pagerDutyServiceId\":\"PDSVC\",\"routingKey\":\"R0ROUTINGKEY\"}",
-        });
-        _db.NotificationSubscriptions.Add(new NotificationSubscription
-        {
-            Name = "pd", EventsJson = JsonSerializer.Serialize(new[] { "alert:created" }),
-            MinSeverity = AlertSeverity.Warning, TargetKind = NotificationTargetKind.Integration,
-            IntegrationId = integration.Id, Enabled = true,
-        });
-        await _db.SaveChangesAsync();
-
-        var pd = new FakeSystemEventDispatcher(IntegrationType.PagerDuty);
-        var row = AlertCreatedRow(alertId: 201, AlertSeverity.Critical, serviceId: service.Id);
-
-        await NewProcessor(new FakeEmailDispatcher(), systemEvent: [pd]).ProcessAsync(row, default);
-
-        pd.Events.Should().ContainSingle();
-        pd.Events[0].routingKey.Should().Be("R0ROUTINGKEY");
-        pd.Events[0].action.Should().Be("trigger");
-        (await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync()).Status.Should().Be(DeliveryStatus.Delivered);
-    }
-
-    [Fact]
-    public async Task IntegrationDestination_NoMapping_IsSkipped()
-    {
-        var service = new Service { Name = "API2", Slug = "api2" };
-        _db.Services.Add(service);
-        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.PagerDuty, Name = "PD2" };
-        _db.Integrations.Add(integration);
-        _db.NotificationSubscriptions.Add(new NotificationSubscription
-        {
-            Name = "pd2", EventsJson = JsonSerializer.Serialize(new[] { "alert:created" }),
-            MinSeverity = AlertSeverity.Warning, TargetKind = NotificationTargetKind.Integration,
-            IntegrationId = integration.Id, Enabled = true,
-        });
-        await _db.SaveChangesAsync();
-
-        var pd = new FakeSystemEventDispatcher(IntegrationType.PagerDuty);
-        var row = AlertCreatedRow(alertId: 202, AlertSeverity.Critical, serviceId: service.Id);
-
-        await NewProcessor(new FakeEmailDispatcher(), systemEvent: [pd]).ProcessAsync(row, default);
-
-        pd.Events.Should().BeEmpty("no mapping means no routing key");
-        (await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync()).Status.Should().Be(DeliveryStatus.Skipped);
-    }
-
-    private sealed class FakeIncidentChannelDispatcher(IntegrationType type) : IChannelNotificationDispatcher<IncidentNotificationContext>
-    {
-        public List<IncidentNotificationContext> Posted { get; } = [];
-        public IntegrationType Type => type;
-        public Task<bool> SendAsync(Integration integration, string? target, IncidentNotificationContext c, CancellationToken ct = default)
-        {
-            Posted.Add(c);
-            return Task.FromResult(true);
-        }
-    }
-
-    private static NotificationEventOutbox IncidentCreatedRow(int incidentId)
-    {
-        var payload = new IncidentCreatedPayload(incidentId, "DB outage", IncidentStatus.Investigating,
-            IncidentVisibility.Private, ["api", "web"], DateTimeOffset.UtcNow);
-        return new NotificationEventOutbox
-        {
-            Id = incidentId,
-            EventType = "incident:created",
-            OrderingKey = $"incident:{incidentId}",
-            PayloadJson = JsonSerializer.Serialize(payload),
-            Status = OutboxStatus.Processing,
-        };
-    }
-
-    [Fact]
-    public async Task IncidentDestination_DeliversViaChannelDispatcher_NoSeverityGate()
-    {
-        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.GoogleChat, Name = "Ops Space" };
-        _db.Integrations.Add(integration);
-        // MinSeverity is Critical, but incidents have no severity — it must NOT gate them out.
-        _db.NotificationSubscriptions.Add(new NotificationSubscription
-        {
-            Name = "gchat-incidents", EventsJson = JsonSerializer.Serialize(new[] { "incident:created" }),
-            MinSeverity = AlertSeverity.Critical, TargetKind = NotificationTargetKind.Channel,
-            IntegrationId = integration.Id, Enabled = true,
-        });
-        await _db.SaveChangesAsync();
-        var incidentChannel = new FakeIncidentChannelDispatcher(IntegrationType.GoogleChat);
-
-        await NewProcessor(new FakeEmailDispatcher(), incidentChannel: [incidentChannel])
-            .ProcessAsync(IncidentCreatedRow(incidentId: 300), default);
-
-        incidentChannel.Posted.Should().ContainSingle();
-        incidentChannel.Posted[0].Title.Should().Be("DB outage");
-        incidentChannel.Posted[0].AffectedServices.Should().BeEquivalentTo(["api", "web"]);
-        var log = await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync();
-        log.Status.Should().Be(DeliveryStatus.Delivered);
-        log.EventType.Should().Be("incident:created");
-    }
-
-    [Fact]
-    public async Task IncidentDestination_IntegrationTarget_IsSkipped()
-    {
-        var integration = new Integration { Id = Guid.NewGuid(), Type = IntegrationType.PagerDuty, Name = "PD" };
-        _db.Integrations.Add(integration);
-        _db.NotificationSubscriptions.Add(new NotificationSubscription
-        {
-            Name = "pd-incidents", EventsJson = JsonSerializer.Serialize(new[] { "incident:created" }),
-            MinSeverity = AlertSeverity.Warning, TargetKind = NotificationTargetKind.Integration,
-            IntegrationId = integration.Id, Enabled = true,
-        });
-        await _db.SaveChangesAsync();
-
-        await NewProcessor(new FakeEmailDispatcher()).ProcessAsync(IncidentCreatedRow(incidentId: 301), default);
-
-        (await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync()).Status.Should().Be(DeliveryStatus.Skipped);
     }
 }

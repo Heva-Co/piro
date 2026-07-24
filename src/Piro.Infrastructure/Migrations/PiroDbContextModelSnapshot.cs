@@ -236,10 +236,6 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AlertFor")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("AlertValue")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -248,10 +244,23 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int>("CheckId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Comparison")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Dimension")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("FailureThreshold")
@@ -583,14 +592,12 @@ namespace Piro.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<string>("Dimensions")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text");
-
-                    b.Property<double?>("LatencyMs")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("MetricValue")
-                        .HasColumnType("double precision");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2025,42 +2032,6 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("ServiceDependencies");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.ServiceIntegrationMapping", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("IntegrationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("MappingJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValue("{}");
-
-                    b.Property<int>("ServiceId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IntegrationId");
-
-                    b.HasIndex("ServiceId", "IntegrationId")
-                        .IsUnique();
-
-                    b.ToTable("ServiceIntegrationMappings", (string)null);
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.SiteData", b =>
                 {
                     b.Property<int>("Id")
@@ -2107,15 +2078,12 @@ namespace Piro.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Channel")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Handle")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<Guid?>("IntegrationId")
+                    b.Property<Guid?>("IntegrationInstanceId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsAccountFallback")
@@ -2132,11 +2100,11 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IntegrationId");
+                    b.HasIndex("IntegrationInstanceId");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserId", "Channel", "IntegrationId")
+                    b.HasIndex("UserId", "IntegrationInstanceId", "Handle")
                         .IsUnique();
 
                     b.ToTable("UserNotificationPreferences", (string)null);
@@ -2705,30 +2673,11 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Service");
                 });
 
-            modelBuilder.Entity("Piro.Domain.Entities.ServiceIntegrationMapping", b =>
-                {
-                    b.HasOne("Piro.Domain.Entities.Integration", "Integration")
-                        .WithMany()
-                        .HasForeignKey("IntegrationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Piro.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Integration");
-
-                    b.Navigation("Service");
-                });
-
             modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
                 {
                     b.HasOne("Piro.Domain.Entities.Integration", "Integration")
                         .WithMany()
-                        .HasForeignKey("IntegrationId")
+                        .HasForeignKey("IntegrationInstanceId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Piro.Domain.Entities.AppUser", "User")

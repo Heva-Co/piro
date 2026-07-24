@@ -10,8 +10,10 @@ import {
   type UserNotificationPreference,
   type UpsertNotificationPreference,
 } from "@/lib/api";
-import { integrationsApi } from "@/lib/actions/integrations";
+import { integrationsApi, integrationTypesApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
+
+const PERSONAL_CAPABILITY = "SendsPersonalNotification";
 
 interface Props {
   userId: number;
@@ -24,7 +26,9 @@ interface DraftRow {
 }
 
 function toUpsert(p: UserNotificationPreference): UpsertNotificationPreference {
-  return { channel: p.channel, integrationId: p.integrationId, handle: p.handle };
+  // A saved account-fallback pref has no instance; a normal one always does. Editing an existing pref
+  // reuses this only for display — the fallback row is read-only in the UI.
+  return { integrationInstanceId: p.integrationInstanceId ?? "", handle: p.handle };
 }
 
 export function NotificationPreferencesEditor({ userId }: Props) {
@@ -35,6 +39,17 @@ export function NotificationPreferencesEditor({ userId }: Props) {
     queryKey: QUERY_KEYS.INTEGRATIONS,
     queryFn: integrationsApi.list,
   });
+
+  const { data: types = [] } = useQuery({
+    queryKey: QUERY_KEYS.INTEGRATION_TYPES,
+    queryFn: integrationTypesApi.list,
+  });
+
+  // Only integration instances whose type can deliver a personal notification are pickable.
+  const personalTypes = new Set(
+    types.filter((t) => t.capabilities.includes(PERSONAL_CAPABILITY)).map((t) => t.type),
+  );
+  const personalIntegrations = allIntegrations.filter((i) => personalTypes.has(i.type));
 
   const { data: preferences = [], isLoading: prefsLoading } = useQuery({
     queryKey: QUERY_KEYS.USER_NOTIFICATION_PREFERENCES(userId),
@@ -64,7 +79,7 @@ export function NotificationPreferencesEditor({ userId }: Props) {
   function addDraft() {
     setNewDrafts((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), draft: { channel: "Email", integrationId: null, handle: "" } },
+      { key: crypto.randomUUID(), draft: { integrationInstanceId: "", handle: "" } },
     ]);
   }
 
@@ -109,7 +124,7 @@ export function NotificationPreferencesEditor({ userId }: Props) {
                 userId={userId}
                 draft={toUpsert(pref)}
                 saved={pref}
-                allIntegrations={allIntegrations}
+                personalIntegrations={personalIntegrations}
                 onChange={() => {}}
                 onSaved={() => {}}
                 onRemove={() => handleRemovePref(pref.id)}
@@ -126,7 +141,7 @@ export function NotificationPreferencesEditor({ userId }: Props) {
           userId={userId}
           draft={d.draft}
           saved={null}
-          allIntegrations={allIntegrations}
+          personalIntegrations={personalIntegrations}
           onChange={(patch) => updateDraft(d.key, patch)}
           onSaved={() => handleDraftSaved(d.key)}
           onRemove={() => removeDraft(d.key)}

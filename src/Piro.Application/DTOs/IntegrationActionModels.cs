@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Application.DTOs;
 
@@ -10,7 +11,7 @@ namespace Piro.Application.DTOs;
 /// same annotations that drove the dialog, so form and payload can't drift.
 /// </summary>
 public sealed record ExecuteIntegrationActionRequest(
-    ActionContext Context,
+    UISurface Context,
     int TargetId,
     JsonElement? Input);
 

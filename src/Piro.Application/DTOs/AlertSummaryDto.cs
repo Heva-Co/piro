@@ -65,7 +65,7 @@ public record AlertDetailDto(
     string? ServiceSlug,
     string? ServiceName,
     int? AlertConfigId,
-    AlertFor? AlertFor,
+    string? Dimension,
     string? AlertValue,
     int? FailureThreshold,
     int? SuccessThreshold,
@@ -117,7 +117,7 @@ public record AlertRetentionResultDto(int Count);
 public record EscalationDeliveryLogDto(
     int StepIndex,
     string UserName,
-    IntegrationType ChannelType,
+    string ChannelType,
     bool Succeeded,
     string? ErrorMessage,
     DateTimeOffset AttemptedAt

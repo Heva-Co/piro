@@ -46,7 +46,6 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<OidcProviderConfig> OidcProviderConfigs => Set<OidcProviderConfig>();
     public DbSet<Integration> Integrations => Set<Integration>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
-    public DbSet<ServiceIntegrationMapping> ServiceIntegrationMappings => Set<ServiceIntegrationMapping>();
     public DbSet<ExternalReference> ExternalReferences => Set<ExternalReference>();
 
     // On-call scheduling

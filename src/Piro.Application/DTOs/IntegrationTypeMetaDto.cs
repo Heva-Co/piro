@@ -1,21 +1,20 @@
-using Piro.Domain.Enums;
+using Piro.Contracts;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.DTOs;
 
 /// <summary>
-/// Wire representation of an IntegrationType's manifest — see IntegrationManifestAttribute.
+/// Wire representation of an integration type's manifest, projected from the integration's own
+/// <see cref="Piro.Integrations.Abstractions.IIntegration"/> class (RFC 0016).
 /// </summary>
 public record IntegrationTypeMetaDto(
     string Type,
     string? Label,
     string? Description,
     string? IconifyIcon,
-    IntegrationCategory Category,
     bool ChannelOnly,
     bool Creatable,
     IntegrationDirection Direction,
     IReadOnlyList<string> Capabilities,
-    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema,
-    /// <summary>Path segment under <c>/api/v1/webhooks/</c> this type's inbound endpoint listens on — see IntegrationManifestAttribute.WebhookPath. Null for a non-webhook type.</summary>
-    string? WebhookPath
+    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema
 );

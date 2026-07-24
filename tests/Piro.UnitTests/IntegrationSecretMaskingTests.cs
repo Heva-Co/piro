@@ -1,5 +1,5 @@
+using Piro.Integrations.Abstractions;
 using FluentAssertions;
-using Piro.Application.Integrations.Actions;
 using NSubstitute;
 using Piro.Application.DTOs;
 using Piro.Application.Extensions;
@@ -7,6 +7,7 @@ using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.UnitTests;
 
@@ -27,13 +28,16 @@ public class IntegrationSecretMaskingTests
     private readonly IWebhookRequestLogRepository _webhookLogRepo = Substitute.For<IWebhookRequestLogRepository>();
     private readonly IEscalationPolicyRepository _escalationPolicyRepo = Substitute.For<IEscalationPolicyRepository>();
     private readonly ISecretProtector _secretProtector = new FakeSecretProtector();
-    private readonly IActionHost _actionHost = Substitute.For<IActionHost>();
-    private readonly IActionRegistry _actionRegistry = Substitute.For<IActionRegistry>();
+    private readonly IIntegrationHost _integrationHost = Substitute.For<IIntegrationHost>();
+    private readonly IUIActionRegistry _actionRegistry = Substitute.For<IUIActionRegistry>();
+    private readonly IUIActionTargetService _targetService = Substitute.For<IUIActionTargetService>();
+    private readonly IExternalReferenceStore _externalReferenceStore = Substitute.For<IExternalReferenceStore>();
+    private readonly IIntegrationRegistry _registry = new TestRegistry();
     private readonly IntegrationAppService _sut;
 
     public IntegrationSecretMaskingTests()
     {
-        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _actionHost, _actionRegistry, []);
+        _sut = new IntegrationAppService(_repo, _webhookLogRepo, _escalationPolicyRepo, _secretProtector, _registry, _integrationHost, _actionRegistry, _targetService, _externalReferenceStore);
     }
 
     /// <summary>Deterministic protector for tests: prefixes ciphertext so round-trips are observable.</summary>
@@ -52,7 +56,7 @@ public class IntegrationSecretMaskingTests
         {
             Id = IntegrationId1,
             Name = "Prod Jira",
-            Type = IntegrationType.Jira,
+            Type = "Jira",
             ConfigJson = """{"clientId":"client-abc","clientSecret":"real-secret-value"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
@@ -68,8 +72,8 @@ public class IntegrationSecretMaskingTests
     {
         var integrations = new[]
         {
-            new Integration { Id = IntegrationId1, Name = "Jira", Type = IntegrationType.Jira, ConfigJson = """{"clientId":"client-abc","clientSecret":"secret-token"}""" },
-            new Integration { Id = IntegrationId2, Name = "GCP", Type = IntegrationType.GoogleCloud, ConfigJson = """{"serviceAccountJson":"{\"private_key\":\"secret\"}"}""" },
+            new Integration { Id = IntegrationId1, Name = "Jira", Type = "Jira", ConfigJson = """{"clientId":"client-abc","clientSecret":"secret-token"}""" },
+            new Integration { Id = IntegrationId2, Name = "GCP", Type = "GoogleCloud", ConfigJson = """{"serviceAccountJson":"{\"private_key\":\"secret\"}"}""" },
         };
         _repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(integrations);
 
@@ -86,7 +90,7 @@ public class IntegrationSecretMaskingTests
         {
             Id = IntegrationId1,
             Name = "Jira",
-            Type = IntegrationType.Jira,
+            Type = "Jira",
             ConfigJson = """{"clientSecret":"real-secret-value","defaultProjectKey":"OLD"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
@@ -111,7 +115,7 @@ public class IntegrationSecretMaskingTests
         {
             Id = IntegrationId1,
             Name = "Jira",
-            Type = IntegrationType.Jira,
+            Type = "Jira",
             ConfigJson = """{"clientSecret":"old-secret","defaultProjectKey":"KEY"}""",
         };
         _repo.GetByIdAsync(IntegrationId1, Arg.Any<CancellationToken>()).Returns(integration);
@@ -138,7 +142,7 @@ public class IntegrationSecretMaskingTests
             .AndDoes(ci => persisted = ci.Arg<Integration>());
 
         var request = new CreateIntegrationRequest(
-            "Prod Jira", IntegrationType.Jira, null,
+            "Prod Jira", "Jira", null,
             """{"clientId":"client-abc","clientSecret":"real-secret-value"}""", null);
 
         await _sut.CreateAsync(request);
@@ -155,16 +159,38 @@ public class IntegrationSecretMaskingTests
     {
         // The centralized consumption read a dispatcher/executor uses: encrypted at rest → plaintext in-process.
         var stored = IntegrationExtensions.ProtectSecrets(
-            IntegrationType.Jira,
+            typeof(Piro.Integrations.Jira.JiraConfig),
             """{"clientId":"client-abc","clientSecret":"real-secret-value"}""",
             _secretProtector);
         stored.Should().Contain("enc:real-secret-value");
 
-        var integration = new Integration { Type = IntegrationType.Jira, ConfigJson = stored };
+        var integration = new Integration { Type = "Jira", ConfigJson = stored };
 
-        var decrypted = integration.ReadDecryptedConfigJson(_secretProtector);
+        var decrypted = integration.ReadDecryptedConfigJson(typeof(Piro.Integrations.Jira.JiraConfig), _secretProtector);
 
         decrypted.Should().Contain("\"real-secret-value\"");
         decrypted.Should().NotContain("enc:");
     }
+}
+
+file sealed class StubIntegration(string id, System.Type configType) : Piro.Integrations.Abstractions.IIntegration
+{
+    public string IntegrationId => id;
+    public Piro.Integrations.Abstractions.IntegrationManifest Manifest => new()
+    {
+        Capabilities = Piro.Integrations.Abstractions.IntegrationCapability.None,
+        ConfigType = configType,
+    };
+}
+
+file sealed class TestRegistry : Piro.Integrations.Abstractions.IIntegrationRegistry
+{
+    private readonly System.Collections.Generic.Dictionary<string, Piro.Integrations.Abstractions.IIntegration> _byId =
+        new(System.StringComparer.Ordinal)
+        {
+            ["Jira"] = new Piro.Integrations.Jira.JiraIntegration(),
+            ["GoogleCloud"] = new StubIntegration("GoogleCloud", typeof(Piro.Integrations.GoogleCloud.GoogleCloudConfig)),
+        };
+    public System.Collections.Generic.IReadOnlyList<Piro.Integrations.Abstractions.IIntegration> All => _byId.Values.ToList();
+    public Piro.Integrations.Abstractions.IIntegration? Find(string integrationId) => _byId.GetValueOrDefault(integrationId);
 }

@@ -72,7 +72,7 @@ public record AlertDetailRow(
     string? ServiceSlug,
     string? ServiceName,
     int? AlertConfigId,
-    Piro.Domain.Enums.AlertFor? AlertFor,
+    string? Dimension,
     string? AlertValue,
     int? FailureThreshold,
     int? SuccessThreshold,

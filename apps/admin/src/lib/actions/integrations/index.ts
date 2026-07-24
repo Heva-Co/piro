@@ -49,24 +49,4 @@ export const integrationOAuthApi = {
         { code, state },
       )
       .then((r) => r.data),
-  discover: (id: string) =>
-    api.get<DiscoveredResource[]>(ENDPOINTS.INTEGRATION_OAUTH_DISCOVER(id)).then((r) => r.data),
-};
-
-export type DiscoveredResource = components["schemas"]["DiscoveredResourceDto"];
-export type ServiceIntegrationMapping = components["schemas"]["ServiceIntegrationMappingDto"];
-export type UpsertServiceIntegrationMappingRequest =
-  components["schemas"]["UpsertServiceIntegrationMappingRequest"];
-
-export const serviceIntegrationMappingApi = {
-  list: (serviceId: number) =>
-    api
-      .get<ServiceIntegrationMapping[]>(ENDPOINTS.SERVICE_INTEGRATION_MAPPINGS(serviceId))
-      .then((r) => r.data),
-  upsert: (serviceId: number, data: UpsertServiceIntegrationMappingRequest) =>
-    api
-      .put<ServiceIntegrationMapping>(ENDPOINTS.SERVICE_INTEGRATION_MAPPINGS(serviceId), data)
-      .then((r) => r.data),
-  remove: (serviceId: number, integrationId: string) =>
-    api.delete(ENDPOINTS.SERVICE_INTEGRATION_MAPPING(serviceId, integrationId)),
 };

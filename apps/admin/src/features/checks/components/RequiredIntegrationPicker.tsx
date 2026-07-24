@@ -14,10 +14,10 @@ interface Props {
 }
 
 /**
- * Picks which provider Integration a check uses. This is a check-level concern, not part of the
- * schema-driven config form: `integrationId` is a column on the Check (not inside TypeDataJson), and
- * it needs the live list of matching integrations. It is rendered alongside DynamicConfigForm only
- * when the type's manifest declares a required integration (e.g. GCP Cloud Run Job → GoogleCloud).
+ * Picks which provider Integration a check uses. Stored in the check's config as the integration
+ * instance id (config.integrationInstanceId) — what the check reads to authenticate — and rendered
+ * alongside DynamicConfigForm only when the type's manifest declares a required integration (e.g. GCP
+ * Cloud Run Job → GoogleCloud). Needs the live list of matching integrations to resolve id → name.
  */
 function RequiredIntegrationPicker(props: Props) {
   const { integrationType, value, onChange, error } = props;
@@ -26,16 +26,26 @@ function RequiredIntegrationPicker(props: Props) {
     queryFn: integrationsApi.list,
   });
 
+  // The config schema seeds a Guid field with Guid.Empty ("000…0"); treat that as "nothing selected"
+  // so the placeholder shows and the id never leaks into the trigger.
+  const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+  const selectedId = value === EMPTY_GUID ? "" : value;
+
   const matching = integrations.filter((i) => i.type === integrationType);
+  const selectedName = matching.find((i) => i.id === selectedId)?.name;
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label>
         {integrationType} integration <span className="text-destructive">*</span>
       </Label>
-      <Select value={value} onValueChange={(v) => v && onChange(v)}>
+      <Select value={selectedId} onValueChange={(v) => v && onChange(v)}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder={`Select a ${integrationType} integration…`} />
+          {/* SelectValue with no children shows the raw value (the id); render the integration's name
+              instead, and never the id when it can't be resolved. */}
+          <SelectValue placeholder={`Select a ${integrationType} integration…`}>
+            {selectedId ? selectedName : undefined}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {matching.map((i) => (

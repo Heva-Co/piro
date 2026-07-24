@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
+using Piro.Contracts;
 using Piro.Infrastructure.Integrations.OAuth;
+using Piro.Integrations.Jira;
 
 namespace Piro.Api.Controllers;
 
@@ -19,30 +21,8 @@ public class IntegrationOAuthController(
     IOAuthClient oauthClient,
     IOAuthTokenStore tokenStore,
     IIntegrationRepository integrationRepo,
-    IPagerDutyDiscoveryService pagerDutyDiscovery,
     IJiraDiscoveryService jiraDiscovery) : ControllerBase
 {
-    /// <summary>
-    /// Lists the remote resources (PagerDuty services) discoverable for an OAuth-connected integration,
-    /// live from the provider (RFC 0004 §4.4a) — never cached, so a service renamed/deleted upstream is
-    /// reflected immediately. Only the admin's chosen mapping is persisted.
-    /// </summary>
-    [HttpGet("{integrationId:guid}/discover")]
-    [ProducesResponseType<IReadOnlyList<DiscoveredResourceDto>>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Discover(Guid integrationId, CancellationToken ct)
-    {
-        try
-        {
-            var services = await pagerDutyDiscovery.ListServicesAsync(integrationId, ct);
-            var dtos = services.Select(s => new DiscoveredResourceDto(s.Id, s.Name, s.RoutingKey)).ToList();
-            return Ok(dtos);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
-        {
-            return BadRequest(new { title = ex.Message, status = 400 });
-        }
-    }
 
     /// <summary>
     /// Starts the OAuth authorization-code flow for an integration and returns the provider
@@ -137,10 +117,9 @@ public class IntegrationOAuthController(
         return NoContent();
     }
 
-    private static string? ProviderIdFor(Domain.Enums.IntegrationType type) => type switch
+    private static string? ProviderIdFor(string integrationId) => integrationId switch
     {
-        Domain.Enums.IntegrationType.PagerDuty => "pagerduty",
-        Domain.Enums.IntegrationType.Jira => "jira",
+        "Jira" => "jira",
         _ => null
     };
 }

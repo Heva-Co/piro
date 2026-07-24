@@ -2,9 +2,12 @@ using Microsoft.Extensions.Logging;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
 using Piro.Application.Models;
+using Piro.Application.Notifications;
 using Piro.Domain.Attributes;
+using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
+using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Services;
 
@@ -18,13 +21,17 @@ namespace Piro.Application.Services;
 public class EscalationCheckerService(
     IAlertRepository alertRepo,
     OnCallService onCallService,
-    IEnumerable<IPersonalNotificationDispatcher<AlertNotificationContext>> dispatchers,
+    IEnumerable<IIntegrationEventHandler> eventHandlers,
+    IIntegrationHost integrationHost,
     IUserNotificationPreferenceRepository prefRepo,
     ISiteUrlBuilder siteUrlBuilder,
     ILogger<EscalationCheckerService> logger)
 {
-    private readonly Dictionary<IntegrationType, IPersonalNotificationDispatcher<AlertNotificationContext>> _dispatchers =
-        dispatchers.ToDictionary(d => d.Type);
+    // The on-call user's connected notification channels are delivered through the RFC 0016 dispatch:
+    // one IIntegrationEventHandler per integration id (Telegram/Twilio/Ntfy/Email). Keyed the same way
+    // the subscription engine keys them, so escalation reuses the exact same delivery path.
+    private readonly Dictionary<string, IIntegrationEventHandler> _handlers =
+        eventHandlers.ToDictionary(h => h.IntegrationId, StringComparer.Ordinal);
 
     public async Task ProcessAsync(CancellationToken ct = default)
     {
@@ -172,14 +179,25 @@ public class EscalationCheckerService(
             foreach (var pref in prefs.OrderBy(p => p.Priority))
             {
                 if (!pref.VerifiedAt.HasValue) continue; // unverified handle — never dispatch to it
-                if (pref.Channel.RequiresIntegration() && pref.Integration is null) continue;
-                var channelType = pref.Channel.ToIntegrationType();
-                if (!_dispatchers.TryGetValue(channelType, out var dispatcher)) continue;
+                // A non-fallback preference needs its integration instance loaded to resolve its type.
+                if (!pref.IsAccountFallback && pref.Integration is null) continue;
+                var channelType = pref.ResolveIntegrationId();
+                if (!_handlers.TryGetValue(channelType, out var handler)) continue;
 
                 try
                 {
-                    var sent = await dispatcher.SendAsync(pref.Integration, pref.Handle, context, ct);
-                    if (!sent) continue; // dispatcher doesn't support personal dispatch; try next
+                    // Deliver through the RFC 0016 dispatch: the neutral event plus a Personal delivery
+                    // context pointing at this user's verified handle and (for platform channels) the
+                    // integration instance that provides credentials.
+                    var evt = context.ToEvent(NotificationEventNames.AlertCreated);
+                    var deliveryContext = new EventDeliveryContext
+                    {
+                        IntegrationInstanceId = pref.IntegrationInstanceId,
+                        Target = pref.Handle,
+                        Mode = EventDeliveryMode.Personal,
+                    };
+                    var sent = await handler.HandleAsync(evt, deliveryContext, integrationHost, ct);
+                    if (!sent) continue; // handler couldn't deliver personally; try next preference
 
                     logger.LogInformation(
                         "Escalation personal notification sent to {UserName} via {ChannelType} for alert #{AlertId}.",

@@ -13,7 +13,6 @@ internal class IntegrationConfiguration : IEntityTypeConfiguration<Integration>
         builder.HasKey(i => i.Id);
         builder.Property(i => i.Id).HasDefaultValueSql("gen_random_uuid()");
         builder.Property(i => i.Name).HasMaxLength(255).IsRequired();
-        builder.Property(i => i.Type).HasConversion<string>();
         builder.Property(i => i.ConfigJson).HasColumnType("jsonb").HasDefaultValue("{}");
 
         builder.HasMany(i => i.Checks)

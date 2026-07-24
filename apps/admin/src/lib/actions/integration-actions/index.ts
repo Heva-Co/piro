@@ -4,7 +4,9 @@ import type { components } from "@/lib/api-types";
 
 export type IntegrationActionDescriptor = components["schemas"]["IntegrationActionDescriptorDto"];
 export type ExternalReference = components["schemas"]["ExternalReferenceDto"];
-export type ActionContext = components["schemas"]["ActionContext"];
+// Backend renamed the schema ActionContext -> UISurface (RFC 0016); the frontend keeps the local
+// "ActionContext" name (still accurate: which object surface an action runs in) aliased to it.
+export type ActionContext = components["schemas"]["UISurface"];
 export type IntegrationActionResult = components["schemas"]["IntegrationActionResultDto"];
 
 export const integrationActionsApi = {

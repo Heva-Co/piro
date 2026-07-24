@@ -286,7 +286,7 @@ export function IntegrationConfigForm(props: Props) {
         </SectionAccordion>
       )}
 
-      {isEdit && typeMeta?.webhookPath && (
+      {isEdit && typeMeta?.capabilities.includes("CreatesAlerts") && (
         <SectionAccordion
           title="Webhook Requests"
           description="Recent inbound requests to this integration's webhook"

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Council — Check-dimension ↔ AlertConfig binding: is the proposal sound end-to-end?</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f5f5f0;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      background: #fff;
+      border: 1px solid #e0e0d8;
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .header h1 { font-size: 1.25rem; font-weight: 600; color: #2d5a88; margin-bottom: 0.25rem; }
+    .header .meta { font-size: 0.8rem; color: #888; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .badge {
+      background: #e8f0fb;
+      color: #2d5a88;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge.codex { background: #e8f4ea; color: #2a7a3a; }
+    .badge.mode-quick { background: #fff3e0; color: #b36a00; }
+    .badge.mode-deep { background: #f3e5f5; color: #6a1b9a; }
+
+    /* Confidence header */
+    .confidence-block {
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+      border-left: 4px solid;
+    }
+    .confidence-high { background: #f0faf0; border-color: #4caf50; }
+    .confidence-medium { background: #fff8e1; border-color: #ff9800; }
+    .confidence-low { background: #fff5f5; border-color: #f44336; color: #c62828; }
+    .confidence-block strong { display: block; margin-bottom: 0.25rem; }
+
+    /* Section cards */
+    .card {
+      background: #fff;
+      border: 1px solid #e0e0d8;
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+    }
+    .card-title {
+      padding: 0.875rem 1.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #666;
+      border-bottom: 1px solid #e0e0d8;
+      background: #fafaf8;
+    }
+    .card-body { padding: 1.25rem 1.5rem; }
+
+    /* Question */
+    .question-text {
+      background: #f8f8f5;
+      border-left: 3px solid #2d5a88;
+      padding: 0.875rem 1rem;
+      border-radius: 0 4px 4px 0;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Bias flags */
+    .bias-flags {
+      margin-top: 0.875rem;
+      padding: 0.75rem 1rem;
+      background: #fffde7;
+      border: 1px solid #f9e200;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .bias-flags strong { display: block; margin-bottom: 0.25rem; color: #856900; }
+
+    /* Verdict */
+    .verdict h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: #2d5a88;
+      padding-top: 1rem;
+      border-top: 1px solid #e8e8e0;
+    }
+    .verdict h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+    .verdict p { margin-bottom: 0.75rem; }
+    .verdict ul { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+    .verdict li { margin-bottom: 0.4rem; }
+    .verdict strong { font-weight: 600; }
+
+    /* Dissent ledger */
+    .dissent-ledger {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      background: #fff5f5;
+      border: 1px solid #ffcdd2;
+      border-radius: 6px;
+    }
+    .dissent-ledger strong { display: block; margin-bottom: 0.5rem; color: #b71c1c; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .dissent-ledger ul { padding-left: 1.25rem; font-size: 0.9rem; }
+    .dissent-ledger li { margin-bottom: 0.4rem; }
+
+    /* Agreement grid */
+    .grid-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .grid-table th {
+      padding: 0.4rem 0.75rem;
+      text-align: center;
+      background: #f0f4fa;
+      color: #2d5a88;
+      font-weight: 600;
+      border: 1px solid #dde4f0;
+    }
+    .grid-table th:first-child { text-align: left; min-width: 160px; }
+    .grid-table td {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid #e8e8e0;
+      text-align: center;
+    }
+    .grid-table td:first-child { text-align: left; font-size: 0.8rem; color: #333; }
+    .dot { color: #2d5a88; font-size: 1.1rem; }
+
+    /* RICE table */
+    .rice-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .rice-table th { padding: 0.4rem 0.75rem; background: #f0f4fa; color: #2d5a88; font-weight: 600; border: 1px solid #dde4f0; text-align: left; }
+    .rice-table td { padding: 0.4rem 0.75rem; border: 1px solid #e8e8e0; vertical-align: top; }
+    .rice-score { font-weight: 700; color: #2d5a88; }
+    .status-draft { color: #f57c00; font-weight: 600; font-size: 0.75rem; }
+
+    /* Decision science matrix */
+    .ds-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .ds-table th { padding: 0.4rem 0.6rem; background: #f0f4fa; color: #2d5a88; font-weight: 600; border: 1px solid #dde4f0; }
+    .ds-table td { padding: 0.4rem 0.6rem; border: 1px solid #e8e8e0; vertical-align: top; }
+    .dominant { background: #f0faf0; }
+    .dominated { background: #f8f8f8; color: #999; }
+
+    /* Advisor details */
+    details { margin-bottom: 0.5rem; }
+    details summary {
+      cursor: pointer;
+      padding: 0.6rem 1rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: "▶"; font-size: 0.7rem; transition: transform 0.15s; }
+    details[open] summary::before { transform: rotate(90deg); }
+    details .detail-body {
+      padding: 0.875rem 1rem 0.875rem 1.5rem;
+      font-size: 0.875rem;
+      border-left: 3px solid #e0e0d8;
+      margin-left: 0.5rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Advisor color coding */
+    .advisor-red-team summary { border-left: 3px solid #e53935; background: #fff5f5; }
+    .advisor-red-team .detail-body { border-left-color: #e53935; }
+    .advisor-first-principles summary { border-left: 3px solid #1e88e5; background: #f0f4fb; }
+    .advisor-first-principles .detail-body { border-left-color: #1e88e5; }
+    .advisor-expansionist summary { border-left: 3px solid #43a047; background: #f0faf0; }
+    .advisor-expansionist .detail-body { border-left-color: #43a047; }
+    .advisor-outsider summary { border-left: 3px solid #fb8c00; background: #fff8f0; }
+    .advisor-outsider .detail-body { border-left-color: #fb8c00; }
+    .advisor-executor summary { border-left: 3px solid #8e24aa; background: #f8f0fb; }
+    .advisor-executor .detail-body { border-left-color: #8e24aa; }
+
+    /* Confidence inline badges */
+    .conf-high { color: #2e7d32; font-weight: 600; }
+    .conf-medium { color: #e65100; font-weight: 600; }
+    .conf-low { color: #c62828; font-weight: 600; }
+
+    /* Debate section */
+    .debate-callout {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.875rem;
+    }
+    .debate-side { margin-bottom: 0.875rem; }
+    .debate-side strong { display: block; margin-bottom: 0.25rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .prosecutor strong { color: #b71c1c; }
+    .defender strong { color: #1b5e20; }
+
+    /* Footer */
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e0e0d8;
+      font-size: 0.75rem;
+      color: #aaa;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>LLM Council</h1>
+    <div class="meta">
+      <span>2026-07-23T20:10:15Z</span>
+      <span class="badge mode-standard">Standard</span>
+      
+    </div>
+  </div>
+
+  <!-- Confidence block -->
+  <div class="confidence-block confidence-high">
+<strong>Council confidence: high (3/5 high, 2/5 medium)</strong>
+Dominant assumption: severity comparison is NOT universally reducible to a monotonic scalar + direction — Status is categorical (equality), and band/range cases are coming.<br>
+Breakers: (1) if Status is genuinely evaluated outside AlertConfig and every alert axis is provably monotonic-numeric, direction-alone suffices and the plain proposal is fine; (2) if a check needs to alert on 2+ numeric dimensions in the near term, the CheckDataPoint migration is justified now rather than deferred.
+</div>
+
+  <!-- Question -->
+  <div class="card">
+    <div class="card-title">Question</div>
+    <div class="card-body">
+      <div class="question-text">DECISION: Is the check-dimension ↔ AlertConfig binding proposal for Piro sound end-to-end, or does it have structural flaws that should change its shape before it is built and made hard to revert?
+
+Proposal: (1) DimensionSpec(Name, ThresholdDirection Direction, Unit) reusable, used in both the manifest and when measuring so the dimension name cannot diverge; (2) AlertConfig.AlertFor enum -&gt; AlertConfig.Dimension string; (3) AlertEvaluationService switch -&gt; generic loop comparing by ThresholdDirection (HigherIsWorse =&gt; value&gt;=threshold; LowerIsWorse =&gt; value&lt;=threshold); (4) delete the AlertFor enum. CheckDataPoint (high-volume time-series, one MetricValue+Status+LatencyMs) would migrate to N dimensions.
+
+Options: A adopt as-is; B keep Status out of the dimension system; C enrich direction to band/range/equality now; D defer the hot-table migration.
+Prior council eac976ec (same contract) recommended the fixed-fields model plus a named-metrics hook toward per-dimension evaluation.</div>
+      <div class="bias-flags"><strong>Pre-council bias scan (signals, not verdicts)</strong>
+Sunk cost / IKEA — "already approved and coded" framed as reasons the shape is settled. Anchoring — the four-part proposal presented fully-formed, inviting critique-in-place over alternatives. Confirmation — asks to validate soundness "end-to-end". Status-quo/momentum — "hard to revert" and "user mandated full multi-dimension" treated as fixed. Narrative — the clean "hook -> concrete realization" story makes the path feel inevitable.</div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="card">
+    <div class="card-title">Council Verdict</div>
+    <div class="card-body verdict">
+      <h2>Recommendation</h2>
+<p><strong>Adopt the core of the proposal, but reshape it on four points and split the irreversible parts out.</strong> The DimensionSpec dedup (one declaration feeding both manifest and measurement so a name cannot be mistyped) and the string-dimension binding with a generic evaluator are genuinely sound and are the real win. What is unsafe is bundling them with two hard-to-revert moves and asserting a comparison model that is one notch too narrow.</p>
+
+<h2>The four reshapes</h2>
+<ul>
+<li><strong>Keep Status out of the direction model.</strong> Status is UP/DOWN, evaluated today by enum equality (<code>dp.Status == targetStatus</code>), not by <code>&gt;=/&lt;=</code>. Forcing it into HigherIsWorse/LowerIsWorse is, in the Executor's words, "a lie encoded into data." Status is the result envelope, not a numeric dimension. Model it as a first-class equality predicate; let the dimension system own only the numeric lane. This is the council's single strongest point of agreement.</li>
+<li><strong>Model comparison as a small typed set, not direction alone.</strong> Ship <code>Threshold(direction)</code> + <code>Equality</code> now (Equality carries Status cleanly), leave room for <code>Band/Range</code> later. Direction stays the common case; it stops pretending to be the only case. This absorbs the SSL "expired vs expiring" and equality cases without a second rewrite.</li>
+<li><strong>Retire AlertFor with string-compatibility; do not hard-delete it.</strong> AlertFor is not an internal enum — it is a user-facing YAML config-as-code field (parsed in YamlImportService), an OpenAPI/DTO type, and ~6 admin-UI files plus web api-types. A hard delete silently breaks users' committed YAML. Replace the enum with the <code>Dimension</code> string but keep parsing the old values so existing config keeps importing.</li>
+<li><strong>Split the CheckDataPoint migration into its own PR and defer it.</strong> The hot composite-PK time-series table stores a single MetricValue slot today, and every current check alerts on exactly one numeric dimension, so nothing forces the N-dimension fan-out yet. Do the DimensionSpec + string-binding + generic-evaluator refactor as one reversible PR, keeping one AlertConfig = one dimension. Migrate storage only when a check genuinely needs to alert on 2+ numeric dimensions at once.</li>
+</ul>
+
+<h2>Why this beats adopting as-is</h2>
+<p>Option A couples a cheap reversible refactor with the two expensive irreversible moves (enum delete + hot-table migration) on the change the user calls "the last one." It also encodes the Status lie, which returns as a hidden <code>if (isStatus)</code> branch inside the "generic" loop — less honest than the switch it replaced. The reshaped path gets every win the proposal wanted (name-cannot-diverge, enum killed from code, generic evaluator) while keeping the irreversible pieces behind their own decision.</p>
+
+<h2>What survived the debate</h2>
+<p>The Prosecutor's sharpest attack was that deleting AlertFor dissolves the "streak of what?" identity behind FailureThreshold's consecutive-breach counter, silently mis-counting breaches. Ground truth disproved the headline: the streak is computed per-AlertConfig and keyed on <code>config.Id</code> (via <code>config.IsAlerting</code>), never on AlertFor — the rename is identity-neutral. But the Prosecutor's probe surfaced the one real residual risk, which reinforces reshape #4: historical data points carry only a single MetricValue, so two configs alerting on two numeric dimensions of the same check cannot both reconstruct their consecutive-failure window from history. That is a storage-shape constraint, and it is exactly why the migration must be its own, later, deliberately-sequenced PR.</p>
+
+<h2>First thing to do</h2>
+<p>Ship PR 1 (reversible): DimensionSpec catalog + <code>AlertConfig.Dimension</code> string with backward-compatible AlertFor parsing + a small typed comparison set (Threshold+Equality) + the generic evaluator, with Status on the equality path and one-dimension-per-config. Leave CheckDataPoint untouched. Hold the storage migration as PR 2, gated on a real multi-numeric-dimension consumer.</p>
+      <div class="dissent-ledger"><strong>Dissent Ledger — minority signal the consensus softened</strong>
+<ul>
+<li><strong>The "two-lane" framing (Expansionist) is stronger than a Status carve-out.</strong> Consensus treats "keep Status out" as an exception bolted onto option A. The minority view: make it the organizing principle — a numeric dimension lane and a categorical/status lane by construction — so no special-casing is needed later. Worth adopting as the mental model even while implementing the typed-comparison-set version.</li>
+<li><strong>The parsed-string AlertValue is an unaddressed "units violation" (Outsider).</strong> Even after the reshape, the threshold is still a stringly-typed value parsed at evaluation, so <code>Direction</code> and the value's shape live in two places that can silently disagree. A typed AlertValue (StatusMatch | NumericThreshold) was proposed and not folded into the recommendation; revisit it when the comparison set grows.</li>
+<li><strong>Alert-history / incident continuity across the AlertFor->Dimension identity change went un-analyzed.</strong> Two reviewers flagged that renaming the discriminator could orphan or double-fire active incidents. The streak keys on config.Id so open alerts are safe, but confirm no incident/dedup key is derived from the AlertFor string before shipping PR 1.</li>
+</ul></div>
+    </div>
+  </div>
+
+  <!-- Agreement grid -->
+  
+
+  <!-- RICE table -->
+  
+
+  <!-- Decision science matrix -->
+  
+
+  <!-- Debate (collapsible, only if ran) -->
+  <div class="card"><div class="card-title">Debate Round (triggered — consensus avg 4.0/5)</div>
+<div class="card-body"><div class="debate-callout">
+<div class="debate-side prosecutor"><strong>Prosecutor</strong>
+The lethal flaw: the consensus treats evaluation as stateless f(value, threshold, direction), but Piro counts consecutive breaches (FailureThreshold / N-of-M). That counter needs a stable identity to accumulate against, and today AlertFor IS that join key — "streak of what?" Retire it to a free string across N dimensions and the streak's subject dissolves; the window logic gets smuggled back around the loop and silently mis-counts, so pages fire late or never. Confirming test: grep the evaluator for a consecutive-failure counter keyed on AlertFor.</div>
+<div class="debate-side"><strong style="color:#6a1b9a">Ground truth (AlertEvaluationService.cs)</strong>
+The streak is computed per-AlertConfig: EvaluateConfigAsync(config) runs once per config, CountConsecutive(recentPoints, conditionMet), keyed on config.Id via config.IsAlerting — never on AlertFor. The Prosecutor's confirming grep FAILS for them.</div>
+<div class="debate-side defender"><strong>Defender</strong>
+CONCEDE: historical CheckDataPoint rows carry one MetricValue, so two configs on two numeric dimensions of the same check cannot both reconstruct their consecutive-window history — this vindicates deferring the storage migration. REBUT: the streak keys on config.Id, not AlertFor, so the rename is identity-neutral; the headline attack is disconfirmed. REMAINING RISK: the multi-numeric-dimension history-read gap — monitor by asserting one AlertConfig = one dimension and gating any second numeric-dimension config on the migration landing first; pin Dimension strings to a DimensionSpec catalog so they can't drift per-probe.</div>
+</div></div></div>
+
+  <!-- Advisor responses (collapsed by default) -->
+  <div class="card">
+    <div class="card-title">Advisor Responses</div>
+    <div class="card-body">
+      <details class="advisor-red-team"><summary>Red Team <span class="conf-high">high</span></summary><div class="detail-body">Verified 3 facts: Status is string-equality (Enum.TryParse + ==), not &gt;=/&lt;=; MetricValue is ALREADY a single generic slot shared by CertExpiry + FailedNameServers, so no N-column migration exists today and the proposal INTRODUCES the fan-out rather than being forced into it; each IsXxxMet has hand-fitted semantics.
+Failure mode: the generic evaluator ships, Status breaks, a special-case gets bolted back into the &quot;generic&quot; loop, hidden inside it and less honest than the switch it replaced. The hot table triples for a schema whose only proven consumers are Latency + one scalar. AlertFor deleted one-way, so band/range cases arriving later have no enum to hang per-type validation on, and AlertValue stays stringly-typed so direction and value-shape can silently disagree.
+Root cause: assuming severity comparison is universally reducible to a monotonic scalar + direction. Status is the counterexample already living in the switch.
+Fix: keep AlertFor as a discriminator OR replace with a Dimension string PLUS a ComparisonKind (Equality | Threshold), not Direction alone; generic threshold eval only for numeric dimensions; Status stays on its equality path; do NOT migrate CheckDataPoint now.
+Confidence: high.</div></details>
+<details class="advisor-first-principles"><summary>First Principles <span class="conf-high">high</span></summary><div class="detail-body">The binding unit isn&#x27;t a dimension name, it&#x27;s a predicate: an alert config&#x27;s job is to turn a raw result into &quot;should I fire?&quot; A dimension+direction+threshold is just one cheap encoding of a predicate (the monotonic-scalar case). Status, band, and equality are predicates too; they don&#x27;t fit that encoding.
+Sound shape: keep the DimensionSpec registry (dedup is a pure win), but bind AlertConfig to a small discriminated union of rule-kinds where Threshold(direction) is one variant among several (StatusIs, Band, Equals). Don&#x27;t delete the enum outright; don&#x27;t bundle the reversible refactor with the irreversible migration — ship dedup + string dimension + generic loop behind the existing enum first (map enum-&gt;name internally), prove it, then delete and migrate.
+Verdict: directionally right, two structural flaws — ThresholdDirection too narrow to be the sole comparator, and reversible bundled with irreversible.
+Confidence: high.</div></details>
+<details class="advisor-expansionist"><summary>Expansionist <span class="conf-high">high</span></summary><div class="detail-body">Two-lane split: Status stays a first-class predicate (StatusPredicate); dimensions are the numeric lane only. This resolves the sharpest fault (Status isn&#x27;t numeric, has no ThresholdDirection) at near-zero cost, because it REMOVES work — Status never enters the dimension abstraction, so there&#x27;s no forced impedance match.
+The user&#x27;s option B (&quot;keep Status out&quot;) is the two-lane split in embryo, but framed as a carve-out/exception; promoting it to the organizing principle is why it costs less — no special-casing later. Option A adopts a model that will need B bolted on anyway.
+Alternatives that ride on top cheaply: comparator-as-data (each DimensionSpec carries &gt;=, &lt;=, ==, in-band); typed AlertValue (StatusMatch | NumericThreshold) instead of a parsed string.
+Keep the reusable DimensionSpec (dedup, kill the enum) for the numeric lane; model Status separately.
+Confidence: high.</div></details>
+<details class="advisor-outsider"><summary>Outsider <span class="conf-medium">medium</span></summary><div class="detail-body">Reading this as a wildlife field biologist running standardized surveys, where you must decide what counts as a measurement, its units, and what direction of change matters BEFORE collecting millions of irreversible observations.
+You&#x27;re changing a data model and a hot storage schema at once, and the schema change is the irreversible one — different risk classes that should never ride the same decision.
+&quot;Direction&quot; is doing all the work, but you already named cases it can&#x27;t hold: Status is a state, not a magnitude; &quot;within a range&quot; and &quot;equals X&quot; are real. In survey design that&#x27;s the difference between continuous, categorical, and interval variables — you never force them onto one comparison operator. Storing the threshold as a parsed string is a units violation: a number without its unit and type isn&#x27;t yet data.
+Prescription: adopt named measurements + generic eval now (reversible, cheap), but model comparison as a small typed set from day one (ordinal / range / categorical / equality). Pilot the storage migration on one metric with a dual-write window; don&#x27;t decommission the old column until the new format survives a full cycle; don&#x27;t delete the enum until the string names have earned reliability.
+Confidence: medium.</div></details>
+<details class="advisor-executor"><summary>Executor <span class="conf-medium">medium</span></summary><div class="detail-body">Ground truth from the code raises the blast radius beyond a domain refactor. Recommend B + D now, C later, split into two independently-revertible PRs.
+- AlertFor is NOT internal: it&#x27;s a YAML config-as-code field (YamlImportService.cs:199), a DTO/OpenAPI type, and ~6 admin-UI files + apps/web api-types. Deleting it silently breaks users&#x27; YAML unless string parsing is kept. That&#x27;s the real revert cost, not the C# switch.
+- Status genuinely doesn&#x27;t fit: IsStatusMet is enum equality (dp.Status == targetStatus). Forcing UP/DOWN into HigherIsWorse/LowerIsWorse is a lie you&#x27;d encode into data. B is correctness, not polish.
+- The migration is a composite-PK hot table (CheckId, Timestamp, WorkerRegion) with a single MetricValue slot; N-dimensions means a child table or JSON column + backfill + rewriting the ingester and both dispatchers. Most expensive, least-reversible line item; D avoids doing it under the &quot;last change&quot; flag.
+RICE: B~29, &quot;missed E&quot; (SDK + generic evaluator, AlertFor retired-not-deleted, string-compatible) ~19, &quot;missed F&quot; (two-PR split) ~15, D~10, A~2.0, C~1.8. Highest path: B + D + E now (F as the wrapper), C and the migration deferred.
+Blocked on: does any read path need per-dimension history; are there production YAML files with alertFor; how FailureThreshold&#x27;s consecutive window survives a deferred migration.
+Confidence: medium (high on B/E being correct).</div></details>
+    </div>
+  </div>
+
+  <!-- Peer reviews (collapsed) -->
+  <div class="card">
+    <div class="card-title">Peer Reviews</div>
+    <div class="card-body">
+      <details><summary>Reviewer 1</summary><div class="detail-body">Strongest: B — only one grounded in the codebase; surfaced that AlertFor is a user-facing YAML/OpenAPI/admin contract, reframing &quot;delete the enum&quot; from a refactor into a breaking change. Weakness: B&#x27;s RICE inputs are self-assigned and conveniently bury option C. Collective miss: none owns the transition-state correctness during a dual-write window (old rows one MetricValue, new rows N). CONSENSUS STRENGTH: 4</div></details>
+<details><summary>Reviewer 2</summary><div class="detail-body">Strongest: C — checked ground truth on the load-bearing claim and inverted the premise (MetricValue is already a single generic slot, so the proposal creates the fan-out, killing the false urgency). Weakness: C&#x27;s binary ComparisonKind (Equality|Threshold) is never stress-tested against Band/range, the exact case it dismisses. Collective miss: alert-history/incident continuity across the AlertFor-&gt;Dimension identity change — orphaned or double-fired active incidents. CONSENSUS STRENGTH: 4</div></details>
+<details><summary>Reviewer 3</summary><div class="detail-body">Strongest: B — read the code and surfaced the triple-contract nature of AlertFor; separated the reversible model change from the irreversible migration and gave an actionable path with explicit blockers. Weakness: B flags Status-as-equality as correctness but never resolves WHERE equality lives structurally (predicate vs ComparisonKind), the very decision the proposal turns on. Collective miss: FailureThreshold / window semantics as a first-class concern — does a generic dimension loop preserve consecutive-failure evaluation? CONSENSUS STRENGTH: 4</div></details>
+<details><summary>Reviewer 4</summary><div class="detail-body">Strongest: C — catches the factual error that inverts the cost/benefit (single MetricValue is already the generic slot; migration is self-inflicted). Weakness: C asserts &quot;single generic slot&quot; without reconciling the separate LatencyMs + Status columns; if those are separate typed columns the &quot;no migration exists&quot; claim is overstated. Collective miss: nobody priced the FailureThreshold / N-of-M consecutive-breach window interaction with per-sample comparison. CONSENSUS STRENGTH: 4</div></details>
+<details><summary>Reviewer 5</summary><div class="detail-body">Strongest: B — touched ground-truth code and surfaced the two facts that reframe everything (AlertFor is a user contract; Status-&gt;direction is a data lie). Weakness: B punts the direction-model shape (union vs ComparisonKind vs two-lane) to &quot;C later&quot; and credits its best insight to a phantom option it invented rather than integrating it; RICE numbers are unfalsifiable. Collective miss: FailureThreshold/window may not compose with a stateless generic-by-direction evaluator — the evaluator needs history/state the stateless framing ignores. CONSENSUS STRENGTH: 4</div></details>
+    </div>
+  </div>
+
+  <footer>LLM Council &middot; Mode: Standard &middot; SHA: fb034525 &middot; <a href="council-transcript-20260723-201015Z-qfb034525.md">Full transcript</a></footer>
+
+</div>
+</body>
+</html>

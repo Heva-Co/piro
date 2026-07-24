@@ -1,220 +1,169 @@
 using System.Net;
-using System.Text.Json;
 using FluentAssertions;
 using NSubstitute;
-using Piro.Domain.Entities;
-using Piro.Domain.Enums;
-using Piro.Infrastructure.Checks;
+using Piro.Checks;
+using Piro.Checks.Abstractions;
 
 namespace Piro.UnitTests.Checks;
 
 /// <summary>
-/// Tests HttpCheckExecutor logic using a fake HttpMessageHandler — no real network.
+/// Tests <see cref="HttpCheck"/> logic (RFC 0016) using a fake HttpMessageHandler — no real network. The
+/// check resolves its <see cref="IHttpClientFactory"/> from the <see cref="ICheckHost"/>, so a fake host
+/// hands it a factory wired to the fake handler. The check returns a raw <see cref="CheckOutcome"/> and a
+/// set of dimensions; it never decides severity (a failed soft rule stays Up but bumps the
+/// "BodyRuleFailures" dimension, which the policy — not the check — turns into DEGRADED).
 /// </summary>
 public class HttpCheckExecutorTests
 {
-    private static Check MakeCheck(object config) => new()
-    {
-        Id = 1, Slug = "test", Name = "Test",
-        TypeDataJson = JsonSerializer.Serialize(config),
-        Type = CheckType.HTTP,
-    };
+    private static ICheckHost HostWith(HttpStatusCode statusCode, string? body = null) =>
+        HostWithHandler(new FakeHandler(statusCode, body));
 
-    private static IHttpClientFactory FakeFactory(HttpStatusCode statusCode, string? body = null)
+    private static ICheckHost HostWithHandler(HttpMessageHandler handler)
     {
-        var handler = new FakeHandler(statusCode, body);
-        var client = new HttpClient(handler) { BaseAddress = null };
+        var client = new HttpClient(handler);
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(client);
-        return factory;
+        var host = Substitute.For<ICheckHost>();
+        host.GetRequiredService<IHttpClientFactory>().Returns(factory);
+        return host;
     }
+
+    private static Task<CheckProbeResult> Probe(ICheckHost host, HttpCheckConfig config) =>
+        new HttpCheck().ProbeAsync(config, host);
 
     [Fact]
     public async Task Returns_Up_When_Status200_And_No_ExpectedCodes()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK));
-        var check = MakeCheck(new { url = "http://example.com" });
+        var result = await Probe(HostWith(HttpStatusCode.OK), new() { Url = "http://example.com" });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
+        result.Outcome.Should().Be(CheckOutcome.Up);
     }
 
     [Fact]
     public async Task Returns_Down_When_Status500()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.InternalServerError));
-        var check = MakeCheck(new { url = "http://example.com" });
+        var result = await Probe(HostWith(HttpStatusCode.InternalServerError), new() { Url = "http://example.com" });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("500");
+        result.Outcome.Should().Be(CheckOutcome.Down);
+        result.Message.Should().Contain("500");
     }
 
     [Fact]
     public async Task Returns_Up_When_Status_Matches_ExpectedStatusCodes()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.NotFound));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "404" } });
+        var result = await Probe(HostWith(HttpStatusCode.NotFound),
+            new() { Url = "http://example.com", ExpectedStatusCodes = ["404"] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
+        result.Outcome.Should().Be(CheckOutcome.Up);
     }
 
     [Fact]
     public async Task Returns_Down_When_Status_Not_In_ExpectedStatusCodes()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "201" } });
+        var result = await Probe(HostWith(HttpStatusCode.OK),
+            new() { Url = "http://example.com", ExpectedStatusCodes = ["201"] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.Outcome.Should().Be(CheckOutcome.Down);
     }
 
     [Fact]
     public async Task Returns_Up_When_Body_Contains_Rule_Passes()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
-        var check = MakeCheck(new {
-            url = "http://example.com",
-            responseRules = new[] { new { type = "contains", value = "world", degraded = false } }
-        });
+        var result = await Probe(HostWith(HttpStatusCode.OK, "Hello, world!"),
+            new() { Url = "http://example.com", ResponseRules = [new() { Type = "contains", Value = "world", Degraded = false }] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
+        result.Outcome.Should().Be(CheckOutcome.Up);
     }
 
     [Fact]
     public async Task Returns_Down_When_Body_Contains_Rule_Fails()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
-        var check = MakeCheck(new {
-            url = "http://example.com",
-            responseRules = new[] { new { type = "contains", value = "piro", degraded = false } }
-        });
+        var result = await Probe(HostWith(HttpStatusCode.OK, "Hello, world!"),
+            new() { Url = "http://example.com", ResponseRules = [new() { Type = "contains", Value = "piro", Degraded = false }] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("body");
+        result.Outcome.Should().Be(CheckOutcome.Down);
+        result.Message.Should().Contain("body");
     }
 
     [Fact]
-    public async Task Returns_Degraded_When_Rule_Fails_With_Degraded_Flag()
+    public async Task Soft_Rule_Failure_Stays_Up_But_Counts_A_BodyRuleFailure()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, "Hello, world!"));
-        var check = MakeCheck(new {
-            url = "http://example.com",
-            responseRules = new[] { new { type = "contains", value = "piro", degraded = true } }
-        });
+        // "Degraded" is no longer a check-level status (RFC 0016) — a failed soft rule keeps the probe Up
+        // and bumps the BodyRuleFailures dimension, which the alert policy turns into DEGRADED, not the check.
+        var result = await Probe(HostWith(HttpStatusCode.OK, "Hello, world!"),
+            new() { Url = "http://example.com", ResponseRules = [new() { Type = "contains", Value = "piro", Degraded = true }] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DEGRADED);
+        result.Outcome.Should().Be(CheckOutcome.Up);
+        result.Dimensions.Single(d => d.Name == "BodyRuleFailures").Value.Should().Be(1);
     }
 
     [Fact]
     public async Task Returns_Up_When_JsonPath_Rule_Passes()
     {
         var body = """{"status":{"indicator":"none"}}""";
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, body));
-        var check = MakeCheck(new {
-            url = "http://example.com",
-            responseRules = new[] { new { type = "json_path", value = "$.status.indicator", expected = "none", degraded = false } }
-        });
+        var result = await Probe(HostWith(HttpStatusCode.OK, body),
+            new() { Url = "http://example.com", ResponseRules = [new() { Type = "json_path", Value = "$.status.indicator", Expected = "none", Degraded = false }] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
+        result.Outcome.Should().Be(CheckOutcome.Up);
     }
 
     [Fact]
     public async Task Returns_Down_When_JsonPath_Expected_Value_Mismatches()
     {
         var body = """{"status":{"indicator":"major"}}""";
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK, body));
-        var check = MakeCheck(new {
-            url = "http://example.com",
-            responseRules = new[] { new { type = "json_path", value = "$.status.indicator", expected = "none", degraded = false } }
-        });
+        var result = await Probe(HostWith(HttpStatusCode.OK, body),
+            new() { Url = "http://example.com", ResponseRules = [new() { Type = "json_path", Value = "$.status.indicator", Expected = "none", Degraded = false }] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("major");
+        result.Outcome.Should().Be(CheckOutcome.Down);
+        result.Message.Should().Contain("major");
     }
 
     [Fact]
-    public async Task Returns_Up_And_Reports_LatencyMs_Regardless_Of_How_Slow_The_Response_Is()
+    public async Task Up_Result_Reports_Latency_Dimension_Regardless_Of_How_Slow_The_Response_Is()
     {
-        // Severity is no longer judged by the executor itself (RFC 0002) — a slow-but-successful
-        // response is still UP; only an AlertConfig on Latency decides whether that's alerting.
-        var handler = new DelayedHandler(HttpStatusCode.OK, delayMs: 50);
-        var client = new HttpClient(handler);
-        var factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient(Arg.Any<string>()).Returns(client);
-        var sut = new HttpCheckExecutor(factory);
-        var check = MakeCheck(new { url = "http://example.com" });
+        // A slow-but-successful response is still Up; the Latency dimension is what the policy alerts on.
+        var host = HostWithHandler(new DelayedHandler(HttpStatusCode.OK, delayMs: 50));
+        var result = await Probe(host, new() { Url = "http://example.com" });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
-        result.LatencyMs.Should().BeGreaterThanOrEqualTo(50);
+        result.Outcome.Should().Be(CheckOutcome.Up);
+        result.Dimensions.Single(d => d.Name == "Latency").Value.Should().BeGreaterThanOrEqualTo(50);
     }
 
     [Fact]
     public async Task Returns_Up_When_Status_Matches_2xx_Class()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.Created));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "2xx" } });
+        var result = await Probe(HostWith(HttpStatusCode.Created),
+            new() { Url = "http://example.com", ExpectedStatusCodes = ["2xx"] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.UP);
+        result.Outcome.Should().Be(CheckOutcome.Up);
     }
 
     [Fact]
     public async Task Returns_Down_When_Status_Does_Not_Match_2xx_Class()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.NotFound));
-        var check = MakeCheck(new { url = "http://example.com", expectedStatusCodes = new[] { "2xx" } });
+        var result = await Probe(HostWith(HttpStatusCode.NotFound),
+            new() { Url = "http://example.com", ExpectedStatusCodes = ["2xx"] });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
+        result.Outcome.Should().Be(CheckOutcome.Down);
     }
 
     [Fact]
-    public async Task Returns_Failure_When_Url_Not_Configured()
+    public async Task Returns_Error_When_Url_Not_Configured()
     {
-        var sut = new HttpCheckExecutor(FakeFactory(HttpStatusCode.OK));
-        var check = MakeCheck(new { url = "" });
+        var result = await Probe(HostWith(HttpStatusCode.OK), new() { Url = "" });
 
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.FAILURE);
-        result.ErrorMessage.Should().Contain("URL");
+        result.Outcome.Should().Be(CheckOutcome.Error);
+        result.Message.Should().Contain("URL");
     }
 
     [Fact]
     public async Task Returns_Down_On_Connection_Error()
     {
-        var handler = new ThrowingHandler(new HttpRequestException("Connection refused"));
-        var client = new HttpClient(handler);
-        var factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient(Arg.Any<string>()).Returns(client);
+        var host = HostWithHandler(new ThrowingHandler(new HttpRequestException("Connection refused")));
+        var result = await Probe(host, new() { Url = "http://10.0.0.1" });
 
-        var sut = new HttpCheckExecutor(factory);
-        var check = MakeCheck(new { url = "http://10.0.0.1" });
-
-        var result = await sut.ExecuteAsync(check);
-
-        result.Status.Should().Be(ServiceStatus.DOWN);
-        result.ErrorMessage.Should().Contain("Connection refused");
+        result.Outcome.Should().Be(CheckOutcome.Down);
+        result.Message.Should().Contain("Connection refused");
     }
 
     // ── Fake handlers ────────────────────────────────────────────────────────

@@ -1,68 +1,61 @@
 using FluentAssertions;
-using Piro.Application.Extensions;
-using Piro.Domain.Checks.Config;
-using Piro.Domain.Enums;
-using Piro.Domain.Extensions;
+using Piro.Checks;
+using Piro.Checks.Abstractions;
+using Piro.Contracts;
 
 namespace Piro.UnitTests.Checks;
 
 /// <summary>
-/// Verifies the CheckType manifest (RFC 0011) — the single source of truth for per-CheckType
-/// metadata, mirroring the Integration manifest.
+/// Verifies each check's <see cref="CheckManifest"/> (RFC 0016) — the single source of truth for
+/// per-check metadata, replacing the old <c>CheckType</c> enum + <c>[CheckTypeManifest]</c> attribute.
+/// Metadata now lives on the check class itself (<see cref="ICheck.Manifest"/>).
 /// </summary>
 public class CheckTypeManifestTests
 {
+    private static readonly ICheck[] AllChecks =
+    [
+        new HttpCheck(), new DnsCheck(), new TcpCheck(), new PingCheck(),
+        new SslCheck(), new GrpcCheck(),
+    ];
+
     [Fact]
-    public void RunnableTypes_DeclareDisplayNameDescriptionConfigAndInterval()
+    public void EveryCheck_DeclaresLabelDescriptionConfigAndInterval()
     {
-        foreach (var type in new[] { CheckType.HTTP, CheckType.DNS, CheckType.TCP, CheckType.Ping, CheckType.SSL, CheckType.GRPC, CheckType.GCP_CloudRunJob })
+        foreach (var check in AllChecks)
         {
-            var manifest = type.GetManifest();
-            manifest.Should().NotBeNull($"{type} should declare a manifest");
-            manifest!.DisplayName.Should().NotBeNullOrEmpty();
+            var manifest = check.Manifest;
+            manifest.Label.Should().NotBeNullOrEmpty($"{check.CheckId} should declare a label");
             manifest.Description.Should().NotBeNullOrEmpty();
             manifest.ConfigType.Should().NotBeNull();
-            manifest.MinIntervalSeconds.Should().BeGreaterThan(0);
+            manifest.DefaultIntervalSeconds.Should().BeGreaterThan(0);
         }
-    }
-
-    [Theory]
-    [InlineData(CheckType.Heartbeat)]
-    public void NotYetImplementedTypes_HaveNoManifest(CheckType type)
-    {
-        type.GetManifest().Should().BeNull();
     }
 
     [Fact]
     public void Http_ManifestPointsAtHttpCheckConfig()
     {
-        CheckType.HTTP.GetManifest()!.ConfigType.Should().Be(typeof(HttpCheckConfig));
+        new HttpCheck().Manifest.ConfigType.Should().Be(typeof(HttpCheckConfig));
     }
 
     [Fact]
-    public void GcpCloudRunJob_RequiresGoogleCloudIntegration()
+    public void Ssl_ManifestDeclaresCertExpiryDimension()
     {
-        CheckType.GCP_CloudRunJob.GetManifest()!.RequiredIntegration.Should().Be(IntegrationType.GoogleCloud);
+        new SslCheck().Manifest.Dimensions.Select(d => d.Name)
+            .Should().BeEquivalentTo(["Status", "CertExpiry"]);
     }
 
     [Fact]
-    public void TypesWithoutRequiredIntegration_ReturnNull()
+    public void Http_ManifestDeclaresLatencyDimension()
     {
-        CheckType.HTTP.GetManifest()!.RequiredIntegration.Should().BeNull();
-    }
-
-    [Fact]
-    public void AllowedAlertFors_IsSourcedFromTheManifest()
-    {
-        CheckType.SSL.AllowedAlertFors().Should().BeEquivalentTo([AlertFor.Status, AlertFor.CertExpiry]);
-        CheckType.HTTP.AllowedAlertFors().Should().BeEquivalentTo([AlertFor.Status, AlertFor.Latency]);
+        new HttpCheck().Manifest.Dimensions.Select(d => d.Name)
+            .Should().Contain(["Status", "Latency"]);
     }
 
     [Fact]
     public void ManifestConfigType_ProducesASchemaViaConfigSchemaBuilder()
     {
         // The manifest's ConfigType is the bridge into the shared config-schema engine.
-        var schema = ConfigSchemaBuilder.For(CheckType.HTTP.GetManifest()!.ConfigType);
+        var schema = ConfigSchemaBuilder.For(new HttpCheck().Manifest.ConfigType);
         schema.Should().Contain(f => f.Key == "url");
     }
 }

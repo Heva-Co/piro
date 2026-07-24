@@ -10,7 +10,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import ChecksSection from "../components/ChecksSection";
 import GeneralSettingsSection from "../components/GeneralSettingsSection";
-import { AlertRoutingSection } from "../components/AlertRoutingSection";
 
 export default function ServiceDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -66,15 +65,19 @@ export default function ServiceDetailPage() {
         </SectionAccordion>
 
         <SectionAccordion
-          title="Alert Routing"
-          description="Route this service's alerts to third-party systems"
-          icon={<Settings size={16} className="text-muted-foreground" />}
-        >
-          <AlertRoutingSection serviceId={service.id} />
-        </SectionAccordion>
-
-        <SectionAccordion
-          title={`Checks (${checks?.length ?? 0})`}
+          title={
+            (checks?.length ?? 0) === 0 ? (
+              <span className="flex items-center gap-2">
+                Checks
+                <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  <AlertTriangle size={12} />
+                  No checks yet
+                </span>
+              </span>
+            ) : (
+              `Checks (${checks?.length})`
+            )
+          }
           description="Checks configured for this service"
           icon={<ClipboardList size={16} className="text-muted-foreground" />}
           actions={<Button onClick={() => navigate(`/admin/services/${slug}/checks/new`)}> + Add Check</Button>}

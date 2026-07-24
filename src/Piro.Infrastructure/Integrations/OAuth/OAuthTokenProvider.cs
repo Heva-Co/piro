@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Piro.Application.Interfaces;
-using Piro.Domain.Enums;
+using Piro.Contracts;
 
 namespace Piro.Infrastructure.Integrations.OAuth;
 
@@ -85,7 +85,7 @@ internal class OAuthTokenProvider(
             $"Timed out waiting for a concurrent token refresh for integration {integrationId}.");
     }
 
-    private async Task<IntegrationType> GetIntegrationTypeAsync(Guid integrationId, CancellationToken ct)
+    private async Task<string> GetIntegrationTypeAsync(Guid integrationId, CancellationToken ct)
     {
         var integration = await integrationRepo.GetByIdAsync(integrationId, ct)
             ?? throw new InvalidOperationException($"Integration {integrationId} not found.");
@@ -94,10 +94,10 @@ internal class OAuthTokenProvider(
 
     private static bool IsNearExpiry(DateTime expiresAt) => expiresAt - DateTime.UtcNow <= ExpiryMargin;
 
-    /// <summary>Maps an integration type to its OAuth provider descriptor id. Extend as providers are added.</summary>
-    private static string ResolveProviderId(IntegrationType type) => type switch
+    /// <summary>Maps an integration id to its OAuth provider descriptor id. Extend as providers are added.</summary>
+    private static string ResolveProviderId(string integrationId) => integrationId switch
     {
-        IntegrationType.PagerDuty => "pagerduty",
-        _ => throw new InvalidOperationException($"Integration type {type} has no OAuth provider.")
+        "Jira" => "jira",
+        _ => throw new InvalidOperationException($"Integration '{integrationId}' has no OAuth provider.")
     };
 }

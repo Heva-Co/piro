@@ -18,7 +18,7 @@ public record AlertCreatedPayload(
     /// <summary>Origin label for an external alert (e.g. "GCP Cloud Monitoring"), else null.</summary>
     string? SourceLabel,
     DateTimeOffset FiredAt,
-    /// <summary>Piro Service id, for resolving per-service routing (e.g. a PagerDuty ServiceIntegrationMapping). Null for an orphan/external alert. Added in v2.</summary>
+    /// <summary>Piro Service id, for resolving per-service routing. Null for an orphan/external alert. Added in v2.</summary>
     int? ServiceId = null
 ) : INotificationEvent
 {

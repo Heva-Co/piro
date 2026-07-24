@@ -28,14 +28,12 @@ internal class RemoteCheckJobDispatcher(
     IWorkerRegistry registry,
     IMultiRegionBatchTracker batchTracker,
     ICheckDataPointRepository dataPointRepo,
-    IEnumerable<ICheckExecutor> executors,
+    ICheckExecutor executor,
     ICheckResultIngester ingester,
     bool apiIsWorker,
     string localWorkerRegion,
     ILogger<RemoteCheckJobDispatcher> logger) : ICheckJobDispatcher
 {
-    private readonly Dictionary<CheckType, ICheckExecutor> _executors = executors.ToDictionary(e => e.CheckType);
-
     public async Task DispatchAsync(Check check, CancellationToken ct = default)
     {
         var workers = registry.GetAll();
@@ -88,14 +86,9 @@ internal class RemoteCheckJobDispatcher(
         var allTasks = new List<Task>(remoteTasks.Cast<Task>());
 
         // API participates as a local worker — run in-process and feed result into the batch
-        if (apiIsWorker && _executors.TryGetValue(check.Type, out var executor))
+        if (apiIsWorker)
         {
-            allTasks.Add(RunLocalWorkerAsync(executor, check, batchId, ct));
-        }
-        else if (apiIsWorker)
-        {
-            // No executor for this check type — count it as a result anyway to avoid hanging the batch
-            batchTracker.AddResult(batchId, new CheckExecutionResult(ServiceStatus.NO_DATA, null, "No executor for check type"));
+            allTasks.Add(RunLocalWorkerAsync(check, batchId, ct));
         }
 
         await Task.WhenAll(allTasks);
@@ -145,7 +138,7 @@ internal class RemoteCheckJobDispatcher(
         await hubContext.Clients.Client(defaultWorker.ConnectionId).Execute(message);
     }
 
-    private async Task RunLocalWorkerAsync(ICheckExecutor executor, Check check, string batchId, CancellationToken ct)
+    private async Task RunLocalWorkerAsync(Check check, string batchId, CancellationToken ct)
     {
         try
         {
@@ -160,7 +153,7 @@ internal class RemoteCheckJobDispatcher(
         catch (Exception ex)
         {
             logger.LogError(ex, "Local API worker failed for check {CheckId}.", check.Id);
-            batchTracker.AddResult(batchId, new CheckExecutionResult(ServiceStatus.NO_DATA, null, ex.Message));
+            batchTracker.AddResult(batchId, CheckExecutionResult.Of(ServiceStatus.NO_DATA, ex.Message));
         }
     }
 }

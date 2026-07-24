@@ -12,7 +12,4 @@ public enum NotificationTargetKind
 
     /// <summary>Posts to a shared team channel/space/room/topic — mode 2.</summary>
     Channel,
-
-    /// <summary>Hands the event to an integration that decides what to do (e.g. PagerDuty) — mode 3.</summary>
-    Integration,
 }

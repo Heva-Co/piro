@@ -177,8 +177,10 @@ public record CoverageGapDto(
 
 public record UserNotificationPreferenceDto(
     int Id,
-    string Channel,
-    Guid? IntegrationId,
+    /// <summary>The integration id this delivers through ("Email" for the account fallback, else the instance's type). Derived, not a stored channel enum.</summary>
+    string IntegrationId,
+    /// <summary>The configured integration instance backing this preference; null only for the account-email fallback.</summary>
+    Guid? IntegrationInstanceId,
     string? IntegrationName,
     string Handle,
     int Priority,
@@ -187,8 +189,8 @@ public record UserNotificationPreferenceDto(
 );
 
 public record UpsertUserNotificationPreferenceRequest(
-    string Channel,
-    Guid? IntegrationId,
+    /// <summary>The integration instance to deliver through — its type determines the channel. Required (the account-email fallback is auto-managed, never created via this request).</summary>
+    Guid IntegrationInstanceId,
     string Handle
 );
 

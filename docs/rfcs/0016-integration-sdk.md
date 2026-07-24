@@ -1,7 +1,7 @@
 ---
 rfc: 16
 title: "Integration SDK: self-describing integrations with an open discriminator"
-status: accepted
+status: implemented
 created: 2026-07-22
 depends-on: ["0003", "0009", "0011", "0012", "0015"]
 tracking-issue: 216
@@ -12,9 +12,21 @@ superseded-by: null
 
 # RFC 0016 — Integration SDK: self-describing integrations with an open discriminator
 
-Status: draft
+Status: implemented
 Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-22
+
+> **Implementation note (2026-07-24).** This RFC is implemented. The design below is
+> preserved as proposed; where the shipped implementation refined a decision, an
+> inline "As shipped" note records what actually landed, and §10 summarizes the whole
+> delta in one place. Two shifts are worth calling out up front, because they touch
+> the core contract: (a) the manifest's `SupportedEvents` shipped as `string[]` of
+> stable wire names with wildcard support, not `NotificationEventType[]`, keeping the
+> "integrations know nothing" boundary tighter; and (b) the three send/post/trigger
+> dispatcher interfaces collapsed into a single `IIntegrationEventHandler`. The
+> **PagerDuty** integration (RFC 0004) was also **withdrawn** in this work — Piro now
+> owns on-call via escalation policies (RFC 0015), so an external paging provider is
+> redundant; see RFC 0004, now marked `withdrawn`.
 
 ## 1. Problem
 
@@ -143,11 +155,15 @@ Three constraints follow:
 An integration becomes a **self-describing class** (`IIntegration`, §4.2) that lives,
 with its config and dispatcher(s), in **its own assembly**: `Piro.Integrations.Twilio`,
 `Piro.Integrations.Jira`, `Piro.Integrations.Telegram`, `Piro.Integrations.Ntfy`,
-`Piro.Integrations.GoogleChat`, `Piro.Integrations.Webhook`,
-`Piro.Integrations.PagerDuty`, `Piro.Integrations.Gcp`. `Piro.Api` references each
-one. Each references `Piro.Integrations.Abstractions` (the contract) and nothing of
-another integration. This is the structural expression of "an integration is a
-self-contained thing": one project, one provider, its own dependency list.
+`Piro.Integrations.GoogleChat`, `Piro.Integrations.Webhook`, `Piro.Integrations.Gcp`,
+`Piro.Integrations.GoogleCloud`. `Piro.Api` references each one. Each references
+`Piro.Integrations.Abstractions` (the contract) and nothing of another integration. This
+is the structural expression of "an integration is a self-contained thing": one project,
+one provider, its own dependency list.
+
+> **As shipped.** The list above is the set that shipped. `Piro.Integrations.PagerDuty`
+> is **not** among them: PagerDuty was withdrawn (§4.9, RFC 0004 now `withdrawn`).
+> `Piro.Integrations.GoogleCloud` (the Cloud Run Job check provider, §4.6) joined the set.
 
 The point is not primarily dependency isolation (only Twilio carries a heavy SDK); it
 is **boundary**. A separate assembly makes it *impossible* for an integration to
@@ -305,6 +321,20 @@ Concretely, across ~64 files:
   `ISystemEventDispatcher`, `IIntegrationAction`, `IOptionsProvider`,
   `IActionRegistry`, `IVerificationCodeSender`): `IntegrationType Type` → `string
   IntegrationId`.
+
+> **As shipped.** The three delivery dispatcher interfaces
+> (`IPersonalNotificationDispatcher` / `IChannelNotificationDispatcher` /
+> `ISystemEventDispatcher`) **collapsed into a single `IIntegrationEventHandler`** with
+> one method: `Task<bool> HandleAsync(Event evt, EventDeliveryContext ctx,
+> IIntegrationHost host, CancellationToken ct)`. The engine resolves the target and the
+> delivery mode (`Personal` / `Channel`, on `EventDeliveryContext`) and hands the
+> integration the neutral `Event`; the integration decides how to render and deliver, or
+> returns `false` to ignore it. This became possible once the system-event/paging path
+> was removed with PagerDuty (§4.9, RFC 0004 withdrawn): with no third-party paging
+> destination left, there was no distinct "system event" dispatch shape to keep separate
+> from notification delivery. `IIntegrationAction` / `IOptionsProvider` / `IActionRegistry` still exist for
+> RFC 0012 UI actions; `IVerificationCodeSender` was removed (setup uses the core
+> `EmailService` directly).
 - **Dispatch tables** (five `ToDictionary(d => d.Type)` sites): key type enum →
   `string`. No `switch` to rewrite.
 - **Entities** (`Integration.Type`, `NotificationDeliveryLog.IntegrationType`,
@@ -329,11 +359,19 @@ event to any destination). The events an integration handles move onto its manif
 
 ```csharp
 // IntegrationManifest (Piro.Integrations.Abstractions)
-public NotificationEventType[] SupportedEvents { get; init; } = [];
+public IReadOnlyList<string> SupportedEvents { get; init; } = [];
 ```
 
-`NotificationEventType` stays in `Piro.Domain` (§2); the integration contract sits
-*above* Domain, so it references the enum freely — no move, no inverted graph.
+> **As shipped.** `SupportedEvents` is `IReadOnlyList<string>` of **stable event wire
+> names** ("alert:created", "incident:resolved"), not `NotificationEventType[]`. This is
+> stricter about the boundary than the proposal: an integration declares which public
+> events it handles *without depending on Piro's `NotificationEventType` enum at all*,
+> exactly like RFC 0009's permanent wire names. It also supports **wildcards** —
+> `Manifest.HandlesEvent(wireName)` matches `"*"` (everything), a prefix like `"alert:*"`,
+> or an exact name — so Telegram declares `["alert:*", "incident:*"]` rather than
+> enumerating every event. The create-time guard and the honesty test both validate each
+> declared name against the live catalog, so a typo'd or retired wire name fails fast
+> even though the field is now a free string.
 
 A new capability **`SubscribesToEvents`** is a **hard precondition**: an integration
 must declare it (with a non-empty `SupportedEvents`) to be an event-subscription
@@ -364,10 +402,30 @@ assembly change — it is Track A (§7).
   `Sends*`/`ExtendsUserInterface` ⇒ outbound) and is deleted from the manifest, derived
   by a helper; the DTO field stays on the wire, now computed. `TargetKind` derives the
   same way.
+
+> **As shipped.** `Direction` is no longer a *declared* manifest field — it is a computed
+> property (`Manifest.Direction => DeriveDirection(Capabilities)`), exactly as proposed,
+> so no hand-set value can disagree with the capabilities beside it. The
+> `IntegrationDirection` enum itself was kept but marked `[Obsolete]` (capabilities are the
+> source of truth; callers should read those). It still projects to the DTO badge for the
+> admin. Fully deleting the enum is deferred cleanup, tracked as a follow-up.
 - **`ProvidesActions` → `ExtendsUserInterface`** — a rename so the capability isn't
   wedded to one UI surface (buttons) as future surfaces appear. The actual
   multi-surface model and its host seam are a *later* RFC (§2); this RFC only renames
   the flag so that RFC doesn't have to.
+
+> **As shipped — integrations that ship checks.** A capability the proposal didn't
+> anticipate landed here because the check subsystem (RFC 0011) went through the same
+> self-describing extraction in parallel: **`ProvidesChecks`**. A provider integration
+> whose data is probed by a check returns that check from `IIntegration.ProvidedChecks()`,
+> and the check lives in the integration's own assembly — available in the catalog only
+> while the integration is registered. `Piro.Integrations.GoogleCloud` ships the Cloud Run
+> Job check this way; Piro core never hardcodes the check→integration link. The honesty
+> test (§4.8) asserts `ProvidesChecks` is set iff `ProvidedChecks()` is non-empty. The
+> checks half of this (the `ICheck` / `Check<TConfig>` / `ICheckRegistry` contracts in
+> `Piro.Checks.Abstractions`, the `DimensionSpec` binding model, and the shared
+> `Piro.Contracts` config-schema engine used by both, §4.7) is the sibling of this
+> integration work and shipped in the same branch.
 
 ### 4.7 `Piro.Contracts` — the shared config-schema engine
 
@@ -400,9 +458,9 @@ carries one `SendsPersonalNotification` flag) and inbound-only flags
 make a bidirectional `⟺` a false-positive generator. The reverse is a **non-failing
 report** the test prints; the inbound flags are documented-skip.
 
-It also asserts: every `IntegrationId` unique, non-empty, and matching a retired enum
-name (§4.4); `SubscribesToEvents` ⟺ non-empty `SupportedEvents`; `ExtendsUserInterface`
-⟺ ≥1 declared action.
+It also asserts: every `IntegrationId` unique and non-empty; `SubscribesToEvents` ⟺
+non-empty `SupportedEvents`; `ProvidesChecks` ⟺ non-empty `ProvidedChecks()`;
+`ExtendsUserInterface` ⟺ ≥1 declared action.
 
 **And it enforces the "integrations know nothing" boundary (§4.2b), the part that is
 only real if tested:**
@@ -416,20 +474,40 @@ only real if tested:**
   the `IIntegrationHost` window resolves only allow-listed types; a dispatcher that asks
   the host for anything off the list surfaces here rather than in production.
 
-**PagerDuty note (verified).** `PagerDutyDispatcher` **does** page (a real Events API
-enqueue POST), so its manifest's `SendsAlertEvents` is *correct*; the lie is the
-source comment (`IntegrationType.cs:69-73`) claiming it "declares only
-`RequiresOAuthConnection` today." Phase 0 is therefore a low-risk **comment fix**, not
-a behavior change — but it must precede the honesty test so the test isn't red on a
-stale comment's premise.
+**PagerDuty note (superseded by §4.9).** The proposal opened with reconciling a stale
+`PagerDutyDispatcher` comment. That is moot in the shipped result: PagerDuty was
+**withdrawn** during implementation (Piro owns on-call via escalation policies, RFC 0015;
+RFC 0004 now `withdrawn`, §4.9). Its dispatcher no longer exists, so there is no comment
+left to reconcile and nothing for the honesty test to assert about it.
+
+### 4.9 PagerDuty withdrawn (RFC 0004)
+
+The PagerDuty integration (specified in **RFC 0004** — OAuth connect, a real Events API
+v2 enqueue that paged the on-call team, per-service routing-key discovery) was **removed**
+in this work, because *Piro now provides on-call itself via escalation policies* (RFC
+0015): an external paging provider is redundant with the product's own capability. Its
+assembly, config, dispatcher, OAuth descriptor, discovery service, and the
+service-integration-mapping controller were all deleted.
+
+RFC 0004 is therefore now marked **`withdrawn`** (`superseded-by: 15`). This is a
+reversible state at the RFC level, not a claim about a code lifecycle field: the
+`"PagerDuty"` discriminator was a permanent string (§3), so if a future need to page
+through PagerDuty specifically returns, the integration can be re-introduced as a fresh
+`IIntegration` under that same id — stored rows (if any) would keep their identity, no
+data migration required. Withdrawing an integration is thus a documented, reversible
+decision, recorded in the withdrawn RFC rather than as a code-level "retired" flag (which
+was considered and rejected as premature — there is exactly one withdrawn integration and
+no consumer for such a flag today; YAGNI, consistent with §2).
 
 ## 5. Data / schema scope
 
-- **New assemblies:** `Piro.Contracts` (shared config-schema),
-  `Piro.Integrations.Abstractions` (integration contract + `IIntegrationHost`), and
-  one `Piro.Integrations.<Provider>` per integration (Twilio, Jira, Telegram, Ntfy,
-  GoogleChat, Webhook, PagerDuty, Gcp). `Piro.Api` references each. Email is the
-  exception and its `IIntegration` stays in `Piro.Infrastructure` (§4.1).
+- **New assemblies:** `Piro.Contracts` (shared config-schema engine, used by both
+  integrations and checks), `Piro.Integrations.Abstractions` (integration contract +
+  `IIntegrationHost` + `IIntegrationEventHandler`), one `Piro.Integrations.<Provider>` per
+  live integration (Twilio, Jira, Telegram, Ntfy, GoogleChat, Webhook, Gcp, GoogleCloud),
+  and — from the sibling check work (§4.6) — `Piro.Checks.Abstractions` and `Piro.Checks`.
+  `Piro.Api` references each. Email is the exception and its `IIntegration` stays in
+  `Piro.Infrastructure` (§4.1). PagerDuty ships no assembly (retired, §4.9).
 - **Deleted:** the `IntegrationType` enum; `INotificationSubscriber` + `EventSubscriber`
   + six registrations; the central dispatcher/action DI block
   (`InfrastructureServiceExtensions.cs:193-309`), replaced by the explicit registry.
@@ -437,8 +515,9 @@ stale comment's premise.
   C# type changes `IntegrationType` → `string`, stored values do not. Proven by an
   empty `dotnet ef migrations add` diff (not assumed). The `[Obsolete]` "ordinals
   matter" comments are corrected (false).
-- **Manifest:** `SupportedEvents` + `SubscribesToEvents` added; `Direction` removed
-  (derived); `ProvidesActions` renamed to `ExtendsUserInterface`.
+- **Manifest:** `SupportedEvents` (`string[]` wire names + wildcards) + `SubscribesToEvents`
+  added; `ProvidesChecks` added (§4.6); `Direction` now derived (enum kept `[Obsolete]`);
+  `ProvidesActions` renamed to `ExtendsUserInterface`.
 - **Wire:** `api-types.ts` `IntegrationType` union widens to `string`. No other DTO
   shape change.
 - **Frontend:** unify the two `DynamicConfigField` renderers into one
@@ -561,3 +640,26 @@ hot-load of third-party assemblies (§2).
   assembly referencing a forbidden Piro type, or a dispatcher resolving a non-allow-listed
   service through the host, must fail the build. Mitigation: §4.8 makes both assertions
   explicit; without them the boundary is aspirational.
+
+## 10. What actually shipped (implementation reconciliation)
+
+This RFC was implemented on branch `implements-rfc/0016-contracts-abstractions`. The
+design above is the accepted proposal; the deltas below are where the implementation
+refined it. Each is also flagged inline as an "As shipped" note next to the relevant
+section.
+
+| Area | Proposed | Shipped |
+|---|---|---|
+| Manifest `SupportedEvents` (§4.5) | `NotificationEventType[]` | `IReadOnlyList<string>` of stable wire names, with wildcard matching (`"alert:*"`) — tighter boundary, no enum dependency |
+| Delivery dispatchers (§4.4) | three interfaces (`IPersonal*`/`IChannel*`/`ISystemEvent*`) | one `IIntegrationEventHandler.HandleAsync(Event, EventDeliveryContext, IIntegrationHost)` |
+| `IVerificationCodeSender` | reworked to `IntegrationId` | removed — setup uses the core `EmailService` directly |
+| `Direction` (§4.6) | removed from manifest | derived (computed property); `IntegrationDirection` enum kept `[Obsolete]`, full deletion deferred |
+| Checks (§4.6) | not in scope | sibling extraction landed here: `ProvidesChecks` capability, `IIntegration.ProvidedChecks()`, `Piro.Checks[.Abstractions]`, `DimensionSpec` binding, GoogleCloud ships the Cloud Run Job check |
+| PagerDuty (§4.9) | shipped assembly; phase-0 comment fix | **withdrawn** — Piro owns on-call via escalation policies (RFC 0015); assembly/dispatcher/config deleted; RFC 0004 marked `withdrawn`. The permanent `"PagerDuty"` id makes re-introduction migration-free if ever needed (no code-level lifecycle flag was added — YAGNI) |
+| `Piro.Contracts` (§4.7) | shared config-schema | shipped, and also holds the shared `ThresholdDirection` / `DimensionComparison` enums for the check binding model |
+
+Everything else landed as designed: the open `string IntegrationId` discriminator with
+no database migration; the explicit compile-time registry (a hand-maintained static array,
+§4.3) over a reflection scan; the per-assembly boundary; the filtered `IIntegrationHost`
+window; the #212 events-available guards (build-time honesty test + create-time
+validation); and the capabilities-honesty test.
