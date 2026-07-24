@@ -38,4 +38,16 @@ public interface ITagRepository
 
     /// <summary>Distinct non-null values assigned for a key across all entities, for autocomplete (§4.7).</summary>
     Task<IReadOnlyList<string>> GetValuesForKeyAsync(string key, CancellationToken ct = default);
+
+    // System (piro:*) tag assignment. The Tag catalog row is created with TagSource.System on first use.
+
+    /// <summary>Upserts a stored system tag on a service (creates the catalog key if needed).</summary>
+    Task SetServiceSystemTagAsync(int serviceId, string key, string? value, CancellationToken ct = default);
+    Task SetCheckSystemTagAsync(int checkId, string key, string? value, CancellationToken ct = default);
+    Task SetWorkerSystemTagAsync(Guid workerId, string key, string? value, CancellationToken ct = default);
+
+    /// <summary>Removes a system tag assignment from a service (no-op if absent). The catalog key persists.</summary>
+    Task RemoveServiceSystemTagAsync(int serviceId, string key, CancellationToken ct = default);
+    Task RemoveCheckSystemTagAsync(int checkId, string key, CancellationToken ct = default);
+    Task RemoveWorkerSystemTagAsync(Guid workerId, string key, CancellationToken ct = default);
 }

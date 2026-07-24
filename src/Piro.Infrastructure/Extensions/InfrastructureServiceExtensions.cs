@@ -110,6 +110,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<ICheckRepository, CheckRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<ISystemTagReconciler, SystemTagReconciler>();
+        services.AddScoped<IComputedSystemTagBatch<Service>, HasIncidentComputedTag>();
+        services.AddScoped<IComputedSystemTagBatch<Service>, HasAlertsComputedTag>();
         services.AddScoped<IServiceDependencyRepository, ServiceDependencyRepository>();
         services.AddScoped<ICheckDataPointRepository, CheckDataPointRepository>();
 services.AddScoped<IIncidentRepository, IncidentRepository>();

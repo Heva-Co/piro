@@ -43,6 +43,7 @@ public class CheckScheduleValidationTests
             _registry,
             Substitute.For<ICheckHost>(),
             Substitute.For<ICheckInboundTokenService>(),
+            Substitute.For<ISystemTagReconciler>(),
             Substitute.For<IUnitOfWork>());
     }
 

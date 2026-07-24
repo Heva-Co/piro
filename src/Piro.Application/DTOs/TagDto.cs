@@ -24,3 +24,6 @@ public record CheckTagsDto(IReadOnlyList<TagDto> Own, IReadOnlyList<TagDto> Effe
 public record ReplaceTagsRequest(
     [Required] IReadOnlyList<TagDto> Tags
 );
+
+/// <summary>Optional body for assigning a valued system tag (§4.7). Omitted/null for a key-only flag.</summary>
+public record SystemTagValue(string? Value);

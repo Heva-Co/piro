@@ -96,4 +96,55 @@ internal class TagRepository(PiroDbContext db) : ITagRepository
         var workerValues = db.WorkerTags.Where(wt => wt.Tag.Key == key && wt.Value != null).Select(wt => wt.Value!);
         return await serviceValues.Union(checkValues).Union(workerValues).OrderBy(v => v).ToListAsync(ct);
     }
+
+    public async Task SetServiceSystemTagAsync(int serviceId, string key, string? value, CancellationToken ct = default)
+    {
+        var tag = await GetOrCreateTagAsync(key, TagSource.System, ct);
+        var row = await db.ServiceTags.FirstOrDefaultAsync(st => st.ServiceId == serviceId && st.TagId == tag.Id, ct);
+        if (row is null)
+            db.ServiceTags.Add(new ServiceTag { ServiceId = serviceId, TagId = tag.Id, Value = value });
+        else
+            row.Value = value;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetCheckSystemTagAsync(int checkId, string key, string? value, CancellationToken ct = default)
+    {
+        var tag = await GetOrCreateTagAsync(key, TagSource.System, ct);
+        var row = await db.CheckTags.FirstOrDefaultAsync(ct2 => ct2.CheckId == checkId && ct2.TagId == tag.Id, ct);
+        if (row is null)
+            db.CheckTags.Add(new CheckTag { CheckId = checkId, TagId = tag.Id, Value = value });
+        else
+            row.Value = value;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetWorkerSystemTagAsync(Guid workerId, string key, string? value, CancellationToken ct = default)
+    {
+        var tag = await GetOrCreateTagAsync(key, TagSource.System, ct);
+        var row = await db.WorkerTags.FirstOrDefaultAsync(wt => wt.WorkerRegistrationId == workerId && wt.TagId == tag.Id, ct);
+        if (row is null)
+            db.WorkerTags.Add(new WorkerTag { WorkerRegistrationId = workerId, TagId = tag.Id, Value = value });
+        else
+            row.Value = value;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveServiceSystemTagAsync(int serviceId, string key, CancellationToken ct = default)
+    {
+        var row = await db.ServiceTags.FirstOrDefaultAsync(st => st.ServiceId == serviceId && st.Tag.Key == key, ct);
+        if (row is not null) { db.ServiceTags.Remove(row); await db.SaveChangesAsync(ct); }
+    }
+
+    public async Task RemoveCheckSystemTagAsync(int checkId, string key, CancellationToken ct = default)
+    {
+        var row = await db.CheckTags.FirstOrDefaultAsync(ct2 => ct2.CheckId == checkId && ct2.Tag.Key == key, ct);
+        if (row is not null) { db.CheckTags.Remove(row); await db.SaveChangesAsync(ct); }
+    }
+
+    public async Task RemoveWorkerSystemTagAsync(Guid workerId, string key, CancellationToken ct = default)
+    {
+        var row = await db.WorkerTags.FirstOrDefaultAsync(wt => wt.WorkerRegistrationId == workerId && wt.Tag.Key == key, ct);
+        if (row is not null) { db.WorkerTags.Remove(row); await db.SaveChangesAsync(ct); }
+    }
 }
