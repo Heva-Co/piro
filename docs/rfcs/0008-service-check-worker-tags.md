@@ -1,11 +1,12 @@
 ---
 rfc: 8
 title: "Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling"
-status: accepted
+status: implemented
 created: 2026-07-17
 tracking-issue: 185
 depends-on: ["0001"]
 proposal-pr: 184
+implementation-pr: 223
 ---
 
 # RFC 0008 — Arbitrary tags on Services, Checks, and Workers, with tag-based worker↔check scheduling
