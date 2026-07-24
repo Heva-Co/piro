@@ -53,6 +53,15 @@ public class CheckResultIngesterService(
         var check = await checkRepo.GetByIdAsync(checkId, ct);
         if (check is null) return;
 
+        // FAILURE means the check itself could not run (bad config, executor/DI error) — it is NOT a
+        // measurement of the target, so it must not move CurrentStatus (which would show the check as
+        // "Down" for an internal error) nor drive alerts. The FAILURE data point is still recorded (above)
+        // and visible in the logs; CurrentStatus keeps the last real measurement. (§4.6, and the same
+        // reason alert evaluation is skipped below.) Monitor-outage / unschedulable data points are written
+        // straight to the repository by the dispatcher and never reach this path, so they never move it.
+        if (aggregatedResult.Status == ServiceStatus.FAILURE)
+            return;
+
         var previousStatus = check.CurrentStatus;
         check.CurrentStatus = aggregatedResult.Status;
         await checkRepo.UpdateAsync(check, ct);
@@ -60,10 +69,6 @@ public class CheckResultIngesterService(
         var evt = new CheckStatusChangedEvent(check.Id, check.ServiceId, previousStatus, aggregatedResult.Status);
         statusChannel.Writer.TryWrite(evt);
 
-        // FAILURE means the executor itself crashed — not a service outage, so skip alert/incident evaluation.
-        if (aggregatedResult.Status != ServiceStatus.FAILURE)
-        {
-            await alertEvaluationService.EvaluateAsync(check.Id, ct);
-        }
+        await alertEvaluationService.EvaluateAsync(check.Id, ct);
     }
 }

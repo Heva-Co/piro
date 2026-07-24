@@ -151,6 +151,18 @@ internal class TagRepository(PiroDbContext db) : ITagRepository
     public async Task<IReadOnlyList<CheckRequiredWorkerTag>> GetRequiredWorkerTagsAsync(int checkId, CancellationToken ct = default) =>
         await db.CheckRequiredWorkerTags.Include(rt => rt.Tag).Where(rt => rt.CheckId == checkId).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<IReadOnlyDictionary<string, string?>>> GetAllWorkerTagSetsAsync(CancellationToken ct = default)
+    {
+        var rows = await db.WorkerTags
+            .Include(wt => wt.Tag)
+            .Select(wt => new { wt.WorkerRegistrationId, wt.Tag.Key, wt.Value })
+            .ToListAsync(ct);
+        return rows
+            .GroupBy(r => r.WorkerRegistrationId)
+            .Select(g => (IReadOnlyDictionary<string, string?>)g.ToDictionary(r => r.Key, r => r.Value, StringComparer.Ordinal))
+            .ToList();
+    }
+
     public async Task ReplaceRequiredWorkerTagsAsync(int checkId, IReadOnlyList<(Tag Tag, string? Value)> tags, CancellationToken ct = default)
     {
         var existing = await db.CheckRequiredWorkerTags.Where(rt => rt.CheckId == checkId).ToListAsync(ct);
