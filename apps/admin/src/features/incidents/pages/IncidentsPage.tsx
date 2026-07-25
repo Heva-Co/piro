@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Siren } from "lucide-react";
 import { incidentsApi } from "@/lib/actions/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -11,7 +11,7 @@ import PageContainer from "@/components/PageContainer";
 import TableSkeleton from "@/components/TableSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
@@ -87,10 +87,23 @@ function IncidentsPage() {
         ) : paged.length === 0 ? (
           <Empty className="border-0 py-14">
             <EmptyHeader>
-              <EmptyTitle className="text-muted-foreground font-normal">
-                No {stateFilter !== "all" ? stateFilter : ""} incidents found.
+              <EmptyMedia variant="icon">
+                <Siren />
+              </EmptyMedia>
+              <EmptyTitle>
+                {stateFilter === "active" ? "No active incidents" : stateFilter === "all" ? "No incidents yet" : `No ${stateFilter} incidents`}
               </EmptyTitle>
+              <EmptyDescription>
+                {stateFilter === "active"
+                  ? "Nothing is on fire right now. Incidents you open will show up here."
+                  : stateFilter === "all"
+                    ? "Open an incident to track a disruption and keep users informed."
+                    : "Try a different status filter, or open a new incident."}
+              </EmptyDescription>
             </EmptyHeader>
+            <Button onClick={() => navigate(ROUTES.INCIDENTS.NEW)}>
+              <Plus size={15} /> New Incident
+            </Button>
           </Empty>
         ) : (
           <Table>
