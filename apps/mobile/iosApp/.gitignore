@@ -1,0 +1,11 @@
+# Xcode / iOS build artifacts
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+
+# The .xcodeproj is generated from project.yml but committed so teammates can open it without xcodegen.
+# Its per-user state is not:
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
