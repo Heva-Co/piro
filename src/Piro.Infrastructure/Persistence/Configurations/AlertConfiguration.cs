@@ -21,6 +21,7 @@ internal class AlertConfigConfiguration : IEntityTypeConfiguration<AlertConfig>
         builder.Property(a => a.Direction).HasConversion<string>();
         builder.Property(a => a.AlertValue).HasMaxLength(255).IsRequired();
         builder.Property(a => a.Severity).HasConversion<string>().HasDefaultValue(AlertSeverity.Warning);
+        builder.Property(a => a.MinFailingRegions).HasDefaultValue(1);
 
         builder.HasOne(a => a.Check)
             .WithMany(c => c.AlertConfigs)

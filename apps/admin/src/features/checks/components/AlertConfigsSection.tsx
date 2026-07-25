@@ -19,6 +19,7 @@ function defaultAlertConfigDraft(dimensions: readonly CheckDimension[]): AlertCo
     alertValue: dim ? defaultAlertValue(dim) : "",
     failureThreshold: 1,
     successThreshold: 1,
+    minFailingRegions: 1,
     severity: DEFAULT_ALERT_SEVERITY,
     isActive: true,
   };
@@ -30,6 +31,7 @@ function toDraft(config: AlertConfig): AlertConfigDraft {
     alertValue: config.alertValue,
     failureThreshold: config.failureThreshold,
     successThreshold: config.successThreshold,
+    minFailingRegions: config.minFailingRegions,
     severity: config.severity,
     isActive: config.isActive,
   };
