@@ -18,7 +18,8 @@ public record WorkerExecuteMessage(
     int CheckId,
     CheckType CheckType,
     string TypeDataJson,
-    string? BatchId = null);
+    string? BatchId = null,
+    long? CycleTimestamp = null);
 
 // ── Worker → API ─────────────────────────────────────────────────────────────
 
@@ -40,4 +41,5 @@ public record WorkerResultMessage(
     IReadOnlyDictionary<string, double> Dimensions,
     string? ErrorMessage,
     DateTime ExecutedAt,
-    string? BatchId = null);
+    string? BatchId = null,
+    long? CycleTimestamp = null);

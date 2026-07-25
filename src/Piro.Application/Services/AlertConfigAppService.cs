@@ -48,6 +48,7 @@ public class AlertConfigAppService(
             AlertValue = request.AlertValue,
             FailureThreshold = request.FailureThreshold,
             SuccessThreshold = request.SuccessThreshold,
+            MinFailingRegions = request.MinFailingRegions,
             Description = request.Description,
             IsActive = request.IsActive,
             Severity = request.Severity
@@ -75,6 +76,7 @@ public class AlertConfigAppService(
         if (request.AlertValue is not null) config.AlertValue = request.AlertValue;
         if (request.FailureThreshold is not null) config.FailureThreshold = request.FailureThreshold.Value;
         if (request.SuccessThreshold is not null) config.SuccessThreshold = request.SuccessThreshold.Value;
+        if (request.MinFailingRegions is not null) config.MinFailingRegions = request.MinFailingRegions.Value;
         if (request.Description is not null) config.Description = request.Description;
         if (request.IsActive is not null) config.IsActive = request.IsActive.Value;
         if (request.Severity is not null) config.Severity = request.Severity.Value;

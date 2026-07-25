@@ -45,38 +45,59 @@ public class AlertEvaluationService(
         var service = await serviceRepository.GetByIdAsync(check.ServiceId, ct);
         if (service is null) return;
 
-        // Fetch enough recent data points to evaluate the highest threshold across all configs
+        // Evaluation is cycle-based: one execution cycle is all per-region data points sharing a timestamp.
+        // A multi-region cycle produces several rows, so fetch enough rows to cover maxThreshold *whole*
+        // cycles even with many regions, then group by cycle. (CycleRowFetchMultiplier caps the assumed
+        // regions-per-cycle; well above any realistic multi-region fan-out.)
         int maxThreshold = activeConfigs.Max(a => Math.Max(a.FailureThreshold, a.SuccessThreshold));
-        var recentPoints = (await dataPointRepository.GetByCheckIdAsync(checkId, limit: maxThreshold, ct: ct))
+        var recentPoints = (await dataPointRepository.GetByCheckIdAsync(checkId, limit: maxThreshold * CycleRowFetchMultiplier, ct: ct))
+            .ToList();
+
+        // Group into cycles, newest first. Rows already arrive ordered by Timestamp desc.
+        var cycles = recentPoints
+            .GroupBy(p => p.Timestamp)
+            .OrderByDescending(g => g.Key)
+            .Select(g => g.ToList())
             .ToList();
 
         foreach (var config in activeConfigs)
         {
-            await EvaluateConfigAsync(config, check, service, recentPoints, ct);
+            await EvaluateConfigAsync(config, check, service, cycles, ct);
         }
     }
+
+    /// <summary>Assumed upper bound on regions per cycle, used to size the data-point fetch (see EvaluateAsync).</summary>
+    private const int CycleRowFetchMultiplier = 50;
 
     private async Task EvaluateConfigAsync(
         AlertConfig config,
         Check check,
         Service service,
-        List<CheckDataPoint> recentPoints,
+        List<List<CheckDataPoint>> cycles,
         CancellationToken ct)
     {
         bool conditionMet(CheckDataPoint dp) => IsConditionMet(config, check, dp);
 
-        // Count consecutive points (most recent first) where condition is met or not
-        int consecutiveFailures = CountConsecutive(recentPoints, conditionMet);
-        int consecutiveSuccesses = CountConsecutive(recentPoints, dp => !conditionMet(dp));
+        // Quorum (spatial axis): a cycle fails only when at least MinFailingRegions of the regions that
+        // reported in that cycle meet the rule's condition. Default 1 keeps the original "any region fails
+        // => cycle fails" behaviour, and a single-region check only ever has one region per cycle.
+        bool cycleFails(List<CheckDataPoint> cycle) => cycle.Count(conditionMet) >= config.MinFailingRegions;
+
+        // Count consecutive cycles (most recent first) where the quorum is / isn't met (temporal axis).
+        int consecutiveFailures = CountConsecutive(cycles, cycleFails);
+        int consecutiveSuccesses = CountConsecutive(cycles, c => !cycleFails(c));
 
         bool shouldFire = !config.IsAlerting && consecutiveFailures >= config.FailureThreshold;
         // Condition is still met on a later evaluation while already alerting — not a new
         // transition, but the failure is ongoing and must still be recorded (OccurrenceCount)
         // or it freezes at 1 for the entire duration of the outage.
-        bool stillFailing = config.IsAlerting && recentPoints.Count > 0 && conditionMet(recentPoints[0]);
+        bool stillFailing = config.IsAlerting && cycles.Count > 0 && cycleFails(cycles[0]);
         bool shouldRecover = config.IsAlerting && consecutiveSuccesses >= config.SuccessThreshold;
 
         if (!shouldFire && !stillFailing && !shouldRecover) return;
+
+        // The newest data point overall, for message building (error text, latest metric value).
+        var recentPoints = cycles.Count > 0 ? cycles[0] : [];
 
         if (shouldFire || stillFailing)
         {
@@ -134,13 +155,13 @@ public class AlertEvaluationService(
             : value >= threshold;
     }
 
-    /// <summary>Counts how many consecutive data points (from the start of the list) satisfy the predicate.</summary>
-    private static int CountConsecutive(List<CheckDataPoint> points, Func<CheckDataPoint, bool> predicate)
+    /// <summary>Counts how many consecutive items (from the start of the list) satisfy the predicate.</summary>
+    private static int CountConsecutive<T>(List<T> items, Func<T, bool> predicate)
     {
         int count = 0;
-        foreach (var point in points)
+        foreach (var item in items)
         {
-            if (predicate(point)) count++;
+            if (predicate(item)) count++;
             else break;
         }
         return count;

@@ -21,16 +21,27 @@ public class CheckResultIngesterService(
 
     public async Task IngestAsync(int checkId, CheckExecutionResult result, string workerRegion, CancellationToken ct = default)
     {
-        await IngestDataPointOnlyAsync(checkId, result, workerRegion, ct);
+        await IngestDataPointOnlyAsync(checkId, result, workerRegion, cycleTimestamp: null, ct);
         await IngestStatusOnlyAsync(checkId, result, ct);
     }
 
     // ── Per-region data point persistence (multi-region step 1) ──────────────
 
-    public async Task IngestDataPointOnlyAsync(int checkId, CheckExecutionResult result, string workerRegion, CancellationToken ct = default)
+    public async Task IngestDataPointOnlyAsync(int checkId, CheckExecutionResult result, string workerRegion, long? cycleTimestamp = null, CancellationToken ct = default)
     {
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        timestamp -= timestamp % 60;
+        // Use the cycle timestamp sealed at dispatch when present, so every region of one multi-region
+        // cycle lands on the same minute bucket regardless of per-region ingestion delay; otherwise floor
+        // the current time (single-region path).
+        long timestamp;
+        if (cycleTimestamp is { } sealedTs)
+        {
+            timestamp = sealedTs;
+        }
+        else
+        {
+            timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            timestamp -= timestamp % 60;
+        }
 
         var dataPoint = new CheckDataPoint
         {
