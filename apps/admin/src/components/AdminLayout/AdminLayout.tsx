@@ -42,10 +42,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useHealth } from "@/hooks/useHealth";
 import { useTimezone } from "@/hooks/useTimezone";
 import { useMyOnCallCurrentStatus } from "@/hooks/useOnCallMe";
-import { useOnCallNowDismissal } from "@/hooks/useOnCallNowDismissal";
 import { useTimezoneMismatchDismissal } from "@/hooks/useTimezoneMismatchDismissal";
 import { TimezoneMismatchBanner } from "@/components/TimezoneMismatchBanner";
-import { OnCallNowBanner } from "@/components/OnCallNowBanner";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import { siteApi, maintenancesApi } from "@/lib/api";
@@ -346,8 +344,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const { mismatch, useBrowserTimeZone, activeTimeZone, profileTimeZone, browserTimeZone } = useTimezone();
   const { data: currentOnCallSlot } = useMyOnCallCurrentStatus();
-  const { isDismissed: onCallBannerDismissed } = useOnCallNowDismissal(currentOnCallSlot);
-  const showOnCallIcon = !!currentOnCallSlot && onCallBannerDismissed;
+  const showOnCallIcon = !!currentOnCallSlot;
   const { isDismissed: timezoneMismatchDismissed } = useTimezoneMismatchDismissal(
     profileTimeZone ?? "",
     browserTimeZone
@@ -496,7 +493,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         <TimezoneMismatchBanner />
-        <OnCallNowBanner />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
