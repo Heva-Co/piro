@@ -10126,7 +10126,7 @@ export interface components {
             dailyData: components["schemas"]["DailyStatsDto"][];
         };
         /** @enum {unknown} */
-        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "FAILURE";
+        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "PARTIALLY_DOWN" | "DOWN" | "MAINTENANCE" | "FAILURE";
         SetIncidentServicesRequest: {
             services: components["schemas"]["IncidentServiceImpact"][];
         };
