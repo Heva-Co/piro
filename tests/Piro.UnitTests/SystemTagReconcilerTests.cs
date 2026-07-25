@@ -18,27 +18,27 @@ public class SystemTagReconcilerTests
     }
 
     [Fact]
-    public async Task ReconcileCheck_WritesCheckTypeValueAndMultiRegionFlag()
+    public async Task ReconcileCheck_WritesCheckTypeValue()
     {
-        var check = new Check { Id = 5, Type = CheckType.HTTP, IsMultiRegion = true };
+        var check = new Check { Id = 5, Type = CheckType.HTTP };
 
         await _sut.ReconcileCheckAsync(check, default);
 
         await _tags.Received(1).SetCheckSystemTagAsync(5, "piro:check-type", "http", Arg.Any<CancellationToken>());
-        await _tags.Received(1).SetCheckSystemTagAsync(5, "piro:multi-region", null, Arg.Any<CancellationToken>());
+        // The piro:multi-region system tag was removed together with Check.IsMultiRegion (multi-region is
+        // now driven by worker tags/routing). Reconciliation must not write or remove it any more.
+        await _tags.DidNotReceive().SetCheckSystemTagAsync(5, "piro:multi-region", Arg.Any<string?>(), Arg.Any<CancellationToken>());
         await _tags.DidNotReceive().RemoveCheckSystemTagAsync(5, "piro:multi-region", Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task ReconcileCheck_SingleRegion_RemovesMultiRegionFlag()
+    public async Task ReconcileCheck_LowercasesCheckType()
     {
-        var check = new Check { Id = 5, Type = CheckType.Heartbeat, IsMultiRegion = false };
+        var check = new Check { Id = 7, Type = CheckType.Heartbeat };
 
         await _sut.ReconcileCheckAsync(check, default);
 
-        await _tags.Received(1).SetCheckSystemTagAsync(5, "piro:check-type", "heartbeat", Arg.Any<CancellationToken>());
-        await _tags.Received(1).RemoveCheckSystemTagAsync(5, "piro:multi-region", Arg.Any<CancellationToken>());
-        await _tags.DidNotReceive().SetCheckSystemTagAsync(5, "piro:multi-region", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await _tags.Received(1).SetCheckSystemTagAsync(7, "piro:check-type", "heartbeat", Arg.Any<CancellationToken>());
     }
 
     [Fact]
