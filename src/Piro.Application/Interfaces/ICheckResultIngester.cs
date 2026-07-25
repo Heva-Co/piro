@@ -16,7 +16,12 @@ public interface ICheckResultIngester
     /// Called per worker result during multi-region fan-out; <see cref="IngestStatusOnlyAsync"/>
     /// is called exactly once per batch by <see cref="IMultiRegionBatchTracker"/>.
     /// </summary>
-    Task IngestDataPointOnlyAsync(int checkId, CheckExecutionResult result, string workerRegion, CancellationToken ct = default);
+    /// <param name="cycleTimestamp">
+    /// The minute-aligned Unix-seconds timestamp sealed once at dispatch for this execution cycle, stamped
+    /// on every region's row so read-time grouping by timestamp equals grouping by cycle at any cron
+    /// frequency. When null, the timestamp is computed from the current time (single-region path).
+    /// </param>
+    Task IngestDataPointOnlyAsync(int checkId, CheckExecutionResult result, string workerRegion, long? cycleTimestamp = null, CancellationToken ct = default);
 
     /// <summary>
     /// Updates <c>CurrentStatus</c>, fires a <see cref="CheckStatusChangedEvent"/>, and evaluates

@@ -12,6 +12,7 @@ public record AlertConfigDto(
     string AlertValue,
     int FailureThreshold,
     int SuccessThreshold,
+    int MinFailingRegions,
     string? Description,
     bool IsActive,
     bool IsAlerting,
@@ -25,6 +26,7 @@ public record CreateAlertConfigRequest(
     string AlertValue,
     int FailureThreshold = 1,
     int SuccessThreshold = 1,
+    int MinFailingRegions = 1,
     string? Description = null,
     bool IsActive = true,
     AlertSeverity Severity = AlertSeverity.Warning
@@ -35,6 +37,7 @@ public record UpdateAlertConfigRequest(
     string? AlertValue,
     int? FailureThreshold,
     int? SuccessThreshold,
+    int? MinFailingRegions,
     string? Description,
     bool? IsActive,
     AlertSeverity? Severity

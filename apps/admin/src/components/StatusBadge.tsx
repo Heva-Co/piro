@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 const STATUS_STYLES: Record<string, { classes: string; label: string }> = {
   UP: { classes: "bg-green-500 text-white", label: "Up" },
   DOWN: { classes: "bg-destructive text-white", label: "Down" },
+  PARTIALLY_DOWN: { classes: "bg-orange-500 text-white", label: "Partially Down" },
   DEGRADED: { classes: "bg-amber-500 text-white", label: "Degraded" },
   MAINTENANCE: { classes: "bg-blue-500 text-white", label: "Maintenance" },
   NO_DATA: { classes: "bg-muted text-muted-foreground", label: "No Data" },

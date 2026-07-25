@@ -42,11 +42,21 @@ public class AlertConfig
     /// </summary>
     public string AlertValue { get; set; } = string.Empty;
 
-    /// <summary>Consecutive failures before the alert is triggered.</summary>
+    /// <summary>Consecutive failing cycles before the alert is triggered (the temporal axis).</summary>
     public int FailureThreshold { get; set; } = 1;
 
-    /// <summary>Consecutive successes required to auto-resolve the alert.</summary>
+    /// <summary>Consecutive healthy cycles required to auto-resolve the alert (the temporal axis).</summary>
     public int SuccessThreshold { get; set; } = 1;
+
+    /// <summary>
+    /// Multi-region quorum (the spatial axis): the minimum number of regions that must meet this rule's
+    /// condition within one execution cycle for that cycle to count as failing. Composes with
+    /// <see cref="FailureThreshold"/> (cycles) and <see cref="SuccessThreshold"/> — e.g. "2 regions failing
+    /// for 3 consecutive cycles". Default <c>1</c> preserves the original behaviour (any single region
+    /// failing makes the cycle fail); a single-region check only ever has one region per cycle, so this has
+    /// no effect there.
+    /// </summary>
+    public int MinFailingRegions { get; set; } = 1;
 
     public string? Description { get; set; }
 
