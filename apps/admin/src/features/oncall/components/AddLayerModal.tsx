@@ -7,6 +7,7 @@ import { DatePicker } from "@/components/DatePicker";
 import { RRuleEditor } from "@/components/RRuleEditor";
 
 import type { OnCallLayer, OnCallLayerUser } from "@/lib/api";
+import { DEFAULT_MEMBER_COLOR } from "../colors";
 
 export interface LayerFormPayload {
   name: string;
@@ -23,7 +24,8 @@ interface Props {
   onSave: (payload: LayerFormPayload) => void;
 }
 
-export function AddLayerModal({ initialLayer, onClose, onSave }: Props) {
+export function AddLayerModal(props: Props) {
+  const { initialLayer, onClose, onSave } = props;
   const isEdit = !!initialLayer;
   const [name, setName] = useState(initialLayer?.name ?? "");
   const [firstStart, setFirstStart] = useState(initialLayer?.firstOccurrenceStartsAt ?? "");
@@ -65,7 +67,7 @@ export function AddLayerModal({ initialLayer, onClose, onSave }: Props) {
             userId: uid,
             userName: user?.name ?? "",
             userInitials: (user?.name ?? "").split(" ").map((p: string) => p[0]).join("").toUpperCase(),
-            userColor: "#6366f1",
+            userColor: DEFAULT_MEMBER_COLOR,
             position: idx,
           }
         );
