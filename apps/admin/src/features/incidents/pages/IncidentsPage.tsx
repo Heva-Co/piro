@@ -7,43 +7,36 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { formatDuration } from "@/utils/date";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
+import TableSkeleton from "@/components/TableSkeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-
-const STATUS_BADGE: Record<string, string> = {
-  INVESTIGATING: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  IDENTIFIED:    "bg-orange-500/15 text-orange-600 dark:text-orange-400",
-  MONITORING:    "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  RESOLVED:      "bg-green-500/15 text-green-600 dark:text-green-400",
-  MERGED:        "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-};
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import IncidentStatusBadge from "../components/IncidentStatusBadge";
 
 const PAGE_SIZE = 10;
 
+const COLUMNS = ["ID", "Title", "Duration", "Status", "Affects", ""];
+
 const FILTER_OPTIONS = [
-  { label: "Active",        value: "active" },
-  { label: "All",           value: "all" },
+  { label: "Active", value: "active" },
+  { label: "All", value: "all" },
   { label: "Investigating", value: "investigating" },
-  { label: "Identified",    value: "identified" },
-  { label: "Monitoring",    value: "monitoring" },
-  { label: "Resolved",      value: "resolved" },
+  { label: "Identified", value: "identified" },
+  { label: "Monitoring", value: "monitoring" },
+  { label: "Resolved", value: "resolved" },
 ];
 
-export default function IncidentsPage() {
+function IncidentsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const stateFilter = searchParams.get("filter") ?? "active";
@@ -63,7 +56,7 @@ export default function IncidentsPage() {
   const paged = incidents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <>
+    <PageContainer>
       <PageHeader
         breadcrumbs={[{ label: "Incidents" }]}
         subheader="Track and manage service disruptions."
@@ -71,7 +64,9 @@ export default function IncidentsPage() {
           <>
             <Select value={stateFilter} onValueChange={(v) => v && setStateFilter(v)}>
               <SelectTrigger className="w-40">
-                <SelectValue />
+                <SelectValue>
+                  {(v: string) => FILTER_OPTIONS.find((f) => f.value === v)?.label ?? v}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {FILTER_OPTIONS.map((f) => (
@@ -87,15 +82,17 @@ export default function IncidentsPage() {
       />
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
-        {isLoading && (
-          <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
-        )}
-        {!isLoading && paged.length === 0 && (
-          <div className="py-14 text-center text-sm text-muted-foreground">
-            No {stateFilter !== "all" ? stateFilter : ""} incidents found.
-          </div>
-        )}
-        {!isLoading && paged.length > 0 && (
+        {isLoading ? (
+          <TableSkeleton columns={COLUMNS} />
+        ) : paged.length === 0 ? (
+          <Empty className="border-0 py-14">
+            <EmptyHeader>
+              <EmptyTitle className="text-muted-foreground font-normal">
+                No {stateFilter !== "all" ? stateFilter : ""} incidents found.
+              </EmptyTitle>
+            </EmptyHeader>
+          </Empty>
+        ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -104,7 +101,7 @@ export default function IncidentsPage() {
                 <TableHead>Duration</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Affects</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -115,9 +112,9 @@ export default function IncidentsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">{inc.title}</span>
                       {inc.visibility !== "Public" && (
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+                        <Badge variant="outline" className="border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-500">
                           Private
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -125,9 +122,7 @@ export default function IncidentsPage() {
                     {formatDuration(inc.startDateTime, inc.endDateTime ?? undefined)}
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[inc.status?.toUpperCase()] ?? "bg-muted text-foreground"}`}>
-                      {inc.status}
-                    </span>
+                    <IncidentStatusBadge status={inc.status} />
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {inc.services?.length ?? 0}
@@ -152,12 +147,30 @@ export default function IncidentsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground mt-4">
           <span>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, incidents.length)} of {incidents.length}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-          </div>
+          <Pagination className="mx-0 w-auto justify-end">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  aria-disabled={page <= 1}
+                  className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+                  onClick={(e) => { e.preventDefault(); if (page > 1) setPage((p) => p - 1); }}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  aria-disabled={page >= totalPages}
+                  className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
+                  onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage((p) => p + 1); }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
-    </>
+    </PageContainer>
   );
 }
+
+export default IncidentsPage;

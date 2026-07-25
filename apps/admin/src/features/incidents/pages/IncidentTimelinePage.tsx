@@ -1,119 +1,26 @@
 import { useEffect, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import {
-  CheckCheck,
-  MessageSquareText,
-  Globe,
-  Lock,
-  PlusCircle,
-  MinusCircle,
-  Blend,
-  Eye,
-  EyeOff,
-  FlagTriangleRight,
-  ArrowRightLeft,
-  AlertTriangle,
-} from "lucide-react";
+import { CheckCheck, MessageSquareText, Globe, Lock, FlagTriangleRight } from "lucide-react";
 import { marked } from "marked";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import {
-  Message,
-  MessageContent,
-  MessageHeader,
-} from "@/components/ui/message";
+import { Message, MessageContent, MessageHeader } from "@/components/ui/message";
 import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { incidentsApi } from "@/lib/actions/incidents";
-import type { IncidentTimelineEvent } from "@/lib/actions/incidents";
 import { ROUTES } from "@/constants/routes";
 import { QUERY_KEYS } from "@/constants/api";
-
-const STATUS_BADGE: Record<string, string> = {
-  INVESTIGATING: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  IDENTIFIED: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
-  MONITORING: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  RESOLVED: "bg-green-500/15 text-green-600 dark:text-green-400",
-  MERGED: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-};
-
-const SYSTEM_EVENT_ICON: Record<string, React.ReactNode> = {
-  Created: <FlagTriangleRight />,
-  StatusChanged: <ArrowRightLeft />,
-  Acknowledged: <CheckCheck />,
-  ServiceAdded: <PlusCircle />,
-  ServiceRemoved: <MinusCircle />,
-  MergedTo: <Blend />,
-  MergedFrom: <Blend />,
-  Published: <Eye />,
-  Unpublished: <EyeOff />,
-  AlertFired: <AlertTriangle />,
-};
-
-function describeSystemEvent(e: IncidentTimelineEvent): React.ReactNode {
-  switch (e.type) {
-    case "Created":
-      return "Incident created";
-    case "StatusChanged":
-      return (
-        <>
-          Status changed from <strong>{e.oldStatus}</strong> to <strong>{e.newStatus}</strong>
-        </>
-      );
-    case "Acknowledged":
-      return (
-        <>
-          Acknowledged by <strong>{e.actorName}</strong>
-        </>
-      );
-    case "ServiceAdded":
-      return "Service added to incident";
-    case "ServiceRemoved":
-      return "Service removed from incident";
-    case "MergedTo":
-      return (
-        <>
-          Merged into incident{" "}
-          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
-            #{e.relatedIncidentId}
-          </Link>
-        </>
-      );
-    case "MergedFrom":
-      return (
-        <>
-          Absorbed incident{" "}
-          <Link to={ROUTES.INCIDENTS.TIMELINE(e.relatedIncidentId!)} className="font-semibold underline hover:no-underline">
-            #{e.relatedIncidentId}
-          </Link>
-        </>
-      );
-    case "Published":
-      return "Published to status page";
-    case "Unpublished":
-      return "Unpublished from status page";
-    case "AlertFired":
-      return e.alertId != null ? (
-        <>
-          Alert attached{" "}
-          <Link to={ROUTES.ALERTS.DETAIL(e.alertId)} className="font-semibold underline hover:no-underline">
-            #{e.alertId}
-          </Link>
-        </>
-      ) : (
-        "Alert attached"
-      );
-    default:
-      return e.type;
-  }
-}
+import IncidentStatusBadge from "../components/IncidentStatusBadge";
+import { SYSTEM_EVENT_ICON, describeSystemEvent } from "../components/incidentTimeline";
 
 const TIMELINE_PAGE_SIZE = 20;
 
-export default function IncidentTimelinePage() {
+function IncidentTimelinePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { formatTimestamp, formatDateTime } = useFormattedDate();
@@ -156,10 +63,18 @@ export default function IncidentTimelinePage() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <PageContainer>
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </PageContainer>
+    );
   }
   if (!incident) {
-    return <div className="text-sm text-destructive">Incident not found.</div>;
+    return (
+      <PageContainer>
+        <div className="text-sm text-destructive">Incident not found.</div>
+      </PageContainer>
+    );
   }
 
   // Backend already returns events most-recent-first, one page at a time.
@@ -168,7 +83,7 @@ export default function IncidentTimelinePage() {
   const isResolved = incident.status === "Resolved" || incident.isResolved;
 
   return (
-    <>
+    <PageContainer>
       <PageHeader
         breadcrumbs={[
           { label: "Incidents", onClick: () => navigate(ROUTES.INCIDENTS.LIST) },
@@ -177,23 +92,21 @@ export default function IncidentTimelinePage() {
         ]}
         actions={
           <>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[incident.status?.toUpperCase()] ?? "bg-muted text-muted-foreground"}`}>
-              {incident.status}
-            </span>
+            <IncidentStatusBadge status={incident.status} />
             {isPublic ? (
-              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                <Globe size={12} /> Public
-              </span>
+              <Badge variant="outline" className="gap-1 text-green-600 dark:text-green-400">
+                <Globe data-icon="inline-start" /> Public
+              </Badge>
             ) : (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Lock size={12} /> Private
-              </span>
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <Lock data-icon="inline-start" /> Private
+              </Badge>
             )}
             {!isResolved && incident.acknowledgedAt && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 border border-green-500/30 px-3 py-2 text-xs text-green-600 dark:text-green-400">
+              <Badge className="gap-1.5 border-green-500/30 bg-green-500/10 px-3 py-1.5 text-green-600 dark:text-green-400">
                 <CheckCheck size={13} />
                 <span>Acked by <strong>{incident.acknowledgedBy}</strong></span>
-              </div>
+              </Badge>
             )}
           </>
         }
@@ -214,7 +127,11 @@ export default function IncidentTimelinePage() {
         <ScrollArea className="h-[70vh]">
           <div className="flex flex-col gap-4 p-6">
             {timeline.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No events yet.</p>
+              <Empty className="border-0 py-8">
+                <EmptyHeader>
+                  <EmptyTitle className="text-muted-foreground font-normal">No events yet.</EmptyTitle>
+                </EmptyHeader>
+              </Empty>
             ) : (
               timeline.map((e, i) => {
                 const prev = timeline[i - 1];
@@ -265,6 +182,8 @@ export default function IncidentTimelinePage() {
           </div>
         </ScrollArea>
       </div>
-    </>
+    </PageContainer>
   );
 }
+
+export default IncidentTimelinePage;
