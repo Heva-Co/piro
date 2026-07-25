@@ -1,6 +1,6 @@
 import { useController, useFormContext } from "react-hook-form";
 import DynamicConfigForm from "@/components/config-form/DynamicConfigForm";
-import RequiredIntegrationPicker from "@/features/checks/components/RequiredIntegrationPicker";
+import RequiredIntegrationPicker from "@/features/checks/components/shared/RequiredIntegrationPicker";
 import type { CheckTypeMeta } from "@/lib/actions/checks";
 
 interface Props {

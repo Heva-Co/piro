@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertConfigRow, type AlertConfigDraft, type AlertConfigRowHandle } from "@/features/checks/components/AlertConfigRow";
+import { AlertConfigRow, type AlertConfigDraft, type AlertConfigRowHandle } from "@/features/checks/components/form/AlertConfigRow";
 import { type CheckDimension, defaultAlertValue, DEFAULT_ALERT_SEVERITY } from "@/types/checks";
 
 function defaultAlertConfigDraft(dimensions: readonly CheckDimension[]): AlertConfigDraft {

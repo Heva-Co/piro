@@ -1,12 +1,9 @@
 import { Activity } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { StatusPill } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { ROUTES } from "@/constants/routes";
-import { QUERY_KEYS } from "@/constants/api";
-import { useChecks } from "@/hooks/useChecks";
-import { checkTypesApi } from "@/lib/actions/checks";
+import { useChecks, useCheckTypeLabel } from "@/hooks/useChecks";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
@@ -16,12 +13,7 @@ interface Props {
 function ChecksSection({ slug }: Props) {
     const navigate = useNavigate();
     const { data: checks, isLoading } = useChecks(slug);
-    // Resolve the raw type discriminator (e.g. "GCP_CloudRunJob") to its human display name.
-    const { data: checkTypes = [] } = useQuery({
-        queryKey: QUERY_KEYS.CHECK_TYPES,
-        queryFn: checkTypesApi.list,
-    });
-    const typeLabel = (type: string) => checkTypes.find((t) => t.type === type)?.displayName ?? type;
+    const typeLabel = useCheckTypeLabel();
 
     return (
         <div className="rounded-xl border bg-card overflow-hidden">

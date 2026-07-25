@@ -8,7 +8,7 @@ import {
   useUpdateAlertConfig,
   useDeleteAlertConfig,
 } from "@/hooks/useChecks";
-import { AlertConfigRow, type AlertConfigDraft } from "@/features/checks/components/AlertConfigRow";
+import { AlertConfigRow, type AlertConfigDraft } from "@/features/checks/components/form/AlertConfigRow";
 import type { AlertConfig } from "@/lib/actions/alert-configs";
 import { type CheckDimension, defaultAlertValue, DEFAULT_ALERT_SEVERITY } from "@/types/checks";
 
