@@ -4,6 +4,7 @@ import { cn } from "@/src/lib/utils";
 const pingColor: Record<ServiceStatus, string> = {
   UP: "bg-green-500",
   DEGRADED: "bg-amber-500",
+  PARTIALLY_DOWN: "bg-orange-500",
   DOWN: "bg-red-500",
   MAINTENANCE: "bg-indigo-500",
   NO_DATA: "bg-gray-400",

@@ -58,7 +58,7 @@ public class ServiceStatusService(
         {
             var upstreamStatus = dep.DependsOnService.CurrentStatus;
 
-            if (upstreamStatus is not (ServiceStatus.DOWN or ServiceStatus.DEGRADED))
+            if (upstreamStatus is not (ServiceStatus.DOWN or ServiceStatus.PARTIALLY_DOWN or ServiceStatus.DEGRADED))
                 continue;
 
             var impact = dep.PropagationMode == DependencyPropagationMode.SoftBlocking
@@ -137,7 +137,7 @@ public class ServiceStatusService(
         return downstream.ToList();
     }
 
-    /// <summary>Returns the more severe of two statuses. Order: MAINTENANCE > DOWN > DEGRADED > UP > NO_DATA.</summary>
+    /// <summary>Returns the more severe of two statuses. Order: MAINTENANCE &gt; DOWN &gt; PARTIALLY_DOWN &gt; DEGRADED &gt; UP &gt; NO_DATA.</summary>
     private static ServiceStatus Worst(ServiceStatus a, ServiceStatus b) =>
         (int)a > (int)b ? a : b;
 }
