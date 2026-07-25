@@ -8794,6 +8794,8 @@ export interface components {
             failureThreshold: number;
             /** Format: int32 */
             successThreshold: number;
+            /** Format: int32 */
+            minFailingRegions: number;
             description: null | string;
             isActive: boolean;
             isAlerting: boolean;
@@ -9125,6 +9127,11 @@ export interface components {
              * @default 1
              */
             successThreshold: number;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            minFailingRegions: number;
             description?: null | string;
             /** @default true */
             isActive: boolean;
@@ -10126,7 +10133,7 @@ export interface components {
             dailyData: components["schemas"]["DailyStatsDto"][];
         };
         /** @enum {unknown} */
-        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "FAILURE";
+        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "PARTIALLY_DOWN" | "DOWN" | "MAINTENANCE" | "FAILURE";
         SetIncidentServicesRequest: {
             services: components["schemas"]["IncidentServiceImpact"][];
         };
@@ -10209,6 +10216,8 @@ export interface components {
             failureThreshold: null | number;
             /** Format: int32 */
             successThreshold: null | number;
+            /** Format: int32 */
+            minFailingRegions: null | number;
             description: null | string;
             isActive: null | boolean;
             severity: null | components["schemas"]["AlertSeverity"];

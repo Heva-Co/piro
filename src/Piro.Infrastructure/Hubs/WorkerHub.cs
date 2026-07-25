@@ -108,9 +108,10 @@ public class WorkerHub(
         {
             if (!string.IsNullOrEmpty(message.BatchId))
             {
-                // Multi-region path: persist per-region datapoint, then let the batch tracker
-                // aggregate all results and call IngestStatusOnlyAsync exactly once.
-                await ingester.IngestDataPointOnlyAsync(message.CheckId, result, region, ct);
+                // Multi-region path: persist per-region datapoint (stamped with the cycle timestamp sealed
+                // at dispatch), then let the batch tracker aggregate all results and call
+                // IngestStatusOnlyAsync exactly once.
+                await ingester.IngestDataPointOnlyAsync(message.CheckId, result, region, message.CycleTimestamp, ct);
                 batchTracker.AddResult(message.BatchId, result);
             }
             else

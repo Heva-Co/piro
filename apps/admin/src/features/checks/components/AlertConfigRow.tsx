@@ -211,6 +211,15 @@ export const AlertConfigRow = forwardRef<AlertConfigRowHandle, Props>(function A
                 </div>
                 <FieldDescription>Disabled alerts are kept but never evaluated.</FieldDescription>
               </Field>
+              <Field>
+                <Label>Min failing regions</Label>
+                <Input type="number" min={1} {...register("minFailingRegions", { valueAsNumber: true })}
+                  onChange={(e) => { setValue("minFailingRegions", Number(e.target.value)); onFieldChange(); }} />
+                <FieldError errors={[errors.minFailingRegions]} />
+                {!errors.minFailingRegions && (
+                  <FieldDescription>Multi-region only: regions that must fail at once to count as a failing cycle. Leave at 1 for single-region checks.</FieldDescription>
+                )}
+              </Field>
             </div>
 
             <div className="flex items-center gap-3 pt-1 border-t -mx-4 px-4 pt-4">

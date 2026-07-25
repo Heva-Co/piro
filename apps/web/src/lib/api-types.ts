@@ -531,6 +531,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts/retention/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data-retention preview: how many resolved, non-incident-linked alerts would be deleted with a
+         *     given cutoff. Read-only — does not delete anything. Owner/Admin only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    resolvedBefore?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AlertRetentionResultDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/alerts/retention/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Data-retention cleanup: permanently deletes resolved alerts resolved before the given cutoff
+         *     that are not linked to an incident. Active and incident-linked alerts are always preserved.
+         *     Owner/Admin only.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeleteAlertsRequest"];
+                    "text/json": components["schemas"]["DeleteAlertsRequest"];
+                    "application/*+json": components["schemas"]["DeleteAlertsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AlertRetentionResultDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/sign-in": {
         parameters: {
             query?: never;
@@ -650,6 +737,103 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SignInResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts password recovery. Always returns 200 to avoid revealing whether an
+         *         account exists. No-op when SSO-only mode is on, the email is unknown, or the account
+         *         is SSO/inactive.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ForgotPasswordRequest"];
+                    "text/json": components["schemas"]["ForgotPasswordRequest"];
+                    "application/*+json": components["schemas"]["ForgotPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Completes password recovery using a token from the reset email. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResetPasswordRequest"];
+                    "text/json": components["schemas"]["ResetPasswordRequest"];
+                    "application/*+json": components["schemas"]["ResetPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
                     };
                 };
                 /** @description Bad Request */
@@ -913,6 +1097,62 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checks/{checkId}/inbound/{rest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    checkId: number;
+                    rest: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    checkId: number;
+                    rest: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1280,6 +1520,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dry-runs a testable check (the Script check) in debug mode: executes the script against the live
+         *     target, captures console.log, and returns the raw verdict WITHOUT persisting a datapoint or firing
+         *     an alert (RFC 0010 §4.8). The optional body carries candidate config so the operator can test
+         *     unsaved edits; an empty body tests the persisted config.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["TestCheckRequest"];
+                    "text/json": null | components["schemas"]["TestCheckRequest"];
+                    "application/*+json": null | components["schemas"]["TestCheckRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScriptTestResultDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/inbound-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbound-token info for a check that receives inbound requests (RFC 0013): the masked token,
+         *     last-used time, and the base inbound URL. The raw token is not returned here — only on rotate.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckInboundTokenDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{serviceSlug}/checks/{checkSlug}/inbound-token/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotates a check's inbound token (RFC 0013) and returns the new raw token + full inbound URL, shown once. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    serviceSlug: string;
+                    checkSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckInboundTokenRotateResultDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/checks": {
         parameters: {
             query?: never;
@@ -1324,8 +1722,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Returns all registered check types with their integration requirements.
-         *     Types with `requiredIntegrationType != null` are only usable when an Integration of that type exists.
+         * Returns every registered check type with its display metadata, minimum interval, alert
+         *     dimensions, required integration, and reflected config schema. Types with
+         *     `requiredIntegrationType != null` need that Integration to exist.
          */
         get: {
             parameters: {
@@ -1349,51 +1748,6 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/config/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Parses a piro.yaml and returns the import plan without applying any changes (dry-run).
-         *     Pass `apply=true` to commit the changes.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ImportRequest"];
-                    "text/json": components["schemas"]["ImportRequest"];
-                    "application/*+json": components["schemas"]["ImportRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": unknown;
-                    };
-                };
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -1430,6 +1784,45 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["DashboardMetricsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/logs/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    status?: components["schemas"]["DeliveryStatus"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationDeliveryLogPageDto"];
                     };
                 };
             };
@@ -2502,6 +2895,274 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/oauth/{integrationId}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Starts the OAuth authorization-code flow for an integration and returns the provider
+         *     authorization URL the admin's browser should be sent to.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * OAuth callback: exchanges the authorization code for tokens and stores them (encrypted)
+         *     against the integration the connection was started for.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OAuthCallbackRequest"];
+                    "text/json": components["schemas"]["OAuthCallbackRequest"];
+                    "application/*+json": components["schemas"]["OAuthCallbackRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/redirect-uri": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The redirect URL the admin must register in the provider's OAuth app — resolved by the backend
+         *     (from the site URL) so it's always exactly what the OAuth flow will send, never guessed by the UI.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OAuthRedirectUriDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/{integrationId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns whether an integration currently has a stored OAuth connection. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OAuthConnectionStatusDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/oauth/{integrationId}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disconnects an integration by removing its stored OAuth tokens. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the manifest (category, derived direction, capabilities, ConfigJson schema) for every
+         *     registered integration (RFC 0016) — enumerated from the integration registry, reflected from
+         *     each integration's ConfigType, so it can't drift from what the code actually deserializes.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationTypeMetaDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations": {
         parameters: {
             query?: never;
@@ -2509,6 +3170,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Returns every configured Integration, with secret config fields masked. */
         get: {
             parameters: {
                 query?: never;
@@ -2583,7 +3245,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2614,7 +3276,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2652,7 +3314,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    id: number;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2687,6 +3349,356 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discovery — which integration action buttons to render for an object of the given context
+         *     (RFC 0012 §4.4). One descriptor per (configured integration × ready action). A not-ready action
+         *     is absent, never disabled.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["UISurface"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionDescriptorDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/options/{sourceKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolves the runtime options for a dynamic-options field (RFC 0012) — e.g. the connected Jira
+         *     account's projects, or the issue types for a chosen project (pass its key as dependsOn).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    dependsOn?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    sourceKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OptionItem"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/actions/{actionId}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pre-fills an action's input dialog for a specific target (RFC 0012 §4.6). */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["UISurface"];
+                    targetId?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/actions/{actionId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Executes a user-initiated integration action and returns the external reference it created (RFC 0012 §4.4). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    actionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "text/json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                    "application/*+json": components["schemas"]["ExecuteIntegrationActionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationActionResultDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the outbound external references (e.g. a linked Jira ticket) that integration actions
+         *     have created for a local object — Alert/Incident/Maintenance (RFC 0012 §4.5). The detail page
+         *     renders these as "🔗 OPS-123" links alongside the action buttons.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    context?: components["schemas"]["UISurface"];
+                    targetId?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalReferenceDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/webhook-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the most recent inbound webhook requests for this Integration — RFC 0001 §4.4. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WebhookRequestLogDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/{id}/regenerate-generated-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerates this Integration's server-generated fields (e.g. a lost/leaked webhook auth
+         *     token) and invalidates the old value immediately. Response's ConfigJson is unmasked, the one
+         *     time the new value is visible.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3046,6 +4058,190 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-subscriptions/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The closed catalog of events a subscription can fire on (RFC 0009 §4.2). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationEventCatalogDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionPageDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "text/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "application/*+json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "text/json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                    "application/*+json": components["schemas"]["UpsertNotificationSubscriptionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationSubscriptionDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -4148,6 +5344,813 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/postmortems": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all postmortems, newest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemListItemDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates a Draft report and seeds an empty value per active field definition. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePostmortemRequest"];
+                    "text/json": components["schemas"]["CreatePostmortemRequest"];
+                    "application/*+json": components["schemas"]["CreatePostmortemRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the analysis template. By default only active definitions (for rendering an empty editor);
+         *     pass includeInactive = true to include deactivated ones (template management).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    includeInactive?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates a custom analysis field. Restricted to Owner/Admin (RFC 0005 Phase 3a). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateFieldDefinitionRequest"];
+                    "text/json": components["schemas"]["CreateFieldDefinitionRequest"];
+                    "application/*+json": components["schemas"]["CreateFieldDefinitionRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions/{defId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edits a field definition (heading/help/active for any; type only for custom). Owner/Admin only. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    defId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                    "text/json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                    "application/*+json": components["schemas"]["UpdateFieldDefinitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a custom field (or deactivates it if in use). System fields can't be deleted. Owner/Admin only. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    defId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/field-definitions/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorders the analysis template. Owner/Admin only. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                    "text/json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                    "application/*+json": components["schemas"]["ReorderFieldDefinitionsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemFieldDefinitionDto"][];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns a single postmortem with its analysis fields and derived timeline. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Updates report metadata and/or its analysis field values. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePostmortemRequest"];
+                    "text/json": components["schemas"]["UpdatePostmortemRequest"];
+                    "application/*+json": components["schemas"]["UpdatePostmortemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a postmortem and its analysis content (referenced incidents are untouched). */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes a Draft report (internal-only in Phase 1). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverts a Published report back to Draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Downloads the finalized report as a PDF. Only available once the report is Published. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Links an incident to a postmortem (N:M "data source"). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinkIncidentRequest"];
+                    "text/json": components["schemas"]["LinkIncidentRequest"];
+                    "application/*+json": components["schemas"]["LinkIncidentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/incidents/{incidentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes an incident link from a postmortem. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    incidentId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/incident-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggests incidents to link, from those overlapping the report's impact window. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemIncidentSuggestionDto"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adds an author annotation to the report's timeline. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateTimelineEntryRequest"];
+                    "text/json": components["schemas"]["CreateTimelineEntryRequest"];
+                    "application/*+json": components["schemas"]["CreateTimelineEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postmortems/{id}/timeline/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edits an existing timeline annotation. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    entryId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTimelineEntryRequest"];
+                    "text/json": components["schemas"]["UpdateTimelineEntryRequest"];
+                    "application/*+json": components["schemas"]["UpdateTimelineEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Deletes a timeline annotation. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    entryId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PostmortemDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/maintenances": {
         parameters: {
             query?: never;
@@ -5231,6 +7234,644 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/services/{id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists a service's own tags. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Replaces a service's full user-tag set. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReplaceTagsRequest"];
+                    "text/json": components["schemas"]["ReplaceTagsRequest"];
+                    "application/*+json": components["schemas"]["ReplaceTagsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checks/{id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists a check's own tags and its effective (inherited) tags. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckTagsDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Replaces a check's full user-tag set. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReplaceTagsRequest"];
+                    "text/json": components["schemas"]["ReplaceTagsRequest"];
+                    "application/*+json": components["schemas"]["ReplaceTagsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CheckTagsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workers/{id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists a worker's own tags. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Replaces a worker's full user-tag set. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReplaceTagsRequest"];
+                    "text/json": components["schemas"]["ReplaceTagsRequest"];
+                    "application/*+json": components["schemas"]["ReplaceTagsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/services/{id}/system-tags/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assigns (or sets the value of) an assignable system tag on a service. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["SystemTagValue"];
+                    "text/json": null | components["schemas"]["SystemTagValue"];
+                    "application/*+json": null | components["schemas"]["SystemTagValue"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Unassigns an assignable system tag from a service. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checks/{id}/system-tags/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assigns (or sets the value of) an assignable system tag on a check. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["SystemTagValue"];
+                    "text/json": null | components["schemas"]["SystemTagValue"];
+                    "application/*+json": null | components["schemas"]["SystemTagValue"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Unassigns an assignable system tag from a check. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checks/{id}/required-worker-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists a check's required worker tags (Part B scheduling). Empty ⇒ the check runs on any worker. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Replaces a check's required-worker-tag set. Rejected for single-region-only check types. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReplaceTagsRequest"];
+                    "text/json": components["schemas"]["ReplaceTagsRequest"];
+                    "application/*+json": components["schemas"]["ReplaceTagsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntityTagsDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tags/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Autocomplete: distinct user tag keys, optionally filtered by prefix. */
+        get: {
+            parameters: {
+                query?: {
+                    prefix?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string[];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tags/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Autocomplete: distinct values assigned for a given key. */
+        get: {
+            parameters: {
+                query?: {
+                    key?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string[];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -5879,6 +8520,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/{integrationId}/{rest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    integrationId: string;
+                    rest: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workers": {
         parameters: {
             query?: never;
@@ -6109,12 +8786,16 @@ export interface components {
             id: number;
             /** Format: int32 */
             checkId: number;
-            alertFor: components["schemas"]["AlertFor"];
+            dimension: string;
+            comparison: components["schemas"]["DimensionComparison"];
+            direction: components["schemas"]["ThresholdDirection"];
             alertValue: string;
             /** Format: int32 */
             failureThreshold: number;
             /** Format: int32 */
             successThreshold: number;
+            /** Format: int32 */
+            minFailingRegions: number;
             description: null | string;
             isActive: boolean;
             isAlerting: boolean;
@@ -6127,22 +8808,22 @@ export interface components {
         AlertDetailDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
-            checkName: string;
-            serviceSlug: string;
-            serviceName: string;
+            checkSlug: null | string;
+            checkName: null | string;
+            serviceSlug: null | string;
+            serviceName: null | string;
             /** Format: int32 */
-            alertConfigId: number;
-            alertFor: components["schemas"]["AlertFor"];
-            alertValue: string;
+            alertConfigId: null | number;
+            dimension: null | string;
+            alertValue: null | string;
             /** Format: int32 */
-            failureThreshold: number;
+            failureThreshold: null | number;
             /** Format: int32 */
-            successThreshold: number;
+            successThreshold: null | number;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
-            severity: components["schemas"]["AlertSeverity"];
+            severity: null | components["schemas"]["AlertSeverity"];
             /** Format: date-time */
             firedAt: string;
             /** Format: date-time */
@@ -6154,14 +8835,21 @@ export interface components {
             incidentTitle: null | string;
             /** Format: int32 */
             escalationCurrentStep: null | number;
+            /** Format: date-time */
+            escalationExhaustedAt: null | string;
             /** Format: int64 */
             acknowledgedAt: null | number;
             acknowledgedBy: null | string;
+            source: components["schemas"]["AlertSource"];
+            sourceLabel: null | string;
+            sourceIconifyIcon: null | string;
+            sourceRawPayload: null | string;
+            sourceUrl: null | string;
         };
         AlertDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
+            checkSlug: null | string;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
@@ -6177,8 +8865,6 @@ export interface components {
             /** Format: int32 */
             escalationCurrentStep: null | number;
         };
-        /** @enum {unknown} */
-        AlertFor: "Status" | "Latency" | "CertExpiry" | "FailedNameServers";
         AlertMetricsDto: {
             /** Format: double */
             mttaSeconds: null | number;
@@ -6205,15 +8891,21 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        AlertRetentionResultDto: {
+            /** Format: int32 */
+            count: number;
+        };
         /** @enum {unknown} */
         AlertSeverity: "Warning" | "Critical";
+        /** @enum {unknown} */
+        AlertSource: "Internal" | "GcpCloudMonitoring";
         AlertSummaryDto: {
             /** Format: int32 */
             id: number;
-            checkSlug: string;
-            checkName: string;
-            serviceSlug: string;
-            serviceName: string;
+            checkSlug: null | string;
+            checkName: null | string;
+            serviceSlug: null | string;
+            serviceName: null | string;
             alertConfigDescription: null | string;
             message: null | string;
             impactAtFireTime: components["schemas"]["ServiceStatus"];
@@ -6226,6 +8918,9 @@ export interface components {
             /** Format: int32 */
             incidentId: null | number;
             hasEscalationPolicy: boolean;
+            source: components["schemas"]["AlertSource"];
+            sourceLabel: null | string;
+            sourceIconifyIcon: null | string;
         };
         ApiKeyCreatedResponse: {
             /** Format: int32 */
@@ -6267,6 +8962,8 @@ export interface components {
             countDown: number;
             /** Format: int32 */
             countDegraded: number;
+            /** Format: int32 */
+            countError: number;
             /** Format: double */
             avgLatencyMs: null | number;
         };
@@ -6276,11 +8973,18 @@ export interface components {
             status: string;
             /** Format: double */
             latencyMs: null | number;
-            /** Format: double */
-            metricValue: null | number;
+            dimensions: {
+                [key: string]: number;
+            };
             dataType: null | string;
             errorMessage: null | string;
             workerRegion: string;
+        };
+        CheckDimensionDto: {
+            name: string;
+            comparison: components["schemas"]["DimensionComparison"];
+            direction: components["schemas"]["ThresholdDirection"];
+            unit: null | string;
         };
         CheckDto: {
             /** Format: int32 */
@@ -6295,17 +8999,22 @@ export interface components {
             typeDataJson: string;
             currentStatus: components["schemas"]["ServiceStatus"];
             isActive: boolean;
-            isMultiRegion: boolean;
-            /** Format: int32 */
-            historyDaysDesktop: null | number;
-            /** Format: int32 */
-            historyDaysMobile: null | number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
+        };
+        CheckInboundTokenDto: {
+            inboundUrl: null | string;
+            maskedToken: null | string;
+            /** Format: date-time */
+            lastUsedAt: null | string;
+        };
+        CheckInboundTokenRotateResultDto: {
+            rawToken: string;
+            inboundUrl: string;
         };
         CheckRefDto: {
             /** Format: int32 */
@@ -6326,16 +9035,27 @@ export interface components {
             cron: string;
             currentStatus: components["schemas"]["ServiceStatus"];
             isActive: boolean;
-            isMultiRegion: boolean;
             /** Format: date-time */
             updatedAt: string;
             lastErrorMessage: null | string;
         };
+        CheckTagsDto: {
+            own: components["schemas"]["TagDto"][];
+            effective: components["schemas"]["TagDto"][];
+        };
         /** @enum {unknown} */
-        CheckType: "HTTP" | "DNS" | "TCP" | "Ping" | "SSL" | "Heartbeat" | "GRPC" | "GCP_CloudRunJob";
+        CheckType: "HTTP" | "DNS" | "TCP" | "Ping" | "SSL" | "Heartbeat" | "GRPC" | "GCP_CloudRunJob" | "Script";
         CheckTypeMetaDto: {
             type: string;
+            displayName: string;
+            description: string;
+            /** Format: int32 */
+            minIntervalSeconds: number;
+            dimensions: components["schemas"]["CheckDimensionDto"][];
+            configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
             requiredIntegrationType: null | string;
+            hasExecutor: boolean;
+            singleRegionOnly: boolean;
         };
         CompleteSetupRequest: {
             email: string;
@@ -6356,6 +9076,30 @@ export interface components {
             resendApiKey: null | string;
             resendFrom: null | string;
         };
+        ConfigFieldSchemaDto: {
+            key: string;
+            label: string;
+            type: components["schemas"]["ConfigFieldType"];
+            required: boolean;
+            isSecret: boolean;
+            supportsFileUpload: boolean;
+            placeholder: null | string;
+            helpText: null | string;
+            options: null | string[];
+            isGenerated: boolean;
+            default?: unknown;
+            itemSchema?: null | components["schemas"]["ConfigFieldSchemaDto"][];
+            visibleWhen?: null | components["schemas"]["ConfigFieldVisibilityDto"];
+            validator?: null | string;
+            optionsSource?: null | string;
+            optionsDependsOn?: null | string;
+        };
+        /** @enum {unknown} */
+        ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code" | "Markdown";
+        ConfigFieldVisibilityDto: {
+            field: string;
+            values: string[];
+        };
         ConfirmNotificationPreferenceCodeRequest: {
             code: string;
         };
@@ -6371,7 +9115,7 @@ export interface components {
             endsAt: string;
         };
         CreateAlertConfigRequest: {
-            alertFor: components["schemas"]["AlertFor"];
+            dimension: string;
             alertValue: string;
             /**
              * Format: int32
@@ -6383,6 +9127,11 @@ export interface components {
              * @default 1
              */
             successThreshold: number;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            minFailingRegions: number;
             description?: null | string;
             /** @default true */
             isActive: boolean;
@@ -6400,11 +9149,15 @@ export interface components {
             typeDataJson: string;
             /** @default true */
             isActive: boolean;
-            /** @default false */
-            isMultiRegion: boolean;
-            /** Format: int32 */
-            integrationId?: null | number;
+            /** Format: uuid */
+            integrationId?: null | string;
             alertConfigs?: null | components["schemas"]["CreateAlertConfigRequest"][];
+        };
+        CreateFieldDefinitionRequest: {
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
         };
         CreateIncidentRequest: {
             title: string;
@@ -6415,9 +9168,11 @@ export interface components {
         };
         CreateIntegrationRequest: {
             name: string;
-            type: components["schemas"]["IntegrationType"];
+            type: string;
             description: null | string;
             configJson: string;
+            /** Format: int32 */
+            escalationPolicyId?: null | number;
         };
         CreateMaintenanceRequest: {
             title: string;
@@ -6462,6 +9217,15 @@ export interface components {
             /** Format: date-time */
             endsAtUtc?: null | string;
         };
+        CreatePostmortemRequest: {
+            name: string;
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+        };
         CreateServiceRequest: {
             slug: string;
             name: string;
@@ -6473,6 +9237,11 @@ export interface components {
             displayOrder: number;
             /** Format: int32 */
             escalationPolicyId?: null | number;
+        };
+        CreateTimelineEntryRequest: {
+            /** Format: date-time */
+            occurredAt: string;
+            body: string;
         };
         CreateWorkerRequest: {
             name: string;
@@ -6529,6 +9298,12 @@ export interface components {
             dailyIncidentCounts: components["schemas"]["DailyIncidentCountDto"][];
             incidentsByService: components["schemas"]["ServiceIncidentCountDto"][];
         };
+        DeleteAlertsRequest: {
+            /** Format: date-time */
+            resolvedBefore: string;
+        };
+        /** @enum {unknown} */
+        DeliveryStatus: "Delivered" | "Failed" | "Skipped";
         DependencyDto: {
             serviceSlug: string;
             dependsOnSlug: string;
@@ -6538,6 +9313,8 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
+        /** @enum {unknown} */
+        DimensionComparison: "Threshold" | "Equality";
         EmailConfigResponse: {
             provider: string;
             smtpHost: null | string;
@@ -6550,11 +9327,14 @@ export interface components {
             hasResendApiKey: boolean;
             resendFrom: null | string;
         };
+        EntityTagsDto: {
+            tags: components["schemas"]["TagDto"][];
+        };
         EscalationDeliveryLogDto: {
             /** Format: int32 */
             stepIndex: number;
             userName: string;
-            channelType: components["schemas"]["IntegrationType"];
+            channelType: string;
             succeeded: boolean;
             errorMessage: null | string;
             /** Format: date-time */
@@ -6586,18 +9366,38 @@ export interface components {
             /** Format: int32 */
             delayMinutes: number;
             /** Format: int32 */
+            maxRetries: number;
+            /** Format: int32 */
+            retryIntervalMinutes: number;
+            /** Format: int32 */
             scheduleId: number;
             scheduleName: string;
         };
         /** @enum {unknown} */
         EventVisibility: "Private" | "Public";
+        ExecuteIntegrationActionRequest: {
+            context: components["schemas"]["UISurface"];
+            /** Format: int32 */
+            targetId: number;
+            input: null | components["schemas"]["JsonElement"];
+        };
+        ExternalReferenceDto: {
+            context: components["schemas"]["UISurface"];
+            /** Format: int32 */
+            targetId: number;
+            /** Format: uuid */
+            integrationId: string;
+            actionId: string;
+            externalId: string;
+            url: string;
+            label: string;
+            metadata: null | Record<string, never>;
+        };
+        ForgotPasswordRequest: {
+            email: string;
+        };
         /** Format: binary */
         IFormFile: string;
-        ImportRequest: {
-            yaml: string;
-            /** @default false */
-            apply: boolean;
-        };
         IncidentDto: {
             /** Format: int32 */
             id: number;
@@ -6674,14 +9474,30 @@ export interface components {
         };
         /** @enum {unknown} */
         IncidentVisibility: "Private" | "Public";
+        IntegrationActionDescriptorDto: {
+            /** Format: uuid */
+            integrationId: string;
+            integrationLabel: string;
+            actionId: string;
+            label: string;
+            description: null | string;
+            iconifyIcon: null | string;
+            hasInput: boolean;
+            supportsDraft: boolean;
+            inputSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+        };
+        IntegrationActionResultDto: {
+            externalId: string;
+            url: string;
+            label: string;
+        };
         /** @enum {unknown} */
-        IntegrationCategory: "Notification" | "ThirdParty";
+        IntegrationDirection: "Outbound" | "Inbound" | "Both";
         IntegrationDto: {
-            /** Format: int32 */
-            id: number;
+            /** Format: uuid */
+            id: string;
             name: string;
-            type: components["schemas"]["IntegrationType"];
-            category: components["schemas"]["IntegrationCategory"];
+            type: string;
             description: null | string;
             configJson: string;
             /** Format: int32 */
@@ -6690,9 +9506,20 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: int32 */
+            escalationPolicyId: null | number;
         };
-        /** @enum {unknown} */
-        IntegrationType: "GoogleCloud" | "Jira" | "Email" | "Webhook" | "Slack" | "PagerDuty" | "MSTeams" | "Telegram" | "Twilio" | "GoogleChat" | "Discord" | "Opsgenie" | "Pushover" | "Ntfy";
+        IntegrationTypeMetaDto: {
+            type: string;
+            label: null | string;
+            description: null | string;
+            iconifyIcon: null | string;
+            channelOnly: boolean;
+            creatable: boolean;
+            direction: components["schemas"]["IntegrationDirection"];
+            capabilities: string[];
+            configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+        };
         InviteUserRequest: {
             email: string;
             /** Format: int32 */
@@ -6710,9 +9537,15 @@ export interface components {
             previousFireTimeUtc: null | string;
             check: null | components["schemas"]["CheckRefDto"];
         };
+        JsonElement: unknown;
         LinkAlertToIncidentRequest: {
             /** Format: int32 */
             incidentId: null | number;
+            serviceIds?: null | number[];
+        };
+        LinkIncidentRequest: {
+            /** Format: int32 */
+            incidentId: number;
         };
         LogDto: {
             /** Format: int64 */
@@ -6782,6 +9615,75 @@ export interface components {
         };
         /** @enum {unknown} */
         MaintenanceStatus: "Active" | "Cancelled";
+        NotificationDeliveryLogDto: {
+            /** Format: int64 */
+            id: number;
+            eventType: string;
+            /** Format: uuid */
+            subscriptionId: null | string;
+            targetKind: string;
+            integrationType: null | string;
+            /** Format: uuid */
+            integrationId: null | string;
+            targetDescriptor: string;
+            status: components["schemas"]["DeliveryStatus"];
+            error: null | string;
+            /** Format: date-time */
+            attemptedAt: string;
+        };
+        NotificationDeliveryLogPageDto: {
+            items: components["schemas"]["NotificationDeliveryLogDto"][];
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        NotificationEventCatalogDto: {
+            name: string;
+            description: string;
+        };
+        NotificationSubscriptionDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            events: string[];
+            minSeverity: components["schemas"]["AlertSeverity"];
+            targetKind: components["schemas"]["NotificationTargetKind"];
+            /** Format: int32 */
+            userId: null | number;
+            userName: null | string;
+            /** Format: uuid */
+            integrationId: null | string;
+            integrationName: null | string;
+            target: null | string;
+            enabled: boolean;
+        };
+        NotificationSubscriptionPageDto: {
+            items: components["schemas"]["NotificationSubscriptionDto"][];
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        /** @enum {unknown} */
+        NotificationTargetKind: "Personal" | "Channel";
+        OAuthCallbackRequest: {
+            code: string;
+            state: string;
+        };
+        OAuthConnectionStatusDto: {
+            connected: boolean;
+            /** Format: date-time */
+            expiresAt: null | string;
+            scopes: null | string;
+        };
+        OAuthRedirectUriDto: {
+            redirectUri: string;
+        };
         OidcCallbackRequest: {
             code: string;
             state: string;
@@ -6920,6 +9822,10 @@ export interface components {
             initials: string;
             color: string;
         };
+        OptionItem: {
+            value: string;
+            label: string;
+        };
         PaginatedResponseOfServiceDto: {
             items: components["schemas"]["ServiceDto"][];
             /** Format: int32 */
@@ -6928,6 +9834,117 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        PostmortemDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            status: components["schemas"]["PostmortemStatus"];
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            reviewOwnerName: null | string;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            fields: components["schemas"]["PostmortemFieldValueDto"][];
+            incidents: components["schemas"]["PostmortemIncidentRefDto"][];
+            timeline: components["schemas"]["PostmortemTimelineItemDto"][];
+        };
+        PostmortemFieldDefinitionDto: {
+            /** Format: int32 */
+            id: number;
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: number;
+            isActive: boolean;
+            isSystem: boolean;
+        };
+        /** @enum {unknown} */
+        PostmortemFieldType: "Text" | "LongText" | "Date" | "Select";
+        PostmortemFieldValueDto: {
+            /** Format: int32 */
+            fieldDefinitionId: number;
+            key: string;
+            heading: string;
+            helpText: null | string;
+            fieldType: components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: number;
+            isSystem: boolean;
+            value: string;
+        };
+        PostmortemFieldValueUpdate: {
+            /** Format: int32 */
+            fieldDefinitionId: number;
+            value: string;
+        };
+        PostmortemIncidentRefDto: {
+            /** Format: int32 */
+            incidentId: number;
+            title: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Format: int64 */
+            startDateTime: number;
+            /** Format: int64 */
+            endDateTime: null | number;
+            currentImpact: components["schemas"]["ServiceStatus"];
+        };
+        PostmortemIncidentSuggestionDto: {
+            /** Format: int32 */
+            incidentId: number;
+            title: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Format: int64 */
+            startDateTime: number;
+            /** Format: int64 */
+            endDateTime: null | number;
+        };
+        PostmortemListItemDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            status: components["schemas"]["PostmortemStatus"];
+            reviewOwnerName: null | string;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+            /** Format: int32 */
+            incidentCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {unknown} */
+        PostmortemStatus: "Draft" | "Published";
+        PostmortemTimelineItemDto: {
+            isAnnotation: boolean;
+            /** Format: int32 */
+            entryId: null | number;
+            /** Format: int32 */
+            incidentId: null | number;
+            incidentTitle: null | string;
+            source: string;
+            /** Format: date-time */
+            occurredAt: string;
+            actorName: null | string;
+            text: null | string;
+            oldStatus: null | components["schemas"]["IncidentStatus"];
+            newStatus: null | components["schemas"]["IncidentStatus"];
+            impact: null | components["schemas"]["ServiceStatus"];
         };
         ProblemDetails: {
             type?: null | string;
@@ -6987,8 +10004,20 @@ export interface components {
         RefreshRequest: {
             refreshToken: string;
         };
+        ReorderFieldDefinitionsRequest: {
+            orderedIds: number[];
+        };
         ReorderUserNotificationPreferencesRequest: {
             orderedIds: number[];
+        };
+        ReplaceTagsRequest: {
+            tags: components["schemas"]["TagDto"][];
+        };
+        ResetPasswordRequest: {
+            /** Format: int32 */
+            userId: number;
+            token: string;
+            newPassword: string;
         };
         RoleDto: {
             /** Format: int32 */
@@ -7005,6 +10034,16 @@ export interface components {
             layerIdsToDelete: number[];
             overridesToCreate: components["schemas"]["CreateOnCallOverrideRequest"][];
             overrideIdsToDelete: number[];
+        };
+        ScriptTestResultDto: {
+            outcome: string;
+            message: null | string;
+            /** Format: double */
+            latencyMs: null | number;
+            dimensions: {
+                [key: string]: number;
+            };
+            logs: string[];
         };
         SearchResultDto: {
             type: string;
@@ -7094,7 +10133,7 @@ export interface components {
             dailyData: components["schemas"]["DailyStatsDto"][];
         };
         /** @enum {unknown} */
-        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE" | "FAILURE";
+        ServiceStatus: "NO_DATA" | "UP" | "DEGRADED" | "PARTIALLY_DOWN" | "DOWN" | "MAINTENANCE" | "FAILURE";
         SetIncidentServicesRequest: {
             services: components["schemas"]["IncidentServiceImpact"][];
         };
@@ -7145,6 +10184,17 @@ export interface components {
             metaDescription: null | string;
             ogImageUrl: null | string;
         };
+        SystemTagValue: {
+            value: null | string;
+        };
+        TagDto: {
+            key: string;
+            value: null | string;
+        };
+        /** @description Body for the check Test endpoint — the candidate config to test, or null to use the persisted one. */
+        TestCheckRequest: {
+            typeDataJson: null | string;
+        };
         TestEmailResponse: {
             message: string;
         };
@@ -7152,16 +10202,22 @@ export interface components {
             providerId: null | string;
             authority: null | string;
         };
+        /** @enum {unknown} */
+        ThresholdDirection: "HigherIsWorse" | "LowerIsWorse";
         ToggleBuiltinRequest: {
             disabled: boolean;
         };
+        /** @enum {unknown} */
+        UISurface: "Alert" | "Incident" | "Maintenance";
         UpdateAlertConfigRequest: {
-            alertFor: null | components["schemas"]["AlertFor"];
+            dimension: null | string;
             alertValue: null | string;
             /** Format: int32 */
             failureThreshold: null | number;
             /** Format: int32 */
             successThreshold: null | number;
+            /** Format: int32 */
+            minFailingRegions: null | number;
             description: null | string;
             isActive: null | boolean;
             severity: null | components["schemas"]["AlertSeverity"];
@@ -7172,13 +10228,8 @@ export interface components {
             cron: null | string;
             typeDataJson: null | string;
             isActive: null | boolean;
-            isMultiRegion: null | boolean;
-            /** Format: int32 */
-            historyDaysDesktop: null | number;
-            /** Format: int32 */
-            historyDaysMobile: null | number;
-            /** Format: int32 */
-            integrationId?: null | number;
+            /** Format: uuid */
+            integrationId?: null | string;
         };
         UpdateEmailConfigRequest: {
             provider: null | string;
@@ -7203,6 +10254,14 @@ export interface components {
             firstOccurrenceEndsAt: string;
             userIds: number[];
         };
+        UpdateFieldDefinitionRequest: {
+            heading: null | string;
+            helpText: null | string;
+            fieldType: null | components["schemas"]["PostmortemFieldType"];
+            /** Format: int32 */
+            sortOrder: null | number;
+            isActive: null | boolean;
+        };
         UpdateIncidentRequest: {
             title: null | string;
             /** Format: int64 */
@@ -7215,6 +10274,8 @@ export interface components {
             name: null | string;
             description: null | string;
             configJson: null | string;
+            /** Format: int32 */
+            escalationPolicyId?: null | number;
         };
         UpdateMaintenanceRequest: {
             title: null | string;
@@ -7244,6 +10305,16 @@ export interface components {
             startsAtUtc: null | string;
             /** Format: date-time */
             endsAtUtc: null | string;
+        };
+        UpdatePostmortemRequest: {
+            name: null | string;
+            /** Format: int32 */
+            reviewOwnerUserId: null | number;
+            /** Format: date-time */
+            impactStartAt: null | string;
+            /** Format: date-time */
+            impactEndAt: null | string;
+            fields: null | components["schemas"]["PostmortemFieldValueUpdate"][];
         };
         UpdateProfileRequest: {
             name: null | string;
@@ -7276,6 +10347,11 @@ export interface components {
             comment: string;
             visibility: components["schemas"]["EventVisibility"];
         };
+        UpdateTimelineEntryRequest: {
+            /** Format: date-time */
+            occurredAt: string;
+            body: string;
+        };
         UpdateWorkerRequest: {
             region?: null | string;
             isDefault?: null | boolean;
@@ -7296,7 +10372,23 @@ export interface components {
             /** Format: int32 */
             delayMinutes: number;
             /** Format: int32 */
+            maxRetries: number;
+            /** Format: int32 */
+            retryIntervalMinutes: number;
+            /** Format: int32 */
             scheduleId: number;
+        };
+        UpsertNotificationSubscriptionRequest: {
+            name: string;
+            events: string[];
+            minSeverity: components["schemas"]["AlertSeverity"];
+            targetKind: components["schemas"]["NotificationTargetKind"];
+            /** Format: int32 */
+            userId: null | number;
+            /** Format: uuid */
+            integrationId: null | string;
+            target: null | string;
+            enabled: boolean;
         };
         UpsertOidcProviderRequest: {
             id: string;
@@ -7311,9 +10403,8 @@ export interface components {
             isEnabled: boolean;
         };
         UpsertUserNotificationPreferenceRequest: {
-            channel: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            /** Format: uuid */
+            integrationInstanceId: string;
             handle: string;
         };
         UserDto: {
@@ -7337,9 +10428,9 @@ export interface components {
         UserNotificationPreferenceDto: {
             /** Format: int32 */
             id: number;
-            channel: string;
-            /** Format: int32 */
-            integrationId: null | number;
+            integrationId: string;
+            /** Format: uuid */
+            integrationInstanceId: null | string;
             integrationName: null | string;
             handle: string;
             /** Format: int32 */
@@ -7358,6 +10449,18 @@ export interface components {
             isOidc: boolean;
             hasSeenShowcase: boolean;
         };
+        WebhookRequestLogDto: {
+            /** Format: int32 */
+            id: number;
+            /** Format: date-time */
+            receivedAt: string;
+            rawPayload: string;
+            outcome: components["schemas"]["WebhookRequestOutcome"];
+            /** Format: int32 */
+            alertId: null | number;
+        };
+        /** @enum {unknown} */
+        WebhookRequestOutcome: "Accepted" | "AcceptedOrphan" | "CorrelationMismatch" | "AuthFailed" | "ParseError" | "Deduplicated";
         WorkerDto: {
             /** Format: uuid */
             id: string;

@@ -92,12 +92,33 @@ public sealed class MultiRegionBatchTracker(
 
     private async Task CompleteAsync(int checkId, List<CheckExecutionResult> results, string reason)
     {
-        // Aggregate: worst operational status wins (DOWN > DEGRADED > UP > NO_DATA).
-        // Exclude MAINTENANCE — that is set externally, not by execution results.
-        var worstStatus = results
+        // Map MAINTENANCE (set externally, not by an execution result) to DOWN for aggregation.
+        var statuses = results
             .Select(r => r.Status == ServiceStatus.MAINTENANCE ? ServiceStatus.DOWN : r.Status)
-            .OrderByDescending(s => (int)s)
-            .First();
+            .ToList();
+
+        // Descriptive aggregation: the target is down in NONE / SOME / ALL of the regions that actually
+        // measured it. Only real measurements (UP/DEGRADED/DOWN) vote — NO_DATA and FAILURE are monitoring
+        // gaps / internal errors, not evidence about the target, so they abstain from the none/some/all call.
+        //   • all measuring regions DOWN      → DOWN           (full outage)
+        //   • some but not all regions DOWN   → PARTIALLY_DOWN (regional outage — never for single-region)
+        //   • no region DOWN                  → worst of the rest (UP / DEGRADED), unchanged behaviour
+        // When nothing measured, fall back to worst-wins over everything so a NO_DATA/FAILURE batch behaves
+        // exactly as before (IngestStatusOnlyAsync then no-ops on FAILURE / keeps the last real status).
+        var measurements = statuses
+            .Where(s => s is ServiceStatus.UP or ServiceStatus.DEGRADED or ServiceStatus.DOWN)
+            .ToList();
+        var downCount = measurements.Count(s => s == ServiceStatus.DOWN);
+
+        ServiceStatus worstStatus;
+        if (measurements.Count == 0)
+            worstStatus = statuses.OrderByDescending(s => (int)s).First();
+        else if (downCount == 0)
+            worstStatus = measurements.OrderByDescending(s => (int)s).First();
+        else if (downCount == measurements.Count)
+            worstStatus = ServiceStatus.DOWN;
+        else
+            worstStatus = ServiceStatus.PARTIALLY_DOWN;
 
         var avgLatency = results.Any(r => r.LatencyMs.HasValue)
             ? results.Where(r => r.LatencyMs.HasValue).Average(r => r.LatencyMs!.Value)

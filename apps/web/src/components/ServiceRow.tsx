@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleCheck, CircleX, TriangleAlert, Wrench, CircleMinus } from "lucide-react";
+import { CircleCheck, CircleX, TriangleAlert, Wrench, CircleMinus, CircleAlert } from "lucide-react";
 import type { PublicService, ServiceOverviewDto, ServiceStatus } from "@/src/lib/actions/services";
 import { formatLatency } from "@/src/lib/utils";
 import { StatusBarCalendar } from "./StatusBarCalendar";
@@ -7,6 +7,7 @@ import { StatusBarCalendar } from "./StatusBarCalendar";
 const statusIcon = {
   UP: CircleCheck,
   DEGRADED: TriangleAlert,
+  PARTIALLY_DOWN: CircleAlert,
   DOWN: CircleX,
   MAINTENANCE: Wrench,
   NO_DATA: CircleMinus,
@@ -16,6 +17,7 @@ const statusIcon = {
 const statusColor: Record<string, string> = {
   UP: "text-green-500",
   DEGRADED: "text-amber-500",
+  PARTIALLY_DOWN: "text-orange-500",
   DOWN: "text-red-500",
   MAINTENANCE: "text-indigo-500",
   NO_DATA: "text-muted-foreground",
