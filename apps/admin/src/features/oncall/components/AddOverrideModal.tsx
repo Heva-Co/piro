@@ -28,7 +28,8 @@ interface Props {
   onSave: (payload: OverrideFormPayload) => void;
 }
 
-export function AddOverrideModal({ onClose, onSave }: Props) {
+export function AddOverrideModal(props: Props) {
+  const { onClose, onSave } = props;
   const [userId, setUserId] = useState<string>("");
   const [replacesUserId, setReplacesUserId] = useState<string>("");
   const [startsAt, setStartsAt] = useState("");

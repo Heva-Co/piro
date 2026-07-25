@@ -96,3 +96,12 @@ export function toDateTimeLocalValue(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+/**
+ * Formats a date explicitly in UTC — for values whose day is UTC-aligned and must render
+ * as that same day regardless of the viewer's timezone (e.g. Gantt range labels). This is a
+ * deliberate exception to the display-timezone rule, only for UTC-anchored data.
+ */
+export function formatUtcDate(date: Date | number | string, options?: Intl.DateTimeFormatOptions): string {
+  return toDate(date).toLocaleDateString(DEFAULT_LOCALE, { ...options, timeZone: "UTC" });
+}

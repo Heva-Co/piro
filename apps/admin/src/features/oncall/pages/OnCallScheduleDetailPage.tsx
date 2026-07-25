@@ -1,62 +1,31 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "react-toastify";
-import axios from "axios";
-import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Settings, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Plus, AlertTriangle, Settings, Save } from "lucide-react";
 import { onCallApi, type OnCallSlot } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import DangerZone from "@/components/DangerZone";
 import { GanttTimeline } from "../components/GanttTimeline";
 import { AddLayerModal, type LayerFormPayload } from "../components/AddLayerModal";
 import { AddOverrideModal, type OverrideFormPayload } from "../components/AddOverrideModal";
 import GeneralSettingsSection from "../components/GeneralSettingsSection";
+import ScheduleCoverageBadge from "../components/ScheduleCoverageBadge";
+import ScheduleRangeToolbar from "../components/ScheduleRangeToolbar";
+import StagedOverridesList from "../components/StagedOverridesList";
 import { useRotationsDraft, type DraftLayer } from "../hooks/useRotationsDraft";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { apiErrorMessage } from "@/utils/apiError";
+import { addDays, startOfDay, getRange, isoStr, type ViewMode } from "../scheduleRange";
+import { DEFAULT_MEMBER_COLOR, REPLACED_MEMBER_COLOR } from "../colors";
 
-function apiErrorMessage(err: unknown, fallback: string) {
-  return (axios.isAxiosError(err) && (err.response?.data?.title || err.response?.data?.detail)) || fallback;
-}
-
-type ViewMode = "1day" | "1week" | "2weeks" | "1month";
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function getRange(anchor: Date, mode: ViewMode): { from: Date; to: Date } {
-  const from = startOfDay(anchor);
-  switch (mode) {
-    case "1day": return { from, to: addDays(from, 1) };
-    case "1week": return { from, to: addDays(from, 7) };
-    case "2weeks": return { from, to: addDays(from, 14) };
-    case "1month": return { from, to: addDays(from, 30) };
-  }
-}
-
-// Range days are UTC-aligned (see startOfDay) — format in UTC too, so the label always
-// matches the day the Gantt bars actually cover, regardless of the viewer's own timezone.
-function fmtRange(from: Date, to: Date, mode: ViewMode): string {
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", timeZone: "UTC" };
-  if (mode === "1day") return from.toLocaleDateString(undefined, { ...opts, weekday: "long" });
-  return `${from.toLocaleDateString(undefined, opts)} – ${addDays(to, -1).toLocaleDateString(undefined, opts)}`;
-}
-
-function isoStr(d: Date): string {
-  return d.toISOString();
-}
-
-export default function OnCallScheduleDetailPage() {
+function OnCallScheduleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -174,11 +143,28 @@ export default function OnCallScheduleDetailPage() {
   }
 
   if (loadingSchedule) {
-    return <><div className="p-8 text-center text-muted-foreground">Loading…</div></>;
+    return (
+      <PageContainer>
+        <div className="p-8 text-center text-muted-foreground">Loading…</div>
+      </PageContainer>
+    );
   }
 
   if (!schedule) {
-    return <><div className="p-8 text-center text-muted-foreground">Schedule not found.</div></>;
+    return (
+      <PageContainer>
+        <Empty className="py-14">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <AlertTriangle />
+            </EmptyMedia>
+            <EmptyTitle>Schedule not found</EmptyTitle>
+            <EmptyDescription>This on-call schedule doesn't exist or was deleted.</EmptyDescription>
+          </EmptyHeader>
+          <Button variant="outline" onClick={() => navigate(ROUTES.ONCALL.LIST)}>Back to schedules</Button>
+        </Empty>
+      </PageContainer>
+    );
   }
 
   // Rotations: pure schedule without any override substitution. Bars come from the last
@@ -226,9 +212,9 @@ export default function OnCallScheduleDetailPage() {
     const replacedSlot = rotationSlots.find((s: OnCallSlot) => s.userName === first.replacesUserName);
     const overrideInfo = first.replacesUserName ? {
       fromInitials: first.userInitials,
-      fromColor: first.userColor || "#6366f1",
+      fromColor: first.userColor || DEFAULT_MEMBER_COLOR,
       toInitials: (first.replacesUserName.split(" ").map((p: string) => p[0]).join("")).toUpperCase(),
-      toColor: replacedSlot?.userColor || "#94a3b8",
+      toColor: replacedSlot?.userColor || REPLACED_MEMBER_COLOR,
     } : undefined;
     return { label, slots: [{ ...first, startsAt, endsAt }], overrideInfo };
   });
@@ -239,34 +225,15 @@ export default function OnCallScheduleDetailPage() {
     slots: slots.filter((s: OnCallSlot) => s.layerId === layer.id),
   }));
 
-  const VIEW_MODES: { label: string; value: ViewMode }[] = [
-    { label: "1 Day", value: "1day" },
-    { label: "1 Week", value: "1week" },
-    { label: "2 Weeks", value: "2weeks" },
-    { label: "1 Month", value: "1month" },
-  ];
-
   return (
-    <>
+    <PageContainer>
       <PageHeader
         breadcrumbs={[
           { label: "On Call Schedules", onClick: () => navigate(ROUTES.ONCALL.LIST) },
           { label: schedule.name },
         ]}
         subheader={schedule.timeZone}
-        actions={
-          schedule.layers.length === 0 ? (
-            <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-500">
-              <AlertTriangle size={13} />
-              No coverage — add a rotation layer
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-              Active
-            </span>
-          )
-        }
+        actions={<ScheduleCoverageBadge hasCoverage={schedule.layers.length > 0} />}
       />
 
       <SectionAccordion
@@ -277,47 +244,23 @@ export default function OnCallScheduleDetailPage() {
         <GeneralSettingsSection schedule={schedule} />
       </SectionAccordion>
 
-      {/* Date nav + view toggle */}
-      <div className="flex items-center gap-3 mt-6 mb-6 flex-wrap">
-        <button onClick={goToday} className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted/50">Today</button>
-        <div className="flex items-center gap-1">
-          <button onClick={() => advance(-1)} className="p-1.5 rounded-lg border border-border hover:bg-muted/50">
-            <ChevronLeft size={14} />
-          </button>
-          <button onClick={() => advance(1)} className="p-1.5 rounded-lg border border-border hover:bg-muted/50">
-            <ChevronRight size={14} />
-          </button>
-        </div>
-        <span className="font-semibold text-foreground text-sm">{fmtRange(from, to, viewMode)}</span>
-
-        <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
-          {VIEW_MODES.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setViewMode(value)}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                viewMode === value
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ScheduleRangeToolbar
+        from={from}
+        to={to}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onToday={goToday}
+        onAdvance={advance}
+      />
 
       <SectionAccordion
         title="Rotations"
         description="Recurring on-call layers for this schedule"
         defaultOpen
         actions={
-          <button
-            onClick={() => setShowAddLayer(true)}
-            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setShowAddLayer(true)}>
             <Plus size={13} /> Add rotation
-          </button>
+          </Button>
         }
         disableCard
       >
@@ -340,14 +283,9 @@ export default function OnCallScheduleDetailPage() {
         description="Temporary substitutions for this period"
         defaultOpen
         actions={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowAddOverride(true)}
-              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <Plus size={13} /> Add override
-            </button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => setShowAddOverride(true)}>
+            <Plus size={13} /> Add override
+          </Button>
         }
         disableCard
       >
@@ -358,27 +296,7 @@ export default function OnCallScheduleDetailPage() {
             <GanttTimeline rows={overrideRows} from={from} to={to} totalMs={to.getTime() - from.getTime()} />
           )}
 
-          <div className="rounded-lg border divide-y">
-            {draft.overrides.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic px-3 py-2">No overrides staged.</p>
-            ) : (
-              draft.overrides.map((ov) => (
-                <div key={ov.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0 text-sm">
-                    <span className="font-medium truncate">
-                      {ov.replacesUserName ? `${ov.userName} → replacing ${ov.replacesUserName}` : `${ov.userName} (extra coverage)`}
-                    </span>
-                    {ov.isNew && (
-                      <span className="text-xs rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 px-2 py-0.5">New</span>
-                    )}
-                  </div>
-                  <button onClick={() => handleDeleteDraftOverride(ov.id)} className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0" title="Delete override">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+          <StagedOverridesList overrides={draft.overrides} onDelete={handleDeleteDraftOverride} />
         </div>
       </SectionAccordion>
 
@@ -455,6 +373,8 @@ export default function OnCallScheduleDetailPage() {
           }}
         />
       )}
-    </>
+    </PageContainer>
   );
 }
+
+export default OnCallScheduleDetailPage;
