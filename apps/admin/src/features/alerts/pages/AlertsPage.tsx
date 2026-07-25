@@ -24,7 +24,7 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 
 const PAGE_SIZE = 15;
 
@@ -124,11 +124,17 @@ function AlertsPage() {
         {isLoading ? (
           <TableSkeleton {...{ columns }} />
         ) : filtered.length === 0 ? (
-          <Empty className="border-0 py-8">
+          <Empty className="border-0 py-14">
             <EmptyHeader>
-              <EmptyTitle className="text-muted-foreground font-normal">
-                {search ? "No alerts match your search." : "No alerts recorded yet."}
-              </EmptyTitle>
+              <EmptyMedia variant="icon">
+                <BellRing />
+              </EmptyMedia>
+              <EmptyTitle>{search ? "No matching alerts" : "No alerts recorded yet"}</EmptyTitle>
+              <EmptyDescription>
+                {search
+                  ? "No alerts match your search. Try a different term or clear the filter."
+                  : "Alerts fire automatically when a check breaches its conditions. When one does, it'll show up here."}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
