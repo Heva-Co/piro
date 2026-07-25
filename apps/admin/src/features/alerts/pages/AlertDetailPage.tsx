@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { Info, ListChecks, Siren, History } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import PageContainer from "@/components/PageContainer";
