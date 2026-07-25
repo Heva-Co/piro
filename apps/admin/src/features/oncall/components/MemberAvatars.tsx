@@ -1,4 +1,5 @@
 import type { OnCallLayer } from "@/lib/api";
+import { DEFAULT_MEMBER_COLOR } from "../colors";
 
 const MAX_VISIBLE = 4;
 
@@ -34,7 +35,7 @@ function MemberAvatars(props: Props) {
           key={u.userId}
           title={u.userName}
           className="size-7 rounded-full border-2 border-card flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-          style={{ backgroundColor: u.userColor || "#6366f1" }}
+          style={{ backgroundColor: u.userColor || DEFAULT_MEMBER_COLOR }}
         >
           {u.userInitials}
         </div>
