@@ -3,30 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Save } from "lucide-react";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/DateTimePicker";
-import { PageHeader } from "@/components/PageHeader";
 import { useAllServices } from "@/hooks/useServices";
 import { incidentsApi } from "@/lib/actions/incidents";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { toDateTimeLocalValue } from "@/utils/date";
+import { IMPACT_OPTIONS } from "@/constants/serviceStatus";
+import IncidentField from "../components/IncidentField";
 
-const IMPACT_OPTIONS = ["DOWN", "DEGRADED"];
-
-function toLocalDT(d: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-export default function IncidentFormPage() {
+function IncidentFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
-  const [startDateTime, setStartDateTime] = useState(toLocalDT(new Date()));
+  const [startDateTime, setStartDateTime] = useState(toDateTimeLocalValue(new Date()));
   const [status] = useState("INVESTIGATING");
   const [initialComment, setInitialComment] = useState("");
   const [acknowledge, setAcknowledge] = useState(false);
@@ -61,7 +59,7 @@ export default function IncidentFormPage() {
   });
 
   function toggleService(slug: string) {
-    setSelectedServices(prev => {
+    setSelectedServices((prev) => {
       const next = { ...prev };
       if (next[slug]) delete next[slug]; else next[slug] = "DOWN";
       return next;
@@ -69,7 +67,7 @@ export default function IncidentFormPage() {
   }
 
   return (
-    <>
+    <PageContainer>
       <PageHeader
         breadcrumbs={[
           { label: "Incidents", onClick: () => navigate(ROUTES.INCIDENTS.LIST) },
@@ -92,23 +90,17 @@ export default function IncidentFormPage() {
                 </div>
               )}
 
-              {/* Title */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground">
-                  Title <span className="text-destructive">*</span>
-                </label>
-                <Input value={title} onChange={e => setTitle(e.target.value)} required
+              <IncidentField label={<>Title <span className="text-destructive">*</span></>}>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} required
                   placeholder="Brief description of the incident" />
-              </div>
+              </IncidentField>
 
-              {/* Start Date/Time */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground">
-                  Start Date/Time <span className="text-destructive">*</span>
-                </label>
+              <IncidentField
+                label={<>Start Date/Time <span className="text-destructive">*</span></>}
+                hint="Enter time in your local timezone. It will be stored as UTC."
+              >
                 <DateTimePicker value={startDateTime} onChange={setStartDateTime} />
-                <p className="text-xs text-muted-foreground">Enter time in your local timezone. It will be stored as UTC.</p>
-              </div>
+              </IncidentField>
 
               {/* Acknowledge */}
               <div className="rounded-xl border border-border p-4 flex items-center justify-between">
@@ -121,29 +113,30 @@ export default function IncidentFormPage() {
 
               {/* Affected Services */}
               {services.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-foreground">Affected Services</label>
+                <IncidentField label="Affected Services">
                   <div className="rounded-xl border border-border divide-y divide-border">
                     {services.map((svc) => {
                       const checked = Boolean(selectedServices[svc.slug]);
                       return (
                         <div key={svc.slug} className="flex items-center gap-3 px-4 py-2.5">
-                          <input type="checkbox" id={`svc-${svc.slug}`} checked={checked}
-                            onChange={() => toggleService(svc.slug)}
-                            className="size-4 rounded border-border accent-foreground cursor-pointer" />
+                          <Checkbox
+                            id={`svc-${svc.slug}`}
+                            checked={checked}
+                            onCheckedChange={() => toggleService(svc.slug)}
+                          />
                           <label htmlFor={`svc-${svc.slug}`} className="flex-1 text-sm cursor-pointer text-foreground">
                             {svc.name}
                           </label>
                           {checked && (
                             <Select
                               value={selectedServices[svc.slug]}
-                              onValueChange={(v) => v && setSelectedServices(prev => ({ ...prev, [svc.slug]: v }))}
+                              onValueChange={(v) => v && setSelectedServices((prev) => ({ ...prev, [svc.slug]: v }))}
                             >
                               <SelectTrigger className="w-32 h-8 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {IMPACT_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                {IMPACT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           )}
@@ -151,17 +144,15 @@ export default function IncidentFormPage() {
                       );
                     })}
                   </div>
-                </div>
+                </IncidentField>
               )}
 
-              {/* Initial Update */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground">
-                  Initial Update <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
-                </label>
+              <IncidentField
+                label={<>Initial Update <span className="text-xs font-normal text-muted-foreground">(Optional)</span></>}
+                hint="This will be added as the first update for this incident."
+              >
                 <MarkdownEditor value={initialComment} onChange={setInitialComment} placeholder="Describe what's happening..." />
-                <p className="text-xs text-muted-foreground">This will be added as the first update for this incident.</p>
-              </div>
+              </IncidentField>
             </div>
 
             {/* Footer */}
@@ -174,6 +165,8 @@ export default function IncidentFormPage() {
           </form>
         </div>
       </div>
-    </>
+    </PageContainer>
   );
 }
+
+export default IncidentFormPage;

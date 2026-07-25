@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, Settings } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import ActionButtons from "@/components/integration-actions/ActionButtons";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import DangerZone from "@/components/DangerZone";
@@ -10,19 +11,10 @@ import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 import MaintenanceGeneralSettingsSection from "../components/MaintenanceGeneralSettingsSection";
 import MaintenanceEventsSection from "../components/MaintenanceEventsSection";
+import MaintenanceStatusBadge from "../components/MaintenanceStatusBadge";
+import { isOneTime } from "../components/maintenanceHelpers";
 
-const DISPLAY_STATUS_BADGE: Record<string, string> = {
-  Active: "bg-green-500/15 text-green-600 dark:text-green-400",
-  Scheduled: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  Completed: "bg-indigo-100 text-indigo-700",
-  Cancelled: "bg-muted text-muted-foreground",
-};
-
-function isOneTime(rRule: string) {
-  return rRule.includes("COUNT=1");
-}
-
-export default function MaintenanceDetailPage() {
+function MaintenanceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -47,17 +39,17 @@ export default function MaintenanceDetailPage() {
 
   if (isLoading) {
     return (
-      <>
+      <PageContainer>
         <div className="text-sm text-muted-foreground">Loading…</div>
-      </>
+      </PageContainer>
     );
   }
 
   if (!maintenance) {
     return (
-      <>
+      <PageContainer>
         <div className="text-sm text-destructive">Maintenance not found.</div>
-      </>
+      </PageContainer>
     );
   }
 
@@ -65,7 +57,7 @@ export default function MaintenanceDetailPage() {
   const isCancelled = maintenance.displayStatus === "Cancelled";
 
   return (
-    <>
+    <PageContainer>
       <PageHeader
         breadcrumbs={[
           { label: "Maintenances", onClick: () => navigate(ROUTES.MAINTENANCES.LIST) },
@@ -73,9 +65,7 @@ export default function MaintenanceDetailPage() {
         ]}
         actions={
           <>
-            <span className={`inline-flex items-center rounded-lg px-3 py-1.5 border text-sm font-semibold ${DISPLAY_STATUS_BADGE[maintenance.displayStatus] ?? "bg-muted text-muted-foreground"}`}>
-              {maintenance.displayStatus}
-            </span>
+            <MaintenanceStatusBadge status={maintenance.displayStatus} className="px-3 py-1.5" />
             <ActionButtons context="Maintenance" targetId={maintenance.id} />
           </>
         }
@@ -125,6 +115,8 @@ export default function MaintenanceDetailPage() {
           />
         </div>
       </SectionAccordion>
-    </>
+    </PageContainer>
   );
 }
+
+export default MaintenanceDetailPage;

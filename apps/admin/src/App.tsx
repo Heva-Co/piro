@@ -61,7 +61,6 @@ import EscalationPoliciesPage from "@/features/escalation/pages/EscalationPolici
 import SubscriptionsPage from "@/features/notification-subscriptions/pages/SubscriptionsPage";
 import EscalationPolicyDetailPage from "@/features/escalation/pages/EscalationPolicyDetailPage";
 import ProfilePage from "@/features/profile/pages/ProfilePage";
-import { ToastContainer } from 'react-toastify';
 import { Toaster } from "@/components/ui/sonner";
 
 const queryClient = new QueryClient({
@@ -88,7 +87,6 @@ function ProtectedLayout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastContainer />
       <TooltipProvider>
       <ThemeProvider>
       <Toaster />
