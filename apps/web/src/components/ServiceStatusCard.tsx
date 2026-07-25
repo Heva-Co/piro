@@ -4,6 +4,7 @@ import { formatLatency, formatLocalDateTime } from "@/src/lib/utils";
 const statusLabel: Record<string, string> = {
   UP: "Service Operational",
   DEGRADED: "Partial Outage",
+  PARTIALLY_DOWN: "Partial Outage",
   DOWN: "Major Outage",
   MAINTENANCE: "Under Maintenance",
   NO_DATA: "No Status Data",
@@ -13,6 +14,7 @@ const statusLabel: Record<string, string> = {
 const statusClass: Record<string, string> = {
   UP: "text-green-600 dark:text-green-400",
   DEGRADED: "text-yellow-600 dark:text-yellow-400",
+  PARTIALLY_DOWN: "text-orange-600 dark:text-orange-400",
   DOWN: "text-red-600 dark:text-red-400",
   MAINTENANCE: "text-blue-600 dark:text-blue-400",
   NO_DATA: "text-muted-foreground",

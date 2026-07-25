@@ -91,6 +91,7 @@ const baseAlertConfigSchema = z.object({
   alertValue: z.string(),
   failureThreshold: z.number(),
   successThreshold: z.number(),
+  minFailingRegions: z.number(),
   severity: z.enum(["Warning", "Critical"]),
   isActive: z.boolean(),
 });
@@ -106,6 +107,9 @@ export const alertConfigSchema = baseAlertConfigSchema.superRefine((values, ctx)
   }
   if (!values.successThreshold || values.successThreshold < 1) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must be at least 1.", path: ["successThreshold"] });
+  }
+  if (!values.minFailingRegions || values.minFailingRegions < 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Must be at least 1.", path: ["minFailingRegions"] });
   }
 });
 

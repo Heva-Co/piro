@@ -69,20 +69,28 @@ internal class RemoteCheckJobDispatcher(
         var batchId = Guid.NewGuid().ToString("N");
         batchTracker.RegisterBatch(batchId, check.Id, workers.Count);
 
+        // Seal one minute-aligned cycle timestamp here, at dispatch, on a single clock. Every region's
+        // data point for this cycle is stamped with it, so grouping persisted rows by timestamp equals
+        // grouping by execution cycle at any cron frequency — even when a slow region's result would
+        // otherwise floor to the next minute at ingestion time.
+        var cycleTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        cycleTimestamp -= cycleTimestamp % 60;
+
         // Dispatch each worker by its transport: the built-in worker (IsInProcess) runs locally, real
         // SignalR workers get a hub message. This is why routing must never send Execute() to the built-in's
         // synthetic ConnectionId — it has no hub receiver and the send would silently vanish.
         var tasks = workers.Select(worker =>
         {
             if (worker.IsInProcess)
-                return RunLocalWorkerAsync(check, batchId, ct);
+                return RunLocalWorkerAsync(check, batchId, cycleTimestamp, ct);
 
             var message = new WorkerExecuteMessage(
                 JobId: Guid.NewGuid().ToString(),
                 CheckId: check.Id,
                 CheckType: check.Type,
                 TypeDataJson: check.TypeDataJson,
-                BatchId: batchId);
+                BatchId: batchId,
+                CycleTimestamp: cycleTimestamp);
 
             logger.LogDebug(
                 "Dispatching check {CheckId} to worker {WorkerId} (region={Region}, batch={BatchId}).",
@@ -147,12 +155,12 @@ internal class RemoteCheckJobDispatcher(
         await dataPointRepo.CreateAsync(point, ct);
     }
 
-    private async Task RunLocalWorkerAsync(Check check, string batchId, CancellationToken ct)
+    private async Task RunLocalWorkerAsync(Check check, string batchId, long cycleTimestamp, CancellationToken ct)
     {
         try
         {
             var result = await executor.ExecuteAsync(check, ct);
-            await ingester.IngestDataPointOnlyAsync(check.Id, result, localWorkerRegion, ct);
+            await ingester.IngestDataPointOnlyAsync(check.Id, result, localWorkerRegion, cycleTimestamp, ct);
             batchTracker.AddResult(batchId, result);
 
             logger.LogDebug(
