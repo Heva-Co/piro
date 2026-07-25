@@ -56,6 +56,11 @@ jobs:
       - name: Build Worker
         run: dotnet build src/Piro.Worker/Piro.Worker.csproj --no-restore -c Release
 
+      # Runs unit tests and integration tests. The integration suite provisions its own Postgres via
+      # Testcontainers, which uses the Docker daemon preinstalled on GitHub-hosted ubuntu runners.
+      - name: Test
+        run: dotnet test Piro.slnx --no-restore -c Release --verbosity normal
+
   # ── Frontend ────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend
