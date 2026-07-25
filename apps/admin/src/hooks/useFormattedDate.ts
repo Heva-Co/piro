@@ -31,6 +31,13 @@ export function useFormattedDate() {
         formatDateTime(date, activeTimeZone, options),
       [activeTimeZone]
     ),
+    // Like formatDateTime, but renders an em-dash for nullish values — for optional
+    // timestamps (resolvedAt, acknowledgedAt, …) that read as "—" when absent.
+    formatDateTimeOrDash: useCallback(
+      (date: Date | number | string | null | undefined, options?: Intl.DateTimeFormatOptions) =>
+        date == null || date === "" ? "—" : formatDateTime(date, activeTimeZone, options),
+      [activeTimeZone]
+    ),
     getWeekday: useCallback(
       (date: Date | number | string, long = false) => getWeekday(date, activeTimeZone, long),
       [activeTimeZone]

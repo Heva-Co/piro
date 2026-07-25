@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search, ExternalLink, BellRing, BellOff, ListChecks, Siren } from "lucide-react";
 import { AutoRefreshButton } from "@/components/AutoRefreshButton";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { StatusPill } from "@/components/StatusBadge";
 import { useAllAlerts } from "@/hooks/useChecks";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
@@ -23,6 +24,7 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 
 const PAGE_SIZE = 15;
 
@@ -36,17 +38,12 @@ const columns = [
   "Resolved At"
 ]
 
-export default function AlertsPage() {
+function AlertsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [includeResolved, setIncludeResolved] = useState(false);
-  const { formatDateTime } = useFormattedDate();
-
-  function formatDate(value?: string) {
-    if (!value) return "—";
-    return formatDateTime(value);
-  }
+  const { formatDateTimeOrDash } = useFormattedDate();
 
   const { data, isLoading, refetch } = useAllAlerts({
     page,
@@ -73,7 +70,7 @@ export default function AlertsPage() {
   const linkedOnPage = alerts.filter((a) => !!a.incidentId).length;
 
   return (
-    <div className="flex flex-col ">
+    <PageContainer className="flex flex-col">
       <PageHeader
         breadcrumbs={[{ label: "Alerts" }]}
         subheader="Alert history across every check — independent of whether they escalated to an incident."
@@ -127,9 +124,13 @@ export default function AlertsPage() {
         {isLoading ? (
           <TableSkeleton {...{ columns }} />
         ) : filtered.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-muted-foreground text-center">
-            {search ? "No alerts match your search." : "No alerts recorded yet."}
-          </div>
+          <Empty className="border-0 py-8">
+            <EmptyHeader>
+              <EmptyTitle className="text-muted-foreground font-normal">
+                {search ? "No alerts match your search." : "No alerts recorded yet."}
+              </EmptyTitle>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -197,9 +198,9 @@ export default function AlertsPage() {
                     {alert.message ?? "—"}
                   </TableCell>
                   <TableCell className="px-5 py-3">{alert.occurrenceCount}</TableCell>
-                  <TableCell className="px-5 py-3 text-muted-foreground">{formatDate(alert.firedAt)}</TableCell>
+                  <TableCell className="px-5 py-3 text-muted-foreground">{formatDateTimeOrDash(alert.firedAt)}</TableCell>
                   <TableCell className={`px-5 py-3 ${alert.resolvedAt ? "text-muted-foreground" : "text-red-600 font-medium"}`}>
-                    {alert.resolvedAt ? formatDate(alert.resolvedAt) : "Active"}
+                    {alert.resolvedAt ? formatDateTimeOrDash(alert.resolvedAt) : "Active"}
                   </TableCell>
                   <TableCell className="px-5 py-3">
                     {alert.incidentId != null && (
@@ -263,6 +264,8 @@ export default function AlertsPage() {
           </Table>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
+
+export default AlertsPage;
