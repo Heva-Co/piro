@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import axios from "axios";
 import { Save } from "lucide-react";
 import { escalationApi } from "@/lib/actions/escalation";
