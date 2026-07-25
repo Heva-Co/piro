@@ -152,7 +152,8 @@ public class WorkerSignalRService(
             result.Dimensions,
             result.ErrorMessage,
             DateTime.UtcNow,
-            msg.BatchId);
+            msg.BatchId,
+            msg.CycleTimestamp);
 
         try
         {
