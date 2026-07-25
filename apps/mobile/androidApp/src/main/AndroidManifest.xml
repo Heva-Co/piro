@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ requires a runtime prompt to post notifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Full-screen critical page over the lock screen. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Foreground service used to present a critical page (launch full screen + ring) from the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application
+        android:name=".PiroApp"
+        android:allowBackup="false"
+        android:label="Piro"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Piro"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.Piro">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- SSO redirect: the system browser returns to the app at piro://oauth/callback. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="piro" android:host="oauth" />
+            </intent-filter>
+            <!-- Deep link a page notification opens: piro://alert/{id}. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="piro" android:host="alert" />
+            </intent-filter>
+        </activity>
+
+        <!-- Full-screen "incoming page" (call-style) shown for a critical alert, even over the lock screen. -->
+        <activity
+            android:name=".alert.IncomingAlertActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Piro" />
+
+        <!-- Receives FCM messages and posts the critical (DND-bypassing) notification. -->
+        <service
+            android:name=".push.PiroMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Foreground service that presents a critical page (rings + launches the full-screen page). -->
+        <service
+            android:name=".push.IncomingAlertService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="on_call_critical_alert" />
+        </service>
+
+        <!-- Handles the "Acknowledge" action on a page notification. -->
+        <receiver
+            android:name=".push.AckReceiver"
+            android:exported="false" />
+
+        <!-- Default channel id FCM uses when a data message doesn't specify one. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="piro_critical" />
+    </application>
+
+</manifest>
