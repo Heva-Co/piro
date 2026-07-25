@@ -13,6 +13,7 @@ androidxCore = "1.17.0"
 composeBom = "2026.06.01"
 firebaseBom = "34.16.0"
 googleServices = "4.5.0"
+openapiGenerator = "7.12.0"
 
 # Android SDK levels
 compileSdk = "36"
@@ -64,3 +65,4 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMul
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+openapiGenerator = { id = "org.openapi.generator", version.ref = "openapiGenerator" }

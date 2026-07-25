@@ -1,0 +1,539 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0AE3B816FBB2AA7D15480370 /* InfoRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D39E92CF79F13E9F677D086D /* InfoRow.swift */; };
+		0FDD73F4D0747D5AC3D3C264 /* ServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B0ABB9E71DA75AF7F2F17B /* ServerStore.swift */; };
+		3E362161024CADEDDF3E71AA /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77E13EC31C62547DD9776B6A /* ProfileView.swift */; };
+		412326DD143D9404CB96F75C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69D0DAD9E92B4E5A1358A57C /* RootView.swift */; };
+		427D4D34D05F4D9906441FAC /* OnCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F616189395D2F7306DCAE4 /* OnCallView.swift */; };
+		50731D9EED4EE54FDAB74899 /* PlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763682643898A70C06FE1F5B /* PlaceholderView.swift */; };
+		55FDBD0DB8DF78CB09A0E0FA /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C48FD355AD7B768D82C966 /* LoginView.swift */; };
+		5F88595A22F6441B81F704DA /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A6656F35212FB479CA497D /* DeepLinkRouter.swift */; };
+		61921A5CACB0E1D36D62C86C /* PiroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DF87ECBA4A4D253AACFC9F /* PiroApp.swift */; };
+		658D3AABA133865D1215D9B6 /* SSOAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D5026A1EEF3F8AB356A4B35 /* SSOAuthenticator.swift */; };
+		6633FA04F70FCD131899038D /* MainTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E96033D789E6C309FBA079F /* MainTab.swift */; };
+		6957083E8CCEF71B01A353E9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 625F1EE13CA13BAAFBDE58A6 /* Assets.xcassets */; };
+		6F676B86C4B60FEE0A5FC4E0 /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E44A9B88A30DDFDE4B2192 /* SessionViewModel.swift */; };
+		7024C4CBF699AC1839469F68 /* AlertsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5AF99D6A78AE18F845F5057 /* AlertsViewModel.swift */; };
+		71DBFFBC524BCB03CB1EBCF0 /* AlertDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB8AB5C8DB22611C627AF39 /* AlertDetailView.swift */; };
+		74B88B7E663754DA66B3633D /* KotlinError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE467E739C89E65CD524D06 /* KotlinError.swift */; };
+		8274B5B5C8E88E4962FDFC8B /* PiroColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE46AD1A5BF6F16583727C51 /* PiroColors.swift */; };
+		8A4AE16AF0298BB7695AE315 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC895C8FF2205C8C52B6E1C /* ProfileViewModel.swift */; };
+		8BF7C02CFB16A3C251D4E73D /* AlertsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E723062807D400E2D6F41ED9 /* AlertsListView.swift */; };
+		96A67786E8814090409FAEFF /* PiroScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C217B54C3293533C5F33C653 /* PiroScreen.swift */; };
+		B278AEBD05ADED00B553DB6B /* ServiceLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */; };
+		B2C9C410F80081EFBFADCE1D /* AlertCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92FB1EFA2485E2081354C60C /* AlertCardView.swift */; };
+		BA005EDE62354F9727E36DE2 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DEE0D7847DC9CA0E51674A /* PushManager.swift */; };
+		C6D90E297A7FBD24ACACD4D3 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056B84BBA5C207D5631A18CE /* AvatarView.swift */; };
+		D2CE07219C6B92D5CDF5C7CC /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0D60FE7E2C3DB7CFF1680D /* DateFormatting.swift */; };
+		DB953CE8A6B3ACBE901C6032 /* AlertDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D36995A74084B63BBC85976 /* AlertDetailViewModel.swift */; };
+		DBE0A330F49107E1E43E28B0 /* NotificationPreferenceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE3F434BD2AC1E27E922FED /* NotificationPreferenceRow.swift */; };
+		ECAE739EDFC61B258C0A13FF /* GlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3356AE05FEC9631ECFCDD275 /* GlassCard.swift */; };
+		F73642C146DB79A7E7579894 /* PiroFlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5D4206DC27DA9CACECD1B1 /* PiroFlame.swift */; };
+		FA6A31ED560C1B87C92BDEFD /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA529AF2D178ED8107E65405 /* AppConfig.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		056B84BBA5C207D5631A18CE /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		06C48FD355AD7B768D82C966 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		0FA56F1D81DBE8F40393DB8B /* Piro.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Piro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		15DF87ECBA4A4D253AACFC9F /* PiroApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroApp.swift; sourceTree = "<group>"; };
+		1963E6569447089C328596E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		24B0ABB9E71DA75AF7F2F17B /* ServerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStore.swift; sourceTree = "<group>"; };
+		3356AE05FEC9631ECFCDD275 /* GlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCard.swift; sourceTree = "<group>"; };
+		37D56ED11C9EE31FCA26CF5A /* Piro.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Piro.entitlements; sourceTree = "<group>"; };
+		3CE3F434BD2AC1E27E922FED /* NotificationPreferenceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreferenceRow.swift; sourceTree = "<group>"; };
+		3FC895C8FF2205C8C52B6E1C /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
+		5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLocator.swift; sourceTree = "<group>"; };
+		625F1EE13CA13BAAFBDE58A6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		69D0DAD9E92B4E5A1358A57C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		6CB8AB5C8DB22611C627AF39 /* AlertDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailView.swift; sourceTree = "<group>"; };
+		6D5026A1EEF3F8AB356A4B35 /* SSOAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSOAuthenticator.swift; sourceTree = "<group>"; };
+		74A6656F35212FB479CA497D /* DeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRouter.swift; sourceTree = "<group>"; };
+		763682643898A70C06FE1F5B /* PlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderView.swift; sourceTree = "<group>"; };
+		77E13EC31C62547DD9776B6A /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		7D36995A74084B63BBC85976 /* AlertDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailViewModel.swift; sourceTree = "<group>"; };
+		7E96033D789E6C309FBA079F /* MainTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTab.swift; sourceTree = "<group>"; };
+		82F616189395D2F7306DCAE4 /* OnCallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnCallView.swift; sourceTree = "<group>"; };
+		8E5D4206DC27DA9CACECD1B1 /* PiroFlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroFlame.swift; sourceTree = "<group>"; };
+		92FB1EFA2485E2081354C60C /* AlertCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCardView.swift; sourceTree = "<group>"; };
+		AE0D60FE7E2C3DB7CFF1680D /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
+		BE46AD1A5BF6F16583727C51 /* PiroColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroColors.swift; sourceTree = "<group>"; };
+		C217B54C3293533C5F33C653 /* PiroScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroScreen.swift; sourceTree = "<group>"; };
+		C2E44A9B88A30DDFDE4B2192 /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
+		C6DEE0D7847DC9CA0E51674A /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
+		D39E92CF79F13E9F677D086D /* InfoRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoRow.swift; sourceTree = "<group>"; };
+		E723062807D400E2D6F41ED9 /* AlertsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsListView.swift; sourceTree = "<group>"; };
+		EA529AF2D178ED8107E65405 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		F5AF99D6A78AE18F845F5057 /* AlertsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsViewModel.swift; sourceTree = "<group>"; };
+		FDE467E739C89E65CD524D06 /* KotlinError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KotlinError.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		10B14CD50B507B20235B0020 /* OnCall */ = {
+			isa = PBXGroup;
+			children = (
+				82F616189395D2F7306DCAE4 /* OnCallView.swift */,
+			);
+			path = OnCall;
+			sourceTree = "<group>";
+		};
+		1E19CDF6D15151D97952AC40 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				AE0D60FE7E2C3DB7CFF1680D /* DateFormatting.swift */,
+				74A6656F35212FB479CA497D /* DeepLinkRouter.swift */,
+				3356AE05FEC9631ECFCDD275 /* GlassCard.swift */,
+				FDE467E739C89E65CD524D06 /* KotlinError.swift */,
+				C217B54C3293533C5F33C653 /* PiroScreen.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		20286DEC41460E9EA88C26AF /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				06C48FD355AD7B768D82C966 /* LoginView.swift */,
+				C2E44A9B88A30DDFDE4B2192 /* SessionViewModel.swift */,
+				6D5026A1EEF3F8AB356A4B35 /* SSOAuthenticator.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		30DD0DFE08366B1D4B26EFAE = {
+			isa = PBXGroup;
+			children = (
+				BDEFD919FCFD2275A553CD46 /* Piro */,
+				C3E397762B087AA8627DE779 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		37909EC964871D3C2BD9D080 /* Main */ = {
+			isa = PBXGroup;
+			children = (
+				7E96033D789E6C309FBA079F /* MainTab.swift */,
+				69D0DAD9E92B4E5A1358A57C /* RootView.swift */,
+			);
+			path = Main;
+			sourceTree = "<group>";
+		};
+		38321E07E5FF7411DC0DB343 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				BE46AD1A5BF6F16583727C51 /* PiroColors.swift */,
+				8E5D4206DC27DA9CACECD1B1 /* PiroFlame.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		3F4F6C8C0DA239B2E3B46EA9 /* Push */ = {
+			isa = PBXGroup;
+			children = (
+				C6DEE0D7847DC9CA0E51674A /* PushManager.swift */,
+			);
+			path = Push;
+			sourceTree = "<group>";
+		};
+		94261119D70C59C7E503C39E /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				763682643898A70C06FE1F5B /* PlaceholderView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		BDEFD919FCFD2275A553CD46 /* Piro */ = {
+			isa = PBXGroup;
+			children = (
+				EA529AF2D178ED8107E65405 /* AppConfig.swift */,
+				625F1EE13CA13BAAFBDE58A6 /* Assets.xcassets */,
+				1963E6569447089C328596E3 /* Info.plist */,
+				37D56ED11C9EE31FCA26CF5A /* Piro.entitlements */,
+				15DF87ECBA4A4D253AACFC9F /* PiroApp.swift */,
+				24B0ABB9E71DA75AF7F2F17B /* ServerStore.swift */,
+				5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */,
+				C116EAE0CF8AC461C833118B /* Alerts */,
+				20286DEC41460E9EA88C26AF /* Auth */,
+				37909EC964871D3C2BD9D080 /* Main */,
+				10B14CD50B507B20235B0020 /* OnCall */,
+				EEB97D1197247F45A6BF59A5 /* Profile */,
+				3F4F6C8C0DA239B2E3B46EA9 /* Push */,
+				94261119D70C59C7E503C39E /* Settings */,
+				1E19CDF6D15151D97952AC40 /* Support */,
+				38321E07E5FF7411DC0DB343 /* Theme */,
+			);
+			path = Piro;
+			sourceTree = "<group>";
+		};
+		C116EAE0CF8AC461C833118B /* Alerts */ = {
+			isa = PBXGroup;
+			children = (
+				92FB1EFA2485E2081354C60C /* AlertCardView.swift */,
+				6CB8AB5C8DB22611C627AF39 /* AlertDetailView.swift */,
+				7D36995A74084B63BBC85976 /* AlertDetailViewModel.swift */,
+				E723062807D400E2D6F41ED9 /* AlertsListView.swift */,
+				F5AF99D6A78AE18F845F5057 /* AlertsViewModel.swift */,
+			);
+			path = Alerts;
+			sourceTree = "<group>";
+		};
+		C3E397762B087AA8627DE779 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0FA56F1D81DBE8F40393DB8B /* Piro.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		EEB97D1197247F45A6BF59A5 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				056B84BBA5C207D5631A18CE /* AvatarView.swift */,
+				D39E92CF79F13E9F677D086D /* InfoRow.swift */,
+				3CE3F434BD2AC1E27E922FED /* NotificationPreferenceRow.swift */,
+				77E13EC31C62547DD9776B6A /* ProfileView.swift */,
+				3FC895C8FF2205C8C52B6E1C /* ProfileViewModel.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AE9E99BD1414C3B4E9B987B4 /* Piro */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8DD1F87BB614988C67608309 /* Build configuration list for PBXNativeTarget "Piro" */;
+			buildPhases = (
+				8C0BD025CD789B07AD47BB19 /* Build Shared KMP framework (Gradle) */,
+				1ED0A598E7CF1486F0727298 /* Sources */,
+				137D0DCBA045AD47285D9886 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Piro;
+			packageProductDependencies = (
+			);
+			productName = Piro;
+			productReference = 0FA56F1D81DBE8F40393DB8B /* Piro.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		07279C4D4230F4EF8635CD26 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					AE9E99BD1414C3B4E9B987B4 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 3C688EB43195562B748FA670 /* Build configuration list for PBXProject "Piro" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 30DD0DFE08366B1D4B26EFAE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C3E397762B087AA8627DE779 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AE9E99BD1414C3B4E9B987B4 /* Piro */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		137D0DCBA045AD47285D9886 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6957083E8CCEF71B01A353E9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		8C0BD025CD789B07AD47BB19 /* Build Shared KMP framework (Gradle) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Shared KMP framework (Gradle)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n# Xcode's build environment has no JAVA_HOME/PATH java; fall back to Android Studio's JBR.\nif [ -z \"$JAVA_HOME\" ] || [ ! -x \"$JAVA_HOME/bin/java\" ]; then\n  if [ -x \"/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\" ]; then\n    export JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\"\n  fi\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1ED0A598E7CF1486F0727298 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2C9C410F80081EFBFADCE1D /* AlertCardView.swift in Sources */,
+				71DBFFBC524BCB03CB1EBCF0 /* AlertDetailView.swift in Sources */,
+				DB953CE8A6B3ACBE901C6032 /* AlertDetailViewModel.swift in Sources */,
+				8BF7C02CFB16A3C251D4E73D /* AlertsListView.swift in Sources */,
+				7024C4CBF699AC1839469F68 /* AlertsViewModel.swift in Sources */,
+				FA6A31ED560C1B87C92BDEFD /* AppConfig.swift in Sources */,
+				C6D90E297A7FBD24ACACD4D3 /* AvatarView.swift in Sources */,
+				D2CE07219C6B92D5CDF5C7CC /* DateFormatting.swift in Sources */,
+				5F88595A22F6441B81F704DA /* DeepLinkRouter.swift in Sources */,
+				ECAE739EDFC61B258C0A13FF /* GlassCard.swift in Sources */,
+				0AE3B816FBB2AA7D15480370 /* InfoRow.swift in Sources */,
+				74B88B7E663754DA66B3633D /* KotlinError.swift in Sources */,
+				55FDBD0DB8DF78CB09A0E0FA /* LoginView.swift in Sources */,
+				6633FA04F70FCD131899038D /* MainTab.swift in Sources */,
+				DBE0A330F49107E1E43E28B0 /* NotificationPreferenceRow.swift in Sources */,
+				427D4D34D05F4D9906441FAC /* OnCallView.swift in Sources */,
+				61921A5CACB0E1D36D62C86C /* PiroApp.swift in Sources */,
+				8274B5B5C8E88E4962FDFC8B /* PiroColors.swift in Sources */,
+				F73642C146DB79A7E7579894 /* PiroFlame.swift in Sources */,
+				96A67786E8814090409FAEFF /* PiroScreen.swift in Sources */,
+				50731D9EED4EE54FDAB74899 /* PlaceholderView.swift in Sources */,
+				3E362161024CADEDDF3E71AA /* ProfileView.swift in Sources */,
+				8A4AE16AF0298BB7695AE315 /* ProfileViewModel.swift in Sources */,
+				BA005EDE62354F9727E36DE2 /* PushManager.swift in Sources */,
+				412326DD143D9404CB96F75C /* RootView.swift in Sources */,
+				658D3AABA133865D1215D9B6 /* SSOAuthenticator.swift in Sources */,
+				0FDD73F4D0747D5AC3D3C264 /* ServerStore.swift in Sources */,
+				B278AEBD05ADED00B553DB6B /* ServiceLocator.swift in Sources */,
+				6F676B86C4B60FEE0A5FC4E0 /* SessionViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5B639983B5B7817BB5611399 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		9CE16DCA7DEA2A56BA6B7796 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		A33E30E670776B17071D6598 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Piro/Piro.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				INFOPLIST_FILE = Piro/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.heva.piro;
+				PRODUCT_NAME = Piro;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DC591190A7A94F714C204137 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Piro/Piro.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				INFOPLIST_FILE = Piro/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.heva.piro;
+				PRODUCT_NAME = Piro;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3C688EB43195562B748FA670 /* Build configuration list for PBXProject "Piro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CE16DCA7DEA2A56BA6B7796 /* Debug */,
+				5B639983B5B7817BB5611399 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8DD1F87BB614988C67608309 /* Build configuration list for PBXNativeTarget "Piro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A33E30E670776B17071D6598 /* Debug */,
+				DC591190A7A94F714C204137 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 07279C4D4230F4EF8635CD26 /* Project object */;
+}

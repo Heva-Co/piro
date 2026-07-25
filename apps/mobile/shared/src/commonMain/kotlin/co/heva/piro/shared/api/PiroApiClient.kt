@@ -12,6 +12,8 @@ import co.heva.piro.shared.model.SignInRequest
 import co.heva.piro.shared.model.SignInResponse
 import co.heva.piro.shared.model.SsoMode
 import co.heva.piro.shared.model.UserProfile
+import co.heva.piro.shared.model.generated.UpdateProfileRequest
+import co.heva.piro.shared.model.generated.UserNotificationPreferenceDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -20,6 +22,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
@@ -52,7 +55,12 @@ class PiroApiClient(
     }
 
     // --- Auth ---
+    //
+    // Every public suspend call is annotated `@Throws(Throwable::class)`: without it, a Kotlin exception
+    // crossing into Swift terminates the process instead of surfacing as a Swift `throws`. The annotation
+    // is metadata-only on Android (no behavior change) and lets the iOS app `try await` these calls.
 
+    @Throws(Throwable::class)
     suspend fun signIn(email: String, password: String): SignInResponse {
         val response = http.post("$baseUrl/api/v1/auth/sign-in") {
             contentType(ContentType.Application.Json)
@@ -65,8 +73,29 @@ class PiroApiClient(
         return result
     }
 
+    @Throws(Throwable::class)
     suspend fun me(): UserProfile = authorizedGet("$baseUrl/api/v1/auth/me")
 
+    /** Updates the signed-in user's display name, avatar color and/or time zone (PUT /api/v1/auth/me). */
+    @Throws(Throwable::class)
+    suspend fun updateProfile(name: String?, color: String?, timeZone: String?): UserProfile {
+        val response = authorized {
+            http.put("$baseUrl/api/v1/auth/me") {
+                bearer(it)
+                contentType(ContentType.Application.Json)
+                setBody(UpdateProfileRequest(name = name, color = color, timeZone = timeZone))
+            }
+        }
+        if (!response.status.isSuccess()) throw response.toException("Could not update profile")
+        return response.body()
+    }
+
+    /** The user's notification-delivery preferences (GET /api/v1/users/{userId}/notification-preferences). */
+    @Throws(Throwable::class)
+    suspend fun getNotificationPreferences(userId: Int): List<UserNotificationPreferenceDto> =
+        authorizedGet("$baseUrl/api/v1/users/$userId/notification-preferences")
+
+    @Throws(Throwable::class)
     suspend fun signOut() {
         runCatching { authorized { http.post("$baseUrl/api/v1/auth/sign-out") { bearer(it) } } }
         tokens.clear()
@@ -74,12 +103,14 @@ class PiroApiClient(
 
     // --- SSO / OIDC ---
 
+    @Throws(Throwable::class)
     suspend fun getSsoMode(): SsoMode {
         val response = http.get("$baseUrl/api/v1/auth/oidc/sso-mode")
         if (!response.status.isSuccess()) throw response.toException("Could not load SSO mode")
         return response.body()
     }
 
+    @Throws(Throwable::class)
     suspend fun getOidcProviders(): List<OidcProvider> {
         val response = http.get("$baseUrl/api/v1/auth/oidc/providers")
         if (!response.status.isSuccess()) throw response.toException("Could not load SSO providers")
@@ -90,6 +121,7 @@ class PiroApiClient(
     fun oidcStartUrl(providerId: String): String = "$baseUrl/api/v1/auth/oidc/start?provider=$providerId"
 
     /** Completes SSO after the browser redirect: exchanges the code+state for the token pair. */
+    @Throws(Throwable::class)
     suspend fun completeOidcCallback(code: String, state: String): SignInResponse {
         val response = http.post("$baseUrl/api/v1/auth/oidc/callback") {
             contentType(ContentType.Application.Json)
@@ -104,6 +136,7 @@ class PiroApiClient(
 
     // --- Devices ---
 
+    @Throws(Throwable::class)
     suspend fun registerDevice(platform: String, token: String, deviceName: String?): DeviceDto =
         authorized {
             http.post("$baseUrl/api/v1/devices") {
@@ -116,11 +149,13 @@ class PiroApiClient(
             response.body()
         }
 
+    @Throws(Throwable::class)
     suspend fun getDevices(): List<DeviceDto> = authorizedGet("$baseUrl/api/v1/devices")
 
     // --- Alerts ---
 
     /** Active + recent alerts (GET /api/v1/alerts). The API returns a paged envelope; we read its items. */
+    @Throws(Throwable::class)
     suspend fun getAlerts(): List<AlertDetail> {
         val response = authorized { http.get("$baseUrl/api/v1/alerts") { bearer(it) } }
         if (!response.status.isSuccess()) throw response.toException("Could not load alerts")
@@ -128,15 +163,18 @@ class PiroApiClient(
         return envelope.items
     }
 
+    @Throws(Throwable::class)
     suspend fun getAlert(id: Int): AlertDetail = authorizedGet("$baseUrl/api/v1/alerts/$id")
 
     /** Acknowledges an alert, pausing its escalation. Returns the updated alert. */
+    @Throws(Throwable::class)
     suspend fun acknowledgeAlert(id: Int): AlertDetail {
         val response = authorized { http.post("$baseUrl/api/v1/alerts/$id/acknowledge") { bearer(it) } }
         if (!response.status.isSuccess()) throw response.toException("Acknowledge failed")
         return response.body()
     }
 
+    @Throws(Throwable::class)
     suspend fun deleteDevice(token: String) {
         val response = authorized {
             http.delete("$baseUrl/api/v1/devices") {

@@ -25,7 +25,8 @@ data class AlertDetail(
     val firedAt: String? = null,
     val resolvedAt: String? = null,
     val occurrenceCount: Int = 0,
-    val acknowledgedAt: String? = null,
+    // Epoch milliseconds (AlertDetailDto.acknowledgedAt is an int64 in the API) — not an ISO string.
+    val acknowledgedAt: Long? = null,
     val acknowledgedBy: String? = null,
     val escalationExhaustedAt: String? = null,
     val sourceUrl: String? = null,
