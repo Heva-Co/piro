@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { alertsApi } from "@/lib/actions/alerts";
-import { checksApi } from "@/lib/actions/checks";
+import { checksApi, checkTypesApi } from "@/lib/actions/checks";
 import type { CreateCheckRequest, UpdateCheckRequest } from "@/lib/actions/checks";
 import { alertConfigsApi } from "@/lib/actions/alert-configs";
 import type { CreateAlertConfigRequest, UpdateAlertConfigRequest } from "@/lib/actions/alert-configs";
@@ -12,6 +12,28 @@ export function useAllChecks() {
     queryFn: () => checksApi.listAll(),
     refetchInterval: 60_000,
   });
+}
+
+// Loads the backend's check-type metadata (RFC 0011 — no hardcoded table).
+// The query is deduped by react-query, so multiple callers share one fetch.
+export function useCheckTypes() {
+  return useQuery({
+    queryKey: QUERY_KEYS.CHECK_TYPES,
+    queryFn: checkTypesApi.list,
+  });
+}
+
+// Resolves a raw check-type discriminator (e.g. "GCP_CloudRunJob") to its human display name.
+export function useCheckTypeLabel() {
+  const { data: checkTypes = [] } = useCheckTypes();
+  return (type: string) => checkTypes.find((t) => t.type === type)?.displayName ?? type;
+}
+
+// Resolves the full metadata (config schema, dimensions, required integration, …) for one
+// check type. Returns undefined until the manifest loads or when `type` is not yet known.
+export function useCheckTypeMeta(type: string | undefined) {
+  const { data: checkTypes = [] } = useCheckTypes();
+  return type ? checkTypes.find((t) => t.type === type) : undefined;
 }
 
 export function useAllAlerts(params?: { page?: number; pageSize?: number; from?: string; to?: string; activeOnly?: boolean }) {

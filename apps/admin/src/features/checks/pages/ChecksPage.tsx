@@ -1,188 +1,64 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, Settings } from "lucide-react";
-import { AutoRefreshButton } from "@/components/AutoRefreshButton";
-import { StatusPill } from "@/components/StatusBadge";
-import { useAllChecks } from "@/hooks/useChecks";
+import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
+import { useAllChecks, useCheckTypeLabel } from "@/hooks/useChecks";
+import type { CheckSummary } from "@/lib/actions/checks";
 import { ROUTES } from "@/constants/routes";
+import ChecksStatsBar from "../components/list/ChecksStatsBar";
+import ChecksStatsBarSkeleton from "../components/list/ChecksStatsBarSkeleton";
+import ChecksSearchBar from "../components/list/ChecksSearchBar";
+import ChecksTable from "../components/list/ChecksTable";
+import ChecksTableSkeleton from "../components/list/ChecksTableSkeleton";
 
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-
-function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
-  return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-2">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className={`text-3xl font-bold ${color ?? ""}`}>{value}</p>
-    </div>
-  );
-}
-
-function StatCardSkeleton() {
-  return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-2">
-      <Skeleton className="h-4 w-16" />
-      <Skeleton className="h-9 w-10 mt-1" />
-    </div>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-export default function ChecksPage() {
+function ChecksPage() {
   const navigate = useNavigate();
   const { data: checks, isLoading, refetch } = useAllChecks();
+  const typeLabel = useCheckTypeLabel();
   const [search, setSearch] = useState("");
 
-  const filtered = (checks ?? []).filter((c) => {
-    const q = search.toLowerCase();
-    return (
-      c.name.toLowerCase().includes(q) ||
-      c.serviceName.toLowerCase().includes(q) ||
-      c.type.toLowerCase().includes(q)
-    );
-  });
+  function handleViewLogs(check: CheckSummary) {
+    navigate(ROUTES.CHECKS.LOGS(check.serviceSlug, check.slug));
+  }
 
-  const total    = checks?.length ?? 0;
-  const upCount  = checks?.filter((c) => c.currentStatus.toLowerCase() === "up").length ?? 0;
-  const degraded = checks?.filter((c) => c.currentStatus.toLowerCase() === "degraded").length ?? 0;
-  const down     = checks?.filter((c) => c.currentStatus.toLowerCase() === "down").length ?? 0;
+  function handleConfigure(check: CheckSummary) {
+    navigate(ROUTES.CHECKS.DETAIL(check.serviceSlug, check.slug));
+  }
+
+  function handleNavigateService(check: CheckSummary) {
+    navigate(ROUTES.SERVICES.DETAIL(check.serviceSlug));
+  }
 
   return (
-    <>
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold">Checks</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">All monitoring checks across every service.</p>
-        </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Checks" }]}
+        subheader="All monitoring checks across every service."
+      />
 
+      <div className="flex flex-col gap-6">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
-          {isLoading ? (
-            <>
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-            </>
-          ) : (
-            <>
-              <StatCard label="Total"    value={total} />
-              <StatCard label="Up"       value={upCount}  color="text-green-600" />
-              <StatCard label="Degraded" value={degraded} color="text-yellow-600" />
-              <StatCard label="Down"     value={down}     color="text-red-600" />
-            </>
-          )}
-        </div>
+        {isLoading ? <ChecksStatsBarSkeleton /> : <ChecksStatsBar checks={checks ?? []} />}
 
         {/* Table card */}
         <div className="rounded-xl border bg-card overflow-hidden">
-          {/* Search + refresh */}
-          <div className="px-4 py-3 border-b flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-2.5 rounded-lg border bg-background px-3 py-2 text-sm">
-              <Search size={14} className="text-muted-foreground shrink-0" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search checks, services, types..."
-                className="flex-1 bg-transparent outline-none text-sm"
-              />
-            </div>
-            <AutoRefreshButton onRefetch={refetch} />
-          </div>
+        <ChecksSearchBar search={search} onSearchChange={setSearch} onRefetch={refetch} />
 
-          {isLoading ? (
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Check</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Service</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Type</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Cron</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Active</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-5 py-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-4 w-36" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-4 w-28" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-4 w-20" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-4 w-8" /></td>
-                    <td className="px-5 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : filtered.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-muted-foreground text-center">
-              {search ? "No checks match your search." : "No checks configured yet."}
-            </div>
-          ) : (
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Check</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Service</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Type</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Cron</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Active</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filtered.map((check) => (
-                  <tr key={`${check.serviceSlug}-${check.slug}`} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-5 py-3">
-                      <StatusPill status={check.currentStatus} />
-                    </td>
-                    <td className="px-5 py-3 font-semibold">{check.name}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{check.serviceName}</td>
-                    <td className="px-5 py-3">
-                      <span className="rounded-full border px-2 py-0.5 text-xs font-medium">
-                        {check.type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{check.cron}</td>
-                    <td className={`px-5 py-3 text-sm font-medium ${check.isActive ? "text-green-600" : "text-muted-foreground"}`}>
-                      {check.isActive ? "Yes" : "No"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => navigate(ROUTES.CHECKS.LOGS(check.serviceSlug, check.slug))}
-                          title="View logs"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <FileText size={16} />
-                        </button>
-                        <button
-                          onClick={() => navigate(ROUTES.CHECKS.DETAIL(check.serviceSlug, check.slug))}
-                          title="Configure"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Settings size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        {isLoading ? (
+          <ChecksTableSkeleton />
+        )  : (
+          <ChecksTable
+            checks={checks}
+            typeLabel={typeLabel}
+            onViewLogs={handleViewLogs}
+            onConfigure={handleConfigure}
+            onNavigateService={handleNavigateService}
+          />
+        )}
         </div>
       </div>
-    </>
+    </PageContainer>
   );
 }
+
+export default ChecksPage;

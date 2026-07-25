@@ -87,3 +87,21 @@ function toDate(date: Date | number | string): Date {
   if (typeof date === "number") return new Date(date);
   return new Date(date);
 }
+
+/**
+ * Formats a Date as the `YYYY-MM-DDTHH:mm` string a native datetime-local input expects,
+ * in the browser's local time (not a display timezone). For seeding form controls, not display.
+ */
+export function toDateTimeLocalValue(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/**
+ * Formats a date explicitly in UTC — for values whose day is UTC-aligned and must render
+ * as that same day regardless of the viewer's timezone (e.g. Gantt range labels). This is a
+ * deliberate exception to the display-timezone rule, only for UTC-anchored data.
+ */
+export function formatUtcDate(date: Date | number | string, options?: Intl.DateTimeFormatOptions): string {
+  return toDate(date).toLocaleDateString(DEFAULT_LOCALE, { ...options, timeZone: "UTC" });
+}

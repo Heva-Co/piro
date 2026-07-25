@@ -1,42 +1,38 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Settings, Wrench, Bell } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useCreateCheck } from "@/hooks/useChecks";
+import { useCreateCheck, useCheckTypes } from "@/hooks/useChecks";
 import { useService } from "@/hooks/useServices";
-import { checkTypesApi } from "@/lib/actions/checks";
 import { integrationsApi } from "@/lib/actions/integrations";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SectionAccordion } from "@/components/ui/section-accordion";
 import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { WarningConfirmDialog } from "@/components/ui/warning-confirm-dialog";
 import FormActions from "@/components/ui/form-actions";
 import { seedDefaults } from "@/components/config-form/seedDefaults";
 import { validateConfig } from "@/components/config-form/validators";
-import SchemaConfigSection from "@/features/checks/components/SchemaConfigSection";
-import { CheckGeneralSettingsFields } from "@/features/checks/components/CheckGeneralSettingsFields";
-import { AlertConfigListEditor, type AlertConfigListEditorHandle } from "@/features/checks/components/AlertConfigListEditor";
-import type { AlertConfigDraft } from "@/features/checks/components/AlertConfigRow";
+import SchemaConfigSection from "@/features/checks/components/form/SchemaConfigSection";
+import { CheckGeneralSettingsFields } from "@/features/checks/components/shared/CheckGeneralSettingsFields";
+import CheckTypeSelect from "@/features/checks/components/form/CheckTypeSelect";
+import { AlertConfigListEditor, type AlertConfigListEditorHandle } from "@/features/checks/components/form/AlertConfigListEditor";
+import type { AlertConfigDraft } from "@/features/checks/components/form/AlertConfigRow";
 import { checkConfigSchema, type CheckConfigFormValues } from "@/features/checks/validations";
 import type { components } from "@/lib/api-types";
 
 type CheckType = components["schemas"]["CheckType"];
 
-export default function CheckFormPage() {
+function CheckFormPage() {
   const { slug: serviceSlug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: service } = useService(serviceSlug!);
   const createCheck = useCreateCheck(serviceSlug!);
 
-  const { data: checkTypes = [] } = useQuery({
-    queryKey: QUERY_KEYS.CHECK_TYPES,
-    queryFn: checkTypesApi.list,
-  });
+  const { data: checkTypes = [] } = useCheckTypes();
 
   // Which integration types are actually connected — a check that requires one it doesn't have is
   // shown but disabled, so the picker is discoverable without offering an unusable choice.
@@ -72,17 +68,20 @@ export default function CheckFormPage() {
     },
   });
 
-  const { watch, setValue, handleSubmit } = methods;
-  const type = watch("type") as CheckType;
+  const { control, setValue, handleSubmit } = methods;
+  const type = useWatch({ control, name: "type" }) as CheckType;
 
   const typeMeta = useMemo(() => checkTypes.find((t) => t.type === type), [checkTypes, type]);
 
-  // Seed the config defaults for the initially-selected type once its manifest arrives.
+  // Seed the config defaults for the initially-selected type once its manifest arrives. A ref guards
+  // against re-seeding (and clobbering edits) on every render for the same type.
   const seededFor = useRef<string | null>(null);
-  if (typeMeta && seededFor.current !== type) {
-    seededFor.current = type;
-    setValue("config", seedDefaults(typeMeta.configSchema));
-  }
+  useEffect(() => {
+    if (typeMeta && seededFor.current !== type) {
+      seededFor.current = type;
+      setValue("config", seedDefaults(typeMeta.configSchema));
+    }
+  }, [typeMeta, type, setValue]);
 
   function handleTypeChange(t: CheckType) {
     setValue("type", t);
@@ -150,44 +149,8 @@ export default function CheckFormPage() {
     setPendingValues(null);
   }
 
-  const typeSelect = (
-    <Select value={type} onValueChange={(v) => v && handleTypeChange(v as CheckType)}>
-      <SelectTrigger className="w-full">
-        <SelectValue>{(v: string) => checkTypes.find((t) => t.type === v)?.displayName ?? v}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {checkTypes.filter((t) => t.hasExecutor).map((t) => {
-          // A check that requires a provider integration is only selectable once one is connected —
-          // otherwise it's shown disabled with a tooltip explaining what to connect first.
-          const missingIntegration =
-            !!t.requiredIntegrationType && !connectedIntegrationTypes.has(t.requiredIntegrationType);
-
-          if (missingIntegration) {
-            return (
-              <Tooltip key={t.type}>
-                <TooltipTrigger
-                  // A disabled SelectItem swallows pointer events, so wrap it in a span the tooltip can hover.
-                  render={
-                    <span className="block">
-                      <SelectItem value={t.type} disabled>{t.displayName}</SelectItem>
-                    </span>
-                  }
-                />
-                <TooltipContent side="right">
-                  Requires a {t.requiredIntegrationType} integration. Connect one first.
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
-
-          return <SelectItem key={t.type} value={t.type}>{t.displayName}</SelectItem>;
-        })}
-      </SelectContent>
-    </Select>
-  );
-
   return (
-    <>
+    <PageContainer>
       <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <PageHeader
@@ -210,7 +173,17 @@ export default function CheckFormPage() {
             icon={<Settings size={16} className="text-muted-foreground" />}
             defaultOpen
           >
-            <CheckGeneralSettingsFields typeNode={typeSelect} slugEditable />
+            <CheckGeneralSettingsFields
+              typeNode={
+                <CheckTypeSelect
+                  value={type}
+                  checkTypes={checkTypes}
+                  connectedIntegrationTypes={connectedIntegrationTypes}
+                  onChange={handleTypeChange}
+                />
+              }
+              slugEditable
+            />
           </SectionAccordion>
 
           <SectionAccordion
@@ -256,6 +229,8 @@ export default function CheckFormPage() {
         onConfirm={handleConfirmCreateWithoutAlerts}
         isPending={createCheck.isPending}
       />
-    </>
+    </PageContainer>
   );
 }
+
+export default CheckFormPage;

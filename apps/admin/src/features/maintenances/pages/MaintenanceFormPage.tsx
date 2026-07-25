@@ -1,29 +1,32 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Calendar, RefreshCw, ChevronRight } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw } from "lucide-react";
 import { DateTimePicker } from "@/components/DateTimePicker";
+import { PageHeader } from "@/components/PageHeader";
+import PageContainer from "@/components/PageContainer";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import FormActions from "@/components/ui/form-actions";
 import { RRuleEditor, ONE_TIME_RRULE } from "@/components/RRuleEditor";
 import { maintenancesApi } from "@/lib/api";
 import { useAllServices } from "@/hooks/useServices";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
+import { toDateTimeLocalValue } from "@/utils/date";
+import MaintenanceField from "../components/MaintenanceField";
 
-function pad(n: number) { return String(n).padStart(2, "0"); }
-function toLocalDT(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-export default function MaintenanceFormPage() {
+function MaintenanceFormPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduleType, setScheduleType] = useState<"one-time" | "recurring">("one-time");
-  const [startDateTime, setStartDateTime] = useState(toLocalDT(new Date()));
+  const [startDateTime, setStartDateTime] = useState(toDateTimeLocalValue(new Date()));
   const [durationSeconds, setDurationSeconds] = useState(3600);
   const [recurringRule, setRecurringRule] = useState("FREQ=WEEKLY;BYDAY=MO");
   const [isGlobal, setIsGlobal] = useState(false);
@@ -54,7 +57,7 @@ export default function MaintenanceFormPage() {
   });
 
   function toggleService(slug: string) {
-    setSelectedServices(prev => {
+    setSelectedServices((prev) => {
       const next = new Set(prev);
       if (next.has(slug)) next.delete(slug); else next.add(slug);
       return next;
@@ -63,18 +66,18 @@ export default function MaintenanceFormPage() {
 
   function handleAllToggle(checked: boolean) {
     setAllServices(checked);
-    if (checked) setSelectedServices(new Set(services.map(s => s.slug)));
+    if (checked) setSelectedServices(new Set(services.map((s) => s.slug)));
     else setSelectedServices(new Set());
   }
 
   return (
-    <>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
-        <button onClick={() => navigate(ROUTES.MAINTENANCES.LIST)} className="hover:text-gray-700">Maintenances</button>
-        <ChevronRight size={14} />
-        <span className="text-gray-900 font-medium">New Maintenance</span>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Maintenances", onClick: () => navigate(ROUTES.MAINTENANCES.LIST) },
+          { label: "New Maintenance" },
+        ]}
+      />
 
       <div className="max-w-2xl">
         <div className="rounded-2xl border border-border bg-card p-6 mb-4">
@@ -88,38 +91,34 @@ export default function MaintenanceFormPage() {
               </div>
             )}
 
-            {/* Schedule Type */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold">Schedule Type *</label>
-              <div className="flex gap-5">
+            <MaintenanceField label="Schedule Type *">
+              <RadioGroup
+                value={scheduleType}
+                onValueChange={(v) => v && setScheduleType(v as "one-time" | "recurring")}
+                className="flex-row gap-5"
+              >
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" value="one-time" checked={scheduleType === "one-time"}
-                    onChange={() => setScheduleType("one-time")} className="accent-foreground" />
+                  <RadioGroupItem value="one-time" />
                   <Calendar size={15} className="text-muted-foreground" />
                   <span className="text-sm">One-Time</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" value="recurring" checked={scheduleType === "recurring"}
-                    onChange={() => setScheduleType("recurring")} className="accent-foreground" />
+                  <RadioGroupItem value="recurring" />
                   <RefreshCw size={15} className="text-muted-foreground" />
                   <span className="text-sm">Recurring</span>
                 </label>
-              </div>
-            </div>
+              </RadioGroup>
+            </MaintenanceField>
 
-            {/* Title */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold">Title *</label>
-              <Input type="text" value={title} onChange={e => setTitle(e.target.value)} required
+            <MaintenanceField label="Title *">
+              <Input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
                 placeholder="Scheduled maintenance window" />
-            </div>
+            </MaintenanceField>
 
-            {/* Description */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold">Description</label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+            <MaintenanceField label="Description">
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
                 placeholder="Details about the maintenance…" />
-            </div>
+            </MaintenanceField>
 
             {/* Global maintenance toggle */}
             <div className="rounded-xl border p-4 flex items-center justify-between">
@@ -127,17 +126,12 @@ export default function MaintenanceFormPage() {
                 <p className="text-sm font-semibold">Global Maintenance</p>
                 <p className="text-xs text-muted-foreground mt-0.5">When enabled, this maintenance will be visible on all status pages</p>
               </div>
-              <button type="button" onClick={() => setIsGlobal(v => !v)}
-                className={`relative w-10 h-6 rounded-full transition-colors ${isGlobal ? "bg-foreground" : "bg-muted"}`}>
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-background shadow transition-transform ${isGlobal ? "translate-x-5" : "translate-x-1"}`} />
-              </button>
+              <Switch checked={isGlobal} onCheckedChange={setIsGlobal} />
             </div>
 
-            {/* Start Date/Time */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold">Start Date/Time *</label>
+            <MaintenanceField label="Start Date/Time *">
               <DateTimePicker value={startDateTime} onChange={setStartDateTime} />
-            </div>
+            </MaintenanceField>
 
             {/* Schedule Pattern (recurrence + duration) */}
             <div className="rounded-xl border p-4 flex flex-col gap-3">
@@ -156,8 +150,7 @@ export default function MaintenanceFormPage() {
                   onDurationChange={setDurationSeconds}
                 />
               ) : (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold">Duration</label>
+                <MaintenanceField label="Duration" hint="Runs once, at the start date/time above.">
                   <div className="flex items-center gap-2">
                     <Input type="number" min={0} value={Math.floor(durationSeconds / 3600)}
                       onChange={(e) => setDurationSeconds(Number(e.target.value) * 3600 + (durationSeconds % 3600))}
@@ -168,15 +161,13 @@ export default function MaintenanceFormPage() {
                       className="w-16" />
                     <span className="text-sm text-muted-foreground">m</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Runs once, at the start date/time above.</p>
-                </div>
+                </MaintenanceField>
               )}
             </div>
 
             {/* Affected Services */}
             {!isGlobal && (
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold">Affected Services</label>
+              <MaintenanceField label="Affected Services">
                 <div className="rounded-xl border p-4">
                   <p className="text-xs text-muted-foreground mb-3">Select services to add:</p>
                   {services.length === 0 ? (
@@ -184,43 +175,39 @@ export default function MaintenanceFormPage() {
                   ) : (
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4">
                       <label className="flex items-center gap-2 cursor-pointer col-span-2 pb-2 border-b mb-1">
-                        <input type="checkbox" checked={allServices}
-                          onChange={e => handleAllToggle(e.target.checked)}
-                          className="rounded accent-foreground" />
+                        <Checkbox checked={allServices} onCheckedChange={(c) => handleAllToggle(c === true)} />
                         <span className="text-sm font-semibold">All</span>
                       </label>
-                      {services.map(svc => (
+                      {services.map((svc) => (
                         <label key={svc.slug} className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={selectedServices.has(svc.slug)}
-                            onChange={() => {
+                          <Checkbox
+                            checked={selectedServices.has(svc.slug)}
+                            onCheckedChange={() => {
                               toggleService(svc.slug);
                               if (allServices) setAllServices(false);
                             }}
-                            className="rounded accent-foreground" />
+                          />
                           <span className="text-sm">{svc.name}</span>
                         </label>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
+              </MaintenanceField>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2">
-              <button type="button" onClick={() => navigate(ROUTES.MAINTENANCES.LIST)}
-                className="rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-muted">
-                Cancel
-              </button>
-              <button type="submit" disabled={createMutation.isPending || !title.trim()}
-                className="flex items-center gap-2 rounded-lg bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                <Calendar size={15} />
-                {createMutation.isPending ? "Creating…" : "Create Maintenance"}
-              </button>
-            </div>
+            <FormActions
+              onCancel={() => navigate(ROUTES.MAINTENANCES.LIST)}
+              submitLabel="Create Maintenance"
+              submitPendingLabel="Creating…"
+              submitIcon={<Calendar size={15} />}
+              isPending={createMutation.isPending || !title.trim()}
+            />
           </form>
         </div>
       </div>
-    </>
+    </PageContainer>
   );
 }
+
+export default MaintenanceFormPage;
