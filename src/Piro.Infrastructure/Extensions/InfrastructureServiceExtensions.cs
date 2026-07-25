@@ -70,6 +70,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ResendEmailService>();
         services.AddScoped<IEmailService, EmailServiceFactory>();
         services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<IDeviceRegistrationService, DeviceRegistrationService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
@@ -219,9 +220,14 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IEscalationPolicyRepository, EscalationPolicyRepository>();
         services.AddScoped<EscalationCheckerService>();
         services.AddScoped<EscalationPolicyAppService>();
+        // Opens its own scope per trigger, so it's safe as a singleton.
+        services.AddSingleton<IImmediateEscalationTrigger, ImmediateEscalationTrigger>();
 
         // User notification preferences
         services.AddScoped<IUserNotificationPreferenceRepository, UserNotificationPreferenceRepository>();
+
+        // Mobile device push tokens
+        services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();

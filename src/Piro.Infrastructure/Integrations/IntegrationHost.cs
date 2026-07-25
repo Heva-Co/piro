@@ -37,6 +37,9 @@ internal sealed class IntegrationHost(
         // (RegisterWebhook throws at startup unless the integration declares CreatesAlerts), since the
         // shared host has no notion of "which integration is calling" at resolution time.
         typeof(IAlertService),
+        // Lets the MobilePush integration read a user's registered device tokens so one personal
+        // notification fans out to every device — a narrow reader, never a repository (RFC 0016 §4.2b).
+        typeof(IDeviceTokenReader),
     ];
 
     public T GetRequiredService<T>() where T : notnull

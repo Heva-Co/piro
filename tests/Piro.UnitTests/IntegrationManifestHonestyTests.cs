@@ -32,6 +32,7 @@ public class IntegrationManifestHonestyTests
         "Piro.Integrations.Webhook",
         "Piro.Integrations.Gcp",
         "Piro.Integrations.GoogleCloud",
+        "Piro.Integrations.MobilePush",
         "Piro.Infrastructure", // Email integration lives here
     ];
 

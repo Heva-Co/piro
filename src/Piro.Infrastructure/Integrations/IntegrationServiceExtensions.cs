@@ -90,6 +90,9 @@ public static class IntegrationServiceExtensions
         services.AddSingleton<WebhookRegistry>();
         services.AddSingleton<IWebhookHost>(sp => sp.GetRequiredService<WebhookRegistry>());
         services.AddSingleton<IInboundWebhookRegistry>(sp => sp.GetRequiredService<WebhookRegistry>());
+
+        // Mobile push: lets the MobilePush integration read a user's device tokens through the host.
+        services.AddScoped<IDeviceTokenReader, DeviceTokenReader>();
     }
 
     /// <summary>
@@ -117,6 +120,7 @@ public static class IntegrationServiceExtensions
             new Piro.Integrations.Jira.JiraIntegration(),
             new Piro.Integrations.Gcp.GcpCloudMonitoringWebhookIntegration(),
             new Piro.Integrations.GoogleCloud.GoogleCloudIntegration(),
+            new Piro.Integrations.MobilePush.MobilePushIntegration(),
             new EmailIntegration(),
         ];
 
@@ -146,6 +150,16 @@ public static class IntegrationServiceExtensions
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Ntfy.NtfyNotificationDispatcher>();
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.GoogleChat.GoogleChatNotificationDispatcher>();
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
+        services.AddScoped<IIntegrationEventHandler, Piro.Integrations.MobilePush.MobilePushNotificationDispatcher>();
+
+        // MobilePush transports: one per platform, resolved as IEnumerable<IPushTransport> by the
+        // dispatcher. FCM (Android) via the Firebase Admin SDK; APNs (iOS) over an HTTP/2 client.
+        services.AddSingleton<Piro.Integrations.MobilePush.Transport.IPushTransport,
+            Piro.Integrations.MobilePush.Transport.FcmPushTransport>();
+        services.AddHttpClient<Piro.Integrations.MobilePush.Transport.ApnsPushTransport>()
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler());
+        services.AddSingleton<Piro.Integrations.MobilePush.Transport.IPushTransport>(sp =>
+            sp.GetRequiredService<Piro.Integrations.MobilePush.Transport.ApnsPushTransport>());
     }
 
     /// <summary>
