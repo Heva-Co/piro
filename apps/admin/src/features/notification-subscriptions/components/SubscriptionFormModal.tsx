@@ -48,6 +48,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+// Mirrors IntegrationManifest.HandlesEvent on the backend (issue #212): "*" matches everything,
+// "alert:*" matches any "alert:…" wire name, and an exact pattern matches itself.
+function handlesEvent(patterns: string[], wireName: string): boolean {
+  return patterns.some(
+    (p) => p === "*" || p === wireName || (p.endsWith(":*") && wireName.startsWith(p.slice(0, -1))),
+  );
+}
+
 interface Props {
   existing: NotificationSubscription | null;
   saving: boolean;
@@ -65,6 +73,8 @@ function SubscriptionFormModal(props: Props) {
     control,
     watch,
     reset,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -111,13 +121,36 @@ function SubscriptionFormModal(props: Props) {
     });
   }, [existing, reset]);
 
-  const eventOptions = useMemo(
-    () => (catalogQuery.data ?? []).map((e) => ({ value: e.name, label: e.name })),
-    [catalogQuery.data],
-  );
-
   const destination = watch("destination");
-  const [destKind] = destination ? destination.split(":") : [""];
+  const [destKind, destId] = destination ? destination.split(":") : ["", ""];
+
+  // The event wire-name patterns the selected destination handles, mirroring the backend guard
+  // (IntegrationManifest.HandlesEvent, issue #212). Only integration (Channel) destinations are
+  // scoped — a Personal destination has no per-integration event set, so it sees the full catalog.
+  const supportedPatterns = useMemo<string[] | null>(() => {
+    if (destKind !== "integration") return null;
+    const integration = (integrationsQuery.data ?? []).find((i) => i.id === destId);
+    if (!integration) return null;
+    const type = (typesQuery.data ?? []).find((t) => t.type === String(integration.type));
+    return type?.supportedEvents ?? [];
+  }, [destKind, destId, integrationsQuery.data, typesQuery.data]);
+
+  // The scoped event menu: the full catalog, filtered to what the destination supports when it is an
+  // integration. Same wildcard semantics as the backend ("*", "alert:*", exact match).
+  const eventOptions = useMemo(() => {
+    const all = (catalogQuery.data ?? []).map((e) => ({ value: e.name, label: e.name }));
+    if (supportedPatterns === null) return all;
+    return all.filter((o) => handlesEvent(supportedPatterns, o.value));
+  }, [catalogQuery.data, supportedPatterns]);
+
+  // When the destination changes to an integration that doesn't support some already-picked events,
+  // drop them so the form can't submit a selection the backend guard would reject (issue #212).
+  useEffect(() => {
+    if (supportedPatterns === null) return;
+    const current = getValues("events");
+    const kept = current.filter((e) => handlesEvent(supportedPatterns, e));
+    if (kept.length !== current.length) setValue("events", kept, { shouldValidate: true });
+  }, [supportedPatterns, getValues, setValue]);
 
   // Human label for the currently selected destination — SelectValue would otherwise show the raw
   // encoded value ("person:3").

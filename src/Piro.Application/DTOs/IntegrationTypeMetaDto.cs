@@ -6,6 +6,12 @@ namespace Piro.Application.DTOs;
 /// <summary>
 /// Wire representation of an integration type's manifest, projected from the integration's own
 /// <see cref="Piro.Integrations.Abstractions.IIntegration"/> class (RFC 0016).
+/// <para>
+/// <see cref="SupportedEvents"/> carries the catalog event wire names this type handles (possibly with
+/// wildcards like "alert:*"), so the subscription create form can scope its event menu to the selected
+/// destination — the same set the create-time guard enforces (issue #212). Empty for types that do not
+/// participate in event-subscriptions.
+/// </para>
 /// </summary>
 public record IntegrationTypeMetaDto(
     string Type,
@@ -16,5 +22,6 @@ public record IntegrationTypeMetaDto(
     bool Creatable,
     IntegrationDirection Direction,
     IReadOnlyList<string> Capabilities,
-    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema
+    IReadOnlyList<ConfigFieldSchemaDto> ConfigSchema,
+    IReadOnlyList<string> SupportedEvents
 );
