@@ -132,8 +132,23 @@ public class TagAppService(ITagRepository tags, IEnumerable<IComputedSystemTagBa
         return await GetRequiredWorkerTagsAsync(checkId, ct);
     }
 
-    public Task<IReadOnlyList<string>> GetKeysAsync(string? prefix, CancellationToken ct = default) =>
-        tags.GetUserKeysAsync(prefix, ct);
+    /// <summary>
+    /// Autocomplete keys. User keys always come from the DB. When <paramref name="includeSystem"/> is set,
+    /// the curated <c>piro:*</c> system keys (<see cref="SystemTags.All"/>) are unioned in — these are a
+    /// fixed vocabulary, not DB rows, so they're always offered even before any entity carries them. Used
+    /// by the notification tag-selector, where filtering on e.g. <c>piro:3rd-party</c> is meaningful.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetKeysAsync(string? prefix, bool includeSystem = false, CancellationToken ct = default)
+    {
+        var userKeys = await tags.GetUserKeysAsync(prefix, ct);
+        if (!includeSystem) return userKeys;
+
+        var systemKeys = SystemTags.All
+            .Select(d => d.Key)
+            .Where(k => string.IsNullOrWhiteSpace(prefix) || k.StartsWith(prefix!, StringComparison.OrdinalIgnoreCase));
+
+        return userKeys.Concat(systemKeys).Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal).ToList();
+    }
 
     public Task<IReadOnlyList<string>> GetValuesAsync(string key, CancellationToken ct = default) =>
         tags.GetValuesForKeyAsync(key, ct);

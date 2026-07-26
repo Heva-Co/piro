@@ -14,6 +14,8 @@ internal class NotificationSubscriptionConfiguration : IEntityTypeConfiguration<
         builder.Property(s => s.Name).HasMaxLength(200).IsRequired();
         builder.Property(s => s.EventsJson).IsRequired();
         builder.Property(s => s.MinSeverity).HasConversion<string>().HasMaxLength(16);
+        // Serialized TagSelector JSON; nullable and unbounded (a selector is small but has no fixed cap).
+        builder.Property(s => s.FilterJson);
         builder.Property(s => s.TargetKind).HasConversion<string>().HasMaxLength(16);
         builder.Property(s => s.Target).HasMaxLength(256);
 
