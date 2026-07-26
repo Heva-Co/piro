@@ -13,11 +13,13 @@ interface Props {
   field: ConfigFieldSchema;
   value: unknown;
   onChange: (value: unknown) => void;
+  /** Per-item validation errors for list fields, keyed by item index. */
+  itemErrors?: Record<number, string>;
 }
 
 /** Dispatches a config field's schema to the right input control by its ConfigFieldType (RFC 0011). */
 function FieldControl(props: Props) {
-  const { field, value, onChange } = props;
+  const { field, value, onChange, itemErrors } = props;
 
   switch (field.type) {
     case "Enum":
@@ -89,7 +91,7 @@ function FieldControl(props: Props) {
       );
 
     case "StringList":
-      return <StringListControl value={value} onChange={onChange} placeholder={field.placeholder ?? undefined} />;
+      return <StringListControl value={value} onChange={onChange} placeholder={field.placeholder ?? undefined} itemErrors={itemErrors} />;
 
     case "KeyValue":
       return <KeyValueControl value={value} onChange={onChange} />;

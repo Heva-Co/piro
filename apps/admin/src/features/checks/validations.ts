@@ -10,22 +10,62 @@ export function isValidStatusCodesInput(value: string): boolean {
   return patterns.length > 0 && patterns.every(isValidStatusCodePattern);
 }
 
-export function isValidIpOrHostname(value: string): boolean {
-  if (!value.trim()) return false;
-  const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(value);
-  if (ipv4) return value.split(".").every((o) => Number(o) <= 255);
-  if (value.includes(":")) return /^[0-9a-fA-F:]+$/.test(value) && value.split(":").length >= 2;
-  return /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^[a-zA-Z0-9-]{1,63}$/.test(value.replace(/\.$/, ""));
+/** A dotted-quad IPv4 whose every octet is 0-255 with no ambiguous leading zeros. */
+export function isValidIpv4(value: string): boolean {
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(value)) return false;
+  // String(Number(o)) === o rejects leading zeros ("01" → "1" ≠ "01") and keeps the 0-255 bound.
+  return value.split(".").every((o) => Number(o) <= 255 && String(Number(o)) === o);
 }
 
-const HOSTNAME_RE = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^[a-zA-Z0-9-]{1,63}$/;
+/**
+ * Structural IPv6 check: 8 hextet groups, or fewer with exactly one `::` compression. Not an
+ * exhaustive RFC 4291 parser (embedded-IPv4 forms like ::ffff:1.2.3.4 are not accepted), but it
+ * rejects garbage like `gggg`, `12345::`, `1::2::3` — enough for a client-side name-server mirror.
+ */
+export function isValidIpv6(value: string): boolean {
+  if (!value.includes(":")) return false;
+  const doubleColon = value.split("::").length - 1;
+  if (doubleColon > 1) return false; // at most one `::`
+  const hextet = "[0-9a-fA-F]{1,4}";
+  if (doubleColon === 1) {
+    // Compressed form: each side is a (possibly empty) colon-separated list of hextets.
+    return new RegExp(`^(${hextet}(:${hextet})*)?::(${hextet}(:${hextet})*)?$`).test(value);
+  }
+  return new RegExp(`^(${hextet}:){7}${hextet}$`).test(value);
+}
+
+// A single hostname label (RFC 952 / RFC 1123): 1-63 chars of letters/digits/hyphen, and it may not
+// start or end with a hyphen. RFC 1123 allows a leading digit.
+const LABEL_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)$/;
+
+/**
+ * A valid hostname per RFC 1123/1035: total length ≤ 253, each dot-separated label passes LABEL_RE,
+ * and a multi-label name's TLD is alphabetic (≥2). A single label (e.g. "localhost") is allowed. A
+ * trailing dot (fully-qualified form) is tolerated.
+ */
+export function isValidHostname(value: string): boolean {
+  const host = value.replace(/\.$/, "");
+  if (host.length === 0 || host.length > 253) return false;
+  const labels = host.split(".");
+  if (!labels.every((l) => LABEL_RE.test(l))) return false;
+  // Multi-label: the TLD must be alphabetic (rejects e.g. "foo.123"); single-label is fine as-is.
+  if (labels.length > 1 && !/^[a-zA-Z]{2,}$/.test(labels[labels.length - 1])) return false;
+  return true;
+}
+
+export function isValidIpOrHostname(value: string): boolean {
+  if (!value.trim()) return false;
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(value)) return isValidIpv4(value);
+  if (value.includes(":")) return isValidIpv6(value);
+  return isValidHostname(value);
+}
 
 export function isValidDnsExpectedValue(value: string, recordType: string): boolean {
   if (!value.trim()) return true;
-  if (recordType === "A") return /^(\d{1,3}\.){3}\d{1,3}$/.test(value) && value.split(".").every((o) => Number(o) <= 255);
-  if (recordType === "AAAA") return /^[0-9a-fA-F:]+$/.test(value) && value.includes(":");
+  if (recordType === "A") return isValidIpv4(value);
+  if (recordType === "AAAA") return isValidIpv6(value);
   // CNAME/NS/PTR are name-valued; the trailing dot is optional. TXT (and anything else) is free text.
-  if (recordType === "CNAME" || recordType === "NS" || recordType === "PTR") return HOSTNAME_RE.test(value.replace(/\.$/, ""));
+  if (recordType === "CNAME" || recordType === "NS" || recordType === "PTR") return isValidHostname(value);
   return true;
 }
 

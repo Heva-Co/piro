@@ -1,12 +1,14 @@
 import { Label } from "@/components/ui/label";
 import type { ConfigFieldSchema } from "@/lib/actions/checks";
+import type { FieldError } from "./validators";
 import FieldControl from "./FieldControl";
 import DynamicOptionsSelect, { type DynamicOptionsResolver } from "./DynamicOptionsSelect";
 
 interface Props {
   field: ConfigFieldSchema;
   value: unknown;
-  error?: string;
+  /** A single message (scalar field) or a per-item index→message map (list field). */
+  error?: FieldError;
   onChange: (value: unknown) => void;
   /** Resolver for `[DynamicOptions]` fields (RFC 0012), if the host supports them. */
   optionsResolver?: DynamicOptionsResolver;
@@ -25,6 +27,11 @@ function DynamicConfigField(props: Props) {
 
   const useDynamicOptions = Boolean(field.optionsSource) && Boolean(optionsResolver);
 
+  // A string error belongs at the field footer; a per-item map is handed to the list control so it can
+  // flag the offending entry inline.
+  const fieldMessage = typeof error === "string" ? error : undefined;
+  const itemErrors = error && typeof error !== "string" ? error : undefined;
+
   return (
     <div className="flex flex-col gap-1.5">
       {field.type !== "Boolean" && (
@@ -42,11 +49,11 @@ function DynamicConfigField(props: Props) {
           dependsOnValue={dependsOnValue}
         />
       ) : (
-        <FieldControl field={field} value={value} onChange={onChange} />
+        <FieldControl field={field} value={value} onChange={onChange} itemErrors={itemErrors} />
       )}
 
-      {!error && field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {!fieldMessage && field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+      {fieldMessage && <p className="text-xs text-destructive">{fieldMessage}</p>}
     </div>
   );
 }
