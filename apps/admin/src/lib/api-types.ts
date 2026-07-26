@@ -6828,6 +6828,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/saml/config/parse-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses an uploaded IdP metadata XML document into the entity ID, SSO URL, and signing certificate. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "text/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "application/*+json": components["schemas"]["ParseSaml2MetadataRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2MetadataResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/saml/providers": {
         parameters: {
             query?: never;
@@ -10206,6 +10257,9 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        ParseSaml2MetadataRequest: {
+            metadataXml: string;
+        };
         PostmortemDto: {
             /** Format: int32 */
             id: number;
@@ -10403,6 +10457,11 @@ export interface components {
         RotationsPreviewDto: {
             slots: components["schemas"]["OnCallSlotDto"][];
             gaps: components["schemas"]["CoverageGapDto"][];
+        };
+        Saml2MetadataResult: {
+            idpEntityId: string;
+            idpSsoUrl: string;
+            idpSigningCertificate: string;
         };
         Saml2ProviderConfigDto: {
             id: string;
