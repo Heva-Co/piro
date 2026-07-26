@@ -102,6 +102,7 @@ public class OnCallScheduleAppService(
             RecurrenceRule = request.RecurrenceRule,
             FirstOccurrenceStartsAt = request.FirstOccurrenceStartsAt,
             FirstOccurrenceEndsAt = request.FirstOccurrenceEndsAt,
+            IsAllDay = request.IsAllDay,
             Users = request.UserIds.Select((uid, idx) => new OnCallLayerUser
             {
                 UserId = uid,
@@ -126,6 +127,7 @@ public class OnCallScheduleAppService(
         layer.RecurrenceRule = request.RecurrenceRule;
         layer.FirstOccurrenceStartsAt = request.FirstOccurrenceStartsAt;
         layer.FirstOccurrenceEndsAt = request.FirstOccurrenceEndsAt;
+        layer.IsAllDay = request.IsAllDay;
         layer.Users = request.UserIds.Select((uid, idx) => new OnCallLayerUser
         {
             LayerId = layerId,
@@ -202,6 +204,7 @@ public class OnCallScheduleAppService(
                     RecurrenceRule = upd.RecurrenceRule,
                     FirstOccurrenceStartsAt = upd.FirstOccurrenceStartsAt,
                     FirstOccurrenceEndsAt = upd.FirstOccurrenceEndsAt,
+                    IsAllDay = upd.IsAllDay,
                     Users = await ResolveLayerUsersAsync(upd.UserIds, ct),
                 });
             }
@@ -223,6 +226,7 @@ public class OnCallScheduleAppService(
                 RecurrenceRule = req.RecurrenceRule,
                 FirstOccurrenceStartsAt = req.FirstOccurrenceStartsAt,
                 FirstOccurrenceEndsAt = req.FirstOccurrenceEndsAt,
+                IsAllDay = req.IsAllDay,
                 Users = await ResolveLayerUsersAsync(req.UserIds, ct),
             });
         }
@@ -354,6 +358,7 @@ public class OnCallScheduleAppService(
                 layer.RecurrenceRule = req.RecurrenceRule;
                 layer.FirstOccurrenceStartsAt = req.FirstOccurrenceStartsAt;
                 layer.FirstOccurrenceEndsAt = req.FirstOccurrenceEndsAt;
+                layer.IsAllDay = req.IsAllDay;
                 layer.Users = req.UserIds.Select((uid, idx) => new OnCallLayerUser
                 {
                     LayerId = req.LayerId,
@@ -374,6 +379,7 @@ public class OnCallScheduleAppService(
                     RecurrenceRule = req.RecurrenceRule,
                     FirstOccurrenceStartsAt = req.FirstOccurrenceStartsAt,
                     FirstOccurrenceEndsAt = req.FirstOccurrenceEndsAt,
+                    IsAllDay = req.IsAllDay,
                     Users = req.UserIds.Select((uid, idx) => new OnCallLayerUser
                     {
                         UserId = uid,

@@ -6,6 +6,7 @@ using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Exceptions;
 using Piro.Domain.Extensions;
+using Piro.Domain.Tags;
 using Piro.Integrations.Abstractions;
 
 namespace Piro.Application.Services;
@@ -60,6 +61,7 @@ public class NotificationSubscriptionAppService(
             IntegrationId = request.IntegrationId,
             Target = request.Target,
             Enabled = request.Enabled,
+            FilterJson = SerializeFilter(request.Filter),
         };
 
         var created = await repo.CreateAsync(sub, ct);
@@ -83,6 +85,7 @@ public class NotificationSubscriptionAppService(
             IntegrationId = request.IntegrationId,
             Target = request.Target,
             Enabled = request.Enabled,
+            FilterJson = SerializeFilter(request.Filter),
         };
 
         var updated = await repo.UpdateAsync(sub, ct);
@@ -96,6 +99,10 @@ public class NotificationSubscriptionAppService(
         await repo.DeleteAsync(sub, ct);
     }
 
+    /// <summary>Serializes a tag filter for storage. Null (no filter) is stored as null, not "{}".</summary>
+    private static string? SerializeFilter(TagSelector? filter) =>
+        filter is null ? null : JsonSerializer.Serialize(filter);
+
     private async Task ValidateAsync(UpsertNotificationSubscriptionRequest request, CancellationToken ct)
     {
         // Every event must be a known catalog wire name.
@@ -104,6 +111,10 @@ public class NotificationSubscriptionAppService(
             if (NotificationEventTypeExtensions.FromWireName(wireName) is null)
                 throw new DomainValidationException($"Unknown notification event \"{wireName}\".");
         }
+
+        // A supplied tag filter must be a well-formed selector (RFC 0008 §4.2).
+        if (request.Filter is { } filter && TagSelectorValidation.Validate(filter) is { } reason)
+            throw new DomainValidationException(reason);
 
         // Destination must be complete and coherent with the declared kind.
         switch (request.TargetKind)

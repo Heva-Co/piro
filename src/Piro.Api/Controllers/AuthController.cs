@@ -27,13 +27,17 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
     }
 
     /// <summary>Invalidates the current refresh token.</summary>
+    /// <summary>
+    /// Signs out. Send the caller's own refresh token in the body to revoke just this device's session
+    /// (other devices stay signed in); send no body to sign out everywhere (RFC 0018).
+    /// </summary>
     [HttpPost("sign-out")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> SignOut(CancellationToken ct)
+    public async Task<IActionResult> SignOut([FromBody] RefreshRequest? request, CancellationToken ct)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        await authService.SignOutAsync(userId, ct);
+        await authService.SignOutAsync(userId, request?.RefreshToken, ct);
         return NoContent();
     }
 

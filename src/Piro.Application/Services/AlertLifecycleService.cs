@@ -12,7 +12,10 @@ namespace Piro.Application.Services;
 /// This is the single point that would need to change if deduplication is later refined
 /// (e.g. fuzzy similarity instead of exact match).
 /// </summary>
-public class AlertLifecycleService(IAlertRepository alertRepository, IAlertNotificationPublisher alertPublisher)
+public class AlertLifecycleService(
+    IAlertRepository alertRepository,
+    IAlertNotificationPublisher alertPublisher,
+    IImmediateEscalationTrigger escalationTrigger)
 {
     /// <summary>
     /// Records a failing occurrence for the given AlertConfig. Creates a new Alert if none is active,
@@ -75,6 +78,8 @@ public class AlertLifecycleService(IAlertRepository alertRepository, IAlertNotif
         saved.Service ??= service;
         saved.Check ??= check;
         await alertPublisher.PublishAsync(saved, NotificationEventType.AlertCreated, ct);
+        // Start escalating right away instead of waiting for the next minute-tick of the job.
+        if (saved.EscalationPolicyId is not null) escalationTrigger.Trigger(saved.Id);
         return saved;
     }
 
@@ -140,6 +145,8 @@ public class AlertLifecycleService(IAlertRepository alertRepository, IAlertNotif
         saved.Service ??= service;
         saved.Check ??= check;
         await alertPublisher.PublishAsync(saved, NotificationEventType.AlertCreated, ct);
+        // Start escalating right away instead of waiting for the next minute-tick of the job.
+        if (saved.EscalationPolicyId is not null) escalationTrigger.Trigger(saved.Id);
         return saved;
     }
 

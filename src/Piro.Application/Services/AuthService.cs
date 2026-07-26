@@ -25,24 +25,28 @@ public class AuthService(
         return await BuildResponseAsync(user);
     }
 
-    public async Task SignOutAsync(int userId, CancellationToken ct = default)
+    /// <summary>
+    /// Signs out. With a <paramref name="refreshToken"/> (the caller's own), only that device's session
+    /// is revoked, so the user's other devices stay signed in (RFC 0018). Without one, every session is
+    /// revoked ("sign out everywhere") — the safe default when the client can't name its session.
+    /// </summary>
+    public async Task SignOutAsync(int userId, string? refreshToken = null, CancellationToken ct = default)
     {
-        var user = await userManager.FindByIdAsync(userId.ToString())
-            ?? throw new NotFoundException(nameof(AppUser), userId.ToString());
-
-        await userManager.RemoveAuthenticationTokenAsync(user, "Piro", "RefreshToken");
+        if (!string.IsNullOrWhiteSpace(refreshToken))
+            await tokenService.RevokeRefreshTokenAsync(refreshToken, ct);
+        else
+            await tokenService.RevokeAllAsync(userId, ct);
     }
 
     public async Task<SignInResponse> RefreshAsync(RefreshRequest request, CancellationToken ct = default)
     {
-        var user = await tokenService.ValidateRefreshTokenAsync(userManager, request.RefreshToken)
+        // Rotate: validates + revokes the presented session, returns its user.
+        var user = await tokenService.RotateRefreshTokenAsync(request.RefreshToken, ct)
             ?? throw new DomainValidationException("Invalid or expired refresh token.");
 
         if (!user.IsActive)
             throw new DomainValidationException("Account is disabled.");
 
-        // Rotate: revoke old token and issue new pair
-        await userManager.RemoveAuthenticationTokenAsync(user, "Piro", "RefreshToken");
         return await BuildResponseAsync(user);
     }
 

@@ -20,7 +20,8 @@ public static partial class TagValidation
     {
         if (string.IsNullOrEmpty(key))
             return "A tag key cannot be empty.";
-        if (key.StartsWith(TagConstants.SystemNamespace, StringComparison.Ordinal))
+        if (key.StartsWith(TagConstants.SystemNamespace, StringComparison.Ordinal)
+            || key.Equals(TagConstants.SystemNamespaceRoot, StringComparison.Ordinal))
             return $"The '{TagConstants.SystemNamespace}' namespace is reserved for system tags.";
         if (key.Length > TagConstants.MaxKeyLength)
             return $"Tag key '{key}' exceeds the maximum length of {TagConstants.MaxKeyLength}.";

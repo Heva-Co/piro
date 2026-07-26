@@ -15,7 +15,7 @@ import PageContainer from "@/components/PageContainer";
 import { WarningConfirmDialog } from "@/components/ui/warning-confirm-dialog";
 import FormActions from "@/components/ui/form-actions";
 import { seedDefaults } from "@/components/config-form/seedDefaults";
-import { validateConfig } from "@/components/config-form/validators";
+import { validateConfig, type FieldError } from "@/components/config-form/validators";
 import SchemaConfigSection from "@/features/checks/components/form/SchemaConfigSection";
 import { CheckGeneralSettingsFields } from "@/features/checks/components/shared/CheckGeneralSettingsFields";
 import CheckTypeSelect from "@/features/checks/components/form/CheckTypeSelect";
@@ -47,7 +47,7 @@ function CheckFormPage() {
 
   const [alertDrafts, setAlertDrafts] = useState<AlertConfigDraft[]>([]);
   const [submitError, setSubmitError] = useState("");
-  const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
+  const [configErrors, setConfigErrors] = useState<Record<string, FieldError>>({});
   const [integrationError, setIntegrationError] = useState("");
   const [showNoAlertsWarning, setShowNoAlertsWarning] = useState(false);
   const [pendingValues, setPendingValues] = useState<CheckConfigFormValues | null>(null);

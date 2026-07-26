@@ -22,6 +22,10 @@ import type {
 } from "@/lib/actions/notification-subscriptions";
 import { integrationsApi, integrationTypesApi } from "@/lib/actions/integrations";
 import { usersApi } from "@/lib/api";
+import type { components } from "@/lib/api-types";
+import TagSelectorEditor from "./TagSelectorEditor";
+
+type TagSelector = components["schemas"]["TagSelector"];
 
 // Capabilities that make an integration a valid notification destination (outbound). Inbound types
 // (e.g. GoogleCloud, GcpCloudMonitoringWebhook — CreatesAlerts) must not appear as a destination.
@@ -37,6 +41,9 @@ const schema = z.object({
   minSeverity: z.enum(["Warning", "Critical"]),
   target: z.string().max(256).optional(),
   enabled: z.boolean(),
+  // The tag selector's shape is validated server-side; here it's an opaque nullable object the
+  // TagSelectorEditor produces and consumes. null means "no tag filter".
+  filter: z.custom<TagSelector | null>().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -61,7 +68,7 @@ function SubscriptionFormModal(props: Props) {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", destination: "", events: [], minSeverity: "Warning", target: "", enabled: true },
+    defaultValues: { name: "", destination: "", events: [], minSeverity: "Warning", target: "", enabled: true, filter: null },
   });
 
   const catalogQuery = useQuery({
@@ -100,6 +107,7 @@ function SubscriptionFormModal(props: Props) {
       minSeverity: existing.minSeverity,
       target: existing.target ?? "",
       enabled: existing.enabled,
+      filter: existing.filter ?? null,
     });
   }, [existing, reset]);
 
@@ -136,6 +144,7 @@ function SubscriptionFormModal(props: Props) {
       integrationId: isPerson ? null : id,
       target: isPerson ? null : values.target?.trim() || null,
       enabled: values.enabled,
+      filter: values.filter ?? null,
     });
   }
 
@@ -230,6 +239,20 @@ function SubscriptionFormModal(props: Props) {
                 )}
               />
               <p className="text-xs text-muted-foreground">Alert events below this severity are not sent.</p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Tag filter (optional)</label>
+              <Controller
+                name="filter"
+                control={control}
+                render={({ field }) => (
+                  <TagSelectorEditor value={field.value ?? null} onChange={field.onChange} />
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Only fire for alerts whose service has these tags (e.g. <span className="font-mono">env equals production</span>).
+              </p>
             </div>
 
             <div className="flex items-center justify-between">

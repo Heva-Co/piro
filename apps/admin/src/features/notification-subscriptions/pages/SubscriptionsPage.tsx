@@ -31,6 +31,7 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import SubscriptionFormModal from "../components/SubscriptionFormModal";
+import SubscriptionTagFilterBadge from "../components/SubscriptionTagFilterBadge";
 
 const PAGE_SIZE = 15;
 const columns = ["Name", "Destination", "Events", "Min severity", "Status", ""];
@@ -132,7 +133,12 @@ function SubscriptionsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-3.5 text-muted-foreground text-xs">{destinationLabel(s)}</TableCell>
-                    <TableCell className="px-5 py-3.5 text-muted-foreground text-xs">{s.events.join(", ")}</TableCell>
+                    <TableCell className="px-5 py-3.5 text-muted-foreground text-xs">
+                      <div className="flex items-center gap-2">
+                        <span>{s.events.join(", ")}</span>
+                        <SubscriptionTagFilterBadge filter={s.filter} />
+                      </div>
+                    </TableCell>
                     <TableCell className="px-5 py-3.5 text-muted-foreground text-xs">{s.minSeverity}</TableCell>
                     <TableCell className="px-5 py-3.5">
                       <Badge variant={s.enabled ? "default" : "secondary"}>{s.enabled ? "Enabled" : "Disabled"}</Badge>

@@ -183,7 +183,7 @@ public class NotificationDispatchWorkerTests : IAsyncLifetime
         var publisher = new NotificationEventPublisher(_db, NullLogger<NotificationEventPublisher>.Instance);
         var evt = new Piro.Application.Models.NotificationEvents.AlertResolvedPayload(
             AlertId: 42, ServiceName: "api", CheckName: "http", Severity: AlertSeverity.Critical,
-            Tags: [], ResolvedAt: DateTimeOffset.UtcNow);
+            Tags: new Dictionary<string, string?>(), ResolvedAt: DateTimeOffset.UtcNow);
 
         var id = await publisher.PublishAsync(evt, "alert:42");
 

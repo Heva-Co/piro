@@ -141,12 +141,15 @@ public class TagsController(TagAppService tagApp, CheckAppService checkApp) : Co
         return Ok(await tagApp.ReplaceRequiredWorkerTagsAsync(id, request, ct));
     }
 
-    /// <summary>Autocomplete: distinct user tag keys, optionally filtered by prefix.</summary>
+    /// <summary>
+    /// Autocomplete: distinct user tag keys, optionally filtered by prefix. Set <paramref name="includeSystem"/>
+    /// to also include the curated <c>piro:*</c> system keys (used by the notification tag-selector).
+    /// </summary>
     [HttpGet("tags/keys")]
     [ProducesResponseType<IReadOnlyList<string>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetKeys([FromQuery] string? prefix, CancellationToken ct)
+    public async Task<IActionResult> GetKeys([FromQuery] string? prefix, [FromQuery] bool includeSystem, CancellationToken ct)
     {
-        return Ok(await tagApp.GetKeysAsync(prefix, ct));
+        return Ok(await tagApp.GetKeysAsync(prefix, includeSystem, ct));
     }
 
     /// <summary>Autocomplete: distinct values assigned for a given key.</summary>
