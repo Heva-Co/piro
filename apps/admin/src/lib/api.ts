@@ -352,6 +352,8 @@ export const oidcApi = {
   upsert: (data: UpsertOidcProvider) =>
     api.put(ENDPOINTS.OIDC_CONFIG, data),
 
+  delete: (id: string) => api.delete(ENDPOINTS.OIDC_CONFIG_DETAIL(id)),
+
   getSsoMode: () =>
     api.get<{ ssoOnly: boolean }>(ENDPOINTS.OIDC_CONFIG_SSO_MODE).then((r) => r.data),
 

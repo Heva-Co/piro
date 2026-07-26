@@ -13,6 +13,7 @@ import { ROUTES } from "@/constants/routes";
 // Auth pages
 import SignInPage from "@/features/auth/pages/SignInPage";
 import OidcCallbackPage from "@/features/auth/pages/OidcCallbackPage";
+import Saml2CallbackPage from "@/features/auth/pages/Saml2CallbackPage";
 import SetupPage from "@/features/auth/pages/SetupPage";
 import AcceptInvitePage from "@/features/auth/pages/AcceptInvitePage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
@@ -51,6 +52,7 @@ import UsersPage from "@/features/configuration/pages/UsersPage";
 import UserDetailPage from "@/features/configuration/pages/UserDetailPage";
 import SsoPage from "@/features/configuration/pages/SsoPage";
 import SsoProviderFormPage from "@/features/configuration/pages/SsoProviderFormPage";
+import Saml2ProviderFormPage from "@/features/configuration/pages/Saml2ProviderFormPage";
 import ApiKeysPage from "@/features/configuration/pages/ApiKeysPage";
 import WorkersPage from "@/features/configuration/pages/WorkersPage";
 import JobsPage from "@/features/configuration/pages/JobsPage";
@@ -101,6 +103,7 @@ export default function App() {
             {/* Public auth routes */}
             <Route path={ROUTES.AUTH.SIGN_IN} element={<SignInPage />} />
             <Route path={ROUTES.AUTH.OIDC_CALLBACK} element={<OidcCallbackPage />} />
+            <Route path={ROUTES.AUTH.SAML_CALLBACK} element={<Saml2CallbackPage />} />
             <Route path={ROUTES.SETUP} element={<SetupPage />} />
             <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
             <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
@@ -154,8 +157,10 @@ export default function App() {
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
               <Route path={ROUTES.CONFIG.EMAIL} element={<EmailConfigPage />} />
               <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
-              <Route path={ROUTES.CONFIG.SSO_NEW} element={<SsoProviderFormPage />} />
-              <Route path={ROUTES.CONFIG.SSO_DETAIL(":id")} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_OIDC_NEW} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_OIDC_DETAIL(":id")} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_SAML_NEW} element={<Saml2ProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_SAML_DETAIL(":id")} element={<Saml2ProviderFormPage />} />
               <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />
               <Route path={ROUTES.CONFIG.USERS} element={<UsersPage />} />
               <Route path={ROUTES.CONFIG.USER_DETAIL(":id")} element={<UserDetailPage />} />

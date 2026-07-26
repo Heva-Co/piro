@@ -7,7 +7,7 @@ namespace Piro.Api.Controllers;
 
 /// <summary>Admin endpoints for managing OIDC/SSO provider configurations. Owner-only.</summary>
 [ApiController]
-[Route("api/v1/oidc/config")]
+[Route("api/v1/oidc/providers")]
 [Produces("application/json")]
 [Authorize(Roles = "Owner")]
 public class OidcConfigController(IOidcService oidcService) : ControllerBase
@@ -27,6 +27,23 @@ public class OidcConfigController(IOidcService oidcService) : ControllerBase
         try
         {
             await oidcService.UpsertConfigAsync(request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
+    }
+
+    /// <summary>Permanently deletes an OIDC provider configuration.</summary>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    {
+        try
+        {
+            await oidcService.DeleteConfigAsync(id, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
