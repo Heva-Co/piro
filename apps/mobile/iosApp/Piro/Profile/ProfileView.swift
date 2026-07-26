@@ -19,11 +19,10 @@ struct ProfileView: View {
                 if vm.loading {
                     ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
                 } else {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 20) {
                         identityHeader
-                        displayNameSection
+                        fields
                         if vm.isDirty { saveButton }
-                        accountSection
                         notificationsSection
                         signOutButton
                         if let error = vm.error {
@@ -56,13 +55,22 @@ struct ProfileView: View {
         }
     }
 
-    private var displayNameSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Display name")
+    /// Every field shares the same structure: a label above a Liquid Glass box. Display name is editable;
+    /// the rest are read-only values presented identically.
+    @ViewBuilder private var fields: some View {
+        ProfileField(label: "Display name") {
             TextField("Your name", text: $vm.name)
                 .textInputAutocapitalization(.words)
-                .padding(14)
-                .background(PiroColors.surfaceVariant(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        if let profile = vm.profile {
+            ProfileField("Email", value: profile.email)
+            ProfileField("Time zone", value: profile.timeZone)
+            if !profile.roles.isEmpty {
+                ProfileField("Roles", value: profile.roles.joined(separator: ", "))
+            }
+            if profile.isOidc {
+                ProfileField("Sign-in", value: "Single sign-on")
+            }
         }
     }
 
@@ -78,27 +86,6 @@ struct ProfileView: View {
                 .foregroundStyle(.white)
         }
         .disabled(vm.saving)
-    }
-
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            sectionTitle("Account")
-            if let profile = vm.profile {
-                InfoRow(label: "Email", value: profile.email)
-                Divider()
-                InfoRow(label: "Time zone", value: profile.timeZone)
-                if !profile.roles.isEmpty {
-                    Divider()
-                    InfoRow(label: "Roles", value: profile.roles.joined(separator: ", "))
-                }
-                if profile.isOidc {
-                    Divider()
-                    InfoRow(label: "Sign-in", value: "Single sign-on")
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .glassCard(cornerRadius: 12)
     }
 
     private var notificationsSection: some View {
