@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Security.Cryptography.X509Certificates;
 using ITfoxtec.Identity.Saml2;
 using ITfoxtec.Identity.Saml2.Schemas;
+using ITfoxtec.Identity.Saml2.Schemas.Metadata;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Piro.Application.DTOs;
@@ -38,8 +39,20 @@ internal class Saml2Service(
 
     public async Task UpsertConfigAsync(UpsertSaml2ProviderRequest request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Id))
+            throw new InvalidOperationException("Provider ID is required.");
+
         if (request.Id.Equals("owner", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("'owner' is a reserved provider ID.");
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+            throw new InvalidOperationException("Display name is required.");
+
+        if (string.IsNullOrWhiteSpace(request.IdpEntityId))
+            throw new InvalidOperationException("IdP entity ID is required.");
+
+        if (string.IsNullOrWhiteSpace(request.IdpSsoUrl))
+            throw new InvalidOperationException("IdP SSO URL is required.");
 
         var existing = await configRepo.GetByIdAsync(request.Id, ct);
 
@@ -72,6 +85,9 @@ internal class Saml2Service(
 
         await configRepo.UpsertAsync(config, ct);
     }
+
+    public Task DeleteConfigAsync(string id, CancellationToken ct = default) =>
+        configRepo.DeleteAsync(id, ct);
 
     public async Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default)
     {
@@ -166,6 +182,46 @@ internal class Saml2Service(
         return true;
     }
 
+    public Saml2MetadataResult ParseMetadata(string metadataXml)
+    {
+        if (string.IsNullOrWhiteSpace(metadataXml))
+            throw new InvalidOperationException("The metadata document is empty.");
+
+        EntityDescriptor entityDescriptor;
+        try
+        {
+            entityDescriptor = new EntityDescriptor().ReadIdPSsoDescriptor(metadataXml);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"The IdP metadata could not be parsed: {ex.Message}");
+        }
+
+        var idp = entityDescriptor.IdPSsoDescriptor
+            ?? throw new InvalidOperationException("The metadata does not contain an IdP SSO descriptor.");
+
+        var entityId = entityDescriptor.EntityId;
+        if (string.IsNullOrWhiteSpace(entityId))
+            throw new InvalidOperationException("The metadata is missing an entity ID.");
+
+        // Prefer the HTTP-Redirect binding (what our AuthnRequest uses); fall back to the first service.
+        var ssoServices = idp.SingleSignOnServices?.ToList() ?? [];
+        var ssoService = ssoServices.FirstOrDefault(s =>
+                s.Binding?.OriginalString == "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect")
+            ?? ssoServices.FirstOrDefault()
+            ?? throw new InvalidOperationException("The metadata does not advertise a SingleSignOnService endpoint.");
+
+        var ssoUrl = ssoService.Location?.OriginalString
+            ?? throw new InvalidOperationException("The IdP SSO endpoint has no location.");
+
+        var signingCert = idp.SigningCertificates?.FirstOrDefault()
+            ?? throw new InvalidOperationException("The metadata does not contain an IdP signing certificate.");
+
+        var pem = ExportCertificatePem(signingCert);
+
+        return new Saml2MetadataResult(entityId, ssoUrl, pem);
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private async Task<Saml2Configuration> BuildConfigurationAsync(Saml2ProviderConfig config, CancellationToken ct)
@@ -195,6 +251,12 @@ internal class Saml2Service(
         {
             throw new InvalidOperationException($"The IdP signing certificate could not be parsed: {ex.Message}");
         }
+    }
+
+    private static string ExportCertificatePem(X509Certificate2 certificate)
+    {
+        var base64 = Convert.ToBase64String(certificate.RawData, Base64FormattingOptions.InsertLineBreaks);
+        return $"-----BEGIN CERTIFICATE-----\n{base64}\n-----END CERTIFICATE-----";
     }
 
     private static (string Email, string Name) ExtractIdentity(Saml2AuthnResponse response)

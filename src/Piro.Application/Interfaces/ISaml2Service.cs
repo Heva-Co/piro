@@ -16,6 +16,9 @@ public interface ISaml2Service
     /// <summary>Creates or updates a provider config.</summary>
     Task UpsertConfigAsync(UpsertSaml2ProviderRequest request, CancellationToken ct = default);
 
+    /// <summary>Permanently deletes a provider config.</summary>
+    Task DeleteConfigAsync(string id, CancellationToken ct = default);
+
     /// <summary>Builds the IdP redirect URL (SAML AuthnRequest, HTTP-Redirect binding) for the given provider.</summary>
     Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default);
 
@@ -27,4 +30,10 @@ public interface ISaml2Service
 
     /// <summary>Verifies a saved provider's configuration is internally consistent (parseable cert, present endpoints).</summary>
     Task<bool> TestProviderAsync(string providerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Parses an IdP SAML metadata XML document and extracts the entity ID, HTTP-Redirect SSO URL,
+    /// and signing certificate, so the admin can upload a metadata file instead of typing each field.
+    /// </summary>
+    Saml2MetadataResult ParseMetadata(string metadataXml);
 }
