@@ -126,13 +126,16 @@ export const ENDPOINTS = {
   ROLES: `${API_BASE}/roles`,
 
   // OIDC config (admin)
-  OIDC_CONFIG: `${API_BASE}/oidc/config`,
-  OIDC_CONFIG_SSO_MODE: `${API_BASE}/oidc/config/sso-mode`,
-  OIDC_CONFIG_TEST: `${API_BASE}/oidc/config/test`,
+  OIDC_CONFIG: `${API_BASE}/oidc/providers`,
+  OIDC_CONFIG_DETAIL: (id: string) => `${API_BASE}/oidc/providers/${id}`,
+  OIDC_CONFIG_SSO_MODE: `${API_BASE}/oidc/providers/sso-mode`,
+  OIDC_CONFIG_TEST: `${API_BASE}/oidc/providers/test`,
 
   // SAML config (admin)
-  SAML_CONFIG: `${API_BASE}/saml/config`,
-  SAML_CONFIG_TEST: `${API_BASE}/saml/config/test`,
+  SAML_CONFIG: `${API_BASE}/saml/providers`,
+  SAML_CONFIG_DETAIL: (id: string) => `${API_BASE}/saml/providers/${id}`,
+  SAML_CONFIG_TEST: `${API_BASE}/saml/providers/test`,
+  SAML_CONFIG_PARSE_METADATA: `${API_BASE}/saml/providers/parse-metadata`,
 
   // Email config
   EMAIL_CONFIG: `${API_BASE}/email/config`,

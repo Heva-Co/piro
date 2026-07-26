@@ -157,8 +157,8 @@ export default function App() {
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
               <Route path={ROUTES.CONFIG.EMAIL} element={<EmailConfigPage />} />
               <Route path={ROUTES.CONFIG.SSO} element={<SsoPage />} />
-              <Route path={ROUTES.CONFIG.SSO_NEW} element={<SsoProviderFormPage />} />
-              <Route path={ROUTES.CONFIG.SSO_DETAIL(":id")} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_OIDC_NEW} element={<SsoProviderFormPage />} />
+              <Route path={ROUTES.CONFIG.SSO_OIDC_DETAIL(":id")} element={<SsoProviderFormPage />} />
               <Route path={ROUTES.CONFIG.SSO_SAML_NEW} element={<Saml2ProviderFormPage />} />
               <Route path={ROUTES.CONFIG.SSO_SAML_DETAIL(":id")} element={<Saml2ProviderFormPage />} />
               <Route path={ROUTES.CONFIG.API_KEYS} element={<ApiKeysPage />} />

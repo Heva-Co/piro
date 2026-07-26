@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Pencil, Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -12,10 +12,24 @@ import { samlApi } from "@/lib/actions/saml";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
+const SSO_TABS = ["oidc", "saml"] as const;
+
 export default function SsoPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [ssoModeError, setSsoModeError] = useState("");
+
+  const tabParam = searchParams.get("tab");
+  const activeTab = SSO_TABS.includes(tabParam as (typeof SSO_TABS)[number]) ? tabParam! : "oidc";
+
+  function handleTabChange(value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", value);
+      return next;
+    }, { replace: true });
+  }
 
   const { data: providers = [], isLoading: loadingProviders } = useQuery({
     queryKey: QUERY_KEYS.OIDC_CONFIGS,
@@ -53,18 +67,8 @@ export default function SsoPage() {
 
   return (
     <div className="max-w-4xl">
-      <PageHeader breadcrumbs={[{ label: "Single Sign-On" }]} />
-      <p className="text-muted-foreground text-sm -mt-4 mb-6">
-        Configure identity providers so your team can sign in with their existing accounts.{" "}
-        <a
-          href="https://openid.net/developers/how-connect-works/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          Learn how to set up SSO →
-        </a>
-      </p>
+      <PageHeader breadcrumbs={[{ label: "Single Sign-On" }]}
+        subheader="Configure identity providers so your team can sign in with their existing accounts." />
 
       {/* SSO-only mode — only shown once at least one provider is configured */}
       {hasEnabledProvider && (
@@ -89,7 +93,7 @@ export default function SsoPage() {
         </div>
       )}
 
-      <Tabs defaultValue="oidc">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="oidc">OIDC / OAuth2</TabsTrigger>
           <TabsTrigger value="saml">SAML 2.0</TabsTrigger>
@@ -100,7 +104,7 @@ export default function SsoPage() {
             <p className="text-sm text-muted-foreground">
               OpenID Connect providers (Google, Microsoft, Okta, …)
             </p>
-            <Button type="button" onClick={() => navigate(ROUTES.CONFIG.SSO_NEW)}>
+            <Button type="button" onClick={() => navigate(ROUTES.CONFIG.SSO_OIDC_NEW)}>
               <Plus size={14} /> Add Provider
             </Button>
           </div>
@@ -121,11 +125,10 @@ export default function SsoPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        p.isEnabled
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.isEnabled
                           ? "bg-foreground text-background"
                           : "border text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {p.isEnabled ? "Enabled" : "Disabled"}
                     </span>
@@ -134,7 +137,7 @@ export default function SsoPage() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => navigate(ROUTES.CONFIG.SSO_DETAIL(p.id))}
+                      onClick={() => navigate(ROUTES.CONFIG.SSO_OIDC_DETAIL(p.id))}
                     >
                       <Pencil size={14} />
                     </Button>
@@ -171,11 +174,10 @@ export default function SsoPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        p.isEnabled
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.isEnabled
                           ? "bg-foreground text-background"
                           : "border text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {p.isEnabled ? "Enabled" : "Disabled"}
                     </span>
