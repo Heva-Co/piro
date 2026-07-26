@@ -94,7 +94,10 @@ public record OnCallSlotDto(
     /// one EscalationPolicy. False marks a schedule used only as a later/backup step in every
     /// policy that references it — set on <c>OnCallService.GetMySlotsAsync</c> results so the
     /// personal calendar can flag "you're backup here, not primary."</summary>
-    bool IsPrimarySchedule = true
+    bool IsPrimarySchedule = true,
+    /// <summary>True when this slot comes from an all-day layer — the calendar should show it as a
+    /// whole-day entry ("All day") anchored to its date, not a start→end time range.</summary>
+    bool IsAllDay = false
 );
 
 public record CreateOnCallScheduleRequest(
@@ -120,7 +123,8 @@ public record CreateOnCallLayerRequest(
     string RecurrenceRule,
     DateTimeOffset FirstOccurrenceStartsAt,
     DateTimeOffset FirstOccurrenceEndsAt,
-    List<int> UserIds
+    List<int> UserIds,
+    bool IsAllDay = false
 );
 
 public record UpdateOnCallLayerRequest(
@@ -128,7 +132,8 @@ public record UpdateOnCallLayerRequest(
     string RecurrenceRule,
     DateTimeOffset FirstOccurrenceStartsAt,
     DateTimeOffset FirstOccurrenceEndsAt,
-    List<int> UserIds
+    List<int> UserIds,
+    bool IsAllDay = false
 );
 
 public record CreateOnCallOverrideRequest(
@@ -158,7 +163,8 @@ public record UpdateExistingLayerRequest(
     string RecurrenceRule,
     DateTimeOffset FirstOccurrenceStartsAt,
     DateTimeOffset FirstOccurrenceEndsAt,
-    List<int> UserIds
+    List<int> UserIds,
+    bool IsAllDay = false
 );
 
 /// <summary>

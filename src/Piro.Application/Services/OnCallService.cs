@@ -183,6 +183,8 @@ public class OnCallService(
             ? schedule.Overrides.Where(o => o.EndsAtUtc > from && o.StartsAtUtc < to).ToList()
             : [];
 
+        var scheduleZone = ResolveTimeZone(schedule.TimeZone);
+
         foreach (var layer in schedule.Layers.OrderBy(l => l.Order))
         {
             if (!layer.Users.Any()) continue;
@@ -190,6 +192,9 @@ public class OnCallService(
             var users = layer.Users.OrderBy(u => u.Position).ToList();
             var duration = layer.FirstOccurrenceEndsAt - layer.FirstOccurrenceStartsAt;
             var dtStart = layer.FirstOccurrenceStartsAt.UtcDateTime;
+            // All-day layers span whole days: round the template duration up to whole days (min 1) so an
+            // occurrence covers calendar day(s), anchored to local midnight in the schedule's time zone.
+            var allDayDayCount = Math.Max(1, (int)Math.Ceiling(duration.TotalDays));
 
             var occurrences = rruleExpander.GetOccurrences(dtStart, layer.RecurrenceRule, from.UtcDateTime, to.UtcDateTime);
 
@@ -198,12 +203,37 @@ public class OnCallService(
             int occIndex = occsBefore;
             foreach (var occ in occurrences.OrderBy(o => o))
             {
-                var occStart = new DateTimeOffset(occ, TimeSpan.Zero);
-                var occEnd = occStart + duration;
+                DateTimeOffset occStart, occEnd;
+                if (layer.IsAllDay)
+                {
+                    // Anchor to local midnight of the occurrence's calendar date in the schedule zone, so
+                    // the shift sits on the same date regardless of the viewer's offset (Google-Calendar
+                    // all-day semantics). End = local midnight `allDayDayCount` days later.
+                    occStart = LocalMidnightToUtc(occ.Date, scheduleZone);
+                    occEnd = LocalMidnightToUtc(occ.Date.AddDays(allDayDayCount), scheduleZone);
+                }
+                else
+                {
+                    occStart = new DateTimeOffset(occ, TimeSpan.Zero);
+                    occEnd = occStart + duration;
+                }
 
-                var slotStart = occStart < from ? from : occStart;
-                var slotEnd = occEnd > to ? to : occEnd;
-                if (slotStart >= slotEnd) { occIndex++; continue; }
+                // All-day occurrences keep their whole-day (local-midnight) bounds even when they overhang
+                // the query window — clipping them to `from`/`to` would leave a partial-hour span that reads
+                // as a broken/backwards date range on the client. Non-all-day slots still clip to the window.
+                DateTimeOffset slotStart, slotEnd;
+                if (layer.IsAllDay)
+                {
+                    if (occEnd <= from || occStart >= to) { occIndex++; continue; } // no overlap at all
+                    slotStart = occStart;
+                    slotEnd = occEnd;
+                }
+                else
+                {
+                    slotStart = occStart < from ? from : occStart;
+                    slotEnd = occEnd > to ? to : occEnd;
+                    if (slotStart >= slotEnd) { occIndex++; continue; }
+                }
 
                 var slotIndex = users.Count > 0 ? occIndex % users.Count : 0;
                 var user = users[slotIndex].User;
@@ -288,7 +318,8 @@ public class OnCallService(
             EndsAt: end,
             IsOverride: isOverride,
             ReplacesUserName: replacesUserName,
-            LayerOrder: layer.Order));
+            LayerOrder: layer.Order,
+            IsAllDay: layer.IsAllDay));
     }
 
     private static string GetInitials(string name)
@@ -300,6 +331,24 @@ public class OnCallService(
             1 => parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant(),
             _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant()
         };
+    }
+
+    /// <summary>Resolves the schedule's IANA time zone, falling back to UTC for a blank/unknown id so
+    /// expansion never throws on a mis-stored zone.</summary>
+    private static TimeZoneInfo ResolveTimeZone(string? ianaId)
+    {
+        if (string.IsNullOrWhiteSpace(ianaId)) return TimeZoneInfo.Utc;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(ianaId); }
+        catch { return TimeZoneInfo.Utc; }
+    }
+
+    /// <summary>The UTC instant of local midnight (00:00) on <paramref name="localDate"/> in the given
+    /// zone — the anchor an all-day occurrence starts/ends at.</summary>
+    private static DateTimeOffset LocalMidnightToUtc(DateTime localDate, TimeZoneInfo zone)
+    {
+        var localMidnight = DateTime.SpecifyKind(localDate.Date, DateTimeKind.Unspecified);
+        var offset = zone.GetUtcOffset(localMidnight);
+        return new DateTimeOffset(localMidnight, offset).ToUniversalTime();
     }
 }
 
