@@ -48,8 +48,15 @@ final class SessionViewModel: ObservableObject {
                 signedIn = true
                 push.onSignedIn()
             } catch {
-                tokens.clear()
                 isSubmitting = false
+                // Do NOT clear the token on a transient/network error — a backend blip must not log the
+                // user out. The client already clears tokens on a genuine auth failure (refresh 401),
+                // so if the token survived, keep the session and enter optimistically; the first real
+                // API call re-authenticates if the token is actually invalid.
+                if tokens.accessToken != nil {
+                    signedIn = true
+                    push.onSignedIn()
+                }
             }
         }
     }
