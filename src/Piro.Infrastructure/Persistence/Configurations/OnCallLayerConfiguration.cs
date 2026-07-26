@@ -12,6 +12,7 @@ internal class OnCallLayerConfiguration : IEntityTypeConfiguration<OnCallLayer>
         builder.HasKey(l => l.Id);
         builder.Property(l => l.Name).HasMaxLength(200).IsRequired();
         builder.Property(l => l.RecurrenceRule).HasMaxLength(500).IsRequired();
+        builder.Property(l => l.IsAllDay).HasDefaultValue(false);
         builder.HasIndex(l => new { l.ScheduleId, l.Order }).IsUnique();
         builder.HasOne(l => l.Schedule)
             .WithMany(s => s.Layers)

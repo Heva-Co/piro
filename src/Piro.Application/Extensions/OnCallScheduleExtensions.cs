@@ -16,7 +16,9 @@ public static class OnCallScheduleExtensions
     public static OnCallLayerDto ToDto(this OnCallLayer l) => new(
         l.Id, l.ScheduleId, l.Name, l.Order, l.RecurrenceRule,
         l.FirstOccurrenceStartsAt, l.FirstOccurrenceEndsAt,
-        IsAllDay(l.FirstOccurrenceStartsAt, l.FirstOccurrenceEndsAt),
+        // Persisted flag wins; fall back to the legacy time-of-day heuristic so rows created before the
+        // column existed (which default to false) still report all-day when their times say so.
+        l.IsAllDay || IsAllDayByTimes(l.FirstOccurrenceStartsAt, l.FirstOccurrenceEndsAt),
         l.Users.OrderBy(u => u.Position).Select(u => new OnCallLayerUserDto(
             u.Id, u.UserId, u.User?.Name ?? string.Empty,
             GetInitials(u.User?.Name ?? string.Empty),
@@ -31,7 +33,9 @@ public static class OnCallScheduleExtensions
         o.ReplacesUserId, o.ReplacesUser?.Name,
         o.StartsAtUtc, o.EndsAtUtc, o.Reason);
 
-    private static bool IsAllDay(DateTimeOffset start, DateTimeOffset end)
+    /// <summary>Legacy heuristic for rows predating the persisted IsAllDay column: a UTC midnight start
+    /// with a 23:59 end looks like a whole-day occurrence.</summary>
+    private static bool IsAllDayByTimes(DateTimeOffset start, DateTimeOffset end)
     {
         var s = start.ToUniversalTime();
         var e = end.ToUniversalTime();
