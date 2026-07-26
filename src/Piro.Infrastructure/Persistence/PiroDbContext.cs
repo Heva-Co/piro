@@ -62,6 +62,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<OnCallOverride> OnCallOverrides => Set<OnCallOverride>();
     public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     // Escalation
     public DbSet<EscalationPolicy> EscalationPolicies => Set<EscalationPolicy>();

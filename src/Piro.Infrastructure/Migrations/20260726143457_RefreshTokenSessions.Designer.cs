@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Piro.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Piro.Infrastructure.Persistence;
 namespace Piro.Infrastructure.Migrations
 {
     [DbContext(typeof(PiroDbContext))]
-    partial class PiroDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726143457_RefreshTokenSessions")]
+    partial class RefreshTokenSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,7 +228,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("Source", "ExternalId");
 
-                    b.ToTable("Alerts", (string)null);
+                    b.ToTable("Alerts");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.AlertConfig", b =>
@@ -272,11 +275,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<bool>("IsAlerting")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("MinFailingRegions")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1);
-
                     b.Property<string>("Severity")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -293,7 +291,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("CheckId");
 
-                    b.ToTable("AlertConfigs", (string)null);
+                    b.ToTable("AlertConfigs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.ApiKey", b =>
@@ -360,7 +358,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ApiKeys", (string)null);
+                    b.ToTable("ApiKeys");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.AppRole", b =>
@@ -579,7 +577,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("ServiceId", "Slug")
                         .IsUnique();
 
-                    b.ToTable("Checks", (string)null);
+                    b.ToTable("Checks");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.CheckDataPoint", b =>
@@ -615,7 +613,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("CheckId", "Timestamp");
 
-                    b.ToTable("CheckDataPoints", (string)null);
+                    b.ToTable("CheckDataPoints");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.CheckRequiredWorkerTag", b =>
@@ -636,7 +634,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("TagId");
 
-                    b.ToTable("CheckRequiredWorkerTags", (string)null);
+                    b.ToTable("CheckRequiredWorkerTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.CheckTag", b =>
@@ -657,7 +655,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("TagId");
 
-                    b.ToTable("CheckTags", (string)null);
+                    b.ToTable("CheckTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.DeviceToken", b =>
@@ -743,7 +741,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("AlertId");
 
-                    b.ToTable("EscalationDeliveryLogs", (string)null);
+                    b.ToTable("EscalationDeliveryLogs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.EscalationPolicy", b =>
@@ -937,7 +935,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("Incidents", (string)null);
+                    b.ToTable("Incidents");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.IncidentImpactChange", b =>
@@ -962,7 +960,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId", "Timestamp");
 
-                    b.ToTable("IncidentImpactChanges", (string)null);
+                    b.ToTable("IncidentImpactChanges");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.IncidentService", b =>
@@ -992,7 +990,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("TriggeringCheckId");
 
-                    b.ToTable("IncidentServices", (string)null);
+                    b.ToTable("IncidentServices");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.IncidentTimelineEvent", b =>
@@ -1041,7 +1039,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId", "OccurredAt");
 
-                    b.ToTable("IncidentTimelineEvents", (string)null);
+                    b.ToTable("IncidentTimelineEvents");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Integration", b =>
@@ -1129,7 +1127,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Maintenances", (string)null);
+                    b.ToTable("Maintenances");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.MaintenanceEvent", b =>
@@ -1174,7 +1172,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("MaintenanceId", "StartDateTime")
                         .IsUnique();
 
-                    b.ToTable("MaintenanceEvents", (string)null);
+                    b.ToTable("MaintenanceEvents");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.MaintenanceService", b =>
@@ -1196,7 +1194,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("MaintenanceServices", (string)null);
+                    b.ToTable("MaintenanceServices");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.NotificationDeliveryLog", b =>
@@ -1255,7 +1253,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("IntegrationId");
 
-                    b.ToTable("NotificationDeliveryLogs", (string)null);
+                    b.ToTable("NotificationDeliveryLogs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.NotificationEventOutbox", b =>
@@ -1306,7 +1304,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("Status", "NextAttemptAt");
 
-                    b.ToTable("NotificationEventOutbox", (string)null);
+                    b.ToTable("NotificationEventOutbox");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.NotificationSubscription", b =>
@@ -1364,7 +1362,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("NotificationSubscriptions", (string)null);
+                    b.ToTable("NotificationSubscriptions");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.OAuthToken", b =>
@@ -1657,7 +1655,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("Path")
                         .IsUnique();
 
-                    b.ToTable("Pages", (string)null);
+                    b.ToTable("Pages");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PageService", b =>
@@ -1689,7 +1687,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("PageServices", (string)null);
+                    b.ToTable("PageServices");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Permission", b =>
@@ -1707,7 +1705,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PiroLog", b =>
@@ -1746,7 +1744,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("Timestamp");
 
-                    b.ToTable("PiroLogs", (string)null);
+                    b.ToTable("PiroLogs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Postmortem", b =>
@@ -1794,7 +1792,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("Postmortems", (string)null);
+                    b.ToTable("Postmortems");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PostmortemFieldDefinition", b =>
@@ -1838,7 +1836,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("PostmortemFieldDefinitions", (string)null);
+                    b.ToTable("PostmortemFieldDefinitions");
 
                     b.HasData(
                         new
@@ -1958,7 +1956,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("PostmortemId", "FieldDefinitionId")
                         .IsUnique();
 
-                    b.ToTable("PostmortemFieldValues", (string)null);
+                    b.ToTable("PostmortemFieldValues");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PostmortemIncident", b =>
@@ -1976,7 +1974,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId");
 
-                    b.ToTable("PostmortemIncidents", (string)null);
+                    b.ToTable("PostmortemIncidents");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.PostmortemTimelineEntry", b =>
@@ -2011,7 +2009,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("PostmortemId");
 
-                    b.ToTable("PostmortemTimelineEntries", (string)null);
+                    b.ToTable("PostmortemTimelineEntries");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.RefreshToken", b =>
@@ -2070,7 +2068,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Service", b =>
@@ -2144,7 +2142,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Services", (string)null);
+                    b.ToTable("Services");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.ServiceDependency", b =>
@@ -2168,7 +2166,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("DependsOnServiceId");
 
-                    b.ToTable("ServiceDependencies", (string)null);
+                    b.ToTable("ServiceDependencies");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.ServiceTag", b =>
@@ -2189,7 +2187,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("TagId");
 
-                    b.ToTable("ServiceTags", (string)null);
+                    b.ToTable("ServiceTags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.SiteData", b =>
@@ -2227,7 +2225,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("SiteData", (string)null);
+                    b.ToTable("SiteData");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.Tag", b =>
@@ -2252,7 +2250,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("Tags", (string)null);
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.UserNotificationPreference", b =>
@@ -2324,7 +2322,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("IntegrationId", "ReceivedAt");
 
-                    b.ToTable("WebhookRequestLogs", (string)null);
+                    b.ToTable("WebhookRequestLogs");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.WorkerRegistration", b =>
@@ -2370,7 +2368,7 @@ namespace Piro.Infrastructure.Migrations
                     b.HasIndex("WorkerTokenHash")
                         .IsUnique();
 
-                    b.ToTable("WorkerRegistrations", (string)null);
+                    b.ToTable("WorkerRegistrations");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.WorkerTag", b =>
@@ -2391,7 +2389,7 @@ namespace Piro.Infrastructure.Migrations
 
                     b.HasIndex("WorkerRegistrationId");
 
-                    b.ToTable("WorkerTags", (string)null);
+                    b.ToTable("WorkerTags");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

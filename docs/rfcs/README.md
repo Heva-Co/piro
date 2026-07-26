@@ -30,6 +30,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
+| [0018](0018-multi-session-refresh-tokens.md) | Multi-session refresh tokens (per-device sessions) | proposal | — |
 
 Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016**.
 
@@ -55,6 +56,7 @@ graph LR
   n0014["0014 ✓"]
   n0015["0015 ✓"]
   n0016["0016 ✓"]
+  n0018["0018"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
