@@ -1,6 +1,18 @@
+---
+rfc: 17
+title: "Push relay server: publisher-operated blind relay so the store app works against any self-hosted server"
+status: proposed
+created: 2026-07-25
+depends-on: ["0016"]
+tracking-issue: null
+proposal-pr: 227
+implementation-pr: null
+superseded-by: null
+---
+
 # RFC 0017 — Push Relay Server
 
-Status: proposal
+Status: proposed
 Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-25
 
