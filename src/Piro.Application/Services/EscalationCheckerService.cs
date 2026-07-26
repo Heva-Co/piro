@@ -33,6 +33,11 @@ public class EscalationCheckerService(
     private readonly Dictionary<string, IIntegrationEventHandler> _handlers =
         eventHandlers.ToDictionary(h => h.IntegrationId, StringComparer.Ordinal);
 
+    // A freshly-created alert is escalated by both the immediate creation-time trigger and the
+    // every-minute job. If one pass already initialized and fired within this window, the other skips
+    // — closing the double-notify race without a per-alert lock or concurrency token.
+    private const int DuplicatePassWindowSeconds = 10;
+
     public async Task ProcessAsync(CancellationToken ct = default)
     {
         var alerts = await alertRepo.GetActiveWithServiceEscalationAsync(ct);
@@ -59,6 +64,27 @@ public class EscalationCheckerService(
         }
     }
 
+    /// <summary>
+    /// Escalates a single alert immediately, without waiting for the next minute-tick of the job.
+    /// Called at alert creation so a fresh alert starts paging right away. Re-loads the alert with the
+    /// escalation navigations (policy/steps/schedule) since the created instance carries only FKs.
+    /// No-ops when the alert is gone, resolved, or has no snapshotted escalation policy.
+    /// </summary>
+    public async Task ProcessOneAsync(int alertId, CancellationToken ct = default)
+    {
+        var alert = await alertRepo.GetActiveWithServiceEscalationByIdAsync(alertId, ct);
+        if (alert is null || alert.EscalationPolicyId is null) return;
+
+        try
+        {
+            await ProcessAlertAsync(alert, DateTimeOffset.UtcNow, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Immediate escalation failed for alert #{AlertId}.", alertId);
+        }
+    }
+
     private async Task ProcessAlertAsync(Alert alert, DateTimeOffset now, CancellationToken ct)
     {
         // Snapshotted at creation (from Service.EscalationPolicyId or Integration.EscalationPolicyId
@@ -74,6 +100,19 @@ public class EscalationCheckerService(
         if (alert.EscalationExhaustedAt.HasValue)
         {
             logger.LogDebug("Escalation halted for alert #{AlertId} — last step exhausted its retries.", alert.Id);
+            return;
+        }
+
+        // A fresh alert is escalated by two paths that can race: the immediate in-process trigger fired
+        // at creation, and the every-minute EscalationCheckJob. Neither holds a per-alert lock, so guard
+        // against a second pass re-firing step 0: if this alert was already initialized and has fired its
+        // first attempt within the last few seconds, another pass is mid-flight — skip this one.
+        if (alert.EscalationCurrentStep is not null
+            && alert.EscalationStepAttempts > 0
+            && alert.EscalationStepStartedAt.HasValue
+            && (now - alert.EscalationStepStartedAt.Value).TotalSeconds < DuplicatePassWindowSeconds)
+        {
+            logger.LogDebug("Escalation skipped for alert #{AlertId} — another pass just processed it.", alert.Id);
             return;
         }
 
@@ -197,7 +236,26 @@ public class EscalationCheckerService(
                         Mode = EventDeliveryMode.Personal,
                     };
                     var sent = await handler.HandleAsync(evt, deliveryContext, integrationHost, ct);
-                    if (!sent) continue; // handler couldn't deliver personally; try next preference
+                    if (!sent)
+                    {
+                        // Handler returned false (e.g. push with no live device) — not an exception,
+                        // but still a failed attempt. Record it and move on to the next preference.
+                        logger.LogInformation(
+                            "Escalation personal notification to {UserName} via {ChannelType} for alert #{AlertId} could not be delivered — trying next preference.",
+                            user.UserName ?? user.Email, channelType, alert.Id);
+                        await alertRepo.AddDeliveryLogAsync(new EscalationDeliveryLog
+                        {
+                            AlertId = alert.Id,
+                            StepIndex = currentStepIndex,
+                            UserId = user.Id,
+                            UserName = user.UserName ?? user.Email,
+                            ChannelType = channelType,
+                            Succeeded = false,
+                            ErrorMessage = "Channel could not deliver the notification.",
+                            AttemptedAt = now,
+                        }, ct);
+                        continue;
+                    }
 
                     logger.LogInformation(
                         "Escalation personal notification sent to {UserName} via {ChannelType} for alert #{AlertId}.",
@@ -212,7 +270,9 @@ public class EscalationCheckerService(
                         Succeeded = true,
                         AttemptedAt = now,
                     }, ct);
-                    break; // Only use first working preference per user
+                    // Continue through the rest of the user's preferences: escalation notifies via every
+                    // configured channel in priority order, logging one row per attempt. Retry cadence /
+                    // handoff is governed by the step's MaxRetries + RetryIntervalMinutes, not by stopping here.
                 }
                 catch (Exception ex)
                 {

@@ -29,6 +29,12 @@ public interface IAlertRepository
     /// </summary>
     Task<List<Alert>> GetActiveWithServiceEscalationAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Same as <see cref="GetActiveWithServiceEscalationAsync"/> but for a single alert id — for the
+    /// immediate creation-time escalation trigger. Null if the alert is gone, resolved, or has no policy.
+    /// </summary>
+    Task<Alert?> GetActiveWithServiceEscalationByIdAsync(int id, CancellationToken ct = default);
+
     Task<Alert> CreateAsync(Alert alert, CancellationToken ct = default);
     Task<Alert> UpdateAsync(Alert alert, CancellationToken ct = default);
 

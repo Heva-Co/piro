@@ -55,6 +55,21 @@ internal class AlertRepository(PiroDbContext db) : IAlertRepository
             .OrderBy(a => a.Id)
             .ToListAsync(ct);
     }
+
+    public async Task<Alert?> GetActiveWithServiceEscalationByIdAsync(int id, CancellationToken ct = default)
+    {
+        // Same include shape as GetActiveWithServiceEscalationAsync, scoped to one alert — used by the
+        // immediate creation-time escalation trigger, which only has the new alert's id.
+        return await db.Alerts
+            .Include(a => a.Check)
+            .Include(a => a.Service)
+            .Include(a => a.AlertConfig)
+            .Include(a => a.EscalationPolicy)
+                .ThenInclude(p => p!.Steps)
+                    .ThenInclude(s => s.Schedule)
+            .Where(a => a.Id == id && a.ResolvedAt == null && a.EscalationPolicyId != null)
+            .FirstOrDefaultAsync(ct);
+    }
         
 
     public async Task<Alert> CreateAsync(Alert alert, CancellationToken ct = default)
