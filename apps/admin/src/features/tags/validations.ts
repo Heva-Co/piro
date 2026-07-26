@@ -5,13 +5,16 @@ export const MAX_TAGS_PER_ENTITY = 50;
 export const MAX_KEY_LENGTH = 63;
 export const MAX_VALUE_LENGTH = 255;
 export const SYSTEM_NAMESPACE = "piro:";
+// The bare namespace root ("piro") is reserved too — only "piro:*" system keys may use it.
+export const SYSTEM_NAMESPACE_ROOT = "piro";
 
 const USER_KEY_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 /** Returns null if the user key is valid, otherwise a human-readable rejection reason. */
 export function validateUserKey(key: string): string | null {
   if (!key) return "A tag key cannot be empty.";
-  if (key.startsWith(SYSTEM_NAMESPACE)) return `The '${SYSTEM_NAMESPACE}' namespace is reserved for system tags.`;
+  if (key.startsWith(SYSTEM_NAMESPACE) || key === SYSTEM_NAMESPACE_ROOT)
+    return `The '${SYSTEM_NAMESPACE}' namespace is reserved for system tags.`;
   if (key.length > MAX_KEY_LENGTH) return `Key exceeds the maximum length of ${MAX_KEY_LENGTH}.`;
   if (!USER_KEY_PATTERN.test(key))
     return "Key must start with a lowercase letter and contain only lowercase letters, digits, '-' and '_'.";

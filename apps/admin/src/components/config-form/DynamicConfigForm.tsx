@@ -1,4 +1,5 @@
 import type { ConfigFieldSchema } from "@/lib/actions/checks";
+import type { FieldError } from "./validators";
 import DynamicConfigField from "./DynamicConfigField";
 import type { DynamicOptionsResolver } from "./DynamicOptionsSelect";
 
@@ -7,8 +8,8 @@ interface Props {
   schema: ConfigFieldSchema[];
   /** Current structured config values, keyed by field.key. */
   values: Record<string, unknown>;
-  /** Per-field validation errors, keyed by field.key. */
-  errors?: Record<string, string>;
+  /** Per-field validation errors, keyed by field.key. A value may be a single message or a per-item map. */
+  errors?: Record<string, FieldError>;
   /** Called with the full updated values map on any field change. */
   onChange: (values: Record<string, unknown>) => void;
   /** Optional resolver for `[DynamicOptions]` fields (RFC 0012) — supplied by hosts that support them (e.g. ActionDialog). */

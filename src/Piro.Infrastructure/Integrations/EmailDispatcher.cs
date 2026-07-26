@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Contracts;
+using Piro.Infrastructure.Email;
 using Piro.Integrations.Abstractions;
 
 namespace Piro.Infrastructure.Alerts;
@@ -44,18 +45,46 @@ public class EmailDispatcher(
             }
             case AlertEvent alert:
             {
-                var state = evt is AlertResolvedEvent ? "Resolved" : evt.Severity.ToString();
+                var resolved = evt is AlertResolvedEvent;
+                var state = resolved ? "Resolved" : evt.Severity.ToString();
                 var subject = $"[{state}] {evt.Title}";
-                var body = $"<p><strong>{WebUtility.HtmlEncode(evt.Title)}</strong> — {WebUtility.HtmlEncode(state)}</p>";
-                if (!string.IsNullOrWhiteSpace(alert.Description))
-                    body += $"<p>{WebUtility.HtmlEncode(alert.Description)}</p>";
-                if (alert.Url is { } url)
-                    body += $"<p><a href=\"{WebUtility.HtmlEncode(url)}\">View in Piro</a></p>";
-                return (subject, body);
+                var (bg, fg) = SeverityColors(resolved, evt.Severity);
+                // Scriban does not auto-escape, so every user-supplied field is HTML-encoded here.
+                var model = new AlertEmailModel
+                {
+                    status = state,
+                    severity_bg = bg,
+                    severity_fg = fg,
+                    check = WebUtility.HtmlEncode(alert.CheckName),
+                    service = Encode(alert.ServiceName),
+                    description = Encode(alert.Description),
+                    current_status = Encode(alert.CurrentStatus),
+                    value = Encode(alert.Value),
+                    source = alert.IsExternal ? Encode(alert.SourceLabel) : null,
+                    fired_at = Encode(evt.FiredAtDisplay),
+                    url = alert.Url is { } u ? WebUtility.HtmlEncode(u) : null,
+                };
+                return (subject, EmailTemplates.Alert(model));
             }
             default:
                 return (evt.Title, $"<p>{WebUtility.HtmlEncode(evt.Title)}</p>");
         }
+    }
+
+    /// <summary>HTML-encodes an optional field, returning null when it's null/blank so the template omits it.</summary>
+    private static string? Encode(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : WebUtility.HtmlEncode(value);
+
+    /// <summary>Background/foreground for the severity badge — a resolved alert reads green regardless of its original severity.</summary>
+    private static (string Bg, string Fg) SeverityColors(bool resolved, EventSeverity severity)
+    {
+        if (resolved) return ("#dcfce7", "#15803d");            // green-100 / green-700
+        return severity switch
+        {
+            EventSeverity.Critical => ("#fee2e2", "#b91c1c"),   // red-100 / red-700
+            EventSeverity.Warning => ("#fef9c3", "#a16207"),    // yellow-100 / yellow-700
+            _ => ("#dbeafe", "#1d4ed8"),                         // blue-100 / blue-700
+        };
     }
 
     public async Task<bool> SendCodeAsync(Guid? integrationId, string handle, string code, IIntegrationHost host, CancellationToken ct = default)

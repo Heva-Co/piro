@@ -36,4 +36,10 @@ public class AppUser : IdentityUser<int>
     public bool HasSeenShowcase { get; set; }
 
     public ICollection<UserNotificationPreference> NotificationPreferences { get; set; } = [];
+
+    /// <summary>Registered mobile devices that receive on-call push notifications for this user.</summary>
+    public ICollection<DeviceToken> DeviceTokens { get; set; } = [];
+
+    /// <summary>Active refresh-token sessions (one per device) — see RFC 0018.</summary>
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

@@ -4,7 +4,7 @@ import { Save } from "lucide-react";
 import { useCheck, useUpdateCheck, useCheckTypeMeta } from "@/hooks/useChecks";
 import DynamicConfigForm from "@/components/config-form/DynamicConfigForm";
 import { seedFromTypeData } from "@/components/config-form/seedDefaults";
-import { validateConfig } from "@/components/config-form/validators";
+import { validateConfig, type FieldError } from "@/components/config-form/validators";
 import RequiredIntegrationPicker from "@/features/checks/components/shared/RequiredIntegrationPicker";
 import ScriptTestPanel from "@/features/checks/components/detail/ScriptTestPanel";
 import HeartbeatPanel from "@/features/checks/components/detail/HeartbeatPanel";
@@ -30,7 +30,7 @@ function ConfigurationSection(props: Props) {
   const typeMeta = useCheckTypeMeta(check?.type);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
+  const [configErrors, setConfigErrors] = useState<Record<string, FieldError>>({});
   const [integrationError, setIntegrationError] = useState("");
 
   const { control, setValue, reset, handleSubmit, formState } = useForm<ConfigFormValues>({

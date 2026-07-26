@@ -20,6 +20,7 @@ public record DnsCheckConfig
     /// Multiple entries are queried in parallel; failures are counted against the thresholds.
     /// </summary>
     [ConfigField("Name servers", HelpText = "IPs or hostnames to query. Empty = use the system resolver.")]
+    [ConfigValidation("ipOrHostname")]
     public List<string>? NameServers { get; init; }
 
     /// <summary>

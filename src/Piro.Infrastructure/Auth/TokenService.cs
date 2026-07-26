@@ -10,12 +10,20 @@ using Piro.Domain.Entities;
 
 namespace Piro.Infrastructure.Auth;
 
-/// <summary>Generates and validates JWT access tokens and opaque refresh tokens.</summary>
-public class TokenService(IConfiguration config, UserManager<AppUser> userManager) : ITokenService
+/// <summary>
+/// Generates JWT access tokens and manages per-device refresh-token sessions (RFC 0018). Refresh tokens
+/// are opaque random values; only their SHA-256 hash is stored, and each device gets its own
+/// <see cref="RefreshToken"/> row so signing in on one device never evicts another.
+/// </summary>
+public class TokenService(
+    IConfiguration config,
+    UserManager<AppUser> userManager,
+    IRefreshTokenRepository refreshTokens) : ITokenService
 {
     private readonly string _secret = config["Auth:JwtSecret"]
         ?? throw new InvalidOperationException("Auth:JwtSecret is required.");
     private readonly int _accessExpiryMinutes = int.TryParse(config["Auth:AccessTokenExpiryMinutes"], out var v) ? v : 60;
+    private readonly int _refreshExpiryDays = int.TryParse(config["Auth:RefreshTokenExpiryDays"], out var d) ? d : 30;
 
     /// <summary>Creates a signed JWT for the given user, including their roles as claims.</summary>
     public async Task<(string token, DateTime expires)> GenerateAccessTokenAsync(AppUser user)
@@ -44,25 +52,56 @@ public class TokenService(IConfiguration config, UserManager<AppUser> userManage
         return (new JwtSecurityTokenHandler().WriteToken(token), expires);
     }
 
-    /// <summary>Generates a cryptographically random refresh token and stores it via Identity's token store.</summary>
-    public async Task<string> GenerateRefreshTokenAsync(AppUser user)
+    /// <summary>Issues a new refresh-token session (one row per device); returns the raw token.</summary>
+    public async Task<string> GenerateRefreshTokenAsync(AppUser user, string? deviceLabel = null, CancellationToken ct = default)
     {
-        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
-        await userManager.SetAuthenticationTokenAsync(user, "Piro", "RefreshToken", token);
-        return token;
+        var raw = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+        // CreatedAt is stamped by the DbContext audit hook; we only set the expiry.
+        await refreshTokens.AddAsync(new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            TokenHash = Hash(raw),
+            DeviceLabel = deviceLabel,
+            ExpiresAt = DateTime.UtcNow.AddDays(_refreshExpiryDays),
+        }, ct);
+        return raw;
     }
 
-    /// <summary>Validates a refresh token and returns the owning user, or null if invalid.</summary>
-    public async Task<AppUser?> ValidateRefreshTokenAsync(UserManager<AppUser> um, string refreshToken)
+    /// <summary>Validates + rotates: revokes the presented session and returns its user, or null if the
+    /// token is unknown/expired. Reuse of an already-revoked token revokes the user's whole chain.</summary>
+    public async Task<AppUser?> RotateRefreshTokenAsync(string refreshToken, CancellationToken ct = default)
     {
-        // Refresh tokens are stored per-user; we scan active users.
-        // For scale, store a hashed index — fine for MVP.
-        var users = um.Users.Where(u => u.IsActive).ToList();
-        foreach (var user in users)
+        var now = DateTime.UtcNow;
+        var session = await refreshTokens.GetByHashAsync(Hash(refreshToken), ct);
+        if (session is null) return null;
+
+        // Replay of a revoked token → treat every session for this user as compromised.
+        if (session.RevokedAt is not null)
         {
-            var stored = await um.GetAuthenticationTokenAsync(user, "Piro", "RefreshToken");
-            if (stored == refreshToken) return user;
+            await refreshTokens.RevokeAllForUserAsync(session.UserId, now, ct);
+            return null;
         }
-        return null;
+
+        if (session.ExpiresAt <= now) return null;
+        if (!session.User.IsActive) return null;
+
+        session.RevokedAt = now; // rotation: this token is spent; caller issues a fresh one
+        await refreshTokens.UpdateAsync(session, ct);
+        return session.User;
     }
+
+    public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken ct = default)
+    {
+        var session = await refreshTokens.GetByHashAsync(Hash(refreshToken), ct);
+        if (session is null || session.RevokedAt is not null) return;
+        session.RevokedAt = DateTime.UtcNow;
+        await refreshTokens.UpdateAsync(session, ct);
+    }
+
+    public Task RevokeAllAsync(int userId, CancellationToken ct = default) =>
+        refreshTokens.RevokeAllForUserAsync(userId, DateTime.UtcNow, ct);
+
+    private static string Hash(string raw) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
 }

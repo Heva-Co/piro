@@ -44,6 +44,13 @@ public static class EmailTemplates
     public static string VerificationCode(string code, int minutes) =>
         Render("verification-code", new { code, minutes });
 
+    /// <summary>
+    /// The branded alert notification email. All string fields are interpolated raw into HTML, so the
+    /// caller must HTML-encode any user-supplied value (check/service/description/…) before passing it —
+    /// Scriban does not auto-escape. Optional fields may be null and are omitted by the template.
+    /// </summary>
+    public static string Alert(AlertEmailModel model) => Render("alert", model);
+
     private static string Render(string templateKey, object model)
     {
         if (!Compiled.TryGetValue(templateKey, out var template))
@@ -51,4 +58,24 @@ public static class EmailTemplates
 
         return template.Render(model);
     }
+}
+
+/// <summary>
+/// View model for the alert email template. Field names are snake_case to match the Scriban
+/// placeholders. All string values are rendered raw into HTML — the caller HTML-encodes user-supplied
+/// text before constructing this. Optional fields are null when absent and the template omits them.
+/// </summary>
+public sealed record AlertEmailModel
+{
+    public required string status { get; init; }
+    public required string severity_bg { get; init; }
+    public required string severity_fg { get; init; }
+    public required string check { get; init; }
+    public string? service { get; init; }
+    public string? description { get; init; }
+    public string? current_status { get; init; }
+    public string? value { get; init; }
+    public string? source { get; init; }
+    public string? fired_at { get; init; }
+    public string? url { get; init; }
 }

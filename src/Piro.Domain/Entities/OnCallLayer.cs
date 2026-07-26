@@ -24,5 +24,13 @@ public class OnCallLayer
     /// <summary>End of the first occurrence (UTC). May cross midnight.</summary>
     public DateTimeOffset FirstOccurrenceEndsAt { get; set; }
 
+    /// <summary>
+    /// When true this layer's occurrences are whole calendar days in the schedule's time zone
+    /// (Google-Calendar-style), not a fixed UTC instant + duration. Expansion then anchors each
+    /// occurrence to local midnight→midnight in <see cref="OnCallSchedule.TimeZone"/>, so an all-day
+    /// shift shows on the same calendar day everywhere instead of drifting by the viewer's UTC offset.
+    /// </summary>
+    public bool IsAllDay { get; set; }
+
     public ICollection<OnCallLayerUser> Users { get; set; } = [];
 }

@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Piro.Integrations.Jira\Piro.Integrations.Jira.csproj" />
     <ProjectReference Include="..\Piro.Integrations.Gcp\Piro.Integrations.Gcp.csproj" />
     <ProjectReference Include="..\Piro.Integrations.GoogleCloud\Piro.Integrations.GoogleCloud.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.MobilePush\Piro.Integrations.MobilePush.csproj" />
 
   </ItemGroup>
 

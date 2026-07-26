@@ -52,3 +52,7 @@ EncryptionKeys/
 .claude/worktrees/
 
 graphify-out/
+# APNs / signing certificates — never commit
+*.cer
+*.p12
+*.p8

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { addDays, format, parseISO } from "date-fns";
 import { usersApi } from "@/lib/api";
 import {
   Select,
@@ -26,6 +27,11 @@ export interface OverrideFormPayload {
 interface Props {
   onClose: () => void;
   onSave: (payload: OverrideFormPayload) => void;
+}
+
+/** Given a "YYYY-MM-DD" date, returns the next calendar day as "YYYY-MM-DD". */
+function nextDay(date: string): string {
+  return format(addDays(parseISO(date), 1), "yyyy-MM-dd");
 }
 
 export function AddOverrideModal(props: Props) {
@@ -71,7 +77,10 @@ export function AddOverrideModal(props: Props) {
   }
   function endsAtUtc(): string {
     if (!endsAt) return "";
-    return allDay ? `${endsAt}T23:59:59Z` : endsAt;
+    // An all-day override covers whole days: the range is half-open [start, end),
+    // so it ends at 00:00 of the day *after* the last selected date — a clean full-day
+    // span, not a 23:59:59 timestamp that leaves the final second uncovered.
+    return allDay ? `${nextDay(endsAt)}T00:00:00Z` : endsAt;
   }
 
   return (

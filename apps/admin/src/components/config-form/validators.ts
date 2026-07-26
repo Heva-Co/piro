@@ -45,15 +45,30 @@ export const CONFIG_VALIDATORS: Record<
 };
 
 /**
+ * Validators that apply to each item of a list field rather than to the list as a whole. When one of
+ * these names a StringList field (e.g. nameServers → ipOrHostname), validateConfig runs it per entry
+ * and produces an index→message map. Everything else (including the list-aware `statusCodes`, which
+ * validates the whole array at once) is applied to the field value directly.
+ */
+const PER_ITEM_VALIDATORS = new Set(["ipOrHostname"]);
+
+/**
+ * A field's error is either a single message (scalar fields, or list-aware validators like statusCodes)
+ * or a per-item map keyed by list index (a per-item validator applied to each list entry).
+ */
+export type FieldError = string | Record<number, string>;
+
+/**
  * Validates a full config values map against its schema: applies `required` (presence) and each
- * field's named validator, returning a flat `{ [fieldKey]: message }` of errors. Composite/nested
- * fields (ObjectArray) validate their scalar leaves shallowly here; the backend is authoritative.
+ * field's named validator. Returns `{ [fieldKey]: FieldError }`. A per-item validator (see
+ * PER_ITEM_VALIDATORS) over a list field yields an index→message map so the offending entry can be
+ * flagged inline; every other validator yields a single message. The backend stays authoritative.
  */
 export function validateConfig(
   schema: { key: string; required: boolean; validator?: string | null; label: string }[],
   values: Record<string, unknown>
-): Record<string, string> {
-  const errors: Record<string, string> = {};
+): Record<string, FieldError> {
+  const errors: Record<string, FieldError> = {};
 
   for (const field of schema) {
     const value = values[field.key];
@@ -63,8 +78,19 @@ export function validateConfig(
       continue;
     }
 
-    if (field.validator) {
-      const message = CONFIG_VALIDATORS[field.validator]?.(value, values);
+    if (!field.validator) continue;
+    const validator = CONFIG_VALIDATORS[field.validator];
+    if (!validator) continue;
+
+    if (PER_ITEM_VALIDATORS.has(field.validator) && Array.isArray(value)) {
+      const itemErrors: Record<number, string> = {};
+      value.forEach((item, i) => {
+        const message = validator(item, values);
+        if (message) itemErrors[i] = message;
+      });
+      if (Object.keys(itemErrors).length > 0) errors[field.key] = itemErrors;
+    } else {
+      const message = validator(value, values);
       if (message) errors[field.key] = message;
     }
   }
