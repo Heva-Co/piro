@@ -44,6 +44,7 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<WorkerRegistration> WorkerRegistrations => Set<WorkerRegistration>();
     public DbSet<PiroLog> PiroLogs => Set<PiroLog>();
     public DbSet<OidcProviderConfig> OidcProviderConfigs => Set<OidcProviderConfig>();
+    public DbSet<Saml2ProviderConfig> Saml2ProviderConfigs => Set<Saml2ProviderConfig>();
     public DbSet<Integration> Integrations => Set<Integration>();
     public DbSet<OAuthToken> OAuthTokens => Set<OAuthToken>();
     public DbSet<ExternalReference> ExternalReferences => Set<ExternalReference>();

@@ -72,8 +72,11 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IDeviceRegistrationService, DeviceRegistrationService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
+        services.AddScoped<ISsoUserProvisioner, SsoUserProvisioner>();
         services.AddScoped<IOidcConfigRepository, OidcConfigRepository>();
         services.AddScoped<IOidcService, OidcService>();
+        services.AddScoped<ISaml2ConfigRepository, Saml2ConfigRepository>();
+        services.AddScoped<ISaml2Service, Saml2Service>();
         services.AddDistributedMemoryCache();
 
         // Data Protection keyring — encrypts config secrets (SecretField) and stored OAuth tokens. The

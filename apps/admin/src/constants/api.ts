@@ -21,6 +21,8 @@ export const ENDPOINTS = {
     OIDC_SSO_MODE: `${API_BASE}/auth/oidc/sso-mode`,
     OIDC_START: (provider: string) => `${API_BASE}/auth/oidc/start?provider=${provider}`,
     OIDC_CALLBACK: `${API_BASE}/auth/oidc/callback`,
+    SAML_PROVIDERS: `${API_BASE}/auth/saml/providers`,
+    SAML_START: (provider: string) => `${API_BASE}/auth/saml/start?provider=${provider}`,
     API_KEYS: `${API_BASE}/auth/api-keys`,
     API_KEY: (id: number) => `${API_BASE}/auth/api-keys/${id}`,
   },
@@ -127,6 +129,10 @@ export const ENDPOINTS = {
   OIDC_CONFIG: `${API_BASE}/oidc/config`,
   OIDC_CONFIG_SSO_MODE: `${API_BASE}/oidc/config/sso-mode`,
   OIDC_CONFIG_TEST: `${API_BASE}/oidc/config/test`,
+
+  // SAML config (admin)
+  SAML_CONFIG: `${API_BASE}/saml/config`,
+  SAML_CONFIG_TEST: `${API_BASE}/saml/config/test`,
 
   // Email config
   EMAIL_CONFIG: `${API_BASE}/email/config`,
@@ -251,6 +257,9 @@ export const QUERY_KEYS = {
   JOBS: ["jobs"] as const,
   OIDC_CONFIGS: ["oidc-configs"] as const,
   OIDC_SSO_MODE: ["oidc-sso-mode"] as const,
+  SAML_CONFIGS: ["saml-configs"] as const,
+  SSO_PROVIDERS: ["sso-providers"] as const,
+  SSO_MODE: ["sso-mode"] as const,
   SITE_CONFIG: ["site-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,

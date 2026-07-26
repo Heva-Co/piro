@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { oidcApi } from "@/lib/api";
+import { samlApi } from "@/lib/actions/saml";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
@@ -21,13 +22,19 @@ export default function SsoPage() {
     queryFn: oidcApi.list,
   });
 
+  const { data: samlProviders = [], isLoading: loadingSaml } = useQuery({
+    queryKey: QUERY_KEYS.SAML_CONFIGS,
+    queryFn: samlApi.list,
+  });
+
   const { data: ssoMode } = useQuery({
     queryKey: QUERY_KEYS.OIDC_SSO_MODE,
     queryFn: oidcApi.getSsoMode,
   });
 
   const ssoOnly = ssoMode?.ssoOnly ?? false;
-  const hasEnabledProvider = providers.some((p) => p.isEnabled);
+  const hasEnabledProvider =
+    providers.some((p) => p.isEnabled) || samlProviders.some((p) => p.isEnabled);
 
   const ssoModeMutation = useMutation({
     mutationFn: (v: boolean) => oidcApi.setSsoMode(v),
@@ -139,8 +146,52 @@ export default function SsoPage() {
         </TabsContent>
 
         <TabsContent value="saml" className="mt-4">
-          <div className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
-            SAML 2.0 support is coming soon.
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-muted-foreground">
+              SAML 2.0 identity providers (Okta, Keycloak, Microsoft Entra, …)
+            </p>
+            <Button type="button" onClick={() => navigate(ROUTES.CONFIG.SSO_SAML_NEW)}>
+              <Plus size={14} /> Add Provider
+            </Button>
+          </div>
+
+          <div className="rounded-xl border bg-card divide-y">
+            {loadingSaml ? (
+              <div className="px-6 py-8 text-sm text-muted-foreground">Loading…</div>
+            ) : samlProviders.length === 0 ? (
+              <div className="px-6 py-8 text-sm text-muted-foreground text-center">
+                No providers configured yet.
+              </div>
+            ) : (
+              samlProviders.map((p) => (
+                <div key={p.id} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <p className="text-sm font-medium">{p.displayName}</p>
+                    <p className="text-xs text-muted-foreground">{p.idpEntityId}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        p.isEnabled
+                          ? "bg-foreground text-background"
+                          : "border text-muted-foreground"
+                      }`}
+                    >
+                      {p.isEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                    <span className="text-sm text-muted-foreground">{p.defaultRole}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(ROUTES.CONFIG.SSO_SAML_DETAIL(p.id))}
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>
