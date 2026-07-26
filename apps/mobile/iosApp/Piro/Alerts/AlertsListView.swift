@@ -23,7 +23,7 @@ struct AlertsListView: View {
 
     @ViewBuilder private var content: some View {
         if vm.loading {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView { SkeletonList(count: 5, lines: 3).padding(20) }
         } else if let error = vm.error {
             Text(error)
                 .foregroundStyle(PiroColors.down)

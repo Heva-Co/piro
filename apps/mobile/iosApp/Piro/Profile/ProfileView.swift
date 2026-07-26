@@ -17,7 +17,11 @@ struct ProfileView: View {
         PiroScreen(title: "Profile") {
             ScrollView {
                 if vm.loading {
-                    ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
+                    VStack(alignment: .leading, spacing: 20) {
+                        SkeletonCard(lines: 2)   // identity header
+                        SkeletonList(count: 4)   // profile fields
+                    }
+                    .padding(20)
                 } else {
                     VStack(alignment: .leading, spacing: 20) {
                         identityHeader

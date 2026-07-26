@@ -2,7 +2,8 @@ import SwiftUI
 import Shared
 
 /// One alert row in the Alerts list, styled after the Android `AlertCard`: a status dot + severity, the
-/// check/service title, an optional message, and a "View details" affordance.
+/// check/service title, and an optional message. The whole card is tappable (the list wraps it in a
+/// Button), so there's no separate "View details" affordance.
 struct AlertCardView: View {
     let alert: AlertDetail
     @Environment(\.colorScheme) private var scheme
@@ -35,10 +36,6 @@ struct AlertCardView: View {
                     .foregroundStyle(PiroColors.muted(scheme))
                     .lineLimit(2)
             }
-            Text("View details →")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(PiroColors.brand)
-                .padding(.top, 4)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

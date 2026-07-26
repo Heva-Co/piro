@@ -87,6 +87,8 @@ struct AlertDetailView: View {
             Text(label).font(.caption.weight(.medium)).foregroundStyle(PiroColors.muted(scheme))
             Text(value).font(.body).foregroundStyle(PiroColors.onSurface(scheme))
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(cornerRadius: 12)
     }
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Piro brand blue — the adaptive launcher icon's background behind the white flame. -->
+    <color name="ic_launcher_background">#3D96FE</color>
+</resources>
