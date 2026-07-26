@@ -220,8 +220,6 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IEscalationPolicyRepository, EscalationPolicyRepository>();
         services.AddScoped<EscalationCheckerService>();
         services.AddScoped<EscalationPolicyAppService>();
-        // Opens its own scope per trigger, so it's safe as a singleton.
-        services.AddSingleton<IImmediateEscalationTrigger, ImmediateEscalationTrigger>();
 
         // User notification preferences
         services.AddScoped<IUserNotificationPreferenceRepository, UserNotificationPreferenceRepository>();
