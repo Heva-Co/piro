@@ -49,6 +49,7 @@ struct OnCallView: View {
         case .registering: return "Arming this device to receive pages…"
         case .needsPermission: return "Enable notifications so pages can reach you."
         case .failed: return "This device isn't registered for pages yet — you may not be paged."
+        case .unsupported: return "Push isn't available in the iOS Simulator — run on a real device to receive pages."
         }
     }
 
@@ -58,6 +59,7 @@ struct OnCallView: View {
         case .registering: return PiroColors.muted(scheme)
         case .needsPermission: return PiroColors.down
         case .failed: return PiroColors.degraded
+        case .unsupported: return PiroColors.muted(scheme)
         }
     }
 }

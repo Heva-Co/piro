@@ -19,6 +19,7 @@ enum PushReadiness: Equatable {
     case registering       // permission granted; waiting on the APNs token / backend registration
     case registered        // token registered with the backend — pages will arrive
     case failed            // permission granted but registration didn't complete — pages won't arrive
+    case unsupported       // this build can't receive remote pages at all (e.g. the iOS Simulator)
 }
 
 @MainActor
@@ -32,6 +33,12 @@ final class PushManager: NSObject, ObservableObject {
     private var isSignedIn = false
     private var notificationsGranted = false
 
+    /// How long to wait for an APNs token after asking to register before giving up. On the Simulator no
+    /// token ever arrives (and `didFailToRegisterAPNs` isn't always delivered), so without this the screen
+    /// would sit on "Arming…" forever. On a real device the token lands in well under a second.
+    private static let apnsTokenTimeout: Duration = .seconds(6)
+    private var armingDeadlineTask: Task<Void, Never>?
+
     /// Set once at app start so callbacks can register the device.
     func configure(api: PiroApiClient) {
         self.api = api
@@ -40,23 +47,46 @@ final class PushManager: NSObject, ObservableObject {
     /// Requests notification authorization (alert + sound + badge) and, if granted, registers for remote
     /// notifications so `didRegisterForRemoteNotifications` delivers the APNs token.
     func requestAuthorizationAndRegister() {
+        #if targetEnvironment(simulator)
+        // The iOS Simulator has no APNs: it never delivers real remote pushes. Be honest rather than
+        // promising pages we can't receive — a physical device is required to actually be paged.
+        readiness = .unsupported
+        return
+        #else
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.notificationsGranted = granted
                 if granted {
-                    if self.readiness != .registered { self.readiness = .registering }
+                    if self.readiness != .registered { self.beginArming() }
                     UIApplication.shared.registerForRemoteNotifications()
                 } else {
                     self.readiness = .needsPermission
                 }
             }
         }
+        #endif
+    }
+
+    /// Enter `.registering` and start a deadline: if no APNs token arrives in time, fall to `.failed` so
+    /// the UI updates in real time instead of hanging on "Arming…". Restarted each time we begin arming.
+    private func beginArming() {
+        readiness = .registering
+        armingDeadlineTask?.cancel()
+        armingDeadlineTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.apnsTokenTimeout)
+            guard let self, !Task.isCancelled else { return }
+            if self.readiness == .registering { self.readiness = .failed }
+        }
     }
 
     /// Refreshes the grant state (e.g. after returning from Settings) and re-arms if needed.
     func refreshAuthorizationState() {
+        #if targetEnvironment(simulator)
+        readiness = .unsupported
+        return
+        #else
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             Task { @MainActor in
                 guard let self else { return }
@@ -66,11 +96,12 @@ final class PushManager: NSObject, ObservableObject {
                 if !granted {
                     self.readiness = .needsPermission
                 } else if self.readiness == .needsPermission {
-                    self.readiness = .registering
+                    self.beginArming()
                     UIApplication.shared.registerForRemoteNotifications()
                 }
             }
         }
+        #endif
     }
 
     // MARK: - Session hooks
@@ -94,6 +125,7 @@ final class PushManager: NSObject, ObservableObject {
     /// APNs registration itself failed (common on the Simulator, which has no APNs) — no token will
     /// arrive, so the device can't be paged.
     func didFailToRegisterAPNs() {
+        armingDeadlineTask?.cancel()
         if notificationsGranted { readiness = .failed }
     }
 
@@ -104,6 +136,7 @@ final class PushManager: NSObject, ObservableObject {
         guard isSignedIn, notificationsGranted else { return }
         guard let token = apnsToken, let api else { return } // token not here yet → stay `.registering`
         let name = UIDevice.current.name
+        armingDeadlineTask?.cancel() // a token arrived — the timeout is moot
         Task {
             do {
                 _ = try await api.registerDevice(platform: "Ios", token: token, deviceName: name)
