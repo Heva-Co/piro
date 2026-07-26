@@ -23,7 +23,8 @@ public static class IntegrationManifestExtensions
             m.Creatable,
             m.Direction,
             CapabilityNames(m.Capabilities),
-            ConfigSchemaBuilder.For(m.ConfigType)
+            ConfigSchemaBuilder.For(m.ConfigType),
+            m.SupportedEvents
         );
     }
 

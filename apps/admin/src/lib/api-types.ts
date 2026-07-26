@@ -9938,6 +9938,7 @@ export interface components {
             direction: components["schemas"]["IntegrationDirection"];
             capabilities: string[];
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+            supportedEvents: string[];
         };
         InviteUserRequest: {
             email: string;
