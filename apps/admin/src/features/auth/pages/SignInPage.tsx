@@ -7,22 +7,16 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSsoProviders, useSsoMode } from "@/hooks/useSsoProviders";
 import { setupApi } from "@/lib/actions/setup";
 import { ROUTES } from "@/constants/routes";
-import { ENDPOINTS } from "@/constants/api";
 import axios from "axios";
-import api from "@/lib/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle } from "@/components/ui/alert";
-
-interface OidcProvider {
-  id: string;
-  displayName: string;
-}
 
 const schema = z.object({
   email: z.email("Enter a valid email"),
@@ -43,8 +37,9 @@ export default function SignInPage() {
     retry: false,
   });
 
-  const [oidcProviders, setOidcProviders] = useState<OidcProvider[]>([]);
-  const [ssoOnly, setSsoOnly] = useState(false);
+  const { data: ssoProviders = [] } = useSsoProviders();
+  const { data: ssoModeData } = useSsoMode();
+  const ssoOnly = ssoModeData?.ssoOnly ?? false;
   const [signInError, setSignInError] = useState("");
 
   const invited = searchParams.has("invited");
@@ -59,17 +54,6 @@ export default function SignInPage() {
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
-
-  useEffect(() => {
-    api
-      .get<OidcProvider[]>(ENDPOINTS.AUTH.OIDC_PROVIDERS)
-      .then((r) => setOidcProviders(r.data))
-      .catch(() => {});
-    api
-      .get<{ ssoOnly: boolean }>(ENDPOINTS.AUTH.OIDC_SSO_MODE)
-      .then((r) => setSsoOnly(r.data.ssoOnly))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (oidcError) toast.error("SSO sign-in failed. Please try again or use email and password.");
@@ -165,13 +149,13 @@ export default function SignInPage() {
             </form>
           )}
 
-          {ssoOnly && oidcProviders.length > 0 && (
+          {ssoOnly && ssoProviders.length > 0 && (
             <p className="text-sm text-muted-foreground text-center py-2">
               Password sign-in is disabled for this instance. Use SSO below.
             </p>
           )}
 
-          {oidcProviders.length > 0 && (
+          {ssoProviders.length > 0 && (
             <>
               {!ssoOnly && (
                 <div className="relative">
@@ -184,10 +168,10 @@ export default function SignInPage() {
                 </div>
               )}
               <div className="flex flex-col gap-2">
-                {oidcProviders.map((provider) => (
+                {ssoProviders.map((provider) => (
                   <a
                     key={provider.id}
-                    href={ENDPOINTS.AUTH.OIDC_START(provider.id)}
+                    href={provider.startUrl}
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                   >
                     {provider.displayName}

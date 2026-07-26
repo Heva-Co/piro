@@ -6,6 +6,7 @@ export const ROUTES = {
   AUTH: {
     SIGN_IN: "/admin/auth/sign-in",
     OIDC_CALLBACK: "/admin/auth/oidc/callback",
+    SAML_CALLBACK: "/admin/auth/saml/callback",
     SIGN_OUT: "/admin/auth/sign-out",
     FORGOT_PASSWORD: "/admin/auth/forgot-password",
     RESET_PASSWORD: "/admin/auth/reset-password",
@@ -70,6 +71,8 @@ export const ROUTES = {
     SSO: "/admin/configuration/sso",
     SSO_NEW: "/admin/configuration/sso/new",
     SSO_DETAIL: (id: string) => `/admin/configuration/sso/${id}`,
+    SSO_SAML_NEW: "/admin/configuration/sso/saml/new",
+    SSO_SAML_DETAIL: (id: string) => `/admin/configuration/sso/saml/${id}`,
     API_KEYS: "/admin/configuration/api-keys",
     USERS: "/admin/configuration/users",
     USER_DETAIL: (id: number | string) => `/admin/configuration/users/${id}`,
