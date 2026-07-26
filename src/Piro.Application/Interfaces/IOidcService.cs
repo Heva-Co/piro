@@ -13,6 +13,9 @@ public interface IOidcService
     /// <summary>Creates or updates a provider config.</summary>
     Task UpsertConfigAsync(UpsertOidcProviderRequest request, CancellationToken ct = default);
 
+    /// <summary>Permanently deletes a provider config.</summary>
+    Task DeleteConfigAsync(string id, CancellationToken ct = default);
+
     /// <summary>Builds the authorization URL to redirect the user to the provider.</summary>
     Task<string> GetStartUrlAsync(string providerId, CancellationToken ct = default);
 

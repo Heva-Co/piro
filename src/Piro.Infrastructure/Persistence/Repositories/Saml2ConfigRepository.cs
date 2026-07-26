@@ -25,4 +25,14 @@ internal class Saml2ConfigRepository(PiroDbContext db) : ISaml2ConfigRepository
 
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(string id, CancellationToken ct = default)
+    {
+        var existing = await db.Saml2ProviderConfigs.FindAsync([id], ct);
+        if (existing is null)
+            return;
+
+        db.Saml2ProviderConfigs.Remove(existing);
+        await db.SaveChangesAsync(ct);
+    }
 }

@@ -79,6 +79,25 @@ public class OidcService(
         await configRepo.UpsertAsync(config, ct);
     }
 
+    public async Task DeleteConfigAsync(string id, CancellationToken ct = default)
+    {
+        var existing = await configRepo.GetByIdAsync(id, ct);
+        if (existing is null)
+            return;
+
+        // Deleting the only enabled provider while SSO-only mode is active would lock every user
+        // out (no password sign-in, no working SSO) — same guard as disabling it via upsert.
+        if (existing.IsEnabled && await configRepo.GetSsoOnlyAsync(ct))
+        {
+            var enabled = await configRepo.GetEnabledAsync(ct);
+            if (enabled.Count == 1 && enabled[0].Id == existing.Id)
+                throw new InvalidOperationException(
+                    "Cannot delete the only enabled SSO provider while SSO-only mode is active.");
+        }
+
+        await configRepo.DeleteAsync(id, ct);
+    }
+
     private async Task<string> ResolveRedirectUriAsync(OidcProviderConfig config, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(config.RedirectUri))
