@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { PageHeader } from "@/components/PageHeader";
+import DangerZone from "@/components/DangerZone/DangerZone";
 import Saml2ProviderForm from "../components/Saml2ProviderForm";
 import { samlApi, type UpsertSaml2Provider } from "@/lib/actions/saml";
 import { QUERY_KEYS } from "@/constants/api";
@@ -40,9 +41,16 @@ function Saml2ProviderFormPage() {
     mutationFn: (data: UpsertSaml2Provider) => samlApi.upsert(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.SAML_CONFIGS });
-      navigate(ROUTES.CONFIG.SSO);
+      navigate(`${ROUTES.CONFIG.SSO}?tab=saml`);
     },
   });
+
+  async function handleDelete() {
+    if (!id) return;
+    await samlApi.delete(id);
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.SAML_CONFIGS });
+    navigate(`${ROUTES.CONFIG.SSO}?tab=saml`);
+  }
 
   async function handleTest(providerId: string) {
     if (!providerId) return;
@@ -96,19 +104,27 @@ function Saml2ProviderFormPage() {
     <div className="max-w-4xl">
       <PageHeader
         breadcrumbs={[
-          { label: "Single Sign-On", onClick: () => navigate(ROUTES.CONFIG.SSO) },
+          { label: "Single Sign-On", onClick: () => navigate(`${ROUTES.CONFIG.SSO}?tab=saml`) },
           { label: isEdit ? "Edit SAML Provider" : "Add SAML Provider" },
         ]}
+        subheader="Works with any SAML 2.0 identity provider. Register the ACS URL and entity ID below in your IdP."
       />
       <Saml2ProviderForm
         initial={initial}
         onSave={(data) => upsertMutation.mutate(data)}
-        onCancel={() => navigate(ROUTES.CONFIG.SSO)}
+        onCancel={() => navigate(`${ROUTES.CONFIG.SSO}?tab=saml`)}
         saving={upsertMutation.isPending}
         testResult={testResult}
         onTest={handleTest}
         testing={testing}
       />
+
+      {isEdit && provider && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold text-destructive mb-2">Danger Zone</h2>
+          <DangerZone objectName="SAML provider" objectId={provider.id} onDelete={handleDelete} />
+        </div>
+      )}
     </div>
   );
 }
