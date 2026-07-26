@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { PageHeader } from "@/components/PageHeader";
+import DangerZone from "@/components/DangerZone/DangerZone";
 import { SsoProviderForm } from "../components/SsoProviderForm";
 import { oidcApi, type UpsertOidcProvider } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
@@ -43,9 +44,16 @@ export default function SsoProviderFormPage() {
     mutationFn: (data: UpsertOidcProvider) => oidcApi.upsert(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.OIDC_CONFIGS });
-      navigate(ROUTES.CONFIG.SSO);
+      navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`);
     },
   });
+
+  async function handleDelete() {
+    if (!id) return;
+    await oidcApi.delete(id);
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.OIDC_CONFIGS });
+    navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`);
+  }
 
   async function handleTest(authority: string) {
     if (!authority) return;
@@ -100,19 +108,27 @@ export default function SsoProviderFormPage() {
     <div className="max-w-4xl">
       <PageHeader
         breadcrumbs={[
-          { label: "Single Sign-On", onClick: () => navigate(ROUTES.CONFIG.SSO) },
+          { label: "Single Sign-On", onClick: () => navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`) },
           { label: isEdit ? "Edit Provider" : "Add Provider" },
         ]}
+        subheader="Works with any standard OIDC/OAuth2 provider."
       />
       <SsoProviderForm
         initial={initial}
         onSave={(data) => upsertMutation.mutate(data)}
-        onCancel={() => navigate(ROUTES.CONFIG.SSO)}
+        onCancel={() => navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`)}
         saving={upsertMutation.isPending}
         testResult={testResult}
         onTest={handleTest}
         testing={testing}
       />
+
+      {isEdit && provider && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold text-destructive mb-2">Danger Zone</h2>
+          <DangerZone objectName="OIDC provider" objectId={provider.id} onDelete={handleDelete} />
+        </div>
+      )}
     </div>
   );
 }

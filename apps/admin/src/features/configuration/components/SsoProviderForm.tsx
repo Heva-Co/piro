@@ -37,19 +37,6 @@ export function SsoProviderForm({ initial, onSave, onCancel, saving, testResult,
 
   return (
     <div>
-      <div className="mb-5">
-        <p className="text-sm text-muted-foreground">
-          Works with any standard OIDC/OAuth2 provider.{" "}
-          <a
-            href="https://openid.net/developers/how-connect-works/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            Provider setup guides →
-          </a>
-        </p>
-      </div>
 
       <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
