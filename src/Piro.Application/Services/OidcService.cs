@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Piro.Application.DTOs;
@@ -21,9 +20,7 @@ public class OidcService(
     ISiteConfigRepository siteConfigRepo,
     IConfiguration configuration,
     IDistributedCache cache,
-    UserManager<AppUser> userManager,
-    RoleManager<AppRole> roleManager,
-    ITokenService tokenService,
+    ISsoUserProvisioner provisioner,
     IHttpClientFactory httpClientFactory) : IOidcService
 {
 
@@ -80,6 +77,25 @@ public class OidcService(
         config.IsEnabled = request.IsEnabled;
 
         await configRepo.UpsertAsync(config, ct);
+    }
+
+    public async Task DeleteConfigAsync(string id, CancellationToken ct = default)
+    {
+        var existing = await configRepo.GetByIdAsync(id, ct);
+        if (existing is null)
+            return;
+
+        // Deleting the only enabled provider while SSO-only mode is active would lock every user
+        // out (no password sign-in, no working SSO) — same guard as disabling it via upsert.
+        if (existing.IsEnabled && await configRepo.GetSsoOnlyAsync(ct))
+        {
+            var enabled = await configRepo.GetEnabledAsync(ct);
+            if (enabled.Count == 1 && enabled[0].Id == existing.Id)
+                throw new InvalidOperationException(
+                    "Cannot delete the only enabled SSO provider while SSO-only mode is active.");
+        }
+
+        await configRepo.DeleteAsync(id, ct);
     }
 
     private async Task<string> ResolveRedirectUriAsync(OidcProviderConfig config, CancellationToken ct)
@@ -153,21 +169,8 @@ public class OidcService(
         var http = httpClientFactory.CreateClient("oidc-http");
         var userInfo = await ExchangeAndFetchUserInfoAsync(http, discovery, config, code, statePayload.CodeVerifier, config.ClientSecret, redirectUri, ct);
 
-        // Domain restriction
-        if (!string.IsNullOrWhiteSpace(config.AllowedDomains))
-        {
-            var emailParts = userInfo.Email.Split('@');
-            if (emailParts.Length != 2 || string.IsNullOrWhiteSpace(emailParts[0]) || string.IsNullOrWhiteSpace(emailParts[1]))
-                throw new InvalidOperationException($"OIDC userinfo returned a malformed email address: '{userInfo.Email}'.");
-
-            var allowed = config.AllowedDomains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var domain = emailParts[1];
-            if (!allowed.Any(d => d.Equals(domain, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException($"Email domain '@{domain}' is not allowed for this SSO provider.");
-        }
-
-        var user = await UpsertUserAsync(userInfo, config.Id, config.DefaultRole, ct);
-        return await BuildResponseAsync(user);
+        var externalUser = new ExternalUserInfo(userInfo.Sub, userInfo.Email, userInfo.Name);
+        return await provisioner.ProvisionAndSignInAsync(externalUser, config.Id, config.DefaultRole, config.AllowedDomains, ct);
     }
 
     public async Task<bool> TestProviderAsync(string providerId, CancellationToken ct = default)
@@ -295,77 +298,6 @@ public class OidcService(
             ?? email.Split('@')[0];
 
         return new OidcUserInfo(sub, email, name);
-    }
-
-    private async Task<AppUser> UpsertUserAsync(OidcUserInfo info, string providerId, string defaultRole, CancellationToken ct)
-    {
-        // Look up by ExternalId + ExternalProvider (existing SSO user)
-        var existing = userManager.Users
-            .FirstOrDefault(u => u.ExternalId == info.Sub && u.ExternalProvider == providerId);
-
-        if (existing is not null)
-        {
-            // Keep name/email in sync
-            if (existing.Name != info.Name || existing.Email != info.Email)
-            {
-                existing.Name = info.Name;
-                existing.Email = info.Email;
-                existing.UserName = info.Email;
-                await userManager.UpdateAsync(existing);
-            }
-            return existing;
-        }
-
-        // First-time SSO login — check if local account with same email exists
-        var byEmail = await userManager.FindByEmailAsync(info.Email);
-        if (byEmail is not null)
-        {
-            // Link external identity to existing local account
-            byEmail.ExternalId = info.Sub;
-            byEmail.ExternalProvider = providerId;
-            byEmail.IsActive = true;
-            if (string.IsNullOrEmpty(byEmail.Name)) byEmail.Name = info.Name;
-            await userManager.UpdateAsync(byEmail);
-            return byEmail;
-        }
-
-        // Brand-new user — auto-provision
-        var newUser = new AppUser
-        {
-            UserName = info.Email,
-            Email = info.Email,
-            Name = info.Name,
-            ExternalId = info.Sub,
-            ExternalProvider = providerId,
-            IsActive = true,
-            EmailConfirmed = true,
-        };
-
-        var result = await userManager.CreateAsync(newUser);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to create user: {errors}");
-        }
-
-        var role = await roleManager.FindByNameAsync(defaultRole) is not null ? defaultRole : "Member";
-        await userManager.AddToRoleAsync(newUser, role);
-
-        return newUser;
-    }
-
-    private async Task<SignInResponse> BuildResponseAsync(AppUser user)
-    {
-        var (accessToken, expires) = await tokenService.GenerateAccessTokenAsync(user);
-        var refreshToken = await tokenService.GenerateRefreshTokenAsync(user);
-        var roles = await userManager.GetRolesAsync(user);
-        var expiresIn = (int)(expires - DateTime.UtcNow).TotalSeconds;
-
-        return new SignInResponse(
-            accessToken,
-            refreshToken,
-            expiresIn,
-            new UserDto(user.Id, user.Email!, user.Name, roles));
     }
 
     private static string? GetStringClaim(JsonElement json, string key) =>

@@ -53,4 +53,14 @@ internal class OidcConfigRepository(PiroDbContext db) : IOidcConfigRepository
 
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(string id, CancellationToken ct = default)
+    {
+        var existing = await db.OidcProviderConfigs.FindAsync([id], ct);
+        if (existing is null)
+            return;
+
+        db.OidcProviderConfigs.Remove(existing);
+        await db.SaveChangesAsync(ct);
+    }
 }

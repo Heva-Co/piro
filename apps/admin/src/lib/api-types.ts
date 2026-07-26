@@ -6706,6 +6706,308 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/saml/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all configured SAML providers (certificate surfaced as a boolean). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2ProviderConfigDto"][];
+                    };
+                };
+            };
+        };
+        /** Creates or updates a SAML provider configuration. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                    "text/json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                    "application/*+json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saml/config/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tests a saved provider's configuration is internally consistent (parseable cert, present endpoints). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TestSaml2Request"];
+                    "text/json": components["schemas"]["TestSaml2Request"];
+                    "application/*+json": components["schemas"]["TestSaml2Request"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saml/config/parse-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses an uploaded IdP metadata XML document into the entity ID, SSO URL, and signing certificate. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "text/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "application/*+json": components["schemas"]["ParseSaml2MetadataRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2MetadataResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns SAML providers enabled for the sign-in page. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2ProviderInfo"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Initiates the SP-initiated SAML redirect flow: sends an AuthnRequest to the IdP. */
+        get: {
+            parameters: {
+                query?: {
+                    provider?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Found */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assertion Consumer Service. The IdP POSTs the SAMLResponse here (form-encoded). On success
+         *     the browser is redirected to the SPA callback with the issued tokens in the URL fragment
+         *     (fragment keeps them out of server/referer logs); the SPA persists them and lands the user.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/x-www-form-urlencoded": {
+                        SAMLResponse?: string;
+                    } & {
+                        RelayState?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Found */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -9955,6 +10257,9 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        ParseSaml2MetadataRequest: {
+            metadataXml: string;
+        };
         PostmortemDto: {
             /** Format: int32 */
             id: number;
@@ -10153,6 +10458,26 @@ export interface components {
             slots: components["schemas"]["OnCallSlotDto"][];
             gaps: components["schemas"]["CoverageGapDto"][];
         };
+        Saml2MetadataResult: {
+            idpEntityId: string;
+            idpSsoUrl: string;
+            idpSigningCertificate: string;
+        };
+        Saml2ProviderConfigDto: {
+            id: string;
+            displayName: string;
+            idpEntityId: string;
+            idpSsoUrl: string;
+            hasSigningCertificate: boolean;
+            spEntityId: null | string;
+            allowedDomains: null | string;
+            defaultRole: string;
+            isEnabled: boolean;
+        };
+        Saml2ProviderInfo: {
+            id: string;
+            displayName: string;
+        };
         SaveRotationsRequest: {
             layersToCreate: components["schemas"]["CreateOnCallLayerRequest"][];
             layersToUpdate: components["schemas"]["UpdateExistingLayerRequest"][];
@@ -10337,6 +10662,9 @@ export interface components {
         TestOidcRequest: {
             providerId: null | string;
             authority: null | string;
+        };
+        TestSaml2Request: {
+            providerId: null | string;
         };
         /** @enum {unknown} */
         ThresholdDirection: "HigherIsWorse" | "LowerIsWorse";
@@ -10539,6 +10867,17 @@ export interface components {
             clientSecret: null | string;
             redirectUri: null | string;
             scopes: string;
+            allowedDomains: null | string;
+            defaultRole: string;
+            isEnabled: boolean;
+        };
+        UpsertSaml2ProviderRequest: {
+            id: string;
+            displayName: string;
+            idpEntityId: string;
+            idpSsoUrl: string;
+            idpSigningCertificate: null | string;
+            spEntityId: null | string;
             allowedDomains: null | string;
             defaultRole: string;
             isEnabled: boolean;

@@ -4,27 +4,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { PageHeader } from "@/components/PageHeader";
 import DangerZone from "@/components/DangerZone/DangerZone";
-import { SsoProviderForm } from "../components/SsoProviderForm";
-import { oidcApi, type UpsertOidcProvider } from "@/lib/api";
+import Saml2ProviderForm from "../components/Saml2ProviderForm";
+import { samlApi, type UpsertSaml2Provider } from "@/lib/actions/saml";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
 
-const DEFAULT_SCOPES = "openid, profile, email";
-
-const EMPTY_FORM: UpsertOidcProvider = {
+const EMPTY_FORM: UpsertSaml2Provider = {
   id: "",
   displayName: "",
-  authority: "",
-  clientId: "",
-  clientSecret: "",
-  redirectUri: "",
-  scopes: DEFAULT_SCOPES,
+  idpEntityId: "",
+  idpSsoUrl: "",
+  idpSigningCertificate: "",
+  spEntityId: "",
   allowedDomains: "",
   defaultRole: "Viewer",
   isEnabled: true,
 };
 
-export default function SsoProviderFormPage() {
+function Saml2ProviderFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
   const navigate = useNavigate();
@@ -34,39 +31,39 @@ export default function SsoProviderFormPage() {
   const [testing, setTesting] = useState(false);
 
   const { data: providers = [], isLoading } = useQuery({
-    queryKey: QUERY_KEYS.OIDC_CONFIGS,
-    queryFn: oidcApi.list,
+    queryKey: QUERY_KEYS.SAML_CONFIGS,
+    queryFn: samlApi.list,
   });
 
   const provider = isEdit ? providers.find((p) => p.id === id) : undefined;
 
   const upsertMutation = useMutation({
-    mutationFn: (data: UpsertOidcProvider) => oidcApi.upsert(data),
+    mutationFn: (data: UpsertSaml2Provider) => samlApi.upsert(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QUERY_KEYS.OIDC_CONFIGS });
-      navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`);
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.SAML_CONFIGS });
+      navigate(`${ROUTES.CONFIG.SSO}?tab=saml`);
     },
   });
 
   async function handleDelete() {
     if (!id) return;
-    await oidcApi.delete(id);
-    qc.invalidateQueries({ queryKey: QUERY_KEYS.OIDC_CONFIGS });
-    navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`);
+    await samlApi.delete(id);
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.SAML_CONFIGS });
+    navigate(`${ROUTES.CONFIG.SSO}?tab=saml`);
   }
 
-  async function handleTest(authority: string) {
-    if (!authority) return;
+  async function handleTest(providerId: string) {
+    if (!providerId) return;
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await oidcApi.test({ authority });
+      const result = await samlApi.test(providerId);
       setTestResult(result);
     } catch (err) {
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
           ? err.response.data.message
-          : "Connection test failed.";
+          : "Validation failed.";
       setTestResult({ success: false, message });
     } finally {
       setTesting(false);
@@ -89,15 +86,14 @@ export default function SsoProviderFormPage() {
     );
   }
 
-  const initial: UpsertOidcProvider = provider
+  const initial: UpsertSaml2Provider = provider
     ? {
         id: provider.id,
         displayName: provider.displayName,
-        authority: provider.authority,
-        clientId: provider.clientId,
-        clientSecret: "",
-        redirectUri: provider.redirectUri ?? "",
-        scopes: provider.scopes,
+        idpEntityId: provider.idpEntityId,
+        idpSsoUrl: provider.idpSsoUrl,
+        idpSigningCertificate: "",
+        spEntityId: provider.spEntityId ?? "",
         allowedDomains: provider.allowedDomains ?? "",
         defaultRole: provider.defaultRole,
         isEnabled: provider.isEnabled,
@@ -108,15 +104,15 @@ export default function SsoProviderFormPage() {
     <div className="max-w-4xl">
       <PageHeader
         breadcrumbs={[
-          { label: "Single Sign-On", onClick: () => navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`) },
-          { label: isEdit ? "Edit Provider" : "Add Provider" },
+          { label: "Single Sign-On", onClick: () => navigate(`${ROUTES.CONFIG.SSO}?tab=saml`) },
+          { label: isEdit ? "Edit SAML Provider" : "Add SAML Provider" },
         ]}
-        subheader="Works with any standard OIDC/OAuth2 provider."
+        subheader="Works with any SAML 2.0 identity provider. Register the ACS URL and entity ID below in your IdP."
       />
-      <SsoProviderForm
+      <Saml2ProviderForm
         initial={initial}
         onSave={(data) => upsertMutation.mutate(data)}
-        onCancel={() => navigate(`${ROUTES.CONFIG.SSO}?tab=oidc`)}
+        onCancel={() => navigate(`${ROUTES.CONFIG.SSO}?tab=saml`)}
         saving={upsertMutation.isPending}
         testResult={testResult}
         onTest={handleTest}
@@ -126,9 +122,11 @@ export default function SsoProviderFormPage() {
       {isEdit && provider && (
         <div className="mt-8">
           <h2 className="text-sm font-semibold text-destructive mb-2">Danger Zone</h2>
-          <DangerZone objectName="OIDC provider" objectId={provider.id} onDelete={handleDelete} />
+          <DangerZone objectName="SAML provider" objectId={provider.id} onDelete={handleDelete} />
         </div>
       )}
     </div>
   );
 }
+
+export default Saml2ProviderFormPage;
