@@ -54,16 +54,36 @@ public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler, I
     private static string Render(Event evt, IIntegrationHost host)
     {
         var parser = host.GetRequiredService<ITemplateParser>();
+        var alert = evt as AlertEvent;
+        var resolved = evt.IsResolvedLike();
         var model = new
         {
-            title = Escape(evt.Title),
-            status = evt.IsResolvedLike() ? "✅ Resolved" : $"⚠️ {evt.Severity}",
-            description = evt is AlertEvent { Description: { } d } && !string.IsNullOrWhiteSpace(d) ? Escape(d) : null,
+            // Lead with the check name (the on-call reader's primary identifier), service as context.
+            check = alert is not null ? Escape(alert.CheckName) : Escape(evt.Title),
+            service = alert is not null && !string.IsNullOrWhiteSpace(alert.ServiceName) ? Escape(alert.ServiceName) : null,
+            severity_icon = resolved ? "✅" : SeverityIcon(evt.Severity),
+            status = resolved ? "Resolved" : evt.Severity.ToString(),
+            // Neutral current status (e.g. "Down"/"Degraded") when it adds info beyond the severity word.
+            current_status = alert?.CurrentStatus is { } cs && !string.IsNullOrWhiteSpace(cs) ? Escape(cs) : null,
+            description = alert is { Description: { } d } && !string.IsNullOrWhiteSpace(d) ? Escape(d) : null,
+            value = alert?.Value is { } v && !string.IsNullOrWhiteSpace(v) ? Escape(v) : null,
+            source = alert is { IsExternal: true, SourceLabel: { } sl } && !string.IsNullOrWhiteSpace(sl) ? Escape(sl) : null,
             fired_at = evt.FiredAtDisplay,
             url = evt.Url,
+            // Clickable link label. Legacy Markdown [label](url): the label is plain text; the check
+            // name already appears above, so a short "View alert" reads cleaner than the raw URL.
+            url_label = alert is { AlertId: > 0 } ? $"View alert #{alert.AlertId}" : "View alert",
         };
         return parser.Render(MessageTemplate, model).TrimEnd();
     }
+
+    /// <summary>Severity → a color dot so the on-call reader can triage at a glance.</summary>
+    private static string SeverityIcon(EventSeverity severity) => severity switch
+    {
+        EventSeverity.Critical => "🔴",
+        EventSeverity.Warning => "🟡",
+        _ => "🔵",
+    };
 
     private static string LoadTemplate(string fileName)
     {
@@ -77,7 +97,8 @@ public sealed class TelegramNotificationDispatcher : IIntegrationEventHandler, I
 
     private async Task SendMessageAsync(IIntegrationHost host, string botToken, string chatId, string text, CancellationToken ct)
     {
-        var payload = JsonSerializer.Serialize(new { chat_id = chatId, text, parse_mode = "Markdown" });
+        // disable_web_page_preview: the alert URL should stay a compact link, not expand into a preview card.
+        var payload = JsonSerializer.Serialize(new { chat_id = chatId, text, parse_mode = "Markdown", disable_web_page_preview = true });
         var client = host.GetRequiredService<HttpClient>();
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiBase}/bot{botToken}/sendMessage")
         {
