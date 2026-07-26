@@ -1,5 +1,6 @@
 import { useController, useFormContext } from "react-hook-form";
 import DynamicConfigForm from "@/components/config-form/DynamicConfigForm";
+import type { FieldError } from "@/components/config-form/validators";
 import RequiredIntegrationPicker from "@/features/checks/components/shared/RequiredIntegrationPicker";
 import type { CheckTypeMeta } from "@/lib/actions/checks";
 
@@ -7,7 +8,7 @@ interface Props {
   /** The selected type's manifest, whose configSchema drives the rendered fields (RFC 0011). */
   typeMeta?: CheckTypeMeta;
   /** Per-field validation errors (from validateConfig on submit), keyed by field key. */
-  errors?: Record<string, string>;
+  errors?: Record<string, FieldError>;
   /** Error for the required-integration picker, when the type needs one and none is chosen. */
   integrationError?: string;
 }
