@@ -6,6 +6,7 @@ using Piro.Application.Models.NotificationEvents;
 using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
+using Piro.Domain.Tags;
 using Piro.Infrastructure.Notifications;
 using Piro.Infrastructure.Persistence;
 using Piro.Infrastructure.Persistence.Repositories;
@@ -94,8 +95,12 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         return user;
     }
 
-    private async Task<NotificationSubscription> SeedPersonalSubscriptionAsync(
-        int userId, AlertSeverity minSeverity, params string[] events)
+    private Task<NotificationSubscription> SeedPersonalSubscriptionAsync(
+        int userId, AlertSeverity minSeverity, params string[] events) =>
+        SeedPersonalSubscriptionWithFilterAsync(userId, minSeverity, filterJson: null, events);
+
+    private async Task<NotificationSubscription> SeedPersonalSubscriptionWithFilterAsync(
+        int userId, AlertSeverity minSeverity, string? filterJson, params string[] events)
     {
         var sub = new NotificationSubscription
         {
@@ -105,15 +110,22 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
             TargetKind = NotificationTargetKind.Personal,
             UserId = userId,
             Enabled = true,
+            FilterJson = filterJson,
         };
         _db.NotificationSubscriptions.Add(sub);
         await _db.SaveChangesAsync();
         return sub;
     }
 
-    private static NotificationEventOutbox AlertCreatedRow(int alertId, AlertSeverity severity, int? serviceId = null)
+    /// <summary>An "env In [production]" selector, serialized as it would be stored.</summary>
+    private static string EnvProductionFilter() =>
+        JsonSerializer.Serialize(new TagSelector(
+            AllOf: [new TagTerm("env", TagOp.In, ["production"])]));
+
+    private static NotificationEventOutbox AlertCreatedRow(int alertId, AlertSeverity severity, int? serviceId = null,
+        IReadOnlyDictionary<string, string?>? tags = null)
     {
-        var payload = new AlertCreatedPayload(alertId, "api", "http", severity, [], false, null, DateTimeOffset.UtcNow, ServiceId: serviceId);
+        var payload = new AlertCreatedPayload(alertId, "api", "http", severity, tags ?? new Dictionary<string, string?>(), false, null, DateTimeOffset.UtcNow, ServiceId: serviceId);
         return new NotificationEventOutbox
         {
             Id = alertId,
@@ -202,5 +214,62 @@ public class SubscriptionMatchingProcessorTests : IAsyncLifetime
         var log = await _db.NotificationDeliveryLogs.AsNoTracking().SingleAsync();
         log.Status.Should().Be(DeliveryStatus.Delivered);
         log.TargetKind.Should().Be("Channel");
+    }
+
+    [Fact]
+    public async Task Delivers_WhenTagFilterMatchesEventTags()
+    {
+        var user = await SeedUserWithVerifiedEmailPrefAsync("tag1@example.com");
+        await SeedPersonalSubscriptionWithFilterAsync(user.Id, AlertSeverity.Warning, EnvProductionFilter(), "alert:created");
+        var handler = new FakeEventHandler("Email");
+
+        var row = AlertCreatedRow(alertId: 300, AlertSeverity.Critical,
+            tags: new Dictionary<string, string?> { ["env"] = "production" });
+        await NewProcessor(handler).ProcessAsync(row, default);
+
+        handler.Handled.Should().ContainSingle("the event's tags satisfy the subscription's tag filter");
+    }
+
+    [Fact]
+    public async Task DoesNotDeliver_WhenTagFilterDoesNotMatch()
+    {
+        var user = await SeedUserWithVerifiedEmailPrefAsync("tag2@example.com");
+        await SeedPersonalSubscriptionWithFilterAsync(user.Id, AlertSeverity.Warning, EnvProductionFilter(), "alert:created");
+        var handler = new FakeEventHandler("Email");
+
+        var row = AlertCreatedRow(alertId: 301, AlertSeverity.Critical,
+            tags: new Dictionary<string, string?> { ["env"] = "staging" });
+        await NewProcessor(handler).ProcessAsync(row, default);
+
+        handler.Handled.Should().BeEmpty("env:staging does not satisfy env In [production]");
+        (await _db.NotificationDeliveryLogs.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Delivers_WhenNoTagFilter_RegardlessOfTags()
+    {
+        var user = await SeedUserWithVerifiedEmailPrefAsync("tag3@example.com");
+        await SeedPersonalSubscriptionAsync(user.Id, AlertSeverity.Warning, "alert:created"); // no filter
+        var handler = new FakeEventHandler("Email");
+
+        var row = AlertCreatedRow(alertId: 302, AlertSeverity.Critical,
+            tags: new Dictionary<string, string?> { ["env"] = "staging" });
+        await NewProcessor(handler).ProcessAsync(row, default);
+
+        handler.Handled.Should().ContainSingle("a subscription with no tag filter matches every event");
+    }
+
+    [Fact]
+    public async Task Delivers_WhenTagFilterIsUnparseable_DegradesToNoFilter()
+    {
+        var user = await SeedUserWithVerifiedEmailPrefAsync("tag4@example.com");
+        await SeedPersonalSubscriptionWithFilterAsync(user.Id, AlertSeverity.Warning, "{ not valid json", "alert:created");
+        var handler = new FakeEventHandler("Email");
+
+        var row = AlertCreatedRow(alertId: 303, AlertSeverity.Critical,
+            tags: new Dictionary<string, string?> { ["env"] = "staging" });
+        await NewProcessor(handler).ProcessAsync(row, default);
+
+        handler.Handled.Should().ContainSingle("an unparseable filter degrades to no filter, never silencing delivery");
     }
 }

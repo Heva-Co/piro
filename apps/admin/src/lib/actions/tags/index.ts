@@ -38,8 +38,12 @@ export const tagsApi = {
   replaceRequiredWorkerTags: (id: number, data: ReplaceTagsRequest) =>
     api.put<EntityTags>(ENDPOINTS.CHECK_REQUIRED_WORKER_TAGS(id), data).then((r) => r.data),
 
-  keys: (prefix?: string) =>
-    api.get<string[]>(ENDPOINTS.TAG_KEYS, { params: prefix ? { prefix } : undefined }).then((r) => r.data),
+  keys: (prefix?: string, includeSystem?: boolean) =>
+    api
+      .get<string[]>(ENDPOINTS.TAG_KEYS, {
+        params: { ...(prefix ? { prefix } : {}), ...(includeSystem ? { includeSystem: true } : {}) },
+      })
+      .then((r) => r.data),
   values: (key: string) =>
     api.get<string[]>(ENDPOINTS.TAG_VALUES, { params: { key } }).then((r) => r.data),
 };

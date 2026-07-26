@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Piro.Domain.Enums;
+using Piro.Domain.Tags;
 
 namespace Piro.Application.DTOs;
 
@@ -15,7 +16,9 @@ public record NotificationSubscriptionDto(
     Guid? IntegrationId,
     string? IntegrationName,
     string? Target,
-    bool Enabled
+    bool Enabled,
+    /// <summary>Optional tag filter (RFC 0008 §4.2). Null means the subscription matches on severity only.</summary>
+    TagSelector? Filter
 );
 
 public record UpsertNotificationSubscriptionRequest(
@@ -26,7 +29,9 @@ public record UpsertNotificationSubscriptionRequest(
     int? UserId,
     Guid? IntegrationId,
     [StringLength(256)] string? Target,
-    bool Enabled
+    bool Enabled,
+    /// <summary>Optional tag filter (RFC 0008 §4.2). Omit or null for no tag filtering.</summary>
+    TagSelector? Filter = null
 );
 
 /// <summary>A page of <see cref="NotificationSubscriptionDto"/> results plus the total matching count.</summary>

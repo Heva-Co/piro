@@ -5,9 +5,10 @@ namespace Piro.Domain.Entities;
 /// <summary>
 /// One notification routing rule the admin configures (RFC 0009 §4.4) — the single, unified concept
 /// for reaching a person, a team channel, or an integration. It says: for these catalog
-/// <see cref="Events"/>, when the payload passes <see cref="MinSeverity"/> (and later a tag filter),
-/// deliver to the destination identified by <see cref="TargetKind"/>. The integration declares which
-/// events it <em>can</em> handle; this row is the admin activating which actually fire.
+/// <see cref="Events"/>, when the payload passes <see cref="MinSeverity"/> and the tag filter in
+/// <see cref="FilterJson"/>, deliver to the destination identified by <see cref="TargetKind"/>. The
+/// integration declares which events it <em>can</em> handle; this row is the admin activating which
+/// actually fire.
 /// </summary>
 public class NotificationSubscription
 {
@@ -27,6 +28,14 @@ public class NotificationSubscription
     /// severity); events with no severity are not gated by it. Tag filtering is added in a later phase.
     /// </summary>
     public AlertSeverity MinSeverity { get; set; } = AlertSeverity.Warning;
+
+    /// <summary>
+    /// Optional tag filter: a JSON-serialized <c>TagSelector</c> (RFC 0008 §4.2) matched against the
+    /// event's <c>Tags</c> (a service's effective tags). Null or empty means no tag filter — the
+    /// subscription fires regardless of tags. An unparseable value degrades to "no filter" so a bad row
+    /// can never crash the dispatch worker (issue #203).
+    /// </summary>
+    public string? FilterJson { get; set; }
 
     /// <summary>Which delivery contract this subscription routes through — derived from the chosen destination.</summary>
     public NotificationTargetKind TargetKind { get; set; }

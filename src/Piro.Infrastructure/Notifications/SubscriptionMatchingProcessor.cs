@@ -9,6 +9,7 @@ using Piro.Contracts;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Domain.Extensions;
+using Piro.Domain.Tags;
 using Piro.Domain.Attributes;
 using Piro.Integrations.Abstractions;
 
@@ -53,7 +54,9 @@ internal class SubscriptionMatchingProcessor(
     {
         var subscriptions = await subscriptionRepo.GetEnabledAsync(ct);
         var matched = subscriptions
-            .Where(s => s.Events().Contains(outboxRow.EventType) && alert.Severity >= s.MinSeverity)
+            .Where(s => s.Events().Contains(outboxRow.EventType)
+                        && alert.Severity >= s.MinSeverity
+                        && MatchesTagFilter(s, alert.Tags))
             .ToList();
 
         logger.LogInformation("[notify] {EventType} (alert #{AlertId}, {Severity}) matched {Count} subscription(s).",
@@ -190,7 +193,19 @@ internal class SubscriptionMatchingProcessor(
         }, ct);
     }
 
-    private sealed record AlertSnapshot(int AlertId, int? ServiceId, string ServiceName, string CheckName, AlertSeverity Severity, bool IsRecovery);
+    private sealed record AlertSnapshot(int AlertId, int? ServiceId, string ServiceName, string CheckName,
+        AlertSeverity Severity, bool IsRecovery, IReadOnlyDictionary<string, string?> Tags);
+
+    /// <summary>
+    /// True if the subscription's tag filter matches the event's tags. A subscription with no filter (or an
+    /// unparseable one, via <see cref="NotificationSubscriptionExtensions.Filter"/> returning null) matches
+    /// everything — a bad filter never silences or crashes delivery (issue #203).
+    /// </summary>
+    private static bool MatchesTagFilter(NotificationSubscription sub, IReadOnlyDictionary<string, string?> tags)
+    {
+        var selector = sub.Filter();
+        return selector is null || TagSelectorEvaluator.Matches(selector, tags);
+    }
 
     private sealed record IncidentSnapshot(int IncidentId, string Title, IncidentStatus Status, bool IsResolved,
         IncidentVisibility Visibility, IReadOnlyList<string> AffectedServices);
@@ -221,17 +236,17 @@ internal class SubscriptionMatchingProcessor(
             case NotificationEventNames.AlertCreated:
             {
                 var p = JsonSerializer.Deserialize<AlertCreatedPayload>(row.PayloadJson);
-                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false);
+                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false, p.Tags);
             }
             case NotificationEventNames.AlertAcknowledged:
             {
                 var p = JsonSerializer.Deserialize<AlertAcknowledgedPayload>(row.PayloadJson);
-                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false);
+                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: false, p.Tags);
             }
             case NotificationEventNames.AlertResolved:
             {
                 var p = JsonSerializer.Deserialize<AlertResolvedPayload>(row.PayloadJson);
-                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: true);
+                return p is null ? null : new AlertSnapshot(p.AlertId, p.ServiceId, p.ServiceName, p.CheckName, p.Severity, IsRecovery: true, p.Tags);
             }
             default:
                 return null;

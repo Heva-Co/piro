@@ -1985,6 +1985,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the calling user's registered devices. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeviceDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Registers (or refreshes) the calling user's device push token. Idempotent. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterDeviceRequest"];
+                    "text/json": components["schemas"]["RegisterDeviceRequest"];
+                    "application/*+json": components["schemas"]["RegisterDeviceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeviceDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /**
+         * Unregisters a device push token (device sign-out). The token is passed as a query parameter
+         *     because push tokens may contain characters ('/') that don't round-trip safely in a path segment.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    token?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/email/config": {
         parameters: {
             query?: never;
@@ -9193,6 +9298,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         CreateOnCallOverrideRequest: {
             /** Format: int32 */
@@ -9313,6 +9420,16 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
+        DeviceDto: {
+            /** Format: int32 */
+            id: number;
+            platform: components["schemas"]["DevicePlatform"];
+            deviceName: null | string;
+            /** Format: date-time */
+            lastSeenAt: string;
+        };
+        /** @enum {unknown} */
+        DevicePlatform: "Android" | "Ios";
         /** @enum {unknown} */
         DimensionComparison: "Threshold" | "Equality";
         EmailConfigResponse: {
@@ -9659,6 +9776,7 @@ export interface components {
             integrationName: null | string;
             target: null | string;
             enabled: boolean;
+            filter: null | components["schemas"]["TagSelector"];
         };
         NotificationSubscriptionPageDto: {
             items: components["schemas"]["NotificationSubscriptionDto"][];
@@ -9814,6 +9932,8 @@ export interface components {
             layerOrder: number;
             /** @default true */
             isPrimarySchedule: boolean;
+            /** @default false */
+            isAllDay: boolean;
         };
         OnCallUserDto: {
             /** Format: int32 */
@@ -10004,6 +10124,11 @@ export interface components {
         RefreshRequest: {
             refreshToken: string;
         };
+        RegisterDeviceRequest: {
+            platform: components["schemas"]["DevicePlatform"];
+            token: string;
+            deviceName: null | string;
+        };
         ReorderFieldDefinitionsRequest: {
             orderedIds: number[];
         };
@@ -10191,6 +10316,17 @@ export interface components {
             key: string;
             value: null | string;
         };
+        /** @enum {unknown} */
+        TagOp: "Equals" | "In" | "NotIn" | "Exists";
+        TagSelector: {
+            allOf?: null | components["schemas"]["TagTerm"][];
+            anyOf?: null | components["schemas"]["TagTerm"][];
+        };
+        TagTerm: {
+            key: string;
+            op: components["schemas"]["TagOp"];
+            values?: null | string[];
+        };
         /** @description Body for the check Test endpoint — the candidate config to test, or null to use the persisted one. */
         TestCheckRequest: {
             typeDataJson: null | string;
@@ -10253,6 +10389,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         UpdateFieldDefinitionRequest: {
             heading: null | string;
@@ -10295,6 +10433,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         UpdateOnCallScheduleRequest: {
             name: null | string;
@@ -10389,6 +10529,7 @@ export interface components {
             integrationId: null | string;
             target: null | string;
             enabled: boolean;
+            filter?: null | components["schemas"]["TagSelector"];
         };
         UpsertOidcProviderRequest: {
             id: string;

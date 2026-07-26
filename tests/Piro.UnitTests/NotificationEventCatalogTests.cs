@@ -80,19 +80,19 @@ public class NotificationEventCatalogTests
         ["alert:created"] =
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
-            "Tags:IReadOnlyList`1", "IsExternal:Boolean", "SourceLabel:String", "FiredAt:DateTimeOffset",
+            "Tags:IReadOnlyDictionary`2", "IsExternal:Boolean", "SourceLabel:String", "FiredAt:DateTimeOffset",
             "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["alert:acknowledged"] =
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
-            "Tags:IReadOnlyList`1", "AcknowledgedBy:String", "AcknowledgedAt:DateTimeOffset",
+            "Tags:IReadOnlyDictionary`2", "AcknowledgedBy:String", "AcknowledgedAt:DateTimeOffset",
             "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["alert:resolved"] =
         [
             "AlertId:Int32", "ServiceName:String", "CheckName:String", "Severity:AlertSeverity",
-            "Tags:IReadOnlyList`1", "ResolvedAt:DateTimeOffset",
+            "Tags:IReadOnlyDictionary`2", "ResolvedAt:DateTimeOffset",
             "ServiceId:Int32", "EventType:String", "Version:Int32",
         ],
         ["incident:created"] =
@@ -163,6 +163,8 @@ public class NotificationEventCatalogTests
         if (t == typeof(string)) return string.Empty;
         if (t == typeof(Guid)) return Guid.Empty;
         if (t == typeof(DateTimeOffset)) return default(DateTimeOffset);
+        if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
+            return Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(t.GetGenericArguments()));
         if (typeof(System.Collections.IEnumerable).IsAssignableFrom(t) && t != typeof(string))
             return Array.Empty<string>();
         return t.IsValueType ? Activator.CreateInstance(t) : null;
