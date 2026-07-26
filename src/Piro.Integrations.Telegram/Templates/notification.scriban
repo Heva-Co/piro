@@ -1,11 +1,19 @@
-*{{ title }}*
-{{ status }}
+{{ severity_icon }} *{{ check }}*{{ if service }} · {{ service }}{{ end }}
+{{ status }}{{ if current_status }} ({{ current_status }}){{ end }}
 {{- if description }}
+
 {{ description }}
 {{- end }}
+{{- if value }}
+Observed: {{ value }}
+{{- end }}
+{{- if source }}
+Source: {{ source }}
+{{- end }}
 {{- if fired_at }}
-{{ fired_at }}
+
+🕒 {{ fired_at }}
 {{- end }}
 {{- if url }}
-{{ url }}
+🔗 [{{ url_label }}]({{ url }})
 {{- end }}
