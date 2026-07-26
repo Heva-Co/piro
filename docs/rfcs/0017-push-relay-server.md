@@ -1,6 +1,6 @@
 ---
 rfc: 17
-title: "Push relay server: publisher-operated blind relay so the store app works against any self-hosted server"
+title: "Push relay client: consuming a shared blind relay so the store app works against any self-hosted server"
 status: proposed
 created: 2026-07-25
 depends-on: ["0016"]
@@ -31,17 +31,20 @@ So the published app produces tokens that only the app publisher's provider cred
 
 This is the same wall Bitwarden hit, and the resolution is the same shape: a **push relay** operated by the app publisher, which holds the provider credentials and forwards on behalf of self-hosted servers. Self-hosters keep pointing their app at their own server URL; only the final hop to FCM/APNs goes through the relay.
 
+The relay is a **shared internal Heva service**, not a Piro-specific component and not part of this open-source repository — Piro is its first consumer, other Heva apps are expected to use the same service. Because the service is shared and lives outside this repo, **this RFC specifies only the client contract**: how Piro talks to the relay (`RelayPushTransport`, the `/v1/push` request shape, the mandatory end-to-end encryption of payloads) and how that plugs into the existing MobilePush channel. The relay's own internals — its provider credentials, per-app routing, tenant/onboarding model, hosting — are a private-repo concern described here only to the extent Piro must know them to be a correct client.
+
 ## 2. Non-goals
 
 - **Not replacing the direct path.** A self-hoster who compiles their own app with their own Firebase/APNs credentials must keep sending straight to FCM/APNs with zero relay involvement. The relay is an *added* mode, not a replacement — the direct transports stay the default.
 - **Not making the relay a message broker or store-and-forward queue.** It forwards one push, gets a provider result, returns it. It does not persist payloads, retry on the server's behalf, or hold state per notification. Delivery semantics (prune vs. retry) stay owned by `MobilePushNotificationDispatcher`.
-- **Not a general BaaS.** The relay serves exactly one operation — "push this opaque blob to this token on this platform" — for Piro instances only. It is not a public push API.
+- **Not specifying the relay's internal design.** The relay is a shared, private Heva service reused across the company's apps; its provider-credential model, per-app routing table, tenant catalog, storage, and hosting are defined in that service's own (private) repo, not here. This RFC stops at the client contract Piro depends on.
+- **Not exposing the relay as a public API.** It is an internal Heva service, authenticated per caller (§4.7). Piro instances are one class of caller; it is not an open push endpoint anyone can use.
 - **Not re-architecting device registration or escalation.** `DeviceToken`, `DeviceRegistrationService`, and the single-`MobilePush`-preference-per-user model (`src/Piro.Application/Services/DeviceRegistrationService.cs`) are untouched except for one additive column.
-- **Not defining relay operational hosting** (region, autoscaling, billing) — that is a deployment concern for whoever runs `push.piro.io`, out of scope for the design.
+- **Not defining relay operational hosting** (region, autoscaling, billing) — that is a deployment concern for the internal service, out of scope for the design.
 
 ## 3. Design principle
 
-The relay is a dumb, blind forwarder. It never learns what a notification says, and it plugs in at exactly one seam Piro already has — `IPushTransport` — so that nothing above that seam (the dispatcher, fan-out, severity mapping, failure handling) knows the relay exists. The choice between sending direct or via the relay is a **server-side config decision**, invisible to the mobile app: the app registers its platform token the same way in both modes.
+The relay is a dumb, blind forwarder, and Piro treats it as an external dependency behind a client contract. It never learns what a notification says — **end-to-end encryption of the payload is mandatory in relay mode**, not an option, precisely because the relay is a shared service the app content must stay opaque to. It plugs in at exactly one seam Piro already has — `IPushTransport` — so that nothing above that seam (the dispatcher, fan-out, severity mapping, failure handling) knows the relay exists. The choice between sending direct or via the relay is a **server-side config decision**, invisible to the mobile app: the app registers its platform token the same way in both modes.
 
 ## 4. Design
 
@@ -52,7 +55,7 @@ Today the dispatcher selects a transport purely by platform. `MobilePushNotifica
 That seam is exactly where the relay belongs. The relay is a **new `IPushTransport` implementation** — it is not a new dispatcher, not a parallel pipeline, and not a change to fan-out. Selection changes from "by platform" to "by (mode, platform)":
 
 - **Direct mode** (default, today's behavior): Android → `FcmPushTransport`, iOS → `ApnsPushTransport`.
-- **Relay mode**: Android **and** iOS → `RelayPushTransport`, which POSTs an opaque blob to `push.piro.io` and lets the relay pick FCM vs. APNs.
+- **Relay mode**: Android **and** iOS → `RelayPushTransport`, which POSTs an opaque encrypted blob to the shared Heva relay and lets the relay pick FCM vs. APNs by `appId` + platform.
 
 ```mermaid
 flowchart TD
@@ -65,9 +68,9 @@ flowchart TD
   end
 
   subgraph relay["Relay mode (store app)"]
-    R["RelayPushTransport"] -->|POST /v1/push<br/>token + ciphertext| PR["push.piro.io"]
-    PR --> PRF["FCM v1 (publisher creds)"]
-    PR --> PRA["APNs (publisher creds)"]
+    R["RelayPushTransport"] -->|POST /v1/push<br/>appId + token + ciphertext| PR["Shared Heva relay<br/>(private, multi-app)"]
+    PR --> PRF["FCM v1 (Heva creds)"]
+    PR --> PRA["APNs (Heva creds)"]
   end
 
   SEL -->|Direct, Android| FCM
@@ -89,7 +92,7 @@ public enum MobilePushMode { Direct, Relay }
     HelpText = "Direct: this server sends to FCM/APNs itself (requires a self-compiled app with your own credentials). Relay: forward to a Piro push relay so the published app works without provider credentials.")]
 public MobilePushMode Mode { get; set; } = MobilePushMode.Direct;
 
-[ConfigField("Relay URL", Placeholder = "https://push.piro.io")]
+[ConfigField("Relay URL", Placeholder = "https://push.example.com")]
 public string? RelayUrl { get; set; }
 
 [SecretField]
@@ -108,12 +111,15 @@ New file `src/Piro.Integrations.MobilePush/Transport/RelayPushTransport.cs`, reg
 
 ```json
 {
+  "appId": "piro",
   "platform": "Android" | "Ios",
   "token": "<opaque provider token>",
   "critical": true,
   "ciphertext": "<base64 sealed PushMessage>"
 }
 ```
+
+`appId` is the routing key that makes the relay multi-app. The relay is a shared Heva service: it holds the provider credentials for several apps and uses `appId` to pick which app's FCM app-id / APNs bundle a given token belongs to. Piro sends a fixed `appId` of `"piro"`; the value is a constant of the client, configured alongside the relay URL, not something an end user sets. The self-hoster never chooses it — it identifies the *app build*, not the deployment. Everything else in the body is provider-neutral, and `ciphertext` is the only field carrying content, always encrypted (§4.3).
 
 `ciphertext` is the encrypted `PushMessage` (§4.3). `critical` stays in the clear because the relay must know whether to send a high-priority/`interruption-level` push and, on iOS, a visible `alert` (§4.4) — but criticality is not sensitive, the alert text is. The relay's HTTP status and body map to `PushSendResult`: `200` → `Sent`, `410`/unregistered verdict → `Unregistered`, `5xx`/timeout → `TransientFailure`, misconfigured/unauthorized → surfaced as `TransientFailure` (so a revoked key doesn't silently prune every token).
 
@@ -144,7 +150,7 @@ Sealing uses libsodium sealed boxes (X25519 + XSalsa20-Poly1305): the server nee
 
 iOS is where E2E collides with how APNs actually behaves, and this RFC resolves it explicitly rather than assuming a data-only push suffices.
 
-A pure data-only APNs push (`content-available: 1`, no `alert`) is throttled and unreliable in the background — iOS does not guarantee it wakes the app, so it cannot be the transport for a critical on-call page. A reliable, DND-bypassing page needs a **visible `alert` payload** and, for full bypass, `interruption-level: critical` (which requires Apple's Critical Alerts entitlement on the published app). But a visible `alert` carries its title and body in the APNs payload — which, in relay mode, would pass through `push.piro.io` in the clear, defeating E2E.
+A pure data-only APNs push (`content-available: 1`, no `alert`) is throttled and unreliable in the background — iOS does not guarantee it wakes the app, so it cannot be the transport for a critical on-call page. A reliable, DND-bypassing page needs a **visible `alert` payload** and, for full bypass, `interruption-level: critical` (which requires Apple's Critical Alerts entitlement on the published app). But a visible `alert` carries its title and body in the APNs payload — which, in relay mode, would pass through the shared relay in the clear, defeating E2E.
 
 The resolution is a **Notification Service Extension (NSE)** in the iOS app (`apps/mobile/iosApp`). The push is sent with:
 
@@ -157,7 +163,7 @@ The NSE runs on-device, decrypts the ciphertext with the device private key from
 ```mermaid
 sequenceDiagram
   participant S as Self-hosted Piro
-  participant R as push.piro.io
+  participant R as Shared relay
   participant P as APNs
   participant N as iOS NSE (on device)
   participant U as User
@@ -191,7 +197,9 @@ This RFC closes that asymmetry: Android gains the same login-time server-URL ent
 
 ### 4.7 Relay registration — identity by API key
 
-An instance authenticates to the relay with a per-instance API key. Onboarding is a one-time `POST /v1/register` to the relay that returns a `RelayApiKey`, which the admin stores in `MobilePushConfig.RelayApiKey`. The relay keeps a small store of instances — id, hashed key, rate-limit counters, revocation flag — and rejects unknown or revoked keys. Every `POST /v1/push` presents the key; the relay rate-limits per instance so one deployment can't exhaust the publisher's FCM/APNs quota. Anonymous/IP-only auth was rejected (§7) because it makes quota abuse trivial and gives no revocation handle.
+A caller authenticates to the relay with a per-instance API key. From Piro's side this is a one-time onboarding step whose output — a `RelayApiKey` scoped to `appId = "piro"` — the admin stores in `MobilePushConfig.RelayApiKey`; every `POST /v1/push` presents that key. The relay validates the key, enforces per-caller rate-limits so one deployment can't exhaust the shared provider quota, and can revoke a key without affecting anyone else. Anonymous/IP-only auth was rejected (§7) because it makes quota abuse trivial and gives no revocation handle.
+
+How keys are issued, stored, and mapped to an `appId`, and how a *new app* (not a new Piro instance) is onboarded to the relay, are internal to the shared service and specified in its private repo — Piro only needs a valid key and its fixed `appId`. The relay being multi-app is why the key is scoped to an `appId`: the same service authenticates callers from several Heva apps, and the key tells it both *who* is calling and *which app's* credentials to send with.
 
 ### 4.8 What does NOT change
 
@@ -206,24 +214,27 @@ An instance authenticates to the relay with a per-instance API key. Onboarding i
 - **New enum**: `MobilePushMode { Direct, Relay }` in `Piro.Integrations.MobilePush` (not a domain enum — it is integration config, stored inside `ConfigJson`, so **no migration** for the mode itself).
 - **New columns on `DeviceTokens`**: `PushPublicKey text NULL` — one EF migration under `src/Piro.Infrastructure/Migrations`. Nullable, no backfill; existing rows re-enroll on next registration.
 - **`MobilePushConfig`**: three new properties (`Mode`, `RelayUrl`, `RelayApiKey`) serialized into the existing encrypted `ConfigJson`. **No schema change** — the integration config is a JSON blob.
-- **Relay service store** (separate service, `push.piro.io`): its own instances table (id, hashed API key, rate-limit, revoked). Not part of the Piro application database.
+- **Relay service storage** lives entirely in the shared internal service (its app catalog, credentials, caller keys, rate-limit state) — **nothing** relay-side is in the Piro application database, and none of it is defined by this RFC.
 - **No changes** to `Alert`, `AlertConfig`, `Incident`, `UserNotificationPreference`, `Integration`, or any check/worker table.
 
 ## 6. Phased plan
 
-1. **Push-mode plumbing (server, no relay yet).** Add `MobilePushMode`, the three `MobilePushConfig` fields, and `RelayPushTransport` that POSTs to a configurable URL sending the **unencrypted** `PushMessage` as JSON. Update transport selection to be `(mode, platform)`-aware. Ships behind config; lets a self-hoster point at any HTTP forwarder for testing. No E2E yet.
-2. **The relay service (`src/Piro.PushRelay`).** Minimal ASP.NET Core service: `POST /v1/register`, `POST /v1/push`, instance store, per-instance rate-limit. Reuses `FcmPushTransport`/`ApnsPushTransport` (it references `Piro.Integrations.MobilePush`) to do the actual FCM/APNs send with the publisher's credentials. Still forwarding cleartext at this point.
-3. **End-to-end encryption.** Add `PushPublicKey` (migration + `DeviceTokenInfo`), device keypair generation + public-key upload (both apps), server-side sealing before `RelayPushTransport`, Android decrypt in `onMessageReceived`, and the iOS **Notification Service Extension** for decrypt-before-display. This is the phase that makes the relay blind; it is last because it needs both apps and the relay to already exist to test end-to-end.
+The relay service itself is **not** built in this repo (it is the shared internal Heva service, §1/§2); these phases are Piro's client-side work against it. The relay must expose its `/v1/push` contract before Phase 1 can be verified end-to-end, but that is a dependency, not a phase here.
+
+1. **E2E key material + device enrollment.** Add `PushPublicKey` (migration + `DeviceTokenInfo`), device keypair generation, and public-key upload at registration (both apps). This lands first because encryption is mandatory in relay mode — there is no intermediate cleartext step to ship without it.
+2. **Push-mode plumbing + `RelayPushTransport`.** Add `MobilePushMode`, the three `MobilePushConfig` fields, and `RelayPushTransport` that seals the `PushMessage` to the device public key and POSTs `{appId, platform, token, critical, ciphertext}` to the configured relay. Make transport selection `(mode, platform)`-aware. With Phase 1 in place this is a complete, encrypted relay send.
+3. **On-device decrypt.** Android decrypt in `onMessageReceived`; the iOS **Notification Service Extension** for decrypt-before-display (§4.4). This closes the loop so a relayed push actually renders with real content.
 4. **Admin UI + Android server-URL parity.** The `Mode` selector with conditional field visibility on the integration form (§4.5, incl. the `VisibleWhen` metadata hint if needed), and the Android login-time server-URL entry (§4.6) to match iOS.
 
-Phases 1–2 are independently shippable and useful (a trusted-relay setup for a self-hoster who accepts the relay seeing content). Phase 3 is the one that delivers the privacy guarantee; Phase 4 is polish that makes the published-app story complete.
+Phases 1–3 together are the smallest shippable relay path — there is no "trusted relay sees plaintext" intermediate, because a shared multi-app service must never see content (§7). Phase 4 is the polish that makes the published-app story complete.
 
 ## 7. Alternatives considered
 
 - **Hand each self-hoster the publisher's FCM/APNs credentials.** Rejected — it is the entire account's send authority, cannot be scoped per instance, and can only be revoked by rotating and breaking every deployment simultaneously.
 - **Bring-your-own-Firebase, self-compiled app only (no relay at all).** This is exactly `Direct` mode, and it stays fully supported — but as the *only* option it forces every self-hoster to run their own Firebase project, Apple Developer account, and CI to rebuild and distribute the app. Too high a barrier to be the default; the relay exists so the published store app works out of the box.
 - **Anonymous relay with per-IP rate-limiting.** Rejected — no way to revoke a bad actor, trivial to rotate IPs and exhaust the publisher's provider quota, and no per-instance accounting. Registration + API key (§4.7) gives identity, revocation, and per-instance limits for little extra onboarding cost.
-- **Relay sees plaintext (no E2E).** Simpler — the relay just forwards title/body — but it makes the publisher a data processor for every self-hoster's alert content and a single point of leakage. Rejected as the end state; it exists only as the intermediate state of Phases 1–2 before E2E lands.
+- **Relay sees plaintext (no E2E).** Simpler — the relay just forwards title/body — but the relay is a *shared, multi-app* service: cleartext would make it a data processor for every app's notification content and a single point of leakage across all of Heva's apps at once. Rejected outright, with no intermediate cleartext phase — this is why E2E lands in Phase 1 rather than last.
+- **Per-app credentials as separate relay tenants.** Considered — each app brings its own Firebase project and APNs key, fully isolated. Rejected in favor of a shared Heva Firebase project + Team `.p8`, with `appId` selecting the per-app FCM app-id / bundle at send time: less credential sprawl to operate, while `appId` still gives the relay enough to route correctly. (This is a relay-internal choice; Piro only sends its fixed `appId` either way.)
 - **Data-only push on iOS instead of an NSE.** Rejected — background data-only pushes are throttled and not guaranteed to wake the app, so a critical page could silently not appear. The NSE is the only way to get a reliable, DND-bypassing visible alert whose real text is still decrypted on-device.
 - **Server-held (not device-held) decryption key.** Rejected — if the self-hosted server could decrypt on the device's behalf there'd be a key the relay operator could in principle be compelled to reconstruct; a device-generated keypair with the private half never leaving the Keychain/Keystore is what makes "the relay cannot read notifications" a real guarantee rather than a policy.
 
@@ -232,6 +243,6 @@ Phases 1–2 are independently shippable and useful (a trusted-relay setup for a
 - **iOS Critical Alerts entitlement.** `interruption-level: critical` requires an Apple-granted entitlement on the published app; without it, critical pages bypass DND less aggressively. This gates the published iOS build, not the design, but the NSE + entitlement work is real and Apple approval is not instant.
 - **NSE payload-size and time budget.** APNs caps payload at 4 KB and the NSE has a short wall-clock budget to decrypt and rewrite. The sealed `PushMessage` is small (title/body/URL/ids), so this is comfortable — but a future richer payload must stay within 4 KB including the ciphertext overhead.
 - **Lost device key = undecryptable pushes.** If a device's private key is lost (Keychain/Keystore wipe, restore-to-new-device without key migration) the server keeps sealing to a stale public key and the device can't open the result. Mitigation: treat key rotation as re-registration — the app regenerates and re-uploads on key-unavailable, and the old `DeviceToken` row is pruned like any dead token.
-- **Relay as availability dependency.** In relay mode, `push.piro.io` being down means no mobile pages for every relay-mode instance at once — a shared failure domain the direct path doesn't have. Mitigation: the relay is deliberately minimal and stateless-per-push so it can be run redundantly; self-hosters who can't accept the dependency use `Direct` mode.
+- **Relay as availability dependency, now shared across apps.** In relay mode the shared relay being down means no mobile pages for every relay-mode Piro instance at once — and, because the service is multi-app, an outage or a bad deploy affects *every* Heva app using it, not just Piro. Mitigation: the relay is deliberately minimal and stateless-per-push so it can be run redundantly; self-hosters who can't accept the dependency use `Direct` mode.
 - **Placeholder-text leakage on iOS lock screen.** Between APNs delivery and NSE rewrite, the placeholder ("New alert") is what's technically in transit — acceptable because it carries no incident detail, but it means the relay-mode iOS notification can never encode anything sensitive in the pre-decrypt alert.
-- **Quota exhaustion despite rate-limiting.** A large fleet of legitimate relay-mode instances still all draw on the publisher's single FCM/APNs quota. Per-instance limits bound abuse but not aggregate legitimate load; the publisher must size (and possibly tier) the relay's provider quota as adoption grows.
+- **Quota exhaustion across a shared quota.** Every relay-mode Piro instance — plus every other Heva app on the shared relay — draws on the same Firebase/APNs quota. Per-caller rate-limits bound abuse but not aggregate legitimate load, and now one noisy app can starve another. The relay operator must size (and possibly per-`appId` tier) the shared provider quota as adoption grows across apps.

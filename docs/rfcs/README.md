@@ -30,7 +30,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
-| [0017](0017-push-relay-server.md) | Push relay server: publisher-operated blind relay so the store app works against any self-hosted server | Proposed (PR #227) | 0016 |
+| [0017](0017-push-relay-server.md) | Push relay client: consuming a shared blind relay so the store app works against any self-hosted server | Proposed (PR #227) | 0016 |
 
 Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0009, 0010, 0011, 0012, 0014, 0015, 0016**.
 
