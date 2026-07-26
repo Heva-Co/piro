@@ -1,5 +1,9 @@
-import { useState } from "react";
-import { Copy } from "lucide-react";
+import { useRef, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import axios from "axios";
+import { Copy, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { UpsertSaml2Provider } from "@/lib/actions/saml";
+import { samlApi, type UpsertSaml2Provider } from "@/lib/actions/saml";
 
 const ROLES = ["Owner", "Admin", "Member", "Viewer"];
 
@@ -26,26 +30,109 @@ interface Props {
   testing: boolean;
 }
 
+/** Field-level validation. The certificate is required only when creating; on edit a blank value keeps the stored one. */
+function buildSchema(isEdit: boolean) {
+  return z.object({
+    id: z.string().trim().min(1, "Provider ID is required"),
+    displayName: z.string().trim().min(1, "Display name is required"),
+    idpEntityId: z.string().trim().min(1, "IdP entity ID is required"),
+    idpSsoUrl: z.string().trim().min(1, "IdP SSO URL is required").url("Must be a valid URL"),
+    idpSigningCertificate: isEdit
+      ? z.string().optional()
+      : z.string().trim().min(1, "IdP signing certificate is required"),
+    spEntityId: z.string().optional(),
+    allowedDomains: z.string().optional(),
+    defaultRole: z.string(),
+    isEnabled: z.boolean(),
+  });
+}
+
 function Saml2ProviderForm(props: Props) {
   const { initial, onSave, onCancel, saving, testResult, onTest, testing } = props;
-  const [form, setForm] = useState(initial);
-  const isEdit = !!initial.id && initial.id === form.id && form.id !== "";
+  const isEdit = !!initial.id && initial.id !== "";
 
-  function set(key: keyof UpsertSaml2Provider, value: string | boolean) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [metadataError, setMetadataError] = useState("");
+  const [parsing, setParsing] = useState(false);
+
+  const schema = buildSchema(isEdit);
+  type FormValues = z.infer<typeof schema>;
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: initial as FormValues,
+  });
+
+  const idValue = watch("id");
+  const spEntityIdValue = watch("spEntityId");
 
   // The IdP posts assertions to this SP endpoint; it's fixed by the backend route.
   const acsUrl = `${window.location.origin}/api/v1/auth/saml/acs`;
-  const spEntityId = form.spEntityId || `${window.location.origin}/saml/metadata`;
+  const spEntityId = spEntityIdValue?.trim() || `${window.location.origin}/saml/metadata`;
+
+  async function handleMetadataFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+
+    setMetadataError("");
+    setParsing(true);
+    try {
+      const xml = await file.text();
+      const parsed = await samlApi.parseMetadata(xml);
+      setValue("idpEntityId", parsed.idpEntityId, { shouldValidate: true, shouldDirty: true });
+      setValue("idpSsoUrl", parsed.idpSsoUrl, { shouldValidate: true, shouldDirty: true });
+      setValue("idpSigningCertificate", parsed.idpSigningCertificate, { shouldValidate: true, shouldDirty: true });
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.title
+          ? err.response.data.title
+          : "Could not read this metadata file.";
+      setMetadataError(message);
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function submit(values: FormValues) {
+    onSave(values as UpsertSaml2Provider);
+  }
 
   return (
-    <div>
-      <div className="mb-5">
-        <p className="text-sm text-muted-foreground">
-          Works with any SAML 2.0 identity provider (Okta, Keycloak, Microsoft Entra, Google Workspace).
-          Register the ACS URL and entity ID below in your IdP, then paste its metadata here.
-        </p>
+    <form onSubmit={handleSubmit(submit)}>
+
+      <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-4 mb-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Import from IdP metadata</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Upload the IdP metadata XML to auto-fill the entity ID, SSO URL, and signing certificate.
+          </p>
+          {metadataError && <p className="text-xs text-destructive mt-1.5">{metadataError}</p>}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xml,application/xml,text/xml"
+          className="hidden"
+          onChange={handleMetadataFile}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0"
+          disabled={parsing}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload size={14} />
+          {parsing ? "Reading…" : "Choose metadata file"}
+        </Button>
       </div>
 
       <div className="rounded-xl border bg-card p-6 flex flex-col gap-4">
@@ -53,48 +140,50 @@ function Saml2ProviderForm(props: Props) {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Provider ID</label>
             <Input
-              value={form.id}
-              onChange={(e) => set("id", e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+              {...register("id")}
+              onChange={(e) =>
+                setValue("id", e.target.value.toLowerCase().replace(/\s+/g, "-"), { shouldValidate: true })
+              }
               placeholder="okta"
               disabled={isEdit}
             />
-            <p className="text-xs text-muted-foreground">Lowercase slug, e.g. "okta"</p>
+            {errors.id ? (
+              <p className="text-xs text-destructive">{errors.id.message}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Lowercase slug, e.g. "okta"</p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Display Name</label>
-            <Input
-              value={form.displayName}
-              onChange={(e) => set("displayName", e.target.value)}
-              placeholder="Okta"
-            />
+            <Input {...register("displayName")} placeholder="Okta" />
+            {errors.displayName && <p className="text-xs text-destructive">{errors.displayName.message}</p>}
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">IdP Entity ID (Issuer)</label>
-          <Input
-            value={form.idpEntityId}
-            onChange={(e) => set("idpEntityId", e.target.value)}
-            placeholder="https://idp.example.com/metadata"
-          />
-          <p className="text-xs text-muted-foreground">The issuer/entity ID advertised by your IdP.</p>
+          <Input {...register("idpEntityId")} placeholder="https://idp.example.com/metadata" />
+          {errors.idpEntityId ? (
+            <p className="text-xs text-destructive">{errors.idpEntityId.message}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">The issuer/entity ID advertised by your IdP.</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">IdP SSO URL</label>
-          <Input
-            value={form.idpSsoUrl}
-            onChange={(e) => set("idpSsoUrl", e.target.value)}
-            placeholder="https://idp.example.com/sso/saml"
-          />
-          <p className="text-xs text-muted-foreground">The SingleSignOnService URL (HTTP-Redirect binding).</p>
+          <Input {...register("idpSsoUrl")} placeholder="https://idp.example.com/sso/saml" />
+          {errors.idpSsoUrl ? (
+            <p className="text-xs text-destructive">{errors.idpSsoUrl.message}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">The SingleSignOnService URL (HTTP-Redirect binding).</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">IdP Signing Certificate</label>
           <Textarea
-            value={form.idpSigningCertificate ?? ""}
-            onChange={(e) => set("idpSigningCertificate", e.target.value)}
+            {...register("idpSigningCertificate")}
             placeholder={
               isEdit
                 ? "········ (saved — leave blank to keep)"
@@ -103,9 +192,13 @@ function Saml2ProviderForm(props: Props) {
             rows={5}
             className="font-mono text-xs"
           />
-          <p className="text-xs text-muted-foreground">
-            The IdP's public signing certificate (PEM or base64). Used to verify assertion signatures.
-          </p>
+          {errors.idpSigningCertificate ? (
+            <p className="text-xs text-destructive">{errors.idpSigningCertificate.message}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              The IdP's public signing certificate (PEM or base64). Used to verify assertion signatures.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -127,11 +220,7 @@ function Saml2ProviderForm(props: Props) {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">SP Entity ID</label>
-          <Input
-            value={form.spEntityId ?? ""}
-            onChange={(e) => set("spEntityId", e.target.value)}
-            placeholder={spEntityId}
-          />
+          <Input {...register("spEntityId")} placeholder={spEntityId} />
           <p className="text-xs text-muted-foreground">
             Identifier Piro advertises to the IdP. Blank = <span className="font-mono">{spEntityId}</span>
           </p>
@@ -140,33 +229,41 @@ function Saml2ProviderForm(props: Props) {
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Allowed Email Domains</label>
-            <Input
-              value={form.allowedDomains ?? ""}
-              onChange={(e) => set("allowedDomains", e.target.value)}
-              placeholder="example.com, another.org"
-            />
+            <Input {...register("allowedDomains")} placeholder="example.com, another.org" />
             <p className="text-xs text-muted-foreground">Comma-separated. Blank = allow all.</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Default Role</label>
-            <Select value={form.defaultRole} onValueChange={(v) => v && set("defaultRole", v)}>
-              <SelectTrigger>
-                <SelectValue>{form.defaultRole}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {ROLES.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              control={control}
+              name="defaultRole"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                  <SelectTrigger>
+                    <SelectValue>{field.value}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             <p className="text-xs text-muted-foreground">Assigned to new users on first sign-in.</p>
           </div>
         </div>
 
-        <label className="flex items-center gap-2.5">
-          <Switch checked={form.isEnabled} onCheckedChange={(v) => set("isEnabled", v)} />
-          <span className="text-sm font-medium">Enabled</span>
-        </label>
+        <Controller
+          control={control}
+          name="isEnabled"
+          render={({ field }) => (
+            <label className="flex items-center gap-2.5">
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+              <span className="text-sm font-medium">Enabled</span>
+            </label>
+          )}
+        />
 
         {testResult && (
           <div
@@ -183,7 +280,7 @@ function Saml2ProviderForm(props: Props) {
 
       <div className="flex items-center justify-between mt-4">
         <TestButton
-          onClick={() => onTest(form.id)}
+          onClick={() => onTest(idValue)}
           loading={testing}
           disabled={!isEdit}
           label="Validate Configuration"
@@ -192,12 +289,12 @@ function Saml2ProviderForm(props: Props) {
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => onSave(form)} disabled={saving}>
+          <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save Provider"}
           </Button>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
