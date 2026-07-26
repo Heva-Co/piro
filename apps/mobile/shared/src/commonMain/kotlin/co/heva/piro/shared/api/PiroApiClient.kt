@@ -6,6 +6,7 @@ import co.heva.piro.shared.model.AlertListEnvelope
 import co.heva.piro.shared.model.DeviceDto
 import co.heva.piro.shared.model.OidcCallbackRequest
 import co.heva.piro.shared.model.OidcProvider
+import co.heva.piro.shared.model.OnCallSlot
 import co.heva.piro.shared.model.RefreshRequest
 import co.heva.piro.shared.model.RegisterDeviceRequest
 import co.heva.piro.shared.model.SignInRequest
@@ -171,6 +172,26 @@ class PiroApiClient(
     suspend fun acknowledgeAlert(id: Int): AlertDetail {
         val response = authorized { http.post("$baseUrl/api/v1/alerts/$id/acknowledge") { bearer(it) } }
         if (!response.status.isSuccess()) throw response.toException("Acknowledge failed")
+        return response.body()
+    }
+
+    // --- On-call schedule ---
+
+    /**
+     * The signed-in user's resolved on-call shifts across all their schedules in [from]..[to]
+     * (GET /api/v1/oncall/schedules/me/slots). The backend expands the rotation + overrides, so the
+     * calendar renders these slots directly. [from]/[to] are ISO-8601; the range must be ≤ 366 days.
+     */
+    @Throws(Throwable::class)
+    suspend fun getMyOnCallSlots(from: String, to: String): List<OnCallSlot> {
+        val response = authorized {
+            http.get("$baseUrl/api/v1/oncall/schedules/me/slots") {
+                bearer(it)
+                parameter("from", from)
+                parameter("to", to)
+            }
+        }
+        if (!response.status.isSuccess()) throw response.toException("Could not load on-call schedule")
         return response.body()
     }
 

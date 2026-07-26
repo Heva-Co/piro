@@ -31,8 +31,7 @@ struct RootView: View {
             .tag(MainTab.alerts)
 
             NavigationStack {
-                PlaceholderView(title: "Schedule",
-                                message: "Your on-call rotation and shifts will appear here.")
+                ScheduleView(api: services.api)
             }
             .tabItem { Label(MainTab.schedule.title, systemImage: MainTab.schedule.systemImage) }
             .tag(MainTab.schedule)

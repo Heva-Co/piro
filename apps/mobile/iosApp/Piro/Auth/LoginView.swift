@@ -149,13 +149,12 @@ struct LoginView: View {
     }
 }
 
-/// Shared text-field chrome for the login inputs.
+/// Shared text-field chrome for the login inputs — Liquid Glass so the sign-in form matches the rest
+/// of the app's glass treatment.
 private extension View {
     func fieldStyle(_ scheme: ColorScheme) -> some View {
         self
             .padding(14)
-            .background(PiroColors.surfaceVariant(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(PiroColors.muted(scheme).opacity(0.25)))
+            .glassCard(cornerRadius: 12)
     }
 }

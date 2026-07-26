@@ -33,6 +33,7 @@ import co.heva.piro.android.login.LoginViewModel
 import co.heva.piro.android.login.LoginViewModelFactory
 import co.heva.piro.android.push.AlarmPlayer
 import co.heva.piro.android.push.DeviceRegistrar
+import co.heva.piro.android.push.PushReadinessState
 
 /**
  * Single-activity host. Requests the notification permission, drives the login → home flow, and handles
@@ -46,13 +47,13 @@ class MainActivity : ComponentActivity() {
         LoginViewModelFactory(services.api, services.tokenStorage, DeviceRegistrar(services.api))
     }
 
-    private val notificationsGranted = mutableStateOf(false)
-
     /** Set when a page notification is opened (piro://alert/{id}); drives navigation to the detail screen. */
     private val openAlertId = mutableStateOf<Int?>(null)
 
     private val requestNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        notificationsGranted.value = granted
+        // Feed the real readiness pipeline: granting moves us to Registering (the DeviceRegistrar then
+        // resolves it to Registered/Failed); denying stays NeedsPermission.
+        PushReadinessState.onPermissionResult(granted)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,25 +69,24 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars),
                 ) {
                     val state by viewModel.state.collectAsState()
-                    val granted by remember { notificationsGranted }
-                    val alertId = openAlertId.value
+                    val readiness by PushReadinessState.state.collectAsState()
 
-                    when {
-                        !state.signedIn -> LoginScreen(
+                    if (!state.signedIn) {
+                        LoginScreen(
                             state = state,
                             onEmailChange = viewModel::onEmailChange,
                             onPasswordChange = viewModel::onPasswordChange,
                             onSignIn = viewModel::signIn,
                             onSsoClick = { provider -> openSso(provider.id) },
                         )
-                        alertId != null -> AlertDetailRoute(
-                            alertId = alertId,
-                            onBack = { openAlertId.value = null },
-                        )
-                        else -> MainScaffold(
+                    } else {
+                        // The scaffold owns navigation (including alert detail pushed over the Alerts tab),
+                        // so pressing Back from a detail returns to the list, not to a reset tab.
+                        MainScaffold(
                             userName = state.email.ifBlank { "you" },
-                            notificationsGranted = granted,
-                            onOpenAlert = { id -> openAlertId.value = id },
+                            readiness = readiness,
+                            deepLinkAlertId = openAlertId.value,
+                            onDeepLinkConsumed = { openAlertId.value = null },
                             onSignOut = { viewModel.signOut() },
                         )
                     }
@@ -116,26 +116,12 @@ class MainActivity : ComponentActivity() {
         data.lastPathSegment?.toIntOrNull()?.let { openAlertId.value = it }
     }
 
-    @Composable
-    private fun AlertDetailRoute(alertId: Int, onBack: () -> Unit) {
-        val services = (application as PiroApp).services
-        val vm: AlertDetailViewModel = viewModel(
-            key = "alert-$alertId",
-            factory = AlertDetailViewModelFactory(services.api, alertId),
-        )
-        val detailState by vm.state.collectAsState()
-        AlertDetailScreen(
-            state = detailState,
-            onAcknowledge = vm::acknowledge,
-            onBack = onBack,
-        )
-    }
-
     private fun maybeRequestNotifications() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            notificationsGranted.value = true
+            // Pre-13 has no runtime prompt — permission is implicit; move straight to registering.
+            PushReadinessState.onPermissionResult(true)
         }
     }
 

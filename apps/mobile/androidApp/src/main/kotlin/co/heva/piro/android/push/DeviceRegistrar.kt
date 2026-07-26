@@ -13,11 +13,19 @@ import kotlinx.coroutines.tasks.await
 class DeviceRegistrar(private val api: PiroApiClient) {
 
     suspend fun registerCurrentDevice() {
-        val token = FirebaseMessaging.getInstance().token.await()
-        api.registerDevice(
-            platform = "Android",
-            token = token,
-            deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
-        )
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            api.registerDevice(
+                platform = "Android",
+                token = token,
+                deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
+            )
+            // Only now is the device truly armed: FCM gave a token AND the backend accepted it.
+            PushReadinessState.set(PushReadiness.Registered)
+        } catch (e: Exception) {
+            // No FCM token (e.g. no Google Play Services) or the backend rejected it — don't promise pages.
+            PushReadinessState.set(PushReadiness.Failed)
+            throw e
+        }
     }
 }
