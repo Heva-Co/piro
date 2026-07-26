@@ -198,6 +198,13 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
                 .WithIdentity("escalation-check-trigger")
                 .WithCronSchedule("0 * * * * ?"));
 
+            // Prune expired/revoked refresh-token sessions (RFC 0018) — daily at 03:30
+            q.AddJob<RefreshTokenPruneJob>(j => j.WithIdentity(RefreshTokenPruneJob.Key).StoreDurably());
+            q.AddTrigger(t => t
+                .ForJob(RefreshTokenPruneJob.Key)
+                .WithIdentity("refresh-token-prune-trigger")
+                .WithCronSchedule("0 30 3 * * ?"));
+
         });
         services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
@@ -228,6 +235,9 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // Mobile device push tokens
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+
+        // Per-device refresh-token sessions (RFC 0018)
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         // Alert repositories
         services.AddScoped<IAlertConfigRepository, AlertConfigRepository>();
