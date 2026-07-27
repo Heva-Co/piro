@@ -31,8 +31,9 @@ jobs:
               - 'Dockerfile'
               - 'src/Piro.Worker/Dockerfile'
               - 'apps/web/Dockerfile'
-              - 'apps/admin/Dockerfile'
               - 'nginx/Dockerfile'
+              # The proxy image builds the admin SPA, so its sources matter too.
+              - 'apps/admin/**'
               # Adding or renaming a project changes what the Dockerfiles must
               # restore, so rebuild the images on any .csproj/solution change.
               # Without this the image build only ran when a Dockerfile itself
@@ -140,22 +141,17 @@ jobs:
           push: false
           platforms: linux/amd64
 
+      # The web Dockerfile expects apps/web as its context, not the repo root.
       - name: Build web image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: apps/web/Dockerfile
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
           push: false
           platforms: linux/amd64
 
-      - name: Build admin image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/admin/Dockerfile
-          push: false
-          platforms: linux/amd64
-
+      # There is no apps/admin/Dockerfile: the admin SPA is built inside
+      # nginx/Dockerfile and served by the proxy image below.
       - name: Build proxy image
         uses: docker/build-push-action@v6
         with:
