@@ -113,7 +113,7 @@ public static class ConfigYamlParser
                 case "cron": check.Cron = ctx.String(key); break;
                 case "is_active": check.IsActive = ctx.Bool(key); break;
                 case "type_data": check.TypeData = ctx.Mapping(key); break;
-                case "required_worker_tags": check.RequiredWorkerTags = ctx.StringList(key); break;
+                case "required_worker_tags": check.RequiredWorkerTags = ctx.StringMapping(key); break;
                 case "alert_configs": check.AlertConfigs = ctx.Sequence(key, ParseAlertConfig); break;
                 case "integration" or "integration_id":
                     // Named explicitly rather than falling through to "unknown key", because the

@@ -57,10 +57,12 @@ public sealed class ConfigCheckNode
     public IReadOnlyDictionary<string, object?>? TypeData { get; set; }
 
     /// <summary>
-    /// Worker tags a runner must carry to execute this check. Rejected for a check type whose manifest
-    /// sets <c>SingleRegionOnly</c>, matching <c>EnsureCanRequireWorkerTagsAsync</c>.
+    /// Worker tags a runner must carry to execute this check, as key/value pairs matching the shared
+    /// worker-tag vocabulary (e.g. <c>piro:region: eu-west</c>). A null value is a key-only flag.
+    /// Rejected for a check type whose manifest sets <c>SingleRegionOnly</c>, matching
+    /// <c>EnsureCanRequireWorkerTagsAsync</c>.
     /// </summary>
-    public List<string>? RequiredWorkerTags { get; set; }
+    public IReadOnlyDictionary<string, string?>? RequiredWorkerTags { get; set; }
 
     /// <summary>
     /// Alert rules for this check. Matched against existing rows by <see cref="ConfigAlertConfigNode.Dimension"/>,

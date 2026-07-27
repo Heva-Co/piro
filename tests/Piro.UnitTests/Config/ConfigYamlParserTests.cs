@@ -56,7 +56,9 @@ public class ConfigYamlParserTests
                     type: HTTP
                     cron: "* * * * *"
                     is_active: true
-                    required_worker_tags: [eu-west, primary]
+                    required_worker_tags:
+                      piro:region: eu-west
+                      tier: primary
                     type_data:
                       url: https://api.heva.com/health
                       expectedStatusCode: 200
@@ -79,7 +81,11 @@ public class ConfigYamlParserTests
         check.Type.Should().Be("HTTP");
         check.Cron.Should().Be("* * * * *");
         check.IsActive.Should().BeTrue();
-        check.RequiredWorkerTags.Should().Equal("eu-west", "primary");
+        check.RequiredWorkerTags.Should().BeEquivalentTo(new Dictionary<string, string?>
+        {
+            ["piro:region"] = "eu-west",
+            ["tier"] = "primary",
+        });
 
         // type_data keeps YAML's scalar types, so the JSON it becomes has real numbers and booleans
         // rather than quoted strings the config type would fail to bind.
@@ -94,6 +100,26 @@ public class ConfigYamlParserTests
         alert.FailureThreshold.Should().Be(3);
         alert.MinFailingRegions.Should().Be(2);
         alert.SuccessThreshold.Should().BeNull();
+    }
+
+    [Fact]
+    public void RequiredWorkerTags_AlsoAcceptsABareListOfKeys()
+    {
+        // A key-only flag carries no value, and a list is the natural way to write that.
+        var doc = Parse("""
+            version: 1
+            services:
+              - slug: api
+                name: API
+                checks:
+                  - slug: health
+                    name: Health
+                    required_worker_tags: [eu-west, primary]
+            """);
+
+        _errors.Should().BeEmpty();
+        doc!.Services[0].Checks[0].RequiredWorkerTags.Should().BeEquivalentTo(
+            new Dictionary<string, string?> { ["eu-west"] = null, ["primary"] = null });
     }
 
     [Fact]

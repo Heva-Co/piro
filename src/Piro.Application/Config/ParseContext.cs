@@ -82,23 +82,46 @@ internal sealed class ParseContext(string path, List<ConfigValidationError> erro
         return null;
     }
 
-    public List<string>? StringList(ParseKey key)
+    /// <summary>
+    /// Reads a key/value tag set. Accepts a mapping (<c>piro:region: eu-west</c>) and also a bare list
+    /// of keys, since a key-only flag carries no value and writing it as a list is the natural thing
+    /// to reach for.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?>? StringMapping(ParseKey key)
     {
-        if (key.Value is not YamlSequenceNode sequence)
-        {
-            Add($"'{key.Name}' must be a list of strings.", key.Value, key.Pointer);
-            return null;
-        }
+        var result = new Dictionary<string, string?>();
 
-        var items = new List<string>();
-        for (var i = 0; i < sequence.Children.Count; i++)
+        switch (key.Value)
         {
-            if (sequence.Children[i] is YamlScalarNode { Value: { } value })
-                items.Add(value);
-            else
-                Add($"'{key.Name}[{i}]' must be a string.", sequence.Children[i], $"{key.Pointer}[{i}]");
+            case YamlMappingNode mapping:
+                foreach (var (keyNode, valueNode) in mapping.Children)
+                {
+                    if (keyNode is not YamlScalarNode { Value: { } name })
+                    {
+                        Add($"'{key.Name}' keys must be strings.", keyNode, key.Pointer);
+                        continue;
+                    }
+                    result[name] = valueNode is YamlScalarNode { Value: { } v and not "null" and not "~" and not "" }
+                        ? v
+                        : null;
+                }
+                return result;
+
+            case YamlSequenceNode sequence:
+                for (var i = 0; i < sequence.Children.Count; i++)
+                {
+                    if (sequence.Children[i] is YamlScalarNode { Value: { } name })
+                        result[name] = null;
+                    else
+                        Add($"'{key.Name}[{i}]' must be a string.", sequence.Children[i], $"{key.Pointer}[{i}]");
+                }
+                return result;
+
+            default:
+                Add($"'{key.Name}' must be a mapping of tag keys to values, or a list of tag keys.",
+                    key.Value, key.Pointer);
+                return null;
         }
-        return items;
     }
 
     /// <summary>
