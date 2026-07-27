@@ -8,7 +8,6 @@ public record ServiceDto(
     string Slug,
     string Name,
     string? Description,
-    string? ImageUrl,
     ServiceStatus CurrentStatus,
     ServiceStatus DefaultStatus,
     bool IsHidden,
@@ -32,7 +31,6 @@ public record CreateServiceRequest(
     string Slug,
     string Name,
     string? Description,
-    string? ImageUrl,
     ServiceStatus DefaultStatus,
     bool IsHidden,
     int DisplayOrder,
@@ -47,7 +45,6 @@ public record CreateServiceRequest(
 public record UpdateServiceRequest(
     string? Name,
     string? Description,
-    string? ImageUrl,
     ServiceStatus? DefaultStatus,
     bool? IsHidden,
     int? DisplayOrder,

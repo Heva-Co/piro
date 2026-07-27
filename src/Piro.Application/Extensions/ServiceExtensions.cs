@@ -9,7 +9,6 @@ public static class ServiceExtensions
     public static ServiceDto ToDto(this Service s, int checkCount = 0) => new(
         s.Id, s.Slug, s.Name,
         s.Description,
-        s.ImageUrl,
         s.CurrentStatus,
         s.DefaultStatus,
         s.IsHidden,

@@ -62,7 +62,6 @@ public sealed class ConfigExporter(
         output.Append("    name: ").AppendLine(Scalar(service.Name));
 
         AppendIf(output, "    ", "description", service.Description);
-        AppendIf(output, "    ", "image_url", service.ImageUrl);
         if (service.IsHidden) output.AppendLine("    is_hidden: true");
         if (service.DisplayOrder != 0)
             output.Append("    display_order: ").AppendLine(service.DisplayOrder.ToString(CultureInfo.InvariantCulture));

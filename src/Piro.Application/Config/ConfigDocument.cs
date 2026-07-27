@@ -24,7 +24,6 @@ public sealed class ConfigServiceNode
     public string? Description { get; set; }
     public bool? IsHidden { get; set; }
     public int? DisplayOrder { get; set; }
-    public string? ImageUrl { get; set; }
 
     /// <summary>Status shown before any check has reported. A <c>ServiceStatus</c> name.</summary>
     public string? DefaultStatus { get; set; }

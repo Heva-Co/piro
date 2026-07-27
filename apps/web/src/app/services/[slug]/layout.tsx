@@ -35,14 +35,6 @@ export async function generateMetadata({ params }: Props) {
       </Link>
 
       <div className="flex flex-col gap-1 px-1">
-        {service.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={service.imageUrl}
-            alt={service.name}
-            className="size-12 rounded-xl object-cover mb-1"
-          />
-        )}
         <h1 className="text-2xl font-bold">{service.name}</h1>
         {service.description && (
           <p className="text-sm text-muted-foreground">{service.description}</p>

@@ -85,12 +85,11 @@ public static class ConfigYamlParser
                 case "description": service.Description = ctx.String(key); break;
                 case "is_hidden": service.IsHidden = ctx.Bool(key); break;
                 case "display_order": service.DisplayOrder = ctx.Int(key); break;
-                case "image_url": service.ImageUrl = ctx.String(key); break;
                 case "default_status": service.DefaultStatus = ctx.String(key); break;
                 case "checks": service.Checks = ctx.Sequence(key, ParseCheck); break;
                 default:
                     ctx.UnknownKey(key, "slug", "name", "description", "is_hidden",
-                        "display_order", "image_url", "default_status", "checks");
+                        "display_order", "default_status", "checks");
                     break;
             }
         });

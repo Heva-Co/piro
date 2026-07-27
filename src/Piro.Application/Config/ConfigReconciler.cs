@@ -292,7 +292,6 @@ public sealed class ConfigReconciler(
         Compare(fields, "description", existing.Description, node.Description);
         Compare(fields, "is_hidden", existing.IsHidden, node.IsHidden);
         Compare(fields, "display_order", existing.DisplayOrder, node.DisplayOrder);
-        Compare(fields, "image_url", existing.ImageUrl, node.ImageUrl);
         Compare(fields, "default_status", existing.DefaultStatus, service.DefaultStatus);
 
         return fields;
@@ -398,7 +397,6 @@ public sealed class ConfigReconciler(
                 service.Slug,
                 service.Node.Name!,
                 service.Node.Description,
-                service.Node.ImageUrl,
                 service.DefaultStatus ?? ServiceStatus.NO_DATA,
                 service.Node.IsHidden ?? false,
                 service.Node.DisplayOrder ?? 0), ct);
@@ -411,7 +409,6 @@ public sealed class ConfigReconciler(
             await services.UpdateAsync(service.Slug, new UpdateServiceRequest(
                 service.Node.Name,
                 service.Node.Description,
-                service.Node.ImageUrl,
                 service.DefaultStatus,
                 service.Node.IsHidden,
                 service.Node.DisplayOrder,

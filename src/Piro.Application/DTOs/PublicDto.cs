@@ -12,7 +12,6 @@ public record PublicServiceDto(
     string Slug,
     string Name,
     string? Description,
-    string? ImageUrl,
     ServiceStatus Status,
     int DisplayOrder
 );
@@ -49,7 +48,6 @@ public record ServiceOverviewDto(
     string Slug,
     string Name,
     string? Description,
-    string? ImageUrl,
     ServiceStatus CurrentStatus,
     long LastUpdatedAt,
     double? LastLatencyMs,

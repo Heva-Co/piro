@@ -36,7 +36,6 @@ public class ConfigYamlParserTests
         service.Description.Should().BeNull();
         service.IsHidden.Should().BeNull();
         service.DisplayOrder.Should().BeNull();
-        service.ImageUrl.Should().BeNull();
         service.DefaultStatus.Should().BeNull();
     }
 
@@ -48,7 +47,6 @@ public class ConfigYamlParserTests
             services:
               - slug: heva-api
                 name: Heva API
-                image_url: https://heva.co/logo.png
                 default_status: UP
                 checks:
                   - slug: health
@@ -74,7 +72,6 @@ public class ConfigYamlParserTests
 
         _errors.Should().BeEmpty();
         var service = doc!.Services.Should().ContainSingle().Subject;
-        service.ImageUrl.Should().Be("https://heva.co/logo.png");
         service.DefaultStatus.Should().Be("UP");
 
         var check = service.Checks.Should().ContainSingle().Subject;

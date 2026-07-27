@@ -54,15 +54,6 @@ export function ServiceRow({ service, overview, incidentStatus }: Props) {
     >
       {/* Top row */}
       <div className="flex items-center gap-3">
-        {service.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={service.imageUrl}
-            alt={service.name}
-            className="size-8 rounded-lg object-cover shrink-0 hidden sm:block"
-          />
-        )}
-
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm text-foreground truncate">{service.name}</p>
           {service.description && (

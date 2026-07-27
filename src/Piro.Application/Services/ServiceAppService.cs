@@ -47,7 +47,6 @@ public class ServiceAppService(
             Slug = request.Slug,
             Name = request.Name,
             Description = request.Description,
-            ImageUrl = request.ImageUrl,
             DefaultStatus = request.DefaultStatus,
             CurrentStatus = request.DefaultStatus,
             IsHidden = request.IsHidden,
@@ -66,7 +65,6 @@ public class ServiceAppService(
 
         if (request.Name is not null) service.Name = request.Name;
         if (request.Description is not null) service.Description = request.Description;
-        if (request.ImageUrl is not null) service.ImageUrl = request.ImageUrl;
         if (request.DefaultStatus is not null) service.DefaultStatus = request.DefaultStatus.Value;
         if (request.IsHidden is not null) service.IsHidden = request.IsHidden.Value;
         if (request.DisplayOrder is not null) service.DisplayOrder = request.DisplayOrder.Value;

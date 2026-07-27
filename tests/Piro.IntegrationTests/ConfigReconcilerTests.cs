@@ -181,13 +181,12 @@ public class ConfigReconcilerTests : IAsyncLifetime
         await using (var seed = NewContext())
         {
             var service = await seed.Services.SingleAsync(s => s.Slug == "api");
-            service.ImageUrl = "https://heva.co/logo.png";
-            service.EscalationPolicyId = null;
-            service.IsHidden = false;
+            service.DisplayOrder = 7;
+            service.IsHidden = true;
             await seed.SaveChangesAsync();
         }
 
-        // A document that renames the service but says nothing about image_url.
+        // A document that renames the service and says nothing about the rest.
         await ApplyAsync(Request(Document("""
               - slug: api
                 name: Renamed API
@@ -196,7 +195,9 @@ public class ConfigReconcilerTests : IAsyncLifetime
         await using var verify = NewContext();
         var updated = await verify.Services.SingleAsync(s => s.Slug == "api");
         updated.Name.Should().Be("Renamed API");
-        updated.ImageUrl.Should().Be("https://heva.co/logo.png");
+        updated.DisplayOrder.Should().Be(7);
+        updated.IsHidden.Should().BeTrue();
+        updated.Description.Should().Be("The API");
 
         // And the check it did not mention is still there, untouched.
         (await verify.Checks.AnyAsync(c => c.Slug == "health")).Should().BeTrue();

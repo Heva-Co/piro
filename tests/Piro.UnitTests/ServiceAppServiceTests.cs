@@ -34,7 +34,7 @@ public class ServiceAppServiceTests
     }
 
     private static UpdateServiceRequest Update(Patch<int?>? escalationPolicyId) =>
-        new("Renamed", null, null, null, null, null, escalationPolicyId);
+        new("Renamed", null, null, null, null, escalationPolicyId);
 
     [Fact]
     public async Task OmittedEscalationPolicy_LeavesItUnchanged()
