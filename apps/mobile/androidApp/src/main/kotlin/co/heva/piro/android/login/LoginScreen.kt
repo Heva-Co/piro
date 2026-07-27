@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -32,6 +33,8 @@ import co.heva.piro.shared.model.OidcProvider
 @Composable
 fun LoginScreen(
     state: LoginUiState,
+    onServerUrlChange: (String) -> Unit,
+    onServerUrlCommit: () -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
@@ -53,6 +56,22 @@ fun LoginScreen(
             modifier = Modifier.padding(top = 32.dp).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            OutlinedTextField(
+                value = state.serverUrl,
+                onValueChange = onServerUrlChange,
+                label = { Text("Server URL") },
+                placeholder = { Text("https://piro.example.com") },
+                singleLine = true,
+                enabled = !state.isSubmitting,
+                isError = state.serverError != null,
+                supportingText = {
+                    Text(state.serverError ?: "The address of your self-hosted Piro server.")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { onServerUrlCommit() }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             if (!state.ssoOnly) {
                 OutlinedTextField(
                     value = state.email,

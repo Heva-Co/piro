@@ -12,7 +12,7 @@ internal class DeviceTokenRepository(PiroDbContext db) : IDeviceTokenRepository
             .Where(d => d.UserId == userId)
             .ToListAsync(ct);
 
-    public async Task<DeviceToken> UpsertAsync(int userId, DevicePlatform platform, string token, string? deviceName, CancellationToken ct = default)
+    public async Task<DeviceToken> UpsertAsync(int userId, DevicePlatform platform, string token, string? deviceName, string? pushPublicKey, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
         var existing = await db.DeviceTokens.FirstOrDefaultAsync(d => d.UserId == userId && d.Token == token, ct);
@@ -22,6 +22,10 @@ internal class DeviceTokenRepository(PiroDbContext db) : IDeviceTokenRepository
             existing.DeviceName = deviceName;
             existing.LastSeenAt = now;
             existing.FailureCount = 0;
+            // Only replace a stored key when the client actually sent one: an older client that omits
+            // the field must not clear a key that is working.
+            if (!string.IsNullOrWhiteSpace(pushPublicKey))
+                existing.PushPublicKey = pushPublicKey;
             await db.SaveChangesAsync(ct);
             return existing;
         }
@@ -32,6 +36,7 @@ internal class DeviceTokenRepository(PiroDbContext db) : IDeviceTokenRepository
             Platform = platform,
             Token = token,
             DeviceName = deviceName,
+            PushPublicKey = pushPublicKey,
             LastSeenAt = now,
         };
         db.DeviceTokens.Add(device);

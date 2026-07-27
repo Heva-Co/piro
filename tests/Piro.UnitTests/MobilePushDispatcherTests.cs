@@ -4,6 +4,7 @@ using NSubstitute;
 using Piro.Contracts;
 using Piro.Integrations.Abstractions;
 using Piro.Integrations.MobilePush;
+using Piro.Integrations.MobilePush.Crypto;
 using Piro.Integrations.MobilePush.Transport;
 
 namespace Piro.UnitTests;
@@ -41,7 +42,7 @@ public class MobilePushDispatcherTests
             new DeviceTokenInfo(DevicePushPlatform.Android, "a2"),
             new DeviceTokenInfo(DevicePushPlatform.Ios, "i1"));
         var host = HostWith(reader);
-        var dispatcher = new MobilePushNotificationDispatcher([android, ios], NullLogger<MobilePushNotificationDispatcher>.Instance);
+        var dispatcher = new MobilePushNotificationDispatcher([android, ios], new PushPayloadSealer(), NullLogger<MobilePushNotificationDispatcher>.Instance);
 
         var delivered = await dispatcher.HandleAsync(CriticalAlert(), PersonalToUser42, host);
 
@@ -55,8 +56,7 @@ public class MobilePushDispatcherTests
     public async Task CriticalAlert_IsSentAsCritical_ToBypassDnd()
     {
         var android = new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent);
-        var dispatcher = new MobilePushNotificationDispatcher(
-            [android], NullLogger<MobilePushNotificationDispatcher>.Instance);
+        var dispatcher = new MobilePushNotificationDispatcher([android], new PushPayloadSealer(), NullLogger<MobilePushNotificationDispatcher>.Instance);
 
         await dispatcher.HandleAsync(CriticalAlert(), PersonalToUser42,
             HostWith(ReaderWith(new DeviceTokenInfo(DevicePushPlatform.Android, "a1"))));
@@ -68,8 +68,7 @@ public class MobilePushDispatcherTests
     public async Task ResolvedAlert_IsNotCritical()
     {
         var android = new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent);
-        var dispatcher = new MobilePushNotificationDispatcher(
-            [android], NullLogger<MobilePushNotificationDispatcher>.Instance);
+        var dispatcher = new MobilePushNotificationDispatcher([android], new PushPayloadSealer(), NullLogger<MobilePushNotificationDispatcher>.Instance);
         var recovery = new AlertResolvedEvent
         {
             Severity = EventSeverity.Critical, Title = "API recovered", ServiceName = "API", CheckName = "health",
@@ -90,7 +89,7 @@ public class MobilePushDispatcherTests
         var reader = ReaderWith(
             new DeviceTokenInfo(DevicePushPlatform.Android, "live"),
             new DeviceTokenInfo(DevicePushPlatform.Android, "dead"));
-        var dispatcher = new MobilePushNotificationDispatcher([android], NullLogger<MobilePushNotificationDispatcher>.Instance);
+        var dispatcher = new MobilePushNotificationDispatcher([android], new PushPayloadSealer(), NullLogger<MobilePushNotificationDispatcher>.Instance);
 
         var delivered = await dispatcher.HandleAsync(CriticalAlert(), PersonalToUser42, HostWith(reader));
 
@@ -102,8 +101,7 @@ public class MobilePushDispatcherTests
     [Fact]
     public async Task ReturnsFalse_WhenUserHasNoDevices()
     {
-        var dispatcher = new MobilePushNotificationDispatcher(
-            [new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent)],
+        var dispatcher = new MobilePushNotificationDispatcher([new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent)], new PushPayloadSealer(),
             NullLogger<MobilePushNotificationDispatcher>.Instance);
 
         var delivered = await dispatcher.HandleAsync(CriticalAlert(), PersonalToUser42, HostWith(ReaderWith()));
@@ -114,8 +112,7 @@ public class MobilePushDispatcherTests
     [Fact]
     public async Task ReturnsFalse_ForNonPersonalOrUnparseableTarget()
     {
-        var dispatcher = new MobilePushNotificationDispatcher(
-            [new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent)],
+        var dispatcher = new MobilePushNotificationDispatcher([new RecordingTransport(DevicePushPlatform.Android, PushSendResult.Sent)], new PushPayloadSealer(),
             NullLogger<MobilePushNotificationDispatcher>.Instance);
         var channelCtx = new EventDeliveryContext { Mode = EventDeliveryMode.Channel, Target = "42" };
 
@@ -145,6 +142,7 @@ public class MobilePushDispatcherTests
             : this(platform, _ => fixedResult) { }
 
         public DevicePushPlatform Platform => platform;
+        public PushTransportMode Mode { get; init; } = PushTransportMode.Direct;
         public List<string> SentTokens { get; } = [];
         public PushMessage? LastMessage { get; private set; }
 

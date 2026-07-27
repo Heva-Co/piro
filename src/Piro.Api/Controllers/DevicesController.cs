@@ -28,7 +28,7 @@ public class DevicesController(IDeviceRegistrationService deviceService) : Contr
             return BadRequest(new { title = "A device token is required.", status = 400 });
 
         var device = await deviceService.RegisterAsync(
-            CurrentUserId, request.Platform, request.Token, request.DeviceName, ct);
+            CurrentUserId, request.Platform, request.Token, request.DeviceName, request.PushPublicKey, ct);
         return Ok(device);
     }
 

@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: LoginViewModel by viewModels {
         val services = (application as PiroApp).services
-        LoginViewModelFactory(services.api, services.tokenStorage, DeviceRegistrar(services.api))
+        LoginViewModelFactory(services, applicationContext)
     }
 
     /** Set when a page notification is opened (piro://alert/{id}); drives navigation to the detail screen. */
@@ -74,6 +74,8 @@ class MainActivity : ComponentActivity() {
                     if (!state.signedIn) {
                         LoginScreen(
                             state = state,
+                            onServerUrlChange = viewModel::onServerUrlChange,
+                            onServerUrlCommit = { viewModel.applyServer() },
                             onEmailChange = viewModel::onEmailChange,
                             onPasswordChange = viewModel::onPasswordChange,
                             onSignIn = viewModel::signIn,

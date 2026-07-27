@@ -68,9 +68,13 @@ public class PublicController(
         var result = services
             .Where(s => !s.IsHidden)
             .Select(s => new PublicServiceDto(
-                s.Slug, s.Name, s.Description, s.ImageUrl,
-                s.PublicStatus, s.DisplayOrder,
-                s.HistoryDaysDesktop, s.HistoryDaysMobile));
+                s.Slug, 
+                s.Name, 
+                s.Description, 
+                s.ImageUrl,
+                s.PublicStatus, 
+                s.DisplayOrder
+                ));
         return Ok(result);
     }
 
@@ -86,8 +90,7 @@ public class PublicController(
 
         return Ok(new PublicServiceDto(
             service.Slug, service.Name, service.Description, service.ImageUrl,
-            service.PublicStatus, service.DisplayOrder,
-            service.HistoryDaysDesktop, service.HistoryDaysMobile));
+            service.PublicStatus, service.DisplayOrder));
     }
 
     /// <summary>Returns uptime percentage for a service over the last <c>days</c> days (default 30).</summary>
@@ -143,17 +146,18 @@ public class PublicController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOverview(
         string slug,
-        [FromQuery] int? days = null,
+        [FromQuery] int days = 30,
         CancellationToken ct = default)
     {
+        if (days < 1 || days > 90)
+            return BadRequest(new { title = "days must be between 1 and 90.", status = 400 });
+
         var service = await serviceRepo.GetBySlugAsync(slug, ct);
         if (service is null || service.IsHidden)
             return NotFound();
 
-        var effectiveDays = Math.Clamp(days ?? service.HistoryDaysDesktop, 1, service.HistoryDaysDesktop);
-
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var from = now - (long)effectiveDays * 86400;
+        var from = now - (long)days * 86400;
 
         var dailyLatency = await dataPointRepo.GetDailyLatencyByServiceIdAsync(service.Id, from, now, ct);
         var latest = await dataPointRepo.GetLatestByServiceIdAsync(service.Id, ct);

@@ -66,8 +66,6 @@ public class ServiceAppService(IServiceRepository repository, IEscalationPolicyR
         if (request.DefaultStatus is not null) service.DefaultStatus = request.DefaultStatus.Value;
         if (request.IsHidden is not null) service.IsHidden = request.IsHidden.Value;
         if (request.DisplayOrder is not null) service.DisplayOrder = request.DisplayOrder.Value;
-        if (request.HistoryDaysDesktop is not null) service.HistoryDaysDesktop = request.HistoryDaysDesktop.Value;
-        if (request.HistoryDaysMobile is not null) service.HistoryDaysMobile = request.HistoryDaysMobile.Value;
 
         if (request.EscalationPolicyId is int policyId)
         {

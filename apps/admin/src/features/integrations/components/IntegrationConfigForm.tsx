@@ -22,6 +22,7 @@ import WebhookRequestLogActions from "./WebhookRequestLogActions";
 import { IntegrationEscalationPolicyField } from "./IntegrationEscalationPolicyField";
 import { IntegrationOAuthConnect } from "./IntegrationOAuthConnect";
 import { IntegrationOAuthRedirectUrlField } from "./IntegrationOAuthRedirectUrlField";
+import MobilePushRelayConnect from "./MobilePushRelayConnect";
 
 interface GeneralFormValues {
   name: string;
@@ -58,6 +59,35 @@ interface Props {
   typeMeta?: IntegrationTypeMeta;
   /** Called when the user backs out of type selection (create mode only). */
   onBack?: () => void;
+}
+
+/**
+ * Relay credentials the "Heva push relay" panel owns. They are issued by the relay, not chosen by the
+ * operator, so they are hidden from the generic config form to keep one source of truth.
+ */
+const RELAY_MANAGED_FIELDS = ["relayPushUrl", "relayApiKey", "relayAppId", "relayKeyId"];
+
+/**
+ * Honours a field's [VisibleWhen] rule, so a config class can hide fields that are irrelevant given
+ * another field's value (e.g. MobilePush's FCM/APNs credentials only apply in Direct mode). Same rule
+ * the checks config form applies, rather than a second per-integration mechanism.
+ */
+function isFieldVisible(
+  field: { visibleWhen?: { field: string; values: string[] } | null },
+  values: Record<string, unknown>,
+  schema: readonly { key: string; defaultValue?: unknown }[],
+): boolean {
+  if (!field.visibleWhen) return true;
+  // An integration saved before the gating field existed has no value for it in ConfigJson, so fall
+  // back to the schema default — otherwise every gated field would vanish from an existing config.
+  const current =
+    values[field.visibleWhen.field] ??
+    schema.find((f) => f.key === field.visibleWhen!.field)?.defaultValue;
+  return field.visibleWhen.values.includes(String(current));
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 /**
@@ -243,7 +273,10 @@ export function IntegrationConfigForm(props: Props) {
                 Integration created. Save any generated credentials below before continuing.
               </p>
             )}
-            {typeMeta?.configSchema.map((field) => (
+            {typeMeta?.configSchema
+              .filter((field) => !RELAY_MANAGED_FIELDS.includes(field.key))
+              .filter((field) => isFieldVisible(field, configValues, typeMeta?.configSchema ?? []))
+              .map((field) => (
               <DynamicConfigField
                 key={field.key}
                 field={field}
@@ -257,6 +290,14 @@ export function IntegrationConfigForm(props: Props) {
                 dependsOnValue={typeof configValues[field.optionsDependsOn ?? ""] === "string" ? (configValues[field.optionsDependsOn!] as string) : undefined}
               />
             ))}
+            {resolvedType === "MobilePush" && configValues.mode === "Relay" && (
+              <MobilePushRelayConnect
+                integrationId={id}
+                currentPushUrl={asOptionalString(configValues.relayPushUrl)}
+                currentAppId={asOptionalString(configValues.relayAppId)}
+                currentKeyId={asOptionalString(configValues.relayKeyId)}
+              />
+            )}
             {typeMeta?.capabilities.includes("RequiresOAuthConnection") && (
               <IntegrationOAuthRedirectUrlField typeMeta={typeMeta} />
             )}

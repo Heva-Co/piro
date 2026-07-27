@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Piro.Application.Interfaces;
 using Piro.Checks.Abstractions;
 using Piro.Contracts;
@@ -152,15 +153,45 @@ public static class IntegrationServiceExtensions
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.Webhook.WebhookNotificationDispatcher>();
         services.AddScoped<IIntegrationEventHandler, Piro.Integrations.MobilePush.MobilePushNotificationDispatcher>();
 
-        // MobilePush transports: one per platform, resolved as IEnumerable<IPushTransport> by the
-        // dispatcher. FCM (Android) via the Firebase Admin SDK; APNs (iOS) over an HTTP/2 client.
+        // Seals each push for the target device, so no transport (the Heva relay included) sees the
+        // alert content. Stateless, hence a singleton.
+        services.AddSingleton<Piro.Integrations.MobilePush.Crypto.IPushPayloadSealer,
+            Piro.Integrations.MobilePush.Crypto.PushPayloadSealer>();
+
+        // MobilePush transports, resolved as IEnumerable<IPushTransport> and selected by
+        // (platform, mode). Direct: FCM (Android) via the Firebase Admin SDK, APNs (iOS) over HTTP/2
+        // with the operator's own credentials. Relay: both platforms through the Heva push relay, which
+        // is what the store-published app requires since it is signed against Heva's provider identities.
         services.AddSingleton<Piro.Integrations.MobilePush.Transport.IPushTransport,
             Piro.Integrations.MobilePush.Transport.FcmPushTransport>();
         services.AddHttpClient<Piro.Integrations.MobilePush.Transport.ApnsPushTransport>()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler());
         services.AddSingleton<Piro.Integrations.MobilePush.Transport.IPushTransport>(sp =>
             sp.GetRequiredService<Piro.Integrations.MobilePush.Transport.ApnsPushTransport>());
+
+        // The relay is one HTTP endpoint for both platforms, so a single named client serves both
+        // transports; the platform is what differs on the wire.
+        services.AddHttpClient(RelayHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler());
+
+        // Redeems a single-use invite for a scoped relay key. Typed client so it gets its own handler
+        // lifetime rather than sharing the push client's.
+        services.AddHttpClient<Piro.Integrations.MobilePush.Relay.RelayInviteRedeemer>()
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler());
+
+        foreach (var platform in new[] { DevicePushPlatform.Android, DevicePushPlatform.Ios })
+        {
+            var relayPlatform = platform;
+            services.AddSingleton<Piro.Integrations.MobilePush.Transport.IPushTransport>(sp =>
+                new Piro.Integrations.MobilePush.Transport.RelayPushTransport(
+                    relayPlatform,
+                    sp.GetRequiredService<IHttpClientFactory>().CreateClient(RelayHttpClientName),
+                    sp.GetRequiredService<ILogger<Piro.Integrations.MobilePush.Transport.RelayPushTransport>>()));
+        }
     }
+
+    /// <summary>Named HTTP client for the Heva push relay, shared by its Android and iOS transports.</summary>
+    private const string RelayHttpClientName = "piro-push-relay";
 
     /// <summary>
     /// Verification-code senders (RFC 0009 §4.9) — a distinct concern from notification dispatch, kept in

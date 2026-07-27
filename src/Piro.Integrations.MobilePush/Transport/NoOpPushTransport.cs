@@ -13,6 +13,8 @@ public sealed class NoOpPushTransport(DevicePushPlatform platform, ILogger<NoOpP
 {
     public DevicePushPlatform Platform => platform;
 
+    public PushTransportMode Mode => PushTransportMode.Direct;
+
     public bool IsConfigured(MobilePushConfig config) => false;
 
     public Task<PushSendResult> SendAsync(string token, PushMessage message, MobilePushConfig config, CancellationToken ct = default)

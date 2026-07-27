@@ -1,7 +1,7 @@
 import { servicesApi } from "@/src/lib/actions/services";
 import { incidentsApi } from "@/src/lib/actions/incidents";
 import { maintenancesApi } from "@/src/lib/actions/maintenances";
-import { computeOverallStatus } from "@/src/lib/utils";
+import { computeOverallStatus, MAX_HISTORY_DAYS } from "@/src/lib/utils";
 import { StatusHeader } from "@/src/components/StatusHeader";
 import { ServiceRow } from "@/src/components/ServiceRow";
 import { IncidentCard } from "@/src/components/IncidentCard";
@@ -9,6 +9,7 @@ import { MaintenanceCard } from "@/src/components/MaintenanceCard";
 import { AutoRefresh } from "@/src/components/AutoRefresh";
 
 export const revalidate = 30;
+
 
 export default async function StatusPage() {
   const [services, incidents, maintenances] = await Promise.all([
@@ -20,7 +21,7 @@ export default async function StatusPage() {
   // Fetch per-service overview in parallel
   const overviews = await Promise.all(
     services.map((s) =>
-      servicesApi.overview(s.slug, s.historyDaysDesktop).catch(() => null)
+      servicesApi.overview(s.slug, MAX_HISTORY_DAYS).catch(() => null)
     )
   );
   const overviewBySlug = Object.fromEntries(services.map((s, i) => [s.slug, overviews[i]]));

@@ -12,7 +12,7 @@ public interface IDeviceTokenRepository
     /// Registers a device token for a user, or refreshes the existing row if that (user, token) pair is
     /// already registered (updating platform/name/LastSeenAt and clearing the failure count). Idempotent.
     /// </summary>
-    Task<DeviceToken> UpsertAsync(int userId, DevicePlatform platform, string token, string? deviceName, CancellationToken ct = default);
+    Task<DeviceToken> UpsertAsync(int userId, DevicePlatform platform, string token, string? deviceName, string? pushPublicKey, CancellationToken ct = default);
 
     /// <summary>Removes a device token for a user (device sign-out). No-op if it doesn't exist.</summary>
     Task DeleteByTokenAsync(int userId, string token, CancellationToken ct = default);

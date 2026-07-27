@@ -6,6 +6,8 @@ using Piro.Application.Services;
 using Piro.Contracts;
 using Piro.Domain.Exceptions;
 using Piro.Integrations.Abstractions;
+using Piro.Integrations.MobilePush.Relay;
+using Piro.Integrations.MobilePush.Transport;
 
 namespace Piro.Api.Controllers;
 
@@ -124,6 +126,78 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
     }
 
     /// <summary>
+    /// Redeems a single-use Heva relay invite code for this MobilePush Integration and stores the issued
+    /// API key, app id and key id on it.
+    ///
+    /// The invite is consumed by the relay on success, so this is deliberately not retried: a second
+    /// attempt would fail against a spent code and read like a bad credential. The Integration is updated
+    /// in place rather than replaced, because notification preferences and subscriptions cascade-delete
+    /// from it.
+    /// </summary>
+    [HttpPost("{id:guid}/relay/redeem-invite")]
+    [ProducesResponseType<IntegrationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RedeemRelayInvite(
+        Guid id,
+        [FromBody] RedeemRelayInviteRequest request,
+        [FromServices] RelayInviteRedeemer redeemer,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.PushUrl))
+            return BadRequest(new { error = "A relay push URL is required." });
+
+        var code = request.InviteCode?.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+            return BadRequest(new { error = "An invite code is required." });
+
+        // An operator who pasted a key they already hold should not be sent through redemption: there is
+        // nothing to redeem, and the relay would reject it.
+        if (RelayInviteRedeemer.LooksLikeApiKey(code))
+        {
+            return Ok(await integrationApp.ApplyConfigValuesAsync(id, new Dictionary<string, string?>
+            {
+                ["relayPushUrl"] = request.PushUrl.Trim(),
+                ["relayApiKey"] = code,
+            }, ct));
+        }
+
+        if (!RelayInviteRedeemer.LooksLikeInvite(code))
+        {
+            return BadRequest(new
+            {
+                error = $"That does not look like an invite code or an API key. " +
+                        $"An invite starts with '{RelayInviteRedeemer.InvitePrefix}' and a key with " +
+                        $"'{RelayInviteRedeemer.ApiKeyPrefix}'.",
+            });
+        }
+
+        var redemption = await redeemer.RedeemAsync(
+            request.PushUrl.Trim(),
+            code,
+            // The relay records this against the issued key, so name the instance rather than the host:
+            // it is what Heva sees when asked which caller a key belongs to.
+            caller: $"piro-{id}",
+            ct);
+
+        if (!redemption.Success)
+            return BadRequest(new { error = redemption.Error });
+
+        var finalStep = await integrationApp.ApplyConfigValuesAsync(id, new Dictionary<string, string?>
+        {
+            ["relayPushUrl"] = request.PushUrl.Trim(),
+            ["relayApiKey"] = redemption.ApiKey,
+            ["relayAppId"] = redemption.AppId,
+            ["relayKeyId"] = redemption.KeyId,
+            // Redeeming is an explicit statement of intent to use the relay, so flip the mode too rather
+            // than leaving the operator with credentials that nothing reads.
+            ["mode"] = nameof(PushTransportMode.Relay),
+        }, ct);
+
+        return Ok(finalStep);
+    }
+
+    /// <summary>
     /// Regenerates this Integration's server-generated fields (e.g. a lost/leaked webhook auth
     /// token) and invalidates the old value immediately. Response's ConfigJson is unmasked, the one
     /// time the new value is visible.
@@ -162,3 +236,8 @@ public class IntegrationsController(IntegrationAppService integrationApp, IInteg
         }
     }
 }
+
+/// <summary>Body of POST /api/v1/integrations/{id}/relay/redeem-invite.</summary>
+/// <param name="PushUrl">The relay's push endpoint; the register endpoint is derived from it.</param>
+/// <param name="InviteCode">An <c>inv_…</c> invite to redeem, or an <c>hvr_…</c> key to store as-is.</param>
+public record RedeemRelayInviteRequest(string PushUrl, string? InviteCode);

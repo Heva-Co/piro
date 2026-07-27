@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -26,26 +27,44 @@ import kotlin.random.Random
  */
 class PiroMessagingService : FirebaseMessagingService() {
 
+    private companion object {
+        const val TAG = "PiroMessaging"
+    }
+
     override fun onNewToken(token: String) {
         // FCM rotated the token. If a session exists, push the new token to the backend right away so a
         // rotated token never leaves the backend paging a dead handle (which would fail and be pruned).
         val services = (application as? PiroApp)?.services ?: return
         if (services.tokenStorage.accessToken == null) return
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching { DeviceRegistrar(services.api).registerCurrentDevice() }
+            runCatching { DeviceRegistrar(services.api, applicationContext).registerCurrentDevice() }
         }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
 
-        val title = data["title"] ?: "Piro alert"
-        val body = data["body"] ?: ""
-        val eventKey = data["eventKey"] ?: ""
-        val alertId = data["alertId"]?.toIntOrNull() ?: 0
+        // A sealed push carries only "ciphertext" — the title, body, event key and alert id all live
+        // inside it, so nothing readable crosses FCM or the Heva relay. A device that registered before
+        // it published a public key still gets the legacy cleartext fields.
+        val payload = data["ciphertext"]?.let { envelope ->
+            runCatching { PushPayloadUnsealer.unseal(this, envelope) }
+                .onFailure { Log.w(TAG, "Could not open a sealed push; dropping it.", it) }
+                .getOrNull() ?: return
+        } ?: PushPayload(
+            title = data["title"] ?: "Piro alert",
+            body = data["body"] ?: "",
+            eventKey = data["eventKey"] ?: "",
+            alertId = data["alertId"]?.toIntOrNull() ?: 0,
+            url = data["url"],
+        )
+
+        val title = payload.title.ifEmpty { "Piro alert" }
+        val body = payload.body
+        val alertId = payload.alertId
 
         // "created" pages are the ones that must break through; recoveries/acks are informational.
-        val isCritical = eventKey.endsWith(":created")
+        val isCritical = payload.eventKey.endsWith(":created")
 
         NotificationChannels.ensureCreated(this)
 

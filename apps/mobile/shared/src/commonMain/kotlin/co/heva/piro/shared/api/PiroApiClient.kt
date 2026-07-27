@@ -138,12 +138,17 @@ class PiroApiClient(
     // --- Devices ---
 
     @Throws(Throwable::class)
-    suspend fun registerDevice(platform: String, token: String, deviceName: String?): DeviceDto =
+    suspend fun registerDevice(
+        platform: String,
+        token: String,
+        deviceName: String?,
+        pushPublicKey: String? = null,
+    ): DeviceDto =
         authorized {
             http.post("$baseUrl/api/v1/devices") {
                 bearer(it)
                 contentType(ContentType.Application.Json)
-                setBody(RegisterDeviceRequest(platform, token, deviceName))
+                setBody(RegisterDeviceRequest(platform, token, deviceName, pushPublicKey))
             }
         }.let { response ->
             if (!response.status.isSuccess()) throw response.toException("Device registration failed")

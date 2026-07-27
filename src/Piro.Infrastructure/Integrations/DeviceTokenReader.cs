@@ -15,7 +15,7 @@ internal sealed class DeviceTokenReader(IDeviceTokenRepository repo) : IDeviceTo
     {
         var devices = await repo.GetByUserIdAsync(userId, ct);
         return devices
-            .Select(d => new DeviceTokenInfo(MapPlatform(d.Platform), d.Token))
+            .Select(d => new DeviceTokenInfo(MapPlatform(d.Platform), d.Token, d.PushPublicKey))
             .ToList();
     }
 

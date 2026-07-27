@@ -60,7 +60,10 @@ public static class ConfigSchemaBuilder
     private static ConfigFieldSchemaDto BuildFieldSchema(PropertyInfo property, object? defaults)
     {
         var display = property.GetCustomAttribute<ConfigFieldAttribute>();
-        var options = property.GetCustomAttribute<ConfigFieldOptionsAttribute>()?.Options;
+        // An explicit [ConfigFieldOptions] wins; otherwise a CLR enum property supplies its own names, so
+        // declaring an enum in a config class is enough to get a select instead of a free-text box.
+        var options = property.GetCustomAttribute<ConfigFieldOptionsAttribute>()?.Options
+            ?? EnumOptions(property);
         var dynamicOptions = property.GetCustomAttribute<DynamicOptionsAttribute>();
         var fieldType = InferFieldType(property, options);
 
@@ -96,6 +99,16 @@ public static class ConfigSchemaBuilder
     /// Dictionary&lt;string,string&gt; → KeyValue, List&lt;record&gt; → ObjectArray), defaulting to
     /// <see cref="ConfigFieldType.String"/>. Orthogonal to whether the field is secret.
     /// </summary>
+    /// <summary>
+    /// The names of a CLR enum property's members, or null when the property is not an enum. Values are
+    /// the enum member names, which is what the config JSON stores and what the backend parses back.
+    /// </summary>
+    private static string[]? EnumOptions(PropertyInfo property)
+    {
+        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+        return type.IsEnum ? Enum.GetNames(type) : null;
+    }
+
     private static ConfigFieldType InferFieldType(PropertyInfo property, string[]? options)
     {
         if (options is { Length: > 0 })
