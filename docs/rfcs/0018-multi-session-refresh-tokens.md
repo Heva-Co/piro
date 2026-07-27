@@ -1,14 +1,14 @@
 ---
 rfc: 18
 title: "Multi-session refresh tokens (per-device sessions)"
-status: proposal
+status: implemented
 created: 2026-07-26
 depends-on: []
 ---
 
 # RFC 0018 — Multi-session refresh tokens (per-device sessions)
 
-Status: proposal
+Status: implemented
 Author: Arael Espinosa (https://github.com/cl8dep)
 Date: 2026-07-26
 

@@ -43,9 +43,17 @@ Before finishing, re-read the draft once specifically for this: any sentence tha
 Write the RFC in English regardless of the language of the conversation (Piro's docs are English-language). Use this structure — it's not arbitrary, each section exists to answer a question a reviewer or future implementer will actually ask:
 
 ```markdown
+---
+rfc: <N>
+title: "<Short human title>"
+status: draft
+created: <YYYY-MM-DD>
+depends-on: []
+---
+
 # RFC NNNN — <Title>
 
-Status: proposal
+Status: draft
 Author: <name> (<github-profile-url>)
 Date: <YYYY-MM-DD>
 
@@ -63,6 +71,12 @@ Date: <YYYY-MM-DD>
 
 Notes on each section:
 
+- **YAML front-matter is mandatory and is not decoration.** It is the source of truth for the generated index and dependency graph in `docs/rfcs/README.md`, and the `rfc-index` workflow **fails the build** when the committed README doesn't match what `scripts/rfc-index.mjs` produces. An RFC without front-matter is invisible to the index and breaks CI on `main`. The full schema is documented in `docs/rfcs/PROCESS.md` ("Front-matter"); read it rather than copying an older RFC, since several pre-date the current shape.
+  - Required: `rfc` (the integer, matching the filename), `title` (quoted string, **no** `RFC NNNN —` prefix and no backticks — it goes into a Markdown table cell), `status`.
+  - `status` is a closed enum: `draft | proposed | accepted | implemented | rejected | superseded | withdrawn`. A newly written RFC with no PR yet is **`draft`** — `proposal` is not a valid value. Do not hand-set `accepted` or `implemented`: the `rfc-accept` and `rfc-implement` workflows set those on merge.
+  - Also set `created` (`YYYY-MM-DD`) and `depends-on` (zero-padded strings, e.g. `["0003", "0011"]`, or `[]`). Fill `tracking-issue`, `proposal-pr`, `implementation-pr`, and `superseded-by` only when the number actually exists — never invent one, and never record a PR that was closed without merging.
+  - The `Status:` / `Author:` / `Date:` lines in the body are a human-readable header that duplicates the front-matter, not a replacement for it. Keep `status`/`Status:` and `created`/`Date:` consistent.
+  - Verify before finishing: `node scripts/rfc-index.mjs` from the repo root prints a `✗ … has no YAML front-matter` line per broken file and rewrites `docs/rfcs/README.md`. It must run clean, and the regenerated README is committed in the same change.
 - **Author**: `<name> (<github-profile-url>)` — the author's real name followed by their GitHub profile URL in parentheses (e.g. `Author: Arael Espinosa (https://github.com/cl8dep)`). Resolve the real handle via `gh api user --jq .html_url` (or the known handle) — never write `(assisted draft)` or a placeholder.
 - **Problem**: state the concrete failure mode(s), not the feature request. "Piro can't do X" is weaker than "a check needs the target reachable from the worker; a fully private k8s pod without an Ingress can't be checked without exposing it."
 - **Non-goals**: name the adjacent thing you're deliberately *not* proposing, and say why — this pre-empts scope creep in review and is often the difference between a decidable RFC and one that sprawls.
@@ -91,10 +105,13 @@ If reusing an existing entity runs into a real constraint (e.g. a non-nullable f
 
 ## File naming and placement
 
-`docs/rfcs/NNNN-kebab-case-title.md`, zero-padded four-digit sequence number. Check `ls docs/rfcs/` for the highest existing number before assigning the next one — do not guess or leave gaps.
+`docs/rfcs/NNNN-kebab-case-title.md`, zero-padded four-digit sequence number. Check `ls docs/rfcs/` for the highest existing number before assigning the next one — do not guess or leave gaps. The number is permanent (see `PROCESS.md`, "Numbers are permanent") and must match the front-matter `rfc:` value.
+
+Branch the RFC as `docs/rfc-NNNN-short-title` (`PROCESS.md` §1); implementation PRs later branch `implements-rfc/NNNN-*`.
 
 ## After writing
 
-1. Show the user the draft (or write it directly if they've clearly already agreed to the scope in conversation).
-2. Offer to open a GitHub issue via `gh issue create` that links back to the RFC file (use a `https://github.com/<org>/<repo>/blob/main/docs/rfcs/...` link once the file is committed — a bare relative path isn't clickable from the issue). Mirror the RFC's phased plan into the issue's task checklist, and carry over any "relationship to existing issue #N" framing from the RFC into the issue body.
-3. Ask how they want it committed — per `AGENTS.md`, Piro's default is a feature branch + PR, never a direct push to `main`. Only push directly if the user explicitly says so (as they have for pure-docs changes in the past) — don't assume a lightweight file means the branch+PR rule doesn't apply; confirm first.
+1. **Run `node scripts/rfc-index.mjs` from the repo root and commit the regenerated `docs/rfcs/README.md` alongside the RFC.** The script validates front-matter across every RFC and rewrites the index; CI fails if the committed README doesn't match its output. Never hand-edit between the `<!-- BEGIN GENERATED INDEX -->` / `<!-- END GENERATED INDEX -->` markers.
+2. Show the user the draft (or write it directly if they've clearly already agreed to the scope in conversation).
+3. Offer to open a GitHub issue via `gh issue create` that links back to the RFC file (use a `https://github.com/<org>/<repo>/blob/main/docs/rfcs/...` link once the file is committed — a bare relative path isn't clickable from the issue). Mirror the RFC's phased plan into the issue's task checklist, and carry over any "relationship to existing issue #N" framing from the RFC into the issue body.
+4. Ask how they want it committed — per `AGENTS.md`, Piro's default is a feature branch + PR, never a direct push to `main`. Only push directly if the user explicitly says so (as they have for pure-docs changes in the past) — don't assume a lightweight file means the branch+PR rule doesn't apply; confirm first.
