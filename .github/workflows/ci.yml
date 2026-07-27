@@ -33,6 +33,12 @@ jobs:
               - 'apps/web/Dockerfile'
               - 'apps/admin/Dockerfile'
               - 'nginx/Dockerfile'
+              # Adding or renaming a project changes what the Dockerfiles must
+              # restore, so rebuild the images on any .csproj/solution change.
+              # Without this the image build only ran when a Dockerfile itself
+              # changed, and a new project could break the release build.
+              - '**/*.csproj'
+              - '*.slnx'
 
   # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
