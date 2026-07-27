@@ -1,3 +1,11 @@
+---
+rfc: 17
+title: "End-to-end encrypted push, and a relay transport for the published apps"
+status: implemented
+created: 2026-07-27
+depends-on: ["0016"]
+---
+
 # RFC 0017 — End-to-end encrypted push, and a relay transport for the published apps
 
 Status: implemented

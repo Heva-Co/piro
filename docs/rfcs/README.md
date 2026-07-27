@@ -30,9 +30,10 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0014](0014-password-reset-flow.md) | Password reset / forgot password flow | **Implemented** (PR #204, #84) | — |
 | [0015](0015-generic-outbound-webhook.md) | Generic outbound webhook (Zapier / Make compatible) | **Implemented** (PR #213, #210) | 0009 |
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
+| [0017](0017-e2e-encrypted-push-and-relay-transport.md) | End-to-end encrypted push, and a relay transport for the published apps | **Implemented** | 0016 |
 | [0018](0018-multi-session-refresh-tokens.md) | Multi-session refresh tokens (per-device sessions) | proposal | — |
 
-Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016**.
+Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017**.
 
 ## Dependency graph
 
@@ -56,6 +57,7 @@ graph LR
   n0014["0014 ✓"]
   n0015["0015 ✓"]
   n0016["0016 ✓"]
+  n0017["0017 ✓"]
   n0018["0018"]
   n0001 --> n0004
   n0003 --> n0004
@@ -76,6 +78,7 @@ graph LR
   n0011 --> n0016
   n0012 --> n0016
   n0015 --> n0016
+  n0016 --> n0017
   classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d;
   class n0001 done;
   class n0002 done;
@@ -91,6 +94,7 @@ graph LR
   class n0014 done;
   class n0015 done;
   class n0016 done;
+  class n0017 done;
 ```
 
 <!-- END GENERATED INDEX -->
