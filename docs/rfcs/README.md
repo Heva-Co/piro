@@ -32,7 +32,7 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
 | [0017](0017-e2e-encrypted-push-and-relay-transport.md) | End-to-end encrypted push, and a relay transport for the published apps | **Implemented** | 0016 |
 | [0018](0018-multi-session-refresh-tokens.md) | Multi-session refresh tokens (per-device sessions) | **Implemented** | — |
-| [0019](0019-config-as-code-and-cli.md) | Config as Code: piro.yaml and the piro CLI | Draft | 0018 |
+| [0019](0019-config-as-code-and-cli.md) | Config as Code: piro.yaml and the piro CLI | Accepted (PR #234, #235) | 0018 |
 
 Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018**.
 

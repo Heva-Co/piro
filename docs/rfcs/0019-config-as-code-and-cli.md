@@ -1,9 +1,11 @@
 ---
 rfc: 19
 title: "Config as Code: piro.yaml and the piro CLI"
-status: draft
+status: accepted
 created: 2026-07-27
 depends-on: ["0018"]
+proposal-pr: 234
+tracking-issue: 235
 ---
 
 # RFC 0019 — Config as Code: `piro.yaml` and the `piro` CLI
