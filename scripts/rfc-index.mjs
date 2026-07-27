@@ -68,17 +68,42 @@ function renderTable(rfcs) {
   ].join("\n");
 }
 
+// How each status is drawn in the graph: a Mermaid class, a label suffix, and
+// the fill/stroke. Anything not listed here (draft, proposed) falls through to
+// Mermaid's default node style, which reads as "open, nothing decided yet".
+// Dead RFCs are deliberately muted rather than colored — a rejected proposal
+// should recede, not compete with live work for attention.
+const GRAPH_STYLE = {
+  implemented: { cls: "done", tick: " ✓", def: "fill:#dcfce7,stroke:#16a34a,color:#14532d" },
+  accepted: { cls: "accepted", tick: " ▸", def: "fill:#dbeafe,stroke:#2563eb,color:#1e3a8a" },
+  rejected: { cls: "dead", tick: " ✕", def: "fill:#f3f4f6,stroke:#9ca3af,color:#6b7280" },
+  withdrawn: { cls: "dead", tick: " ✕", def: "fill:#f3f4f6,stroke:#9ca3af,color:#6b7280" },
+  superseded: { cls: "dead", tick: " ↷", def: "fill:#f3f4f6,stroke:#9ca3af,color:#6b7280" },
+};
+
+// The legend describes only the statuses actually present, so it never promises
+// a color the reader can't find in the graph.
+function renderLegend(rfcs) {
+  const present = new Set(rfcs.map((r) => r.status));
+  const parts = [];
+  if (present.has("implemented")) parts.push("Green (`✓`) is implemented");
+  if (present.has("accepted")) parts.push("blue (`▸`) is accepted and awaiting implementation");
+  const dead = ["rejected", "withdrawn", "superseded"].filter((s) => present.has(s));
+  if (dead.length > 0) parts.push(`grey is ${dead.join(" / ")}`);
+  parts.push("unstyled nodes are still open for discussion");
+  return `${parts.join(", ")}.`;
+}
+
 // Renders the dependency DAG as a Mermaid `graph LR` diagram. GitHub renders
 // ```mermaid blocks natively, so shared dependencies (0004, 0012 have several
 // prerequisites) appear as a single node with multiple incoming edges — no
-// duplication. Implemented RFCs get a checked label and a distinct style.
+// duplication. Nodes are styled per status (see GRAPH_STYLE).
 function renderGraph(rfcs) {
   const byNum = new Map(rfcs.map((r) => [r.num, r]));
   const id = (num) => `n${pad(num)}`;
-  const implemented = rfcs.filter((r) => r.status === "implemented");
 
   const nodes = rfcs.map((r) => {
-    const tick = r.status === "implemented" ? " ✓" : "";
+    const tick = GRAPH_STYLE[r.status]?.tick ?? "";
     return `  ${id(r.num)}["${pad(r.num)}${tick}"]`;
   });
 
@@ -90,10 +115,19 @@ function renderGraph(rfcs) {
     }
   }
 
-  const styling = [
-    "  classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d;",
-    ...implemented.map((r) => `  class ${id(r.num)} done;`),
-  ];
+  // One classDef per distinct class, then one `class a,b,c cls;` line per class
+  // — shorter and easier to diff than a `class` line per node. Emitted in
+  // GRAPH_STYLE order so the output is stable regardless of RFC ordering.
+  const styling = [];
+  const seen = new Set();
+  for (const { cls, def } of Object.values(GRAPH_STYLE)) {
+    if (seen.has(cls)) continue;
+    seen.add(cls);
+    const members = rfcs.filter((r) => GRAPH_STYLE[r.status]?.cls === cls);
+    if (members.length === 0) continue;
+    styling.push(`  classDef ${cls} ${def};`);
+    styling.push(`  class ${members.map((r) => id(r.num)).join(",")} ${cls};`);
+  }
 
   return [
     "```mermaid",
@@ -118,7 +152,7 @@ function renderIndex(rfcs) {
   if (implemented) blocks.push(`Implemented (frozen): **${implemented}**.`);
   blocks.push(
     "## Dependency graph",
-    "Arrows point from a prerequisite to the RFC that builds on it. Green nodes (`✓`) are implemented.\n\n" +
+    `Arrows point from a prerequisite to the RFC that builds on it. ${renderLegend(rfcs)}\n\n` +
       renderGraph(rfcs),
     END,
   );
