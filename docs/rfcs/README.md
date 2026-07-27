@@ -38,14 +38,14 @@ Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 00
 
 ## Dependency graph
 
-Arrows point from a prerequisite to the RFC that builds on it. Green nodes (`✓`) are implemented.
+Arrows point from a prerequisite to the RFC that builds on it. Green (`✓`) is implemented, blue (`▸`) is accepted and awaiting implementation, grey is withdrawn, unstyled nodes are still open for discussion.
 
 ```mermaid
 graph LR
   n0001["0001 ✓"]
   n0002["0002 ✓"]
   n0003["0003 ✓"]
-  n0004["0004"]
+  n0004["0004 ✕"]
   n0005["0005 ✓"]
   n0006["0006 ✓"]
   n0007["0007"]
@@ -60,7 +60,7 @@ graph LR
   n0016["0016 ✓"]
   n0017["0017 ✓"]
   n0018["0018 ✓"]
-  n0019["0019"]
+  n0019["0019 ▸"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
@@ -83,41 +83,11 @@ graph LR
   n0016 --> n0017
   n0018 --> n0019
   classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d;
-  class n0001 done;
-  class n0002 done;
-  class n0003 done;
-  class n0005 done;
-  class n0006 done;
-  class n0008 done;
-  class n0009 done;
-  class n0010 done;
-  class n0011 done;
-  class n0012 done;
-  class n0013 done;
-  class n0014 done;
-  class n0015 done;
-  class n0016 done;
-  class n0017 done;
-  class n0018 done;
+  class n0001,n0002,n0003,n0005,n0006,n0008,n0009,n0010,n0011,n0012,n0013,n0014,n0015,n0016,n0017,n0018 done;
+  classDef accepted fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+  class n0019 accepted;
+  classDef dead fill:#f3f4f6,stroke:#9ca3af,color:#6b7280;
+  class n0004 dead;
 ```
 
 <!-- END GENERATED INDEX -->
-
-## Reading the graph as chains
-
-- **Integration/dispatch line:** `0001 ✓`, `0003 ✓` → **0004** (OAuth framework + `IAlertEventDispatcher`) → **0012** (integration actions; **hard-depends on 0004 from Phase 1** — Jira tickets are created over OAuth using 0004's encrypted token store; Phase 2 auto-create also rides 0004's dispatcher hook).
-- **Tags line:** `0001 ✓` → **0008** (tags) → **0009** (system notifications).
-- **Checks line:** `0003 ✓` → `0011 ✓` (check manifest) → **0010** (script check type), **0012** (action inputs reuse the config-as-schema engine), and **0013** (heartbeat check type; new manifest + executor riding the existing check pipeline).
-- **Independent leaves** (no pending prerequisite): **0005** (postmortems), **0006** (escalation limits), **0007** (impact analysis, needs only implemented 0001).
-
-## Suggested implementation order
-
-A topological order over the pending RFCs (any order consistent with the graph works; this is one sensible pick that front-loads unblockers and respects the two real chains):
-
-1. **0004** — establishes the OAuth framework + encrypted token store + outbound dispatcher that other integrations reuse. **Hard-blocks 0012** (both phases).
-2. **0008** — unblocks 0009.
-3. **0012** — Jira actions over OAuth; cannot start its Jira-auth work until 0004 lands (the action contract, `ExternalReference`, and frontend can be built against a stub token provider in the meantime).
-4. **0010**, **0009** — depend on already-implemented (0011) / step-2 (0008) work respectively.
-5. **0005**, **0006**, **0007** — independent leaves, schedulable whenever.
-
-> This ordering is advisory. The stable RFC number (the filename) is the identifier; this section is the sequence.
