@@ -8,15 +8,13 @@ migration, Screenshots with no UI change).
 ```markdown
 ## Summary
 
-Adds downloadable PDF export for finalized postmortems. A maintainer can open a resolved review and
-download a formatted report; generation happens server-side so the output is consistent regardless of
-client. Only finalized reports can be exported, since a draft is still being written.
+Adds JWT token refresh mechanism to prevent unexpected session expiration. Tokens are automatically refreshed 5 minutes before expiry.
 
 ## Related
 
 Closes #63
 
-## Changes
+## What Changed
 
 **Backend**
 - `IPostmortemPdfGenerator` + a QuestPDF implementation rendering header, sections (Markdown), referenced

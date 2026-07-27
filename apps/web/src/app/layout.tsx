@@ -3,17 +3,18 @@ import { Nav } from "@/src/components/Nav";
 import { Footer } from "@/src/components/Footer";
 import { ThemeProvider } from "@/src/components/ThemeProvider";
 import "./globals.css";
+import { PropsWithChildren } from "react";
 
 export const metadata: Metadata = {
   title: "Status",
   description: "System status and uptime",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+
+function RootLayout(props: PropsWithChildren) {
+
+  const { children } = props;
+
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
@@ -26,3 +27,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+export default RootLayout;

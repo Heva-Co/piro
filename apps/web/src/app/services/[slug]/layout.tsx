@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { servicesApi } from "@/src/lib/actions/services";
+import { ArrowLeft } from "lucide-react";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: Props) {
   }
 }
 
-export default async function ServiceDetailLayout({ params, children }: Props) {
+ async function ServiceDetailLayout({ params, children }: Props) {
   const { slug } = await params;
 
   let service;
@@ -29,8 +30,8 @@ export default async function ServiceDetailLayout({ params, children }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-8 py-8 sm:py-10 flex flex-col gap-4">
-      <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-        ← Back
+      <Link href="/" className="flex items-center  gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <ArrowLeft/> Back
       </Link>
 
       <div className="flex flex-col gap-1 px-1">
@@ -52,3 +53,5 @@ export default async function ServiceDetailLayout({ params, children }: Props) {
     </main>
   );
 }
+
+export default ServiceDetailLayout;

@@ -46,7 +46,7 @@ export default async function StatusPage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-screen-lg px-8 py-10 flex flex-col gap-6">
+    <main className="mx-auto w-full max-w-5xl px-8 py-10 flex flex-col gap-6">
       <AutoRefresh />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl sm:text-3xl font-bold">Service Status</h1>
