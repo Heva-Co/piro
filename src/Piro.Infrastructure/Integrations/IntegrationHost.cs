@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Piro.Application.Extensions;
 using Piro.Application.Interfaces;
@@ -107,5 +108,14 @@ internal sealed class IntegrationHost(
         await integrationRepo.UpdateAsync(integration, ct);
     }
 
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Config JSON stores an enum as its member name, because that is what the reflected config schema
+    /// publishes as the field's options and therefore what the admin form saves (e.g. MobilePush's
+    /// "mode": "Relay"). Web defaults only accept the numeric form, so without this converter reading
+    /// any config that has an enum throws.
+    /// </summary>
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 }

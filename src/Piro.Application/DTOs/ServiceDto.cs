@@ -13,8 +13,6 @@ public record ServiceDto(
     ServiceStatus DefaultStatus,
     bool IsHidden,
     int DisplayOrder,
-    int HistoryDaysDesktop,
-    int HistoryDaysMobile,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     int CheckCount = 0,
@@ -49,7 +47,5 @@ public record UpdateServiceRequest(
     ServiceStatus? DefaultStatus,
     bool? IsHidden,
     int? DisplayOrder,
-    int? HistoryDaysDesktop,
-    int? HistoryDaysMobile,
     int? EscalationPolicyId
 );

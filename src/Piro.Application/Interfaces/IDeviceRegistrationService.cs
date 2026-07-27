@@ -12,7 +12,7 @@ namespace Piro.Application.Interfaces;
 public interface IDeviceRegistrationService
 {
     /// <summary>Registers or refreshes a device token for the user and ensures their MobilePush preference exists.</summary>
-    Task<DeviceDto> RegisterAsync(int userId, DevicePlatform platform, string token, string? deviceName, CancellationToken ct = default);
+    Task<DeviceDto> RegisterAsync(int userId, DevicePlatform platform, string token, string? deviceName, string? pushPublicKey, CancellationToken ct = default);
 
     /// <summary>Removes a device token (device sign-out). No-op if it isn't registered.</summary>
     Task UnregisterAsync(int userId, string token, CancellationToken ct = default);

@@ -16,4 +16,9 @@
     <PackageReference Include="FirebaseAdmin" Version="3.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exposes the relay's internal URL-derivation helper to unit tests. -->
+    <InternalsVisibleTo Include="Piro.UnitTests" />
+  </ItemGroup>
+
 </Project>

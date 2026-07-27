@@ -169,6 +169,7 @@ export const ENDPOINTS = {
     `${API_BASE}/integrations/references?context=${context}&targetId=${targetId}`,
   INTEGRATION_WEBHOOK_LOGS: (id: number | string) => `${API_BASE}/integrations/${id}/webhook-logs`,
   INTEGRATION_REGENERATE_GENERATED_FIELDS: (id: number | string) => `${API_BASE}/integrations/${id}/regenerate-generated-fields`,
+  INTEGRATION_RELAY_REDEEM_INVITE: (id: number | string) => `${API_BASE}/integrations/${id}/relay/redeem-invite`,
   INTEGRATION_OAUTH_CONNECT: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/connect`,
   INTEGRATION_OAUTH_STATUS: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/status`,
   INTEGRATION_OAUTH_DISCONNECT: (id: number | string) => `${API_BASE}/integrations/oauth/${id}/disconnect`,

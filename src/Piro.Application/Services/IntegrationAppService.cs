@@ -277,6 +277,37 @@ public class IntegrationAppService(
         return updated.ToDto(integrationRegistry, revealGeneratedFields: true, revealProtector: secretProtector);
     }
 
+    /// <summary>
+    /// Merges relay credentials into an existing Integration's config, in place.
+    ///
+    /// Updating rather than replacing the Integration is load-bearing: both
+    /// <c>UserNotificationPreference</c> and <c>NotificationSubscription</c> cascade-delete from
+    /// <c>Integration</c>, and MobilePush is a single platform-wide instance shared by every user. So
+    /// deleting and recreating it to attach a key would silently wipe the whole team's notification
+    /// preferences and subscriptions — with the invite already spent and no way to undo it.
+    /// </summary>
+    public async Task<IntegrationDto> ApplyConfigValuesAsync(
+        Guid id,
+        IReadOnlyDictionary<string, string?> values,
+        CancellationToken ct = default)
+    {
+        var integration = await repository.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException(nameof(Integration), id.ToString());
+
+        var incoming = new JsonObject();
+        foreach (var (key, value) in values)
+            incoming[key] = value is null ? null : JsonValue.Create(value);
+
+        // Same merge + protect path as a normal save, so a secret among these values is encrypted at
+        // rest and anything not mentioned here keeps its stored value.
+        integration.ConfigJson = ProtectSecretsIfNeeded(
+            integration.Type,
+            MergeConfigJson(integration.Type, integration.ConfigJson, incoming.ToJsonString()));
+
+        var updated = await repository.UpdateAsync(integration, ct);
+        return updated.ToDto(integrationRegistry, revealGeneratedFields: false, revealProtector: secretProtector);
+    }
+
     public async Task<IntegrationDto> UpdateAsync(Guid id, UpdateIntegrationRequest request, CancellationToken ct = default)
     {
         var integration = await repository.GetByIdAsync(id, ct)

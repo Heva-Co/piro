@@ -2,17 +2,20 @@ package co.heva.piro.android.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import co.heva.piro.android.push.DeviceRegistrar
-import co.heva.piro.shared.api.PiroApiClient
-import co.heva.piro.shared.auth.TokenStorage
+import android.content.Context
+import co.heva.piro.android.ServiceLocator
 
-/** Supplies the [LoginViewModel] its API client, token storage, and device registrar (no DI framework in use). */
+/**
+ * Supplies the [LoginViewModel] its service locator and device registrar (no DI framework in use).
+ *
+ * The locator is passed rather than a bare API client: changing the server rebuilds that client, and a
+ * captured instance would keep talking to the old host.
+ */
 class LoginViewModelFactory(
-    private val api: PiroApiClient,
-    private val tokens: TokenStorage,
-    private val deviceRegistrar: DeviceRegistrar,
+    private val services: ServiceLocator,
+    private val appContext: Context,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        LoginViewModel(api, tokens, deviceRegistrar) as T
+        LoginViewModel(services, appContext) as T
 }

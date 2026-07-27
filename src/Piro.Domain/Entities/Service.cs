@@ -38,11 +38,6 @@ public class Service
     /// <summary>Display position on the status page (ascending order).</summary>
     public int DisplayOrder { get; set; }
 
-    /// <summary>Days of status history shown on desktop on the public page.</summary>
-    public int HistoryDaysDesktop { get; set; } = 30;
-    /// <summary>Days of status history shown on mobile on the public page.</summary>
-    public int HistoryDaysMobile { get; set; } = 15;
-
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

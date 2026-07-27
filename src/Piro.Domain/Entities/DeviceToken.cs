@@ -41,4 +41,11 @@ public class DeviceToken
     /// failures increment this so a persistently failing token can be cleaned up without losing the rest.
     /// </summary>
     public int FailureCount { get; set; }
+
+    /// <summary>
+    /// The device's push public key: base64url of an uncompressed P-256 point (65 bytes). The private
+    /// half never leaves the device, so a payload sealed against this can only be read there. Null for a
+    /// device registered before push encryption shipped; it publishes one on its next app launch.
+    /// </summary>
+    public string? PushPublicKey { get; set; }
 }

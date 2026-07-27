@@ -20,7 +20,14 @@ public interface IDeviceTokenReader
 }
 
 /// <summary>A neutral snapshot of one registered device, free of any Piro.Domain type.</summary>
-public sealed record DeviceTokenInfo(DevicePushPlatform Platform, string Token);
+public sealed record DeviceTokenInfo(
+    DevicePushPlatform Platform,
+    string Token,
+    /// <summary>
+    /// The device's push public key (base64url, uncompressed P-256 point), or null for a device that
+    /// registered before push encryption shipped. Null means the payload cannot be sealed for it.
+    /// </summary>
+    string? PushPublicKey = null);
 
 /// <summary>Which push transport a device token targets. Neutral mirror of the domain's platform enum.</summary>
 public enum DevicePushPlatform

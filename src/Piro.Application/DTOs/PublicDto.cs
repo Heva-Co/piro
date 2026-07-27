@@ -14,9 +14,7 @@ public record PublicServiceDto(
     string? Description,
     string? ImageUrl,
     ServiceStatus Status,
-    int DisplayOrder,
-    int HistoryDaysDesktop,
-    int HistoryDaysMobile
+    int DisplayOrder
 );
 
 /// <summary>A single minute-aligned status snapshot for the public history endpoint.</summary>

@@ -26,6 +26,15 @@ export const integrationsApi = {
     api.get<WebhookRequestLog[]>(ENDPOINTS.INTEGRATION_WEBHOOK_LOGS(id)).then((r) => r.data),
   regenerateGeneratedFields: (id: string) =>
     api.post<Integration>(ENDPOINTS.INTEGRATION_REGENERATE_GENERATED_FIELDS(id)).then((r) => r.data),
+  /**
+   * Redeems a single-use Heva relay invite (or stores an already-issued hvr_ key) and returns the
+   * integration with the relay app/key ids filled in. The invite is spent on success, so the caller
+   * must not retry this.
+   */
+  redeemRelayInvite: (id: string, data: { pushUrl: string; inviteCode: string }) =>
+    api
+      .post<Integration>(ENDPOINTS.INTEGRATION_RELAY_REDEEM_INVITE(id), data)
+      .then((r) => r.data),
 };
 
 export type OAuthConnectionStatus = components["schemas"]["OAuthConnectionStatusDto"];

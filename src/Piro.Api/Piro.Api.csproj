@@ -42,6 +42,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Piro.Application\Piro.Application.csproj" />
     <ProjectReference Include="..\Piro.Infrastructure\Piro.Infrastructure.csproj" />
+    <ProjectReference Include="..\Piro.Integrations.MobilePush\Piro.Integrations.MobilePush.csproj" />
   </ItemGroup>
 
 </Project>

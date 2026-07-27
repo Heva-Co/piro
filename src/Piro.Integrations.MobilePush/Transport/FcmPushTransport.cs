@@ -27,6 +27,8 @@ public sealed class FcmPushTransport(ILogger<FcmPushTransport> logger) : IPushTr
 
     public DevicePushPlatform Platform => DevicePushPlatform.Android;
 
+    public PushTransportMode Mode => PushTransportMode.Direct;
+
     public bool IsConfigured(MobilePushConfig config) => !string.IsNullOrWhiteSpace(config.FcmServiceAccountJson);
 
     public async Task<PushSendResult> SendAsync(string token, PushMessage message, MobilePushConfig config, CancellationToken ct = default)
@@ -78,6 +80,21 @@ public sealed class FcmPushTransport(ILogger<FcmPushTransport> logger) : IPushTr
 
     private static Dictionary<string, string> BuildData(PushMessage message)
     {
+        // When the device published a push public key, send only the sealed envelope: the title, body,
+        // event key, alert id and url are all inside it. Keeping any of them alongside in the clear
+        // would make the encryption pointless, since the payload travels the same hop either way.
+        if (!string.IsNullOrEmpty(message.SealedPayload))
+        {
+            return new Dictionary<string, string>
+            {
+                ["ciphertext"] = message.SealedPayload,
+                // Priority metadata the client needs before it can decrypt anything.
+                ["critical"] = message.Critical ? "true" : "false",
+            };
+        }
+
+        // Legacy cleartext path, for devices registered before they published a key. They re-register
+        // with one on the next app launch, at which point they move to the sealed path above.
         var data = new Dictionary<string, string>
         {
             ["title"] = message.Title,

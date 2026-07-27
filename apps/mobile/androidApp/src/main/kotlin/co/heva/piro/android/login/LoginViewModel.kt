@@ -2,10 +2,10 @@ package co.heva.piro.android.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
+import co.heva.piro.android.ServiceLocator
 import co.heva.piro.android.push.DeviceRegistrar
-import co.heva.piro.shared.api.PiroApiClient
 import co.heva.piro.shared.api.PiroApiException
-import co.heva.piro.shared.auth.TokenStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,17 +18,44 @@ import kotlinx.coroutines.launch
  * backend can page it.
  */
 class LoginViewModel(
-    private val api: PiroApiClient,
-    private val tokens: TokenStorage,
-    private val deviceRegistrar: DeviceRegistrar,
+    private val services: ServiceLocator,
+    private val appContext: Context,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginUiState())
+    // Read through the locator on every use: pointing the app at another server replaces the client.
+    private val api get() = services.api
+    private val tokens get() = services.tokenStorage
+    private val deviceRegistrar get() = DeviceRegistrar(services.api, appContext)
+
+    private val _state = MutableStateFlow(LoginUiState(serverUrl = services.baseUrl))
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
     init {
         restoreSession()
         loadSsoConfig()
+    }
+
+    fun onServerUrlChange(value: String) =
+        _state.update { it.copy(serverUrl = value, serverError = null, error = null) }
+
+    /**
+     * Points the app at the typed server, then reloads its SSO configuration — which providers exist is a
+     * property of the server, so it has to be re-read whenever the server changes.
+     *
+     * Returns false when the URL is unusable, so the caller can stop before attempting a sign-in.
+     */
+    fun applyServer(): Boolean {
+        val applied = services.useServer(_state.value.serverUrl)
+        if (applied == null) {
+            _state.update {
+                it.copy(serverError = "Enter a valid server address, e.g. https://piro.example.com")
+            }
+            return false
+        }
+
+        _state.update { it.copy(serverUrl = applied, serverError = null) }
+        loadSsoConfig()
+        return true
     }
 
     /**
@@ -68,6 +95,9 @@ class LoginViewModel(
     fun signIn() {
         val current = _state.value
         if (current.isSubmitting) return
+        // Apply the typed server before authenticating, or the credentials go to whatever host was
+        // configured previously.
+        if (!applyServer()) return
         if (current.email.isBlank() || current.password.isBlank()) {
             _state.update { it.copy(error = "Enter your email and password.") }
             return
@@ -107,7 +137,9 @@ class LoginViewModel(
     fun signOut() {
         viewModelScope.launch {
             runCatching { api.signOut() }
-            _state.value = LoginUiState() // back to a fresh login screen
+            // Fresh login screen, but keep pointing at the same server — signing out is not a reason to
+            // make the user retype their host.
+            _state.value = LoginUiState(serverUrl = services.baseUrl)
             loadSsoConfig()
         }
     }

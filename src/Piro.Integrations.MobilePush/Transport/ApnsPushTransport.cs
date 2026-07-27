@@ -25,6 +25,8 @@ public sealed class ApnsPushTransport(HttpClient httpClient) : IPushTransport
 
     public DevicePushPlatform Platform => DevicePushPlatform.Ios;
 
+    public PushTransportMode Mode => PushTransportMode.Direct;
+
     public bool IsConfigured(MobilePushConfig config) =>
         !string.IsNullOrWhiteSpace(config.ApnsPrivateKey) &&
         !string.IsNullOrWhiteSpace(config.ApnsKeyId) &&

@@ -19,9 +19,9 @@ public class DeviceRegistrationService(
 {
     private const string MobilePushType = "MobilePush";
 
-    public async Task<DeviceDto> RegisterAsync(int userId, DevicePlatform platform, string token, string? deviceName, CancellationToken ct = default)
+    public async Task<DeviceDto> RegisterAsync(int userId, DevicePlatform platform, string token, string? deviceName, string? pushPublicKey, CancellationToken ct = default)
     {
-        var device = await deviceRepo.UpsertAsync(userId, platform, token, deviceName, ct);
+        var device = await deviceRepo.UpsertAsync(userId, platform, token, deviceName, pushPublicKey, ct);
         await EnsureMobilePushPreferenceAsync(userId, ct);
         return Map(device);
     }

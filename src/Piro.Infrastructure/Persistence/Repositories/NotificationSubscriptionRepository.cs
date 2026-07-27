@@ -53,6 +53,7 @@ internal class NotificationSubscriptionRepository(PiroDbContext db) : INotificat
         existing.IntegrationId = subscription.IntegrationId;
         existing.Target = subscription.Target;
         existing.Enabled = subscription.Enabled;
+        existing.FilterJson = subscription.FilterJson;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(ct);
