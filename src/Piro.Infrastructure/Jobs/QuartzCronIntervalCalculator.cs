@@ -13,17 +13,25 @@ internal sealed class QuartzCronIntervalCalculator : ICronIntervalCalculator
     /// <summary>How many consecutive fires to sample when measuring the tightest cadence.</summary>
     private const int SampleFires = 12;
 
-    public TimeSpan? SmallestInterval(string cron)
+    public bool IsValid(string cron) => Parse(cron) is not null;
+
+    /// <summary>Parses a cron into a Quartz expression, or null if it is malformed.</summary>
+    private static CronExpression? Parse(string cron)
     {
-        CronExpression expression;
         try
         {
-            expression = new CronExpression(QuartzCron.ToQuartzCron(cron));
+            return new CronExpression(QuartzCron.ToQuartzCron(cron));
         }
         catch (Exception ex) when (ex is FormatException or IndexOutOfRangeException or ArgumentException)
         {
-            return null; // malformed cron (bad field count or Quartz parse failure) — unvalidatable
+            return null; // malformed cron (bad field count or Quartz parse failure)
         }
+    }
+
+    public TimeSpan? SmallestInterval(string cron)
+    {
+        if (Parse(cron) is not { } expression)
+            return null; // malformed cron — unvalidatable
 
         // Walk forward from a fixed anchor, collecting fire times, and track the smallest gap.
         // A fixed anchor keeps this deterministic and independent of wall-clock.

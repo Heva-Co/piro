@@ -11,7 +11,11 @@ namespace Piro.Application.Services;
 /// Does not compute status — that is handled by <see cref="ServiceStatusService"/>.
 /// Slug immutability is enforced: slugs cannot be changed after creation.
 /// </remarks>
-public class ServiceAppService(IServiceRepository repository, IEscalationPolicyRepository escalationPolicyRepository)
+public class ServiceAppService(
+    IServiceRepository repository,
+    IEscalationPolicyRepository escalationPolicyRepository,
+    ICheckRepository checkRepository,
+    ICheckSchedulerService scheduler)
 {
     public async Task<PaginatedResponse<ServiceDto>> GetPagedAsync(ServiceQueryParams query, CancellationToken ct = default)
     {
@@ -67,15 +71,21 @@ public class ServiceAppService(IServiceRepository repository, IEscalationPolicyR
         if (request.IsHidden is not null) service.IsHidden = request.IsHidden.Value;
         if (request.DisplayOrder is not null) service.DisplayOrder = request.DisplayOrder.Value;
 
-        if (request.EscalationPolicyId is int policyId)
+        // Tri-state: an omitted EscalationPolicyId leaves the field untouched, an explicit null clears
+        // it. Previously omission nulled the field, so any partial update silently detached the policy
+        // and disabled on-call notifications for the service (RFC 0019 §4.4).
+        if (request.EscalationPolicyId is { Value: var requested })
         {
-            _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
-                ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
-            service.EscalationPolicyId = policyId;
-        }
-        else
-        {
-            service.EscalationPolicyId = null;
+            if (requested is int policyId)
+            {
+                _ = await escalationPolicyRepository.GetByIdAsync(policyId, ct)
+                    ?? throw new NotFoundException(nameof(EscalationPolicy), policyId.ToString());
+                service.EscalationPolicyId = policyId;
+            }
+            else
+            {
+                service.EscalationPolicyId = null;
+            }
         }
 
         var updated = await repository.UpdateAsync(service, ct);
@@ -86,6 +96,14 @@ public class ServiceAppService(IServiceRepository repository, IEscalationPolicyR
     {
         var service = await repository.GetBySlugAsync(slug, ct)
             ?? throw new NotFoundException(nameof(Service), slug);
+
+        // Checks cascade at the database level, but their Quartz jobs do not — left scheduled they
+        // keep firing against a deleted check id until the process restarts (RFC 0019 §4.5).
+        var checks = await checkRepository.GetByServiceIdAsync(service.Id, ct);
+
         await repository.DeleteAsync(service, ct);
+
+        foreach (var check in checks)
+            await scheduler.UnscheduleAsync(check.Id, ct);
     }
 }

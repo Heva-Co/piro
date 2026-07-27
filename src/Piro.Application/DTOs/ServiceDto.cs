@@ -39,7 +39,11 @@ public record CreateServiceRequest(
     int? EscalationPolicyId = null
 );
 
-/// <summary>Payload for updating an existing service — a full replace, sent by the admin form on every submit.</summary>
+/// <summary>
+/// Payload for updating an existing service — a patch: every field is optional and an omitted field
+/// leaves the stored value untouched. <see cref="EscalationPolicyId"/> is tri-state because it is
+/// nullable in its own right, so "omitted" and "set to null" must stay distinguishable (RFC 0019 §4.4).
+/// </summary>
 public record UpdateServiceRequest(
     string? Name,
     string? Description,
@@ -47,5 +51,5 @@ public record UpdateServiceRequest(
     ServiceStatus? DefaultStatus,
     bool? IsHidden,
     int? DisplayOrder,
-    int? EscalationPolicyId
+    Patch<int?>? EscalationPolicyId
 );

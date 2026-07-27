@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Piro.Api.Middleware;
 using Piro.Api.OpenApi;
+using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Infrastructure.Auth;
@@ -123,6 +124,24 @@ builder.Services.AddOpenApi("v1", options =>
     });
 
     options.AddDocumentTransformer<SecuritySchemeTransformer>();
+
+    // Patch<T> is a wrapper struct that serializes transparently as its underlying value (its
+    // JsonConverter unwraps it), so the schema must describe T — not the {value: T} object that
+    // reflection over the struct's shape would otherwise produce. Same schema-versus-wire mismatch
+    // the JsonStringEnumConverter registration above corrects for enums.
+    options.AddSchemaTransformer(async (schema, context, ct) =>
+    {
+        var type = context.JsonTypeInfo.Type;
+        if (!type.IsGenericType || type.GetGenericTypeDefinition() != typeof(Patch<>))
+            return;
+
+        var inner = await context.GetOrCreateSchemaAsync(type.GetGenericArguments()[0], cancellationToken: ct);
+        schema.Type = inner.Type | JsonSchemaType.Null; // present-but-null is the explicit-clear case
+        schema.Format = inner.Format;
+        schema.Properties = inner.Properties;
+        schema.Items = inner.Items;
+        schema.Enum = inner.Enum;
+    });
 
     // Include XML doc comments
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";

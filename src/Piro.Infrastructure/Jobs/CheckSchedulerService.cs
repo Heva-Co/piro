@@ -13,7 +13,13 @@ internal class CheckSchedulerService(
 {
     public async Task ScheduleAsync(Check check, CancellationToken ct = default)
     {
-        if (!check.IsActive) return;
+        // An inactive check must have any existing trigger removed, not merely be skipped: toggling
+        // IsActive true -> false previously returned here and left the old trigger firing (RFC 0019 §4.5).
+        if (!check.IsActive)
+        {
+            await UnscheduleAsync(check.Id, ct);
+            return;
+        }
 
         var scheduler = await schedulerFactory.GetScheduler(ct);
 

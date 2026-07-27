@@ -14,4 +14,12 @@ public interface ICronIntervalCalculator
     /// or fires too rarely to sample within the window.
     /// </summary>
     TimeSpan? SmallestInterval(string cron);
+
+    /// <summary>
+    /// Whether <paramref name="cron"/> parses as a valid schedule. Distinct from
+    /// <see cref="SmallestInterval"/> returning null, which conflates "malformed" with "fires too
+    /// rarely to sample". Lets the Application layer reject an invalid cron before persisting it,
+    /// rather than throwing from the scheduler after the commit (RFC 0019 §4.3).
+    /// </summary>
+    bool IsValid(string cron);
 }
