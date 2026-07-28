@@ -28,7 +28,7 @@ internal static class Scaffolding
         """;
 
     public const string ExampleDocument = """
-        # yaml-language-server: $schema=https://raw.githubusercontent.com/Heva-Co/piro/main/schema/piro.schema.json
+        # yaml-language-server: $schema=./piro.schema.json   # from `piro schema -o piro.schema.json`
         version: 1
 
         # Everything this file does not declare, it does not touch: fields set in the admin panel

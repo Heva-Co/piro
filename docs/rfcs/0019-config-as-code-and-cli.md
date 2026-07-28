@@ -53,7 +53,7 @@ The corollary is that the reconciler is a **patch engine, not a replacement engi
 ### 4.1 The `piro.yaml` format
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Heva-Co/piro/main/schema/piro.schema.json
+# yaml-language-server: $schema=./piro.schema.json   # from `piro schema -o piro.schema.json`
 version: 1
 
 services:
@@ -347,13 +347,17 @@ sequenceDiagram
 
 ### 4.10 JSON Schema (#31)
 
-The v1 format is small and closed, so a JSON Schema falls out of it almost for free, published at `schema/piro.schema.json` in the repository. Per-check-type `type_data` sub-schemas are generated from the same manifest reflection that already produces the admin panel's dynamic form — `ConfigSchemaBuilder.For(Manifest.ConfigType)` (`src/Piro.Contracts/Schema/ConfigSchemaBuilder.cs:14`), surfaced through `CheckTypeManifestExtensions` (`src/Piro.Application/Extensions/CheckTypeManifestExtensions.cs:24`). Generating it from the registry rather than hand-writing it means the schema cannot drift from the check types that actually exist.
+The v1 format is small and closed, so a JSON Schema falls out of it almost for free. **Implemented as `GET /api/v1/config/schema`, generated from the serving instance's check registry, with `piro schema -o piro.schema.json` to download it** — rather than as a static file in this repository. The reason is the same one that makes `type_data` the hard part: each check declares its own config shape, so a schema baked at release time describes only the check types Piro ships with, and is silently incomplete for exactly the types an operator would most need help writing. Per-check-type `type_data` sub-schemas are generated from the same manifest reflection that already produces the admin panel's dynamic form — `ConfigSchemaBuilder.For(Manifest.ConfigType)` (`src/Piro.Contracts/Schema/ConfigSchemaBuilder.cs:14`), surfaced through `CheckTypeManifestExtensions` (`src/Piro.Application/Extensions/CheckTypeManifestExtensions.cs:24`). Generating it from the registry rather than hand-writing it means the schema cannot drift from the check types that actually exist.
+
+`type_data` is bound to the check's type through a chain of conditionals — one `if type is X then type_data looks like Y` per registered check — so an editor completes `url` inside an HTTP check and `host` inside a DNS one. Each branch requires `type` to be present; without that it also matches a check omitting `type`, and every branch would apply at once. `additionalProperties` is false throughout, because under patch semantics an unrecognised key silently means "not declared", so a typo must be caught in the editor rather than quietly leaving the real value untouched. A check whose manifest declares `RequiredIntegration` is excluded, since the validator rejects it in YAML (§2) and offering it would autocomplete a file that can never apply.
+
+One wrinkle worth recording: a property renamed by `[JsonPropertyName]` still binds from its CLR name, because the serializer matches case-insensitively — an HTTP check's `TimeoutMs` loads from either `timeout` or `timeoutMs`, and config written before the attribute existed uses the latter. The schema therefore describes both spellings; a schema stricter than the server rejects documents the server loads happily, and made an exported document fail its own schema.
 
 ### 4.11 Admin panel
 
 v1 adds two surfaces to `apps/admin`.
 
-**A read-only Config as Code page** under the existing configuration section (alongside `apps/admin/src/features/configuration/pages/ApiKeysPage.tsx`), containing:
+**A read-only Config as Code page** — **deferred, not implemented.** Export is available through `piro export` and the API, so the page is a convenience rather than a dependency. When it lands it belongs under the existing configuration section (alongside `apps/admin/src/features/configuration/pages/ApiKeysPage.tsx`), containing:
 
 - A short explanation of the CLI workflow with the install command and a link to the docs.
 - An **Export** button that downloads `piro.yaml` from `GET /api/v1/config/export`.
@@ -406,7 +410,7 @@ While editing `Piro.slnx`, `src/Piro.Checks/Piro.Checks.csproj` and `src/Piro.Ch
 
 **New admin panel routes:** the Config as Code page and `/cli-auth` (§4.11).
 
-**New repository files:** `schema/piro.schema.json`, a schema for `piro.config.yml`, an example `piro.yaml`, and a documented GitHub Actions workflow.
+**New repository files:** an example GitHub Actions workflow (`docs/config-as-code/github-actions.yml`) and an example `piro.yaml`. The JSON Schema is served by the API and fetched with `piro schema` (§4.10), so it is not checked in.
 
 **Explicitly unaffected:** `Alert`, `AlertConfig`, `Incident`, `Maintenance`, `Page`, `ServiceDependency`, `Tag`, `EscalationPolicy`, `Integration`, `ApiKey`, `WorkerRegistration`, and every notification and escalation pipeline.
 
@@ -420,7 +424,9 @@ While editing `Piro.slnx`, `src/Piro.Checks/Piro.Checks.csproj` and `src/Piro.Ch
 
 **Phase 4 — Browser login.** `piro login` / `piro logout`, the two `auth/cli/*` endpoints, the `CliAuthorizationCode` entity, and the `/cli-auth` consent screen. Separated because it is the only part requiring a migration and new auth surface, and because it is the part that most warrants concentrated security review. It rests on the per-device sessions RFC 0018 already delivers.
 
-**Phase 5 — Schema and CI ergonomics (#31).** `schema/piro.schema.json` generated from the check registry, editor-integration docs, the example GitHub Actions workflow, and the admin panel's Config as Code page (§4.11).
+**Phase 5 — Schema and CI ergonomics (#31).** The JSON Schema generated from the check registry and served at `GET /api/v1/config/schema`, `piro schema` to download it, and the example GitHub Actions workflow.
+
+The admin panel's Config as Code page (§4.11) is **deferred**: the export button and the CLI-workflow blurb are conveniences, and nothing else in the feature depends on them. The `/cli-auth` consent screen is not deferred — the browser login cannot work without it — and shipped in phase 4.
 
 **Later, out of scope here:** dependencies in YAML (#29), alert configs (#28), status pages (#27), and the in-browser YAML editor (#75) — each an extension of the same reconciler. Incidents (#25) and maintenance windows (#26) are excluded permanently (§2).
 
