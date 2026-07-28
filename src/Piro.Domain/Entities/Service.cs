@@ -17,7 +17,6 @@ public class Service
 
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string? ImageUrl { get; set; }
 
     /// <summary>Derived status computed from checks and dependency propagation. Never set directly.</summary>
     public ServiceStatus CurrentStatus { get; set; } = ServiceStatus.NO_DATA;

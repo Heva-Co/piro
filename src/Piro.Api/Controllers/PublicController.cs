@@ -71,7 +71,6 @@ public class PublicController(
                 s.Slug, 
                 s.Name, 
                 s.Description, 
-                s.ImageUrl,
                 s.PublicStatus, 
                 s.DisplayOrder
                 ));
@@ -89,7 +88,7 @@ public class PublicController(
             return NotFound();
 
         return Ok(new PublicServiceDto(
-            service.Slug, service.Name, service.Description, service.ImageUrl,
+            service.Slug, service.Name, service.Description,
             service.PublicStatus, service.DisplayOrder));
     }
 
@@ -256,7 +255,7 @@ public class PublicController(
         double? overallMax = allLatencies.Count > 0 ? allLatencies.Max(d => d.Max) : null;
 
         return Ok(new ServiceOverviewDto(
-            service.Slug, service.Name, service.Description, service.ImageUrl,
+            service.Slug, service.Name, service.Description,
             service.PublicStatus,
             latest?.Timestamp ?? now,
             latest?.LatencyMs,

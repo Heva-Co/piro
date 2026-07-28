@@ -1,0 +1,130 @@
+# Example GitHub Actions workflow for Piro config as code (RFC 0019 §4.9).
+#
+# Copy this into your own repository — the one holding your piro.yaml — as
+# .github/workflows/piro.yml. It is not used by the Piro repo itself.
+#
+# Piro holds no GitHub credentials and never reaches out to a forge: the CLI runs in your CI and
+# pushes to your instance. The same shape works on GitLab, Bitbucket, or from a laptop.
+#
+# Two secrets are required in your repository settings:
+#   PIRO_URL      https://status.example.com
+#   PIRO_API_KEY  a Full-scope API key, from Configuration → API keys in the admin panel
+#
+# A pull request gets a plan comment and nothing is written. A merge to main applies.
+
+name: Piro
+
+on:
+  pull_request:
+    paths:
+      - 'piro/**'
+      - 'piro.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'piro/**'
+      - 'piro.yaml'
+
+# Two applies racing each other would fight over the same instance.
+concurrency:
+  group: piro-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PIRO_VERSION: v0.5.0
+
+jobs:
+  plan:
+    name: Plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Piro CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL -o piro.tar.gz \
+            "https://github.com/Heva-Co/piro/releases/download/${PIRO_VERSION}/piro-${PIRO_VERSION#v}-linux-x64.tar.gz"
+          tar -xzf piro.tar.gz
+          sudo install -m 755 piro /usr/local/bin/piro
+
+      # Exit code 2 means "changes are pending", which is the normal state of a pull request that
+      # edits configuration — not a failure. Only 1 is an error.
+      - name: Plan
+        id: plan
+        env:
+          PIRO_URL: ${{ secrets.PIRO_URL }}
+          PIRO_API_KEY: ${{ secrets.PIRO_API_KEY }}
+        run: |
+          set +e
+          piro plan -f piro/ > plan.txt 2>&1
+          code=$?
+          set -e
+          cat plan.txt
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" -le 2 ]
+
+      - name: Comment the plan on the pull request
+        if: always() && steps.plan.outputs.exit_code != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('plan.txt', 'utf8');
+            const code = '${{ steps.plan.outputs.exit_code }}';
+            const heading = code === '0'
+              ? 'No Piro changes'
+              : code === '2' ? 'Piro plan' : 'Piro plan failed';
+
+            const body = `### ${heading}\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\``;
+
+            // Update the existing comment instead of adding one per push, so the thread stays
+            // readable across a long-running pull request.
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('### Piro plan') ||
+              c.user.type === 'Bot' && c.body.includes('### No Piro changes'));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: context.issue.number, body,
+              });
+            }
+
+  apply:
+    name: Apply
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # A GitHub environment adds a required approval before the apply runs. Recommended, and the only
+    # gate between a merge and a write.
+    environment: piro
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Piro CLI
+        run: |
+          set -euo pipefail
+          curl -fsSL -o piro.tar.gz \
+            "https://github.com/Heva-Co/piro/releases/download/${PIRO_VERSION}/piro-${PIRO_VERSION#v}-linux-x64.tar.gz"
+          tar -xzf piro.tar.gz
+          sudo install -m 755 piro /usr/local/bin/piro
+
+      # --auto-approve because CI has no terminal to confirm at. Deliberately no --prune: pruning
+      # deletes everything the files do not declare, including resources made by hand in the admin
+      # panel, and a file-resolution mistake in CI is invisible until the deletions have happened.
+      # If you do want it, pin an explicit file list rather than a directory.
+      - name: Apply
+        env:
+          PIRO_URL: ${{ secrets.PIRO_URL }}
+          PIRO_API_KEY: ${{ secrets.PIRO_API_KEY }}
+        run: piro apply -f piro/ --auto-approve

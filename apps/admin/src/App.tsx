@@ -18,6 +18,7 @@ import SetupPage from "@/features/auth/pages/SetupPage";
 import AcceptInvitePage from "@/features/auth/pages/AcceptInvitePage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
+import CliAuthPage from "@/features/auth/pages/CliAuthPage";
 
 // Admin pages
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="/admin/invite/:token" element={<AcceptInvitePage />} />
             <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
             <Route path={ROUTES.AUTH.RESET_PASSWORD} element={<ResetPasswordPage />} />
+            <Route path={ROUTES.CLI_AUTH} element={<CliAuthPage />} />
 
             {/* Protected admin routes */}
             <Route element={<ProtectedLayout />}>

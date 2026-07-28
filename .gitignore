@@ -56,3 +56,7 @@ graphify-out/
 *.cer
 *.p12
 *.p8
+
+# Local scratch space for trying the piro CLI against a dev instance. The schema inside is fetched
+# per instance via `piro schema`, and the config points at localhost, so none of it belongs in git.
+/piro/

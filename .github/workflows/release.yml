@@ -148,6 +148,74 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-cli:
+    name: CLI — ${{ matrix.target }}
+    needs: resolve-version
+    # NativeAOT cannot cross-compile, so each OS needs its own runner. Linux arm64 is built on an
+    # arm64 runner for the same reason.
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-latest
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          # Apple Silicon only — Intel Macs are not a supported target. Pinned rather than
+          # macos-latest because there is no forward-compatible arm64 alias, so this needs bumping
+          # when the image is retired.
+          - target: osx-arm64
+            runner: macos-26-arm64
+          - target: win-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install AOT prerequisites
+        if: startsWith(matrix.target, 'linux')
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish
+        run: >
+          dotnet publish src/Piro.Cli
+          -r ${{ matrix.target }}
+          -c Release
+          -o publish
+          -p:Version=${{ needs.resolve-version.outputs.version }}
+
+      - name: Package
+        shell: bash
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          # One archive per platform, named so a download is self-describing. zip on Windows because
+          # tar.gz is awkward there; tar.gz elsewhere because it preserves the executable bit.
+          if [ "${TARGET}" = "win-x64" ]; then
+            7z a "piro-${VERSION}-${TARGET}.zip" ./publish/piro.exe
+            echo "asset=piro-${VERSION}-${TARGET}.zip" >> "$GITHUB_ENV"
+          else
+            tar -czf "piro-${VERSION}-${TARGET}.tar.gz" -C publish piro
+            echo "asset=piro-${VERSION}-${TARGET}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      # The exact filename, not a glob: a glob that matches nothing makes gh fail, and only one
+      # archive exists per runner.
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" "$asset" --clobber
+
   attach-release-assets:
     name: Attach docker-compose.yml to release
     needs: [resolve-version, build-docker-api, build-docker-worker, build-docker-web, build-docker-proxy]

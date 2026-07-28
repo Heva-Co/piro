@@ -50,10 +50,23 @@ public class AuthService(
         return await BuildResponseAsync(user);
     }
 
-    private async Task<SignInResponse> BuildResponseAsync(AppUser user)
+    /// <summary>
+    /// Issues a session for a user the caller has already authenticated by some other means — today,
+    /// a redeemed CLI authorization code (RFC 0019 §4.6). The <paramref name="deviceLabel"/> is what
+    /// makes it appear in the sessions list as something the user can recognise and revoke.
+    /// </summary>
+    /// <remarks>
+    /// A CLI login is not a new kind of credential: it is one more refresh-token session, with the
+    /// same rotation, expiry and revocation as a browser one.
+    /// </remarks>
+    public Task<SignInResponse> IssueSessionAsync(AppUser user, string? deviceLabel, CancellationToken ct = default) =>
+        BuildResponseAsync(user, deviceLabel, ct);
+
+    private async Task<SignInResponse> BuildResponseAsync(
+        AppUser user, string? deviceLabel = null, CancellationToken ct = default)
     {
         var (accessToken, expires) = await tokenService.GenerateAccessTokenAsync(user);
-        var refreshToken = await tokenService.GenerateRefreshTokenAsync(user);
+        var refreshToken = await tokenService.GenerateRefreshTokenAsync(user, deviceLabel, ct);
         var roles = await userManager.GetRolesAsync(user);
         var expiresIn = (int)(expires - DateTime.UtcNow).TotalSeconds;
 

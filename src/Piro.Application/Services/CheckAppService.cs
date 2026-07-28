@@ -240,8 +240,13 @@ public class CheckAppService(
 
     private void EnsureScheduleWithinBounds(CheckType type, string cron, string typeDataJson)
     {
+        // Reject a malformed cron here, before the write. Left to the scheduler it throws from
+        // WithCronSchedule *after* the commit, leaving a persisted check and a 500 (RFC 0019 §4.3).
+        if (!cronInterval.IsValid(cron))
+            throw new DomainValidationException($"'{cron}' is not a valid cron expression.");
+
         if (cronInterval.SmallestInterval(cron) is not { } interval)
-            return; // invalid/too-rare cron — not this guard's concern
+            return; // valid but fires too rarely to sample — no interval floor to enforce
 
         if (interval < TimeSpan.FromMinutes(1))
             throw new DomainValidationException("Check interval must be at least 1 minute.");

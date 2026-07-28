@@ -33,6 +33,8 @@ public class CheckScheduleValidationTests
         // The registry supplies the check's manifest (config type + default interval); HTTP is the
         // representative type these schedule rules are exercised against.
         _registry.Find("HTTP").Returns(new HttpCheck());
+        // These tests exercise the interval rules, not cron parsing — the cron is always well-formed.
+        _cron.IsValid(Arg.Any<string>()).Returns(true);
 
         _sut = new CheckAppService(
             _checks, _services,
@@ -89,8 +91,23 @@ public class CheckScheduleValidationTests
     }
 
     [Fact]
-    public async Task UnderivableCron_SkipsValidation()
+    public async Task InvalidCron_IsRejectedBeforePersisting()
     {
+        // A malformed cron must fail here, not after the commit from the scheduler (RFC 0019 §4.3).
+        _cron.IsValid("nonsense").Returns(false);
+
+        var ex = await Record.ExceptionAsync(() =>
+            _sut.CreateAsync("svc", new CreateCheckRequest("slug", "Name", null, CheckType.HTTP, "nonsense", "{}")));
+
+        ex.Should().BeOfType<DomainValidationException>()
+            .Which.Message.Should().Contain("not a valid cron expression");
+        await _checks.DidNotReceive().CreateAsync(Arg.Any<Check>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UnsamplableCron_SkipsIntervalValidation()
+    {
+        // Valid but firing too rarely to sample — there is no interval floor to enforce.
         _cron.SmallestInterval(Arg.Any<string>()).Returns((TimeSpan?)null);
         _checks.CreateAsync(Arg.Any<Check>(), Arg.Any<CancellationToken>())
             .Returns(ci => ci.Arg<Check>());

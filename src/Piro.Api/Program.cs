@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Piro.Api.Middleware;
 using Piro.Api.OpenApi;
+using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
 using Piro.Infrastructure.Auth;
@@ -124,6 +125,16 @@ builder.Services.AddOpenApi("v1", options =>
 
     options.AddDocumentTransformer<SecuritySchemeTransformer>();
 
+    // Patch<T> is a wrapper struct that serializes transparently as its underlying value (its
+    // JsonConverter unwraps it), so the schema must describe T — not the wrapper. Same
+    // schema-versus-wire mismatch the JsonStringEnumConverter registration above corrects for enums.
+    //
+    // This has to be a *document* transformer. A schema transformer does run for Patch<T>, but the
+    // property referencing it emits a "$ref" to a named component, so rewriting the component in
+    // place just leaves an empty schema behind the reference — which generates `unknown` in the
+    // TypeScript client. Substituting at the document level is what actually removes the wrapper.
+    options.AddDocumentTransformer<PatchSchemaTransformer>();
+
     // Include XML doc comments
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -179,6 +190,10 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ServiceAppService>();
 builder.Services.AddScoped<CheckAppService>();
 builder.Services.AddScoped<TagAppService>();
+builder.Services.AddScoped<Piro.Application.Config.ConfigValidator>();
+builder.Services.AddScoped<Piro.Application.Config.ConfigReconciler>();
+builder.Services.AddScoped<Piro.Application.Config.ConfigExporter>();
+builder.Services.AddScoped<Piro.Application.Config.ConfigSchemaGenerator>();
 builder.Services.AddScoped<DependencyService>();
 builder.Services.AddScoped<AlertLifecycleService>();
 builder.Services.AddScoped<AlertEvaluationService>();

@@ -660,6 +660,60 @@ namespace Piro.Infrastructure.Migrations
                     b.ToTable("CheckTags");
                 });
 
+            modelBuilder.Entity("Piro.Domain.Entities.CliAuthorizationCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CodeChallenge")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RedirectUri")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CliAuthorizationCodes", (string)null);
+                });
+
             modelBuilder.Entity("Piro.Domain.Entities.DeviceToken", b =>
                 {
                     b.Property<int>("Id")
@@ -2162,10 +2216,6 @@ namespace Piro.Infrastructure.Migrations
                     b.Property<int?>("EscalationPolicyId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<bool>("IsHidden")
                         .HasColumnType("boolean");
 
@@ -2632,6 +2682,17 @@ namespace Piro.Infrastructure.Migrations
                     b.Navigation("Check");
 
                     b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("Piro.Domain.Entities.CliAuthorizationCode", b =>
+                {
+                    b.HasOne("Piro.Domain.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Piro.Domain.Entities.DeviceToken", b =>
