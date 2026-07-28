@@ -2,6 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/Piro.Api/Piro.Api.csproj" />
     <Project Path="src/Piro.Application/Piro.Application.csproj" />
+    <Project Path="src/Piro.Checks/Piro.Checks.csproj" />
+    <Project Path="src/Piro.Checks.Abstractions/Piro.Checks.Abstractions.csproj" />
+    <Project Path="src/Piro.Cli/Piro.Cli.csproj" />
     <Project Path="src/Piro.Contracts/Piro.Contracts.csproj" />
     <Project Path="src/Piro.Domain/Piro.Domain.csproj" />
     <Project Path="src/Piro.Integrations.Abstractions/Piro.Integrations.Abstractions.csproj" />

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>piro</AssemblyName>
+    <RootNamespace>Piro.Cli</RootNamespace>
+
+    <!--
+      NativeAOT, so `piro` ships as one self-contained binary with no runtime to install
+      (RFC 0019 §4.6). This is the first project in the repo to use it. It must reference nothing
+      from the existing graph: Piro.Contracts carries a FrameworkReference on Microsoft.AspNetCore.App
+      and Piro.Infrastructure pulls EF Core, Quartz, QuestPDF and Jint, all of which are AOT-hostile.
+      The CLI therefore duplicates the handful of response records it needs rather than sharing the
+      server's. There is no Directory.Build.props at the repo root, so this cannot leak elsewhere.
+    -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+
+    <!-- Reflection-free JSON: every payload goes through a source-generated context. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft's own command-line parser: help, parse errors and completions for free, and
+         explicitly designed for NativeAOT (no reflection-based binding). -->
+    <PackageReference Include="System.CommandLine" Version="2.0.10" />
+  </ItemGroup>
+
+</Project>
