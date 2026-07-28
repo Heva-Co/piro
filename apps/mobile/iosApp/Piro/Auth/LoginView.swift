@@ -56,7 +56,7 @@ struct LoginView: View {
 
     private var serverField: some View {
         VStack(alignment: .leading, spacing: 4) {
-            TextField("Server URL (https://piro.example.com)", text: $session.serverURL)
+            TextField("Server URL", text: $session.serverURL)
                 .textContentType(.URL)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
@@ -78,7 +78,10 @@ struct LoginView: View {
     private var credentialFields: some View {
         VStack(spacing: 12) {
             TextField("Email", text: $session.email)
-                .textContentType(.username)
+                // .emailAddress rather than .username: it is what makes iOS offer the addresses from
+                // Contacts and the keyboard's own suggestions, on top of any saved credential. With
+                // .username the QuickType bar only ever proposes a stored login.
+                .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()

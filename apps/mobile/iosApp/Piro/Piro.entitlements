@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Debug entitlements. APNs sandbox, which is what a build run from Xcode registers against.
+
+  Release builds use Piro.Release.entitlements (aps-environment: production) instead, selected per
+  configuration in project.yml. This has to be a separate file rather than one value flipped by the
+  build: aps-environment is a fixed string in a plist, nothing rewrites it, and a TestFlight build
+  signed with `development` registers sandbox tokens that production APNs will not deliver to.
+-->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- APNs. `development` for debug builds; the release/distribution build flips this to `production`. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<key>keychain-access-groups</key>
+	<array>
+		<!-- Shared with the notification service extension so it can read the push private key. The
+		     $(AppIdentifierPrefix) prefix is the Team ID, filled in at build time. -->
+		<string>$(AppIdentifierPrefix)co.heva.piro</string>
+	</array>
 </dict>
 </plist>
