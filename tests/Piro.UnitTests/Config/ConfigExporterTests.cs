@@ -175,6 +175,21 @@ public class ConfigExporterTests
     }
 
     [Fact]
+    public async Task EmptyCollectionsAreWrittenInFlowStyle()
+    {
+        // A bare "headers:" with nothing under it parses back as null, not as empty, so a re-applied
+        // export would replace {} with null on every field the check left empty — an update the plan
+        // reports and the user never asked for. Found running export against a real instance.
+        GivenService(Service("api"), HttpCheckRow("health",
+            """{"url":"https://a.test","headers":{},"expectedStatusCodes":[]}"""));
+
+        var yaml = await _sut.ExportAsync();
+
+        yaml.Should().Contain("headers: {}");
+        yaml.Should().Contain("expectedStatusCodes: []");
+    }
+
+    [Fact]
     public async Task AnEmptyInstanceExportsAValidDocument()
     {
         _services.GetAllAsync(Arg.Any<CancellationToken>()).Returns([]);

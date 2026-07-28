@@ -211,6 +211,17 @@ public sealed class ConfigExporter(
     {
         switch (value.ValueKind)
         {
+            // An empty object or array must be written in flow style. Emitting a bare "key:" with
+            // nothing under it parses back as null, not as empty, so a re-applied export would
+            // replace [] with null on every field the check left empty.
+            case JsonValueKind.Object when !value.EnumerateObject().Any():
+                output.Append(indent).Append(Scalar(key)).AppendLine(": {}");
+                break;
+
+            case JsonValueKind.Array when value.GetArrayLength() == 0:
+                output.Append(indent).Append(Scalar(key)).AppendLine(": []");
+                break;
+
             case JsonValueKind.Object:
                 output.Append(indent).Append(Scalar(key)).AppendLine(":");
                 foreach (var property in value.EnumerateObject())

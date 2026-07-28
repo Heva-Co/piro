@@ -377,6 +377,21 @@ public sealed class ConfigReconciler(
                 return $"{{{string.Join(",", members)}}}";
             case System.Text.Json.JsonValueKind.Array:
                 return $"[{string.Join(",", element.EnumerateArray().Select(Canonicalize))}]";
+
+            // Re-serialize a string from its decoded value rather than reusing the raw text, so two
+            // encodings of the same string compare equal. The server's serializer escapes ' as
+            // ' while a YAML round-trip yields the literal character; comparing raw text made
+            // an unchanged script look like an edit on every apply.
+            case System.Text.Json.JsonValueKind.String:
+                return System.Text.Json.JsonSerializer.Serialize(element.GetString());
+
+            // A JSON number has several spellings for one value (1 / 1.0 / 1e0). Compare numerically
+            // so formatting alone is never a diff.
+            case System.Text.Json.JsonValueKind.Number:
+                return element.TryGetDouble(out var number)
+                    ? number.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+                    : element.GetRawText();
+
             default:
                 return element.GetRawText();
         }
