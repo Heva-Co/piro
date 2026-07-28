@@ -45,9 +45,18 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Non-root user for security
 RUN useradd --system --no-create-home appuser
+
+# Create the mount points and hand them to appuser *before* dropping privileges. Docker creates a
+# missing volume target as root:root, so without this the Data Protection key ring cannot be written
+# at /app/keys: the API then fails to read its keyring and every request that encrypts a secret (an
+# integration's token, a stored OAuth token) returns a 500. Pre-creating the directory means Docker
+# preserves this ownership when it mounts the volume over it.
+RUN mkdir -p /app/keys /app/wwwroot/uploads \
+    && chown -R appuser:appuser /app
+
 USER appuser
 
-COPY --from=build /app/publish ./
+COPY --from=build --chown=appuser:appuser /app/publish ./
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
