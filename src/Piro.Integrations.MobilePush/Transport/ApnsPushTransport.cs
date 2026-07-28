@@ -79,16 +79,36 @@ public sealed class ApnsPushTransport(HttpClient httpClient) : IPushTransport
 
         var aps = new Dictionary<string, object?>
         {
-            ["alert"] = new { title = message.Title, body = message.Body },
             ["sound"] = sound,
             ["interruption-level"] = message.Critical ? "critical" : "time-sensitive",
         };
 
-        var payload = new Dictionary<string, object?>
+        var payload = new Dictionary<string, object?> { ["aps"] = aps };
+
+        // When the device published a push public key, send only the sealed envelope: the title, body,
+        // event key, alert id and url are all inside it. Keeping any of them alongside in the clear
+        // would make the encryption pointless, since the payload travels the same hop either way.
+        if (!string.IsNullOrEmpty(message.SealedPayload))
         {
-            ["aps"] = aps,
-            ["eventKey"] = message.EventKey,
-        };
+            // mutable-content is what lets the app's Notification Service Extension rewrite the
+            // notification before it is shown. Without it iOS displays the placeholder as-is and the
+            // ciphertext never gets decrypted.
+            aps["mutable-content"] = 1;
+
+            // A placeholder is required: APNs will not display a notification with no alert body, and
+            // it is what the user sees for the fraction of a second before the extension replaces it —
+            // or permanently, if the extension is killed for running over its time budget.
+            aps["alert"] = new { title = "Piro", body = "New alert" };
+
+            payload["ciphertext"] = message.SealedPayload;
+            return JsonSerializer.Serialize(payload);
+        }
+
+        // Legacy cleartext path, for devices registered before they published a key. They re-register
+        // with one on the next app launch, at which point they move to the sealed path above.
+        aps["alert"] = new { title = message.Title, body = message.Body };
+        payload["eventKey"] = message.EventKey;
+        if (message.AlertId != 0) payload["alertId"] = message.AlertId;
         if (!string.IsNullOrWhiteSpace(message.Url)) payload["url"] = message.Url;
 
         return JsonSerializer.Serialize(payload);
