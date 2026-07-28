@@ -126,6 +126,41 @@ internal static class Commands
     }
 
 
+    /// <summary>
+    /// Downloads this instance's JSON Schema so an editor can validate and complete piro.yaml
+    /// offline (RFC 0019 §4.10).
+    /// </summary>
+    /// <remarks>
+    /// Fetched rather than shipped with the binary: the schema describes the check types the target
+    /// instance actually has, which a file baked at release time could not know. Anonymous, so it
+    /// works before `piro login`.
+    /// </remarks>
+    public static async Task<int> SchemaAsync(Options options, CancellationToken ct)
+    {
+        var (url, _) = SettingsResolver.ResolveTarget(options, Directory.GetCurrentDirectory());
+
+        using var client = PiroApiClient.Anonymous(url);
+        var schema = await client.SchemaAsync(ct);
+
+        if (options.Output is null)
+        {
+            Console.Out.Write(schema);
+            return ExitCode.Success;
+        }
+
+        var path = Path.GetFullPath(options.Output);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
+        await File.WriteAllTextAsync(path, schema, ct);
+
+        Console.Error.WriteLine($"Wrote {options.Output}");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("Point your editor at it from the top of each file:");
+        Console.Error.WriteLine($"  # yaml-language-server: $schema=./{Path.GetFileName(path)}");
+        return ExitCode.Success;
+    }
+
     // ── Login ───────────────────────────────────────────────────────────────
 
     /// <summary>

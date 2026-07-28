@@ -114,6 +114,20 @@ internal sealed class PiroApiClient : IDisposable
         throw await FailureAsync(response, ct);
     }
 
+    /// <summary>
+    /// Fetches the JSON Schema for piro.yaml, generated from this instance's check registry so it
+    /// describes the check types this instance actually has (RFC 0019 §4.10). Anonymous, since a
+    /// schema is public documentation of a file format.
+    /// </summary>
+    public async Task<string> SchemaAsync(CancellationToken ct)
+    {
+        using var response = await SendAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "api/v1/config/schema"), ct);
+
+        if (!response.IsSuccessStatusCode) throw await FailureAsync(response, ct);
+        return await response.Content.ReadAsStringAsync(ct);
+    }
+
     public async Task<string> ExportAsync(CancellationToken ct)
     {
         using var response = await SendAsync(

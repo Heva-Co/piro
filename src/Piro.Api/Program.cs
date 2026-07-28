@@ -193,6 +193,7 @@ builder.Services.AddScoped<TagAppService>();
 builder.Services.AddScoped<Piro.Application.Config.ConfigValidator>();
 builder.Services.AddScoped<Piro.Application.Config.ConfigReconciler>();
 builder.Services.AddScoped<Piro.Application.Config.ConfigExporter>();
+builder.Services.AddScoped<Piro.Application.Config.ConfigSchemaGenerator>();
 builder.Services.AddScoped<DependencyService>();
 builder.Services.AddScoped<AlertLifecycleService>();
 builder.Services.AddScoped<AlertEvaluationService>();

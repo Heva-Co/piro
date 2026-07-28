@@ -49,6 +49,7 @@ internal static class CommandTree
             Plan(),
             Apply(),
             Export(),
+            Schema(),
             Init(),
         };
 
@@ -123,6 +124,17 @@ internal static class CommandTree
         };
 
         command.SetAction((result, ct) => Commands.ExportAsync(Read(result), ct));
+        return command;
+    }
+
+    private static Command Schema()
+    {
+        var command = new Command("schema", "Download this instance's JSON Schema for piro.yaml.")
+        {
+            OutputOption, UrlOption, InstanceOption,
+        };
+
+        command.SetAction((result, ct) => Commands.SchemaAsync(Read(result), ct));
         return command;
     }
 

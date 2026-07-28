@@ -19,7 +19,10 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/config")]
 [Produces("application/json")]
-public class ConfigController(ConfigReconciler reconciler, ConfigExporter exporter) : ControllerBase
+public class ConfigController(
+    ConfigReconciler reconciler,
+    ConfigExporter exporter,
+    ConfigSchemaGenerator schemaGenerator) : ControllerBase
 {
     /// <summary>
     /// Computes what applying the supplied documents would change, writing nothing. This is the
@@ -59,6 +62,24 @@ public class ConfigController(ConfigReconciler reconciler, ConfigExporter export
     /// Serializes the current services and checks as a v1 <c>piro.yaml</c>. Lossy by design: fields
     /// outside the schema and checks bound to an integration are commented, not silently dropped.
     /// </summary>
+    /// <summary>
+    /// The JSON Schema for <c>piro.yaml</c>, generated from this instance's check registry so it
+    /// describes the check types this instance actually has, including any beyond the built-in set.
+    /// </summary>
+    /// <remarks>
+    /// Anonymous: a schema is public documentation of a file format, carries no data about the
+    /// instance beyond which check types exist, and an editor fetching it has no credential to send.
+    /// </remarks>
+    [HttpGet("schema")]
+    [AllowAnonymous]
+    [Produces("application/schema+json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult Schema()
+    {
+        Response.Headers.CacheControl = "public, max-age=300";
+        return Content(schemaGenerator.Generate(), "application/schema+json; charset=utf-8");
+    }
+
     [HttpGet("export")]
     [Produces("text/yaml")]
     [ProducesResponseType(StatusCodes.Status200OK)]

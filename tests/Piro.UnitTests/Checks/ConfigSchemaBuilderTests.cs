@@ -16,9 +16,11 @@ public class ConfigSchemaBuilderTests
     {
         var schema = ConfigSchemaBuilder.For(typeof(HttpCheckConfig));
 
-        // camelCase keys, matching the JSON naming policy used for ConfigJson.
+        // camelCase keys, matching the JSON naming policy used for ConfigJson — except where the
+        // property carries [JsonPropertyName], which the serializer obeys and so the schema must too
+        // (TimeoutMs is stored as "timeout").
         schema.Single(f => f.Key == "url").Type.Should().Be(ConfigFieldType.Url);  // [Url] annotation
-        schema.Single(f => f.Key == "timeoutMs").Type.Should().Be(ConfigFieldType.Number);
+        schema.Single(f => f.Key == "timeout").Type.Should().Be(ConfigFieldType.Number);
         schema.Single(f => f.Key == "followRedirects").Type.Should().Be(ConfigFieldType.Boolean);
         schema.Single(f => f.Key == "headers").Type.Should().Be(ConfigFieldType.KeyValue);
         schema.Single(f => f.Key == "expectedStatusCodes").Type.Should().Be(ConfigFieldType.StringList);
@@ -45,7 +47,7 @@ public class ConfigSchemaBuilderTests
         var schema = ConfigSchemaBuilder.For(typeof(TcpCheckConfig));
 
         schema.Single(f => f.Key == "port").Type.Should().Be(ConfigFieldType.Number);
-        schema.Single(f => f.Key == "timeoutMs").Type.Should().Be(ConfigFieldType.Number);
+        schema.Single(f => f.Key == "timeout").Type.Should().Be(ConfigFieldType.Number);
     }
 
     [Fact]
@@ -103,7 +105,7 @@ public class ConfigSchemaBuilderTests
     {
         var http = ConfigSchemaBuilder.For(typeof(HttpCheckConfig));
         http.Single(f => f.Key == "method").Default.Should().Be("GET");
-        http.Single(f => f.Key == "timeoutMs").Default.Should().Be(5000);
+        http.Single(f => f.Key == "timeout").Default.Should().Be(5000);
         http.Single(f => f.Key == "followRedirects").Default.Should().Be(true);
 
         ConfigSchemaBuilder.For(typeof(SslCheckConfig)).Single(f => f.Key == "port").Default.Should().Be(443);

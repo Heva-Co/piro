@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Piro.Contracts;
 
@@ -52,6 +53,17 @@ public static class ConfigSchemaBuilder
     }
 
     /// <summary>
+    /// The key this property actually carries on the wire. <see cref="JsonPropertyNameAttribute"/>
+    /// wins over the camel-cased property name, because that attribute is what the serializer obeys:
+    /// an HTTP check's <c>TimeoutMs</c> is stored as <c>timeout</c>, so a schema saying
+    /// <c>timeoutMs</c> would describe a field no config ever contains — and a generated JSON Schema
+    /// would flag the correct spelling as an error (RFC 0019 §4.10).
+    /// </summary>
+    private static string JsonKeyOf(PropertyInfo property) =>
+        property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name
+        ?? ConfigJsonNaming.ConvertName(property.Name);
+
+    /// <summary>
     /// Builds a single property's <see cref="ConfigFieldSchemaDto"/> — label/placeholder/help text
     /// come from <see cref="ConfigFieldAttribute"/> (falling back to the property name as label),
     /// options from <see cref="ConfigFieldOptionsAttribute"/>, and Type/Required/IsSecret from the
@@ -68,7 +80,7 @@ public static class ConfigSchemaBuilder
         var fieldType = InferFieldType(property, options);
 
         return new ConfigFieldSchemaDto(
-            ConfigJsonNaming.ConvertName(property.Name),
+            JsonKeyOf(property),
             display?.Label ?? property.Name,
             fieldType,
             property.GetCustomAttribute<RequiredAttribute>() is not null,
