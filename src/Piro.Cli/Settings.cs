@@ -32,6 +32,18 @@ internal static class SettingsResolver
     /// <summary>Resolves the URL without requiring a credential — what <c>login</c> needs.</summary>
     public static (string Url, string InstanceName) ResolveTarget(Options options, string workingDirectory)
     {
+        var (url, name, _) = ResolveTargetWithAdmin(options, workingDirectory);
+        return (url, name);
+    }
+
+    /// <summary>
+    /// Also resolves where the admin panel lives, which only the browser login needs: the consent
+    /// screen is a panel route, so pointing at the API would 404 wherever the two are served
+    /// separately (a dev machine, or a split deployment).
+    /// </summary>
+    public static (string Url, string InstanceName, string AdminUrl) ResolveTargetWithAdmin(
+        Options options, string workingDirectory)
+    {
         var config = CliConfigLoader.Find(workingDirectory);
         var (instanceName, instance) = ResolveInstance(options, config);
 
@@ -43,7 +55,14 @@ internal static class SettingsResolver
                 "No Piro URL configured. Pass --url, set PIRO_URL, or add one to "
                 + $"{CliConfigLoader.FileName}.");
 
-        return (url.TrimEnd('/'), instanceName ?? "default");
+        // Defaults to the API's origin, which is correct for the normal deployment where one proxy
+        // serves both. Override it when they are split.
+        var adminUrl =
+            Environment.GetEnvironmentVariable("PIRO_ADMIN_URL")
+            ?? instance?.AdminUrl
+            ?? url;
+
+        return (url.TrimEnd('/'), instanceName ?? "default", adminUrl.TrimEnd('/'));
     }
 
     public static async Task<Settings> ResolveAsync(

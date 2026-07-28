@@ -1,7 +1,11 @@
 namespace Piro.Cli;
 
 /// <summary>One configured instance in <c>piro.config.yml</c>.</summary>
-internal sealed record CliInstance(string Name, string? Url, string? Config);
+/// <param name="AdminUrl">
+/// Where the admin panel is served, when it is not behind the same origin as the API. Only the
+/// browser login needs it: the consent screen is a panel route, not an API one.
+/// </param>
+internal sealed record CliInstance(string Name, string? Url, string? Config, string? AdminUrl);
 
 /// <summary>
 /// The contents of a <c>piro.config.yml</c>, plus where it was found so errors can name the file.
@@ -63,14 +67,16 @@ internal static class CliConfigLoader
         string? instanceName = null;
         string? url = null;
         string? config = null;
+        string? adminUrl = null;
 
         void Flush()
         {
             if (instanceName is not null)
-                instances[instanceName] = new CliInstance(instanceName, url, config);
+                instances[instanceName] = new CliInstance(instanceName, url, config, adminUrl);
             instanceName = null;
             url = null;
             config = null;
+            adminUrl = null;
         }
 
         foreach (var raw in lines)
@@ -122,6 +128,7 @@ internal static class CliConfigLoader
             {
                 case "url": url = value; break;
                 case "config": config = value; break;
+                case "admin_url": adminUrl = value; break;
                 case "api_key" or "apiKey" or "token":
                     throw new CliException(
                         $"{path}: '{key}' is not allowed here — this file is meant to be committed. "

@@ -17,6 +17,9 @@ internal static class Scaffolding
           production:
             url: https://status.example.com
             config: ./piro.yaml
+            # Only needed when the admin panel is not served from the same origin as the API
+            # (the `piro login` consent screen is a panel route):
+            # admin_url: https://admin.example.com
 
           # staging:
           #   url: https://status.staging.example.com

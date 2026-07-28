@@ -135,13 +135,14 @@ internal static class Commands
     /// </summary>
     public static async Task<int> LoginAsync(Options options, CancellationToken ct)
     {
-        var (url, instanceName) = SettingsResolver.ResolveTarget(options, Directory.GetCurrentDirectory());
+        var (url, instanceName, adminUrl) =
+            SettingsResolver.ResolveTargetWithAdmin(options, Directory.GetCurrentDirectory());
 
         using var flow = new LoginFlow();
         flow.Start();
 
-        var label = $"piro-cli on {Environment.MachineName}";
-        var consentUrl = flow.ConsentUrl(url, label);
+        var label = $"piro-cli on {MachineLabel()}";
+        var consentUrl = flow.ConsentUrl(adminUrl, label);
 
         Console.Error.WriteLine($"Signing in to {url} ({instanceName})");
         Console.Error.WriteLine();
@@ -214,6 +215,59 @@ internal static class Commands
               + "Revoke it from your sessions list.");
 
         return ExitCode.Success;
+    }
+
+    /// <summary>
+    /// A name for this machine that a person will recognise in their sessions list, since that label
+    /// is how they decide which session to revoke.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="Environment.MachineName"/>: it truncates at the first dot, so a Mac whose host
+    /// name comes from DHCP as "192.168.1.26" is labelled "192", which identifies nothing. On macOS
+    /// the name the user actually chose lives in LocalHostName, which .NET does not expose, so it is
+    /// read from the system. Everywhere else the DNS host name is already the right answer, and an
+    /// address is kept whole rather than chopped at a dot.
+    /// </remarks>
+    private static string MachineLabel()
+    {
+        if (OperatingSystem.IsMacOS() && ReadMacComputerName() is { } macName) return macName;
+
+        string? host = null;
+        try { host = System.Net.Dns.GetHostName(); }
+        catch (System.Net.Sockets.SocketException) { /* fall through */ }
+
+        if (string.IsNullOrWhiteSpace(host))
+            return string.IsNullOrWhiteSpace(Environment.MachineName) ? "unknown" : Environment.MachineName;
+
+        if (System.Net.IPAddress.TryParse(host, out _)) return host;
+
+        var firstLabel = host.Split('.')[0];
+        return string.IsNullOrWhiteSpace(firstLabel) ? host : firstLabel;
+    }
+
+    /// <summary>Reads macOS's LocalHostName, or null if it cannot be determined.</summary>
+    private static string? ReadMacComputerName()
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "/usr/sbin/scutil",
+                ArgumentList = { "--get", "LocalHostName" },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            });
+            if (process is null) return null;
+
+            var name = process.StandardOutput.ReadToEnd().Trim();
+            process.WaitForExit(2000);
+
+            return process.ExitCode == 0 && name.Length > 0 ? name : null;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     private static async Task<bool> Revoke(string url, SignInResponse session, CancellationToken ct)

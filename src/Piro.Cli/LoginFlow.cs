@@ -42,9 +42,12 @@ internal sealed class LoginFlow : IDisposable
 
     public void Start() => _listener.Start();
 
-    /// <summary>The URL of the consent screen, on the admin panel rather than the API.</summary>
-    public string ConsentUrl(string baseUrl, string clientLabel) =>
-        $"{baseUrl.TrimEnd('/')}/cli-auth"
+    /// <summary>
+    /// The URL of the consent screen. A panel route, not an API one — the panel is served under
+    /// <c>/admin</c>, and pointing this at the API 404s.
+    /// </summary>
+    public string ConsentUrl(string adminBaseUrl, string clientLabel) =>
+        $"{adminBaseUrl.TrimEnd('/')}/admin/cli-auth"
         + $"?callback={Uri.EscapeDataString(RedirectUri)}"
         + $"&state={Uri.EscapeDataString(State)}"
         + $"&challenge={Uri.EscapeDataString(CodeChallenge)}"

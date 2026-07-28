@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Blend, Filter, Plus, Settings } from "lucide-react";
+import { Blend, Plus, Settings } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusBadge";
 import TableSkeleton from "@/components/TableSkeleton";
@@ -96,7 +96,7 @@ export default function ServicesPage() {
                     <StatusPill status={service.currentStatus} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {service.isHidden ? "YES" : "No"}
+                    {service.isHidden ? "Yes" : "No"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{service.checkCount ?? "—"}</TableCell>
                   <TableCell className="text-right">
