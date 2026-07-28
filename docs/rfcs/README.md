@@ -32,13 +32,13 @@ Design documents for non-trivial changes, written against the real codebase (see
 | [0016](0016-integration-sdk.md) | Integration SDK: self-describing integrations with an open discriminator | **Implemented** (PR #215, #216) | 0003, 0009, 0011, 0012, 0015 |
 | [0017](0017-e2e-encrypted-push-and-relay-transport.md) | End-to-end encrypted push, and a relay transport for the published apps | **Implemented** | 0016 |
 | [0018](0018-multi-session-refresh-tokens.md) | Multi-session refresh tokens (per-device sessions) | **Implemented** | — |
-| [0019](0019-config-as-code-and-cli.md) | Config as Code: piro.yaml and the piro CLI | Accepted (PR #234, #235) | 0018 |
+| [0019](0019-config-as-code-and-cli.md) | Config as Code: piro.yaml and the piro CLI | **Implemented** (PR #237, #235) | 0018 |
 
-Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018**.
+Implemented (frozen): **0001, 0002, 0003, 0005, 0006, 0008, 0009, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019**.
 
 ## Dependency graph
 
-Arrows point from a prerequisite to the RFC that builds on it. Green (`✓`) is implemented, blue (`▸`) is accepted and awaiting implementation, grey is withdrawn, unstyled nodes are still open for discussion.
+Arrows point from a prerequisite to the RFC that builds on it. Green (`✓`) is implemented, grey is withdrawn, unstyled nodes are still open for discussion.
 
 ```mermaid
 graph LR
@@ -60,7 +60,7 @@ graph LR
   n0016["0016 ✓"]
   n0017["0017 ✓"]
   n0018["0018 ✓"]
-  n0019["0019 ▸"]
+  n0019["0019 ✓"]
   n0001 --> n0004
   n0003 --> n0004
   n0001 --> n0007
@@ -83,9 +83,7 @@ graph LR
   n0016 --> n0017
   n0018 --> n0019
   classDef done fill:#dcfce7,stroke:#16a34a,color:#14532d;
-  class n0001,n0002,n0003,n0005,n0006,n0008,n0009,n0010,n0011,n0012,n0013,n0014,n0015,n0016,n0017,n0018 done;
-  classDef accepted fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
-  class n0019 accepted;
+  class n0001,n0002,n0003,n0005,n0006,n0008,n0009,n0010,n0011,n0012,n0013,n0014,n0015,n0016,n0017,n0018,n0019 done;
   classDef dead fill:#f3f4f6,stroke:#9ca3af,color:#6b7280;
   class n0004 dead;
 ```
