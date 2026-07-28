@@ -252,6 +252,9 @@ export const usersApi = {
   invite: (email: string, roleId: number) =>
     api.post(ENDPOINTS.USER_INVITE, { email, roleId }),
 
+  resendInvite: (id: number | string) =>
+    api.post(ENDPOINTS.USER_RESEND_INVITE(id)),
+
   acceptInvite: (token: string, name: string, password: string) =>
     api.post(ENDPOINTS.USER_ACCEPT_INVITE, { token, name, password }),
 
