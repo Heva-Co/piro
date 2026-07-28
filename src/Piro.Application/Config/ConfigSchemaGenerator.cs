@@ -197,7 +197,16 @@ public sealed class ConfigSchemaGenerator(ICheckRegistry checkRegistry)
 
         foreach (var field in fields)
         {
-            properties[field.Key] = FieldSchema(field);
+            var fieldSchema = FieldSchema(field);
+            properties[field.Key] = fieldSchema;
+
+            // The server binds case-insensitively, so a property renamed by [JsonPropertyName] also
+            // accepts its CLR name — an HTTP check's TimeoutMs reads from either "timeout" or
+            // "timeoutMs", and instances predating the attribute have the latter stored. Accepting
+            // both here keeps the schema from rejecting config the server happily loads, and keeps an
+            // exported document valid against its own schema.
+            foreach (var alias in field.AcceptedAliases ?? [])
+                properties[alias] ??= fieldSchema.DeepClone();
 
             // A conditionally-visible field cannot be globally required, or a file that legitimately
             // omits it (an HTTP body on a GET) would fail validation.

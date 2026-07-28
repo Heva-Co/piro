@@ -54,7 +54,15 @@ public record ConfigFieldSchemaDto(
     /// depend on the chosen project). The form re-fetches when it changes and passes its value along.
     /// Null when the source is independent. Only meaningful with <see cref="OptionsSource"/>.
     /// </summary>
-    string? OptionsDependsOn = null
+    string? OptionsDependsOn = null,
+    /// <summary>
+    /// Other keys the server also accepts for this field. Non-empty only when
+    /// <see cref="JsonPropertyNameAttribute"/> renamed the property: binding is case-insensitive, so
+    /// the CLR name still works (an HTTP check's <c>TimeoutMs</c> reads from either <c>timeout</c> or
+    /// <c>timeoutMs</c>, and config stored before the attribute existed uses the latter). A generated
+    /// JSON Schema has to accept them too, or it rejects config the server loads happily.
+    /// </summary>
+    IReadOnlyList<string>? AcceptedAliases = null
 );
 
 /// <summary>A conditional-visibility rule for a config field — see ConfigFieldSchemaDto.VisibleWhen.</summary>

@@ -193,6 +193,35 @@ public class ConfigSchemaGeneratorTests
     }
 
     [Fact]
+    public void ARenamedFieldAcceptsBothItsSpellings()
+    {
+        // An HTTP check's TimeoutMs is stored as "timeout" via [JsonPropertyName], but the server
+        // binds case-insensitively so "timeoutMs" also loads — and config written before that
+        // attribute existed uses it. Rejecting the alias made a real exported document fail its own
+        // schema, so the schema must describe both.
+        var fields = HttpTypeData(Generate(new HttpCheck()));
+
+        fields.TryGetProperty("timeout", out var canonical).Should().BeTrue();
+        fields.TryGetProperty("timeoutMs", out var alias).Should().BeTrue();
+
+        canonical.GetProperty("type").GetString().Should().Be("number");
+        alias.GetProperty("type").GetString().Should().Be("number");
+    }
+
+    [Fact]
+    public void AFieldWithNoRenameHasNoAlias()
+    {
+        // Only a renamed property gets an alias; otherwise every field would gain a duplicate and
+        // additionalProperties: false would stop catching typos.
+        var fields = HttpTypeData(Generate(new HttpCheck()));
+        var keys = fields.EnumerateObject().Select(p => p.Name).ToList();
+
+        keys.Should().Contain("url");
+        keys.Should().NotContain("urlUrl");
+        keys.Count(k => k.StartsWith("followRedirects", StringComparison.Ordinal)).Should().Be(1);
+    }
+
+    [Fact]
     public void SlugsAreConstrainedToTheFormatTheValidatorAccepts()
     {
         var schema = Generate(new HttpCheck());

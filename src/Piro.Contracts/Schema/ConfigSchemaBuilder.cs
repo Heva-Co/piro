@@ -69,6 +69,21 @@ public static class ConfigSchemaBuilder
     /// options from <see cref="ConfigFieldOptionsAttribute"/>, and Type/Required/IsSecret from the
     /// Data Annotations already used for validation and masking.
     /// </summary>
+    /// <summary>
+    /// Keys other than <see cref="JsonKeyOf"/> that still bind to this property. Only the camel-cased
+    /// CLR name, and only when <see cref="JsonPropertyNameAttribute"/> renamed it — the serializer
+    /// matches case-insensitively, so both spellings work and both must be described.
+    /// </summary>
+    private static IReadOnlyList<string>? AliasesOf(PropertyInfo property)
+    {
+        if (property.GetCustomAttribute<JsonPropertyNameAttribute>() is null) return null;
+
+        var clrKey = ConfigJsonNaming.ConvertName(property.Name);
+        return string.Equals(clrKey, JsonKeyOf(property), StringComparison.OrdinalIgnoreCase)
+            ? null
+            : [clrKey];
+    }
+
     private static ConfigFieldSchemaDto BuildFieldSchema(PropertyInfo property, object? defaults)
     {
         var display = property.GetCustomAttribute<ConfigFieldAttribute>();
@@ -97,7 +112,8 @@ public static class ConfigSchemaBuilder
             VisibilityFrom(property),
             property.GetCustomAttribute<ConfigValidationAttribute>()?.Validator,
             dynamicOptions?.SourceKey,
-            dynamicOptions?.DependsOn is { } dependsOn ? ConfigJsonNaming.ConvertName(dependsOn) : null
+            dynamicOptions?.DependsOn is { } dependsOn ? ConfigJsonNaming.ConvertName(dependsOn) : null,
+            AliasesOf(property)
         );
     }
 
