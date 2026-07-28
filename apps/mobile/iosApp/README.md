@@ -66,6 +66,70 @@ release builds start empty. On the iOS Simulator `localhost` resolves to the hos
 Piro API is reachable directly — but it must actually be running (a connection-refused error means
 nothing is listening on that port, not a networking problem).
 
+## Releasing to TestFlight
+
+TestFlight and the App Store are the same channel: you upload once, then promote the build in App
+Store Connect. `ExportOptions.plist` in this directory is already set up for it, and
+`DEVELOPMENT_TEAM` is pinned in `project.yml`, so an archive signs against the team that owns the
+`co.heva.piro` App ID regardless of which Mac builds it.
+
+### One-time setup
+
+1. **Register the App ID.** With automatic signing, selecting the team in Xcode's *Signing &
+   Capabilities* creates `co.heva.piro` for you. Confirm **Push Notifications** appears there — the app
+   declares it in `Piro.entitlements`, and signing fails if the capability is missing from the App ID.
+2. **Create the app in App Store Connect.** Xcode does not do this: *Apps → + → New App*, platform
+   iOS, bundle ID `co.heva.piro`, any SKU. App names are globally unique, so if "Piro" is taken pick a
+   different display name — the bundle ID does not have to change.
+3. **APNs key.** Generate a `.p8` in the developer portal and configure it server-side. Without it the
+   app works but never receives a page.
+
+### Uploading a build
+
+Bump `CURRENT_PROJECT_VERSION` in `project.yml` first, run `xcodegen generate`, and commit. Every
+upload needs a build number higher than the last one App Store Connect saw; a duplicate is rejected,
+and it is the most common reason a first upload fails.
+
+From Xcode: destination **Any iOS Device (arm64)**, then *Product → Archive*, and in the Organizer
+*Distribute App → TestFlight & App Store*.
+
+From the command line:
+
+```bash
+cd apps/mobile/iosApp
+
+xcodebuild -project Piro.xcodeproj -scheme Piro -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath build/Piro.xcarchive \
+  -allowProvisioningUpdates archive
+
+xcodebuild -exportArchive \
+  -archivePath build/Piro.xcarchive \
+  -exportOptionsPlist ExportOptions.plist \
+  -exportPath build/export
+
+# App Store Connect API key: Users and Access → Integrations → App Store Connect API.
+# The .p8 goes in ~/.appstoreconnect/private_keys/ (or ~/.private_keys/) or altool will not find it.
+xcrun altool --upload-app -f build/export/Piro.ipa -t ios \
+  --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+```
+
+`-allowProvisioningUpdates` is what lets automatic signing fetch or create the distribution profile
+without opening Xcode.
+
+### Push notifications on TestFlight
+
+A TestFlight build is a Release build, so it registers against the **production** APNs environment, not
+the sandbox one the simulator and debug builds use. The `.p8` configured server-side has to be valid
+for production, and a device token obtained from a TestFlight build will not work against the sandbox.
+This is the usual reason pushes arrive in a debug build and then stop working in TestFlight.
+
+### Processing and testers
+
+Uploads take a few minutes to process, and the first build of an app also needs the *Export Compliance*
+question answered before it can be distributed. Internal testers (up to 100 people on your team) get
+builds immediately; external testers require a review that usually takes a day.
+
 ## Liquid Glass
 
 Liquid Glass (`.glassEffect(...)`) requires the **iOS 26 SDK (Xcode 26)**. This project builds against

@@ -19,6 +19,10 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
+    # heva's Apple Developer team. Committed rather than left to whoever opens Xcode, so an archive
+    # signs against the team that owns the co.heva.piro App ID no matter which machine builds it.
+    # A contributor building for the simulator does not need it to match — ad-hoc signing ignores it.
+    DEVELOPMENT_TEAM: GNUVS35QW5
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     # Gradle needs to shell out during the build phase; keep the script sandbox off.
