@@ -47,11 +47,16 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home appuser
 
 # Create the mount points and hand them to appuser *before* dropping privileges. Docker creates a
-# missing volume target as root:root, so without this the Data Protection key ring cannot be written
-# at /app/keys: the API then fails to read its keyring and every request that encrypts a secret (an
-# integration's token, a stored OAuth token) returns a 500. Pre-creating the directory means Docker
-# preserves this ownership when it mounts the volume over it.
-RUN mkdir -p /app/keys /app/wwwroot/uploads \
+# missing volume target as root:root, so without this the Data Protection key ring cannot be written:
+# the API then fails to read its keyring and every request that encrypts a secret (an integration's
+# token, a password-reset token, a stored OAuth token) returns a 500. Pre-creating the directory
+# means Docker preserves this ownership when it mounts the volume over it.
+#
+# Both key paths are covered on purpose. /app/keys is what this repo's compose sets via
+# DataProtection__KeysDirectory, but the code falls back to ./EncryptionKeys when that variable is
+# absent — and a deployment that mounts its volume there instead hits exactly this failure. Covering
+# the fallback means the image is safe whichever path an operator mounts.
+RUN mkdir -p /app/keys /app/EncryptionKeys /app/wwwroot/uploads \
     && chown -R appuser:appuser /app
 
 USER appuser

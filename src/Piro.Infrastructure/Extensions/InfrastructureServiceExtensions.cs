@@ -89,6 +89,7 @@ public static class InfrastructureServiceExtensions
         // at a mounted volume) instead of the framework's default container-ephemeral location.
         var keysDirectory = configuration["DataProtection:KeysDirectory"] ?? "./EncryptionKeys";
         Directory.CreateDirectory(keysDirectory);
+        WarnIfKeyringNotWritable(keysDirectory);
         services.AddDataProtection()
             .SetApplicationName("Piro")
             .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
@@ -346,5 +347,39 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<CurrentCheckContext>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Fails fast, and loudly, when the Data Protection key ring directory exists but cannot be
+    /// written to.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Directory.CreateDirectory"/> succeeds on a directory that already exists no matter
+    /// who owns it, so a container that cannot write there starts up clean and only fails much later,
+    /// on the first request that encrypts something — surfacing as an opaque 500 with the real cause
+    /// buried in a keyring stack trace. Docker creates a missing volume target as root:root, so this
+    /// is exactly what a bind-mounted keys volume does to a non-root image. Checking at startup turns
+    /// that into one actionable line in the log.
+    /// </remarks>
+    private static void WarnIfKeyringNotWritable(string keysDirectory)
+    {
+        var probe = Path.Combine(keysDirectory, $".write-probe-{Guid.NewGuid():N}");
+
+        try
+        {
+            File.WriteAllText(probe, string.Empty);
+            File.Delete(probe);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            // Console rather than ILogger: this runs while the container is still being composed, so
+            // no logger is available yet, and the message must not be lost.
+            Console.Error.WriteLine(
+                $"FATAL: the Data Protection key ring directory '{Path.GetFullPath(keysDirectory)}' is not "
+                + "writable. Encrypting any secret (an integration token, a password-reset token) will "
+                + "fail with a 500. If this is a Docker volume, it is probably owned by root while the "
+                + "container runs as a non-root user: `docker run --rm -v <volume>:/k alpine chown -R "
+                + $"999:999 /k`. Original error: {ex.Message}");
+        }
     }
 }
