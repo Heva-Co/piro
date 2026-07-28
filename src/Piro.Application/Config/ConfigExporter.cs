@@ -93,11 +93,22 @@ public sealed class ConfigExporter(
         // A check bound to an integration cannot be represented, since integrations hold credentials
         // (§2). Commented out rather than dropped, so an apply --prune over the exported file does
         // not delete a check that merely failed to serialize (§4.8).
-        if (check.IntegrationId is not null)
+        //
+        // Two ways a check can be integration-bound, and both must be caught or export emits a file
+        // that fails its own plan: the Check.IntegrationId column, and a check type whose manifest
+        // declares RequiredIntegration and carries the reference inside its own type_data (the GCP
+        // Cloud Run Job check). The manifest is the same signal ConfigValidator rejects on, so
+        // reading it here is what keeps the two sides agreeing.
+        var manifest = checkRegistry.Find(check.Type.ToString())?.Manifest;
+        if (check.IntegrationId is not null || manifest?.RequiredIntegration is not null)
         {
-            output.AppendLine($"      # Check '{check.Slug}' uses an integration and cannot be expressed in YAML.");
-            output.AppendLine("      # It is managed in the admin panel. Remove this comment at your own risk:");
-            output.AppendLine($"      # a `piro apply --prune` against this file would delete it.");
+            var reason = manifest?.RequiredIntegration is { } required
+                ? $"requires the '{required}' integration"
+                : "uses an integration";
+
+            output.AppendLine($"      # Check '{check.Slug}' {reason} and cannot be expressed in YAML.");
+            output.AppendLine("      # It is managed in the admin panel. Removing this comment is not enough to");
+            output.AppendLine("      # adopt it here, and a `piro apply --prune` against this file would delete it.");
             return;
         }
 
