@@ -1,6 +1,8 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
-public class EscalationPolicy
+public class EscalationPolicy : IAuditable
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>Generic key-value store for instance-level configuration (name, logo, etc.).</summary>
-public class SiteData
+public class SiteData : IAuditable
 {
     public int Id { get; set; }
     public string Key { get; set; } = string.Empty;

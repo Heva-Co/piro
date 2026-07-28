@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -10,7 +11,7 @@ namespace Piro.Domain.Entities;
 /// integration declares which events it <em>can</em> handle; this row is the admin activating which
 /// actually fire.
 /// </summary>
-public class NotificationSubscription
+public class NotificationSubscription : IAuditable
 {
     public Guid Id { get; set; }
 

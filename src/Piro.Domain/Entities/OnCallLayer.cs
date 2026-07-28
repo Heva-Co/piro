@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Piro.Domain.Entities;
 /// Active periods are defined by an RRULE recurrence pattern starting at <see cref="FirstOccurrenceStartsAt"/>.
 /// Duration per occurrence = <see cref="FirstOccurrenceEndsAt"/> − <see cref="FirstOccurrenceStartsAt"/>.
 /// </summary>
-public class OnCallLayer
+public class OnCallLayer : IAuditable
 {
     public int Id { get; set; }
     public int ScheduleId { get; set; }

@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Piro.Domain.Entities;
 /// for that key. The composite PK <c>(WorkerRegistrationId, TagId)</c> enforces one value per key per
 /// worker at the database level. Worker tags do not inherit from anything; a worker has no parent.
 /// </summary>
-public class WorkerTag
+public class WorkerTag : IAuditable
 {
     public Guid WorkerRegistrationId { get; set; }
     public int TagId { get; set; }

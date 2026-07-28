@@ -1,9 +1,10 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
 /// <summary>Scheduled maintenance window definition, supporting recurrence via RRULE.</summary>
-public class Maintenance
+public class Maintenance : IAuditable
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;

@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -7,7 +8,7 @@ namespace Piro.Domain.Entities;
 /// Every check belongs to exactly one service. Its result feeds into the parent
 /// service's status computation. All checks are scheduled via Quartz cron triggers.
 /// </remarks>
-public class Check
+public class Check : IAuditable
 {
     public int Id { get; set; }
     public int ServiceId { get; set; }

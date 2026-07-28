@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>Defines who is on-call over time using rotation layers and overrides.</summary>
-public class OnCallSchedule
+public class OnCallSchedule : IAuditable
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

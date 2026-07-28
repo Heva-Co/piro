@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -7,7 +8,7 @@ namespace Piro.Domain.Entities;
 /// The "Owner" role is built-in and grants unrestricted access.
 /// Use <c>UserManager.IsInRoleAsync(user, "Owner")</c> to check for ownership.
 /// </remarks>
-public class AppRole : IdentityRole<int>
+public class AppRole : IdentityRole<int>, IAuditable
 {
     /// <summary>Built-in roles (Owner, Admin, Member, Viewer) cannot be deleted.</summary>
     public bool IsReadonly { get; set; }

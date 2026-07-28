@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace Piro.Domain.Entities;
 /// <see cref="Incident"/>s through <see cref="PostmortemIncident"/> (N:M) rather than being owned by
 /// a single incident. Its factual timeline is derived at read time from the referenced incidents.
 /// </summary>
-public class Postmortem
+public class Postmortem : IAuditable
 {
     public int Id { get; set; }
 

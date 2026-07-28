@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>Persisted configuration for an OIDC/OAuth2 SSO provider.</summary>
-public class OidcProviderConfig
+public class OidcProviderConfig : IAuditable
 {
     /// <summary>Provider identifier: "google", "microsoft", "github", or any custom slug.</summary>
     public string Id { get; set; } = string.Empty;
@@ -14,6 +16,7 @@ public class OidcProviderConfig
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>Stored as plain text. DB-level access controls are the operator's responsibility.</summary>
+    [NotAudited]
     public string ClientSecret { get; set; } = string.Empty;
 
     /// <summary>Callback URL registered with the provider. When null/empty, auto-derived from site:url config.</summary>

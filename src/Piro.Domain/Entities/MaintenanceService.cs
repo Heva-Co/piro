@@ -1,9 +1,10 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
 /// <summary>Junction between a <see cref="Maintenance"/> and an affected <see cref="Service"/>.</summary>
-public class MaintenanceService
+public class MaintenanceService : IAuditable
 {
     public int MaintenanceId { get; set; }
     public int ServiceId { get; set; }

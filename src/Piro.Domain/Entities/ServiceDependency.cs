@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace Piro.Domain.Entities;
 /// a DOWN or DEGRADED status on <see cref="DependsOnService"/> cascades to <see cref="Service"/>.
 /// Self-loops and cycles are rejected at write time.
 /// </remarks>
-public class ServiceDependency
+public class ServiceDependency : IAuditable
 {
     /// <summary>The dependent service (the one that inherits status from upstream).</summary>
     public int ServiceId { get; set; }

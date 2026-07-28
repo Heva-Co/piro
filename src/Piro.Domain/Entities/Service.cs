@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace Piro.Domain.Entities;
 /// dependencies on other services via <see cref="DependsOn"/>. Its
 /// <see cref="CurrentStatus"/> is always computed — never set manually.
 /// </remarks>
-public class Service
+public class Service : IAuditable
 {
     public int Id { get; set; }
 
