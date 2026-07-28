@@ -12,6 +12,9 @@ export const ROUTES = {
     RESET_PASSWORD: "/admin/auth/reset-password",
   },
 
+  /** Consent screen for `piro login` (RFC 0019 §4.11). */
+  CLI_AUTH: "/admin/cli-auth",
+
   // Setup & invite (pre-auth)
   SETUP: "/admin/setup",
   INVITE: (token: string) => `/admin/invite/${token}`,

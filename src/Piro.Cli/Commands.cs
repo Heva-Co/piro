@@ -52,7 +52,7 @@ internal static class Commands
 
     public static async Task<int> ExportAsync(Options options, CancellationToken ct)
     {
-        var settings = SettingsResolver.Resolve(options, Directory.GetCurrentDirectory());
+        var settings = await SettingsResolver.ResolveAsync(options, Directory.GetCurrentDirectory(), ct);
         using var client = new PiroApiClient(settings);
 
         await WriteTargetAsync(settings, client, ct);
@@ -125,13 +125,111 @@ internal static class Commands
         return ExitCode.Success;
     }
 
+
+    // ── Login ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Signs in through the browser (RFC 0019 §4.6). A browser rather than a password prompt because
+    /// an OIDC or SAML-only instance has no password to collect, and because the CLI should never be
+    /// in the credential-handling business.
+    /// </summary>
+    public static async Task<int> LoginAsync(Options options, CancellationToken ct)
+    {
+        var (url, instanceName) = SettingsResolver.ResolveTarget(options, Directory.GetCurrentDirectory());
+
+        using var flow = new LoginFlow();
+        flow.Start();
+
+        var label = $"piro-cli on {Environment.MachineName}";
+        var consentUrl = flow.ConsentUrl(url, label);
+
+        Console.Error.WriteLine($"Signing in to {url} ({instanceName})");
+        Console.Error.WriteLine();
+
+        // Printed whether or not the browser opens: this is what makes the flow usable over SSH,
+        // where the CLI has no browser to launch.
+        if (!LoginFlow.TryOpenBrowser(consentUrl))
+            Console.Error.WriteLine("Could not open a browser. Open this URL to continue:");
+        else
+            Console.Error.WriteLine("Opened your browser. If nothing happened, open this URL:");
+
+        Console.Error.WriteLine();
+        Console.Error.WriteLine($"  {consentUrl}");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("Waiting for authorization…");
+
+        var callback = await flow.WaitForCallbackAsync(TimeSpan.FromMinutes(5), ct);
+
+        if (callback.Error is { } error)
+            throw new CliException($"Authorization was denied: {error}");
+
+        // Verified before the code is used: a loopback listener is reachable by any local process, so
+        // a callback the CLI did not initiate must be refused outright.
+        if (!string.Equals(callback.State, flow.State, StringComparison.Ordinal))
+            throw new CliException(
+                "The browser returned a response for a different sign-in attempt. Nothing was saved.");
+
+        if (callback.Code is not { Length: > 0 } code)
+            throw new CliException("The browser did not return an authorization code.");
+
+        using var anonymous = PiroApiClient.Anonymous(url);
+        var session = await anonymous.ExchangeCodeAsync(
+            new CliTokenBody(code, flow.CodeVerifier, flow.RedirectUri), ct);
+
+        CredentialStore.Save(new StoredCredential(url, session.RefreshToken, session.User?.Email));
+
+        Console.Error.WriteLine();
+        Console.Error.WriteLine(session.User?.Email is { } email
+            ? $"Signed in as {email}."
+            : "Signed in.");
+        Console.Error.WriteLine("This session appears in your sessions list and can be revoked there.");
+        return ExitCode.Success;
+    }
+
+    /// <summary>
+    /// Revokes the stored session server-side, not just locally — a local delete would leave a live
+    /// refresh token behind. Only this device's session ends; the browser session is untouched.
+    /// </summary>
+    public static async Task<int> LogoutAsync(Options options, CancellationToken ct)
+    {
+        var (url, _) = SettingsResolver.ResolveTarget(options, Directory.GetCurrentDirectory());
+
+        if (CredentialStore.Find(url) is not { } stored)
+        {
+            Console.Error.WriteLine($"Not signed in to {url}.");
+            return ExitCode.Success;
+        }
+
+        using var anonymous = PiroApiClient.Anonymous(url);
+        var revoked = await anonymous.RefreshAsync(stored.RefreshToken, ct) is { } session
+                      && await Revoke(url, session, ct);
+
+        // The local copy goes regardless: leaving it would keep offering a credential the user has
+        // already asked to be rid of.
+        CredentialStore.Remove(url);
+
+        Console.Error.WriteLine(revoked
+            ? $"Signed out of {url}."
+            : $"Removed the local session for {url}, but the server could not be reached to revoke it. "
+              + "Revoke it from your sessions list.");
+
+        return ExitCode.Success;
+    }
+
+    private static async Task<bool> Revoke(string url, SignInResponse session, CancellationToken ct)
+    {
+        using var client = new PiroApiClient(
+            new Settings(url, new Credential(CredentialKind.AccessToken, session.AccessToken), "default", null));
+        return await client.SignOutAsync(session.RefreshToken, ct);
+    }
+
     // ── Shared ──────────────────────────────────────────────────────────────
 
     private static async Task<(Settings, IReadOnlyList<ConfigDocumentSource>, PiroApiClient)> PrepareAsync(
         Options options, CancellationToken ct)
     {
         var workingDirectory = Directory.GetCurrentDirectory();
-        var settings = SettingsResolver.Resolve(options, workingDirectory);
+        var settings = await SettingsResolver.ResolveAsync(options, workingDirectory, ct);
 
         var target = settings.ConfigTarget
             ?? (File.Exists(Path.Combine(workingDirectory, "piro.yaml")) ? "piro.yaml" : null)

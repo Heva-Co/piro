@@ -1,0 +1,10 @@
+# Piro CLI configuration for local development against the API on :5117.
+# Safe to commit: it holds no credentials. Authenticate with `piro login`,
+# or set PIRO_API_KEY for non-interactive use.
+
+current: local
+
+instances:
+  local:
+    url: http://localhost:5117
+    config: ./services/

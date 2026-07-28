@@ -17,8 +17,69 @@ internal sealed class PiroApiClient : IDisposable
     public PiroApiClient(Settings settings)
     {
         _http = new HttpClient { BaseAddress = new Uri(settings.Url + "/"), Timeout = TimeSpan.FromMinutes(5) };
-        _http.DefaultRequestHeaders.Add("X-Api-Key", settings.ApiKey);
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("piro-cli", Version));
+
+        // An API key is selected purely by the presence of its header; a stored login sends a bearer
+        // token instead. Only one is ever attached, decided by SettingsResolver.
+        if (settings.Credential is { Kind: CredentialKind.ApiKey, Value: var apiKey })
+            _http.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
+        else if (settings.Credential is { Kind: CredentialKind.AccessToken, Value: var token })
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    /// <summary>An unauthenticated client, for the token exchange that has no credential yet.</summary>
+    public static PiroApiClient Anonymous(string url) => new(url);
+
+    private PiroApiClient(string url)
+    {
+        _http = new HttpClient { BaseAddress = new Uri(url.TrimEnd('/') + "/"), Timeout = TimeSpan.FromMinutes(2) };
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("piro-cli", Version));
+    }
+
+    /// <summary>Exchanges a login code plus its PKCE verifier for a session (RFC 0019 §4.6).</summary>
+    public async Task<SignInResponse> ExchangeCodeAsync(CliTokenBody body, CancellationToken ct)
+    {
+        using var response = await SendAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "api/v1/auth/cli/token")
+            {
+                Content = JsonContent.Create(body, CliJsonContext.Default.CliTokenBody),
+            }, ct);
+
+        if (!response.IsSuccessStatusCode) throw await FailureAsync(response, ct);
+
+        return await ReadJsonAsync(response, CliJsonContext.Default.SignInResponse, ct)
+               ?? throw new CliException("The server returned an empty session.");
+    }
+
+    /// <summary>
+    /// Revokes one session server-side. Sending the refresh token revokes only this device, leaving
+    /// the user's browser session alone — the reason this rests on RFC 0018's per-device sessions.
+    /// </summary>
+    public async Task<bool> SignOutAsync(string refreshToken, CancellationToken ct)
+    {
+        using var response = await SendAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "api/v1/auth/sign-out")
+            {
+                Content = JsonContent.Create(new RefreshRequest(refreshToken),
+                    CliJsonContext.Default.RefreshRequest),
+            }, ct);
+
+        return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>Trades a refresh token for a fresh access token, so a stored login survives.</summary>
+    public async Task<SignInResponse?> RefreshAsync(string refreshToken, CancellationToken ct)
+    {
+        using var response = await SendAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "api/v1/auth/refresh")
+            {
+                Content = JsonContent.Create(new RefreshRequest(refreshToken),
+                    CliJsonContext.Default.RefreshRequest),
+            }, ct);
+
+        return response.IsSuccessStatusCode
+            ? await ReadJsonAsync(response, CliJsonContext.Default.SignInResponse, ct)
+            : null;
     }
 
     public static string Version =>
@@ -121,7 +182,7 @@ internal sealed class PiroApiClient : IDisposable
         return new CliException(response.StatusCode switch
         {
             HttpStatusCode.Unauthorized =>
-                "Authentication failed. Check that PIRO_API_KEY is a valid Full-scope key.",
+                "Authentication failed. Run `piro login`, or set PIRO_API_KEY to a Full-scope key.",
             HttpStatusCode.Forbidden =>
                 "This API key lacks permission. Config as code requires an Owner or Admin key.",
             HttpStatusCode.NotFound =>

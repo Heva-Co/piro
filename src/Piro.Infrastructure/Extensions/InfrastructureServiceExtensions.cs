@@ -62,7 +62,9 @@ public static class InfrastructureServiceExtensions
             .AddDefaultTokenProviders();
 
         // Auth infrastructure services
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<ICliAuthService, CliAuthService>();
         services.AddScoped<ApiKeyService>();
         services.AddScoped<ICheckInboundTokenService, CheckInboundTokenService>();
         services.AddScoped<IEmailConfigRepository, EmailConfigRepository>();

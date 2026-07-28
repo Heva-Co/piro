@@ -22,12 +22,6 @@ const PAGE_SIZE = 20;
 
 const columns = ["Service", "Slug", "Status", "Hidden", "Checks"];
 
-function initials(name: string) {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
 export default function ServicesPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
@@ -53,11 +47,6 @@ export default function ServicesPage() {
       />
 
       <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b flex items-center">
-          <button className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
-            <Filter size={13} /> Filters
-          </button>
-        </div>
 
         {isLoading ? (
           <TableSkeleton columns={columns} />
@@ -95,9 +84,6 @@ export default function ServicesPage() {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                        {initials(service.name)}
-                      </div>
                       <span className="font-medium">{service.name}</span>
                     </div>
                   </TableCell>
@@ -110,7 +96,7 @@ export default function ServicesPage() {
                     <StatusPill status={service.currentStatus} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {service.isHidden ? "YES" : "NO"}
+                    {service.isHidden ? "YES" : "No"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{service.checkCount ?? "—"}</TableCell>
                   <TableCell className="text-right">

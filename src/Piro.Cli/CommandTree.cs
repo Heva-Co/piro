@@ -44,6 +44,8 @@ internal static class CommandTree
     {
         var root = new RootCommand("Manage Piro monitoring configuration as code.")
         {
+            Login(),
+            Logout(),
             Plan(),
             Apply(),
             Export(),
@@ -67,6 +69,28 @@ internal static class CommandTree
             """;
 
         return root;
+    }
+
+    private static Command Login()
+    {
+        var command = new Command("login", "Sign in through your browser.")
+        {
+            UrlOption, InstanceOption,
+        };
+
+        command.SetAction((result, ct) => Commands.LoginAsync(Read(result), ct));
+        return command;
+    }
+
+    private static Command Logout()
+    {
+        var command = new Command("logout", "Revoke this machine's saved session.")
+        {
+            UrlOption, InstanceOption,
+        };
+
+        command.SetAction((result, ct) => Commands.LogoutAsync(Read(result), ct));
+        return command;
     }
 
     private static Command Plan()
