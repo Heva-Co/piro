@@ -121,7 +121,8 @@ internal static class Commands
         }
 
         Console.Error.WriteLine();
-        Console.Error.WriteLine("Next: set PIRO_API_KEY to a Full-scope key, then run `piro plan`.");
+        Console.Error.WriteLine("Next: run `piro login`, or set PIRO_API_KEY to a Full-scope key for CI.");
+        Console.Error.WriteLine("Then `piro plan` to see what would change.");
         return ExitCode.Success;
     }
 

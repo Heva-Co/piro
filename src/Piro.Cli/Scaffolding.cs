@@ -8,8 +8,8 @@ internal static class Scaffolding
     /// <c>api_key</c> field outright rather than ignoring it (RFC 0019 §4.6).
     /// </summary>
     public const string ConfigFile = """
-        # Piro CLI configuration. Safe to commit — it never holds credentials.
-        # The API key comes from the PIRO_API_KEY environment variable.
+        # Piro CLI configuration. Safe to commit: it never holds credentials.
+        # Authenticate with `piro login`, or set PIRO_API_KEY for non-interactive use.
 
         current: production
 
