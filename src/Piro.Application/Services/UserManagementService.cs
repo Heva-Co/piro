@@ -90,6 +90,29 @@ public class UserManagementService(
 
         await userManager.AddToRoleAsync(user, role.Name!);
 
+        await IssueInvitationAsync(user, ct);
+    }
+
+    public async Task ResendInviteAsync(int userId, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString())
+            ?? throw new NotFoundException(nameof(AppUser), userId);
+
+        // Only an invite that was never accepted can be resent. Once a password is set the account
+        // is a normal user, and the recovery path for those is a password reset, not a new invite.
+        if (!string.IsNullOrEmpty(user.PasswordHash))
+            throw new InvalidOperationException("This user has already accepted their invitation.");
+
+        await IssueInvitationAsync(user, ct);
+    }
+
+    /// <summary>
+    /// Mints a fresh invitation token for <paramref name="user"/>, resets its 48h expiry and emails
+    /// the accept-invite link. Shared by the first invite and every resend, so a resent link is
+    /// always generated exactly like the original one.
+    /// </summary>
+    private async Task IssueInvitationAsync(AppUser user, CancellationToken ct)
+    {
         // Generate invitation token and store expiry alongside it
         var token = await userManager.GenerateUserTokenAsync(user, TokenOptions.DefaultProvider, InvitationTokenPurpose);
         var expiry = DateTimeOffset.UtcNow.Add(InvitationExpiry).ToUnixTimeSeconds().ToString();
@@ -99,9 +122,11 @@ public class UserManagementService(
         var baseUrl = siteConfig.Url?.TrimEnd('/')
             ?? configuration["App:BaseUrl"]?.TrimEnd('/')
             ?? "http://localhost:5173";
-        var inviteUrl = $"{baseUrl}/invite/{Uri.EscapeDataString(token)}?userId={user.Id}";
+        // The accept-invite screen is a route of the admin SPA, which is served under /admin —
+        // linking to /invite lands on the public status page instead, which 404s.
+        var inviteUrl = $"{baseUrl}/admin/invite/{Uri.EscapeDataString(token)}?userId={user.Id}";
 
-        await emailService.SendInvitationAsync(email, inviteUrl, ct);
+        await emailService.SendInvitationAsync(user.Email!, inviteUrl, ct);
     }
 
     public async Task AcceptInviteAsync(string token, string name, string password, CancellationToken ct = default)

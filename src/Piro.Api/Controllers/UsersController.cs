@@ -37,6 +37,25 @@ public class UsersController(IUserManagementService userService) : ControllerBas
         }
     }
 
+    /// <summary>Re-sends the invitation email to a user who has not accepted theirs yet.</summary>
+    [HttpPost("{id:int}/resend-invite")]
+    [Authorize(Roles = "Owner,Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResendInvite(int id, CancellationToken ct)
+    {
+        try
+        {
+            await userService.ResendInviteAsync(id, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { title = ex.Message, status = 400 });
+        }
+    }
+
     /// <summary>Accepts an invitation and activates the account. No authentication required.</summary>
     [HttpPost("accept-invite")]
     [AllowAnonymous]

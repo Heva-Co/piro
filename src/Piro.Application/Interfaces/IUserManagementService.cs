@@ -7,6 +7,10 @@ public interface IUserManagementService
     Task<List<UserListDto>> GetAllAsync(CancellationToken ct = default);
     Task<UserListDto?> GetByIdAsync(int userId, CancellationToken ct = default);
     Task InviteAsync(string email, int roleId, CancellationToken ct = default);
+
+    /// <summary>Mints a fresh invitation token for a still-pending user and re-sends the email.</summary>
+    Task ResendInviteAsync(int userId, CancellationToken ct = default);
+
     Task AcceptInviteAsync(string token, string name, string password, CancellationToken ct = default);
     Task ChangeRoleAsync(int userId, int newRoleId, CancellationToken ct = default);
     Task DeleteAsync(int userId, int currentUserId, CancellationToken ct = default);

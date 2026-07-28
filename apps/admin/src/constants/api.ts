@@ -123,6 +123,7 @@ export const ENDPOINTS = {
   USER_ROLE: (id: number | string) => `${API_BASE}/users/${id}/role`,
   USER_INVITE: `${API_BASE}/users/invite`,
   USER_ACCEPT_INVITE: `${API_BASE}/users/accept-invite`,
+  USER_RESEND_INVITE: (id: number | string) => `${API_BASE}/users/${id}/resend-invite`,
   ROLES: `${API_BASE}/roles`,
 
   // OIDC config (admin)

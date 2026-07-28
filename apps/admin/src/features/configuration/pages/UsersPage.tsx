@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ResendInviteButton from "@/features/configuration/components/ResendInviteButton";
 import { usersApi } from "@/lib/api";
 import { QUERY_KEYS } from "@/constants/api";
 import { ROUTES } from "@/constants/routes";
@@ -108,6 +109,12 @@ export default function UsersPage() {
                 <p className="text-xs text-muted-foreground">{u.email}</p>
               </div>
               <div className="flex items-center gap-4">
+                {u.isPending && <ResendInviteButton userId={u.id} />}
+                {u.isPending && (
+                  <span className="rounded-full border border-border px-3 py-0.5 text-xs font-semibold text-muted-foreground">
+                    Pending
+                  </span>
+                )}
                 <span className="rounded-full bg-foreground px-3 py-0.5 text-xs font-semibold text-background">
                   {capitalize(role)}
                 </span>
