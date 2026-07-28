@@ -686,7 +686,13 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["RefreshRequest"];
+                    "text/json": null | components["schemas"]["RefreshRequest"];
+                    "application/*+json": null | components["schemas"]["RefreshRequest"];
+                };
+            };
             responses: {
                 /** @description No Content */
                 204: {
@@ -1754,6 +1760,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/config/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Computes what applying the supplied documents would change, writing nothing. This is the
+         *     endpoint CI calls on every pull request.
+         * @description A separate route rather than `apply?dryRun=true`: the read-only operation sits on the
+         *     other side of a review boundary and can be authorized and reasoned about independently, and a
+         *     query parameter that turns a read into a write is exactly the kind of switch that gets omitted.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfigApplyRequest"];
+                    "text/json": components["schemas"]["ConfigApplyRequest"];
+                    "application/*+json": components["schemas"]["ConfigApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description The plan. Check `errors` — a plan with errors describes nothing. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConfigPlanDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Applies the supplied documents in a single transaction. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfigApplyRequest"];
+                    "text/json": components["schemas"]["ConfigApplyRequest"];
+                    "application/*+json": components["schemas"]["ConfigApplyRequest"];
+                };
+            };
+            responses: {
+                /**
+                 * @description The applied plan. `schedulingErrors` is non-empty if the write
+                 *         succeeded but a Quartz trigger could not be reconciled.
+                 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConfigPlanDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serializes the current services and checks as a v1 `piro.yaml`. Lossy by design: fields
+         *     outside the schema and checks bound to an integration are commented, not silently dropped.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                        "text/yaml": unknown;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/metrics": {
         parameters: {
             query?: never;
@@ -1971,6 +2128,111 @@ export interface paths {
                 };
                 /** @description Not Found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the calling user's registered devices. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeviceDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Registers (or refreshes) the calling user's device push token. Idempotent. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterDeviceRequest"];
+                    "text/json": components["schemas"]["RegisterDeviceRequest"];
+                    "application/*+json": components["schemas"]["RegisterDeviceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeviceDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        /**
+         * Unregisters a device push token (device sign-out). The token is passed as a query parameter
+         *     because push tokens may contain characters ('/') that don't round-trip safely in a path segment.
+         */
+        delete: {
+            parameters: {
+                query?: {
+                    token?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3644,6 +3906,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/{id}/relay/redeem-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeems a single-use Heva relay invite code for this MobilePush Integration and stores the issued
+         *     API key, app id and key id on it.
+         *
+         *     The invite is consumed by the relay on success, so this is deliberately not retried: a second
+         *     attempt would fail against a spent code and read like a bad credential. The Integration is updated
+         *     in place rather than replaced, because notification preferences and subscriptions cascade-delete
+         *     from it.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RedeemRelayInviteRequest"];
+                    "text/json": components["schemas"]["RedeemRelayInviteRequest"];
+                    "application/*+json": components["schemas"]["RedeemRelayInviteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IntegrationDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/{id}/regenerate-generated-fields": {
         parameters: {
             query?: never;
@@ -4247,7 +4579,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/oidc/config": {
+    "/api/v1/oidc/providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -4318,7 +4650,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/oidc/config/sso-mode": {
+    "/api/v1/oidc/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently deletes an OIDC provider configuration. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oidc/providers/sso-mode": {
         parameters: {
             query?: never;
             header?: never;
@@ -4389,7 +4768,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/oidc/config/test": {
+    "/api/v1/oidc/providers/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -6601,6 +6980,346 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/saml/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all configured SAML providers (certificate surfaced as a boolean). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2ProviderConfigDto"][];
+                    };
+                };
+            };
+        };
+        /** Creates or updates a SAML provider configuration. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                    "text/json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                    "application/*+json": components["schemas"]["UpsertSaml2ProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saml/providers/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tests a saved provider's configuration is internally consistent (parseable cert, present endpoints). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TestSaml2Request"];
+                    "text/json": components["schemas"]["TestSaml2Request"];
+                    "application/*+json": components["schemas"]["TestSaml2Request"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saml/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently deletes a SAML provider configuration. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saml/providers/parse-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses an uploaded IdP metadata XML document into the entity ID, SSO URL, and signing certificate. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "text/json": components["schemas"]["ParseSaml2MetadataRequest"];
+                    "application/*+json": components["schemas"]["ParseSaml2MetadataRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2MetadataResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns SAML providers enabled for the sign-in page. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Saml2ProviderInfo"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Initiates the SP-initiated SAML redirect flow: sends an AuthnRequest to the IdP. */
+        get: {
+            parameters: {
+                query?: {
+                    provider?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Found */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/saml/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assertion Consumer Service. The IdP POSTs the SAMLResponse here (form-encoded). On success
+         *     the browser is redirected to the SPA callback with the issued tokens in the URL fragment
+         *     (fragment keeps them out of server/referer logs); the SPA persists them and lands the user.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/x-www-form-urlencoded": {
+                        SAMLResponse?: string;
+                    } & {
+                        RelayState?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Found */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -7803,11 +8522,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Autocomplete: distinct user tag keys, optionally filtered by prefix. */
+        /**
+         * Autocomplete: distinct user tag keys, optionally filtered by prefix. Set includeSystem
+         *     to also include the curated `piro:*` system keys (used by the notification tag-selector).
+         */
         get: {
             parameters: {
                 query?: {
                     prefix?: string;
+                    includeSystem?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -9076,6 +9799,22 @@ export interface components {
             resendApiKey: null | string;
             resendFrom: null | string;
         };
+        ConfigApplyRequest: {
+            documents: components["schemas"]["ConfigDocumentSource"][];
+            /** @default false */
+            prune: boolean;
+        };
+        /** @enum {unknown} */
+        ConfigChangeAction: "Create" | "Update" | "Delete" | "NoOp";
+        ConfigDocumentSource: {
+            path: string;
+            content: string;
+        };
+        ConfigFieldChange: {
+            field: string;
+            before: null | string;
+            after: null | string;
+        };
         ConfigFieldSchemaDto: {
             key: string;
             label: string;
@@ -9099,6 +9838,48 @@ export interface components {
         ConfigFieldVisibilityDto: {
             field: string;
             values: string[];
+        };
+        ConfigPlanDto: {
+            applied: boolean;
+            summary: components["schemas"]["ConfigPlanSummary"];
+            changes: components["schemas"]["ConfigResourceChange"][];
+            errors: components["schemas"]["ConfigValidationError"][];
+            untouched: string[];
+            schedulingErrors: string[];
+        };
+        ConfigPlanSummary: {
+            /** Format: int32 */
+            create: number;
+            /** Format: int32 */
+            update: number;
+            /** Format: int32 */
+            delete: number;
+            /** Format: int32 */
+            noOp: number;
+            /** Format: int32 */
+            untouched: number;
+        };
+        ConfigResourceChange: {
+            kind: components["schemas"]["ConfigResourceKind"];
+            action: components["schemas"]["ConfigChangeAction"];
+            slug: string;
+            parentSlug?: null | string;
+            path?: null | string;
+            /** Format: int32 */
+            line?: null | number;
+            fields?: null | components["schemas"]["ConfigFieldChange"][];
+            warnings?: null | string[];
+        };
+        /** @enum {unknown} */
+        ConfigResourceKind: "Service" | "Check" | "AlertConfig";
+        ConfigValidationError: {
+            message: string;
+            path?: null | string;
+            /** Format: int32 */
+            line?: null | number;
+            /** Format: int32 */
+            column?: null | number;
+            pointer?: null | string;
         };
         ConfirmNotificationPreferenceCodeRequest: {
             code: string;
@@ -9193,6 +9974,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         CreateOnCallOverrideRequest: {
             /** Format: int32 */
@@ -9230,7 +10013,6 @@ export interface components {
             slug: string;
             name: string;
             description: null | string;
-            imageUrl: null | string;
             defaultStatus: components["schemas"]["ServiceStatus"];
             isHidden: boolean;
             /** Format: int32 */
@@ -9313,6 +10095,16 @@ export interface components {
         };
         /** @enum {unknown} */
         DependencyPropagationMode: "Blocking" | "SoftBlocking" | "Advisory";
+        DeviceDto: {
+            /** Format: int32 */
+            id: number;
+            platform: components["schemas"]["DevicePlatform"];
+            deviceName: null | string;
+            /** Format: date-time */
+            lastSeenAt: string;
+        };
+        /** @enum {unknown} */
+        DevicePlatform: "Android" | "Ios";
         /** @enum {unknown} */
         DimensionComparison: "Threshold" | "Equality";
         EmailConfigResponse: {
@@ -9519,6 +10311,7 @@ export interface components {
             direction: components["schemas"]["IntegrationDirection"];
             capabilities: string[];
             configSchema: components["schemas"]["ConfigFieldSchemaDto"][];
+            supportedEvents: string[];
         };
         InviteUserRequest: {
             email: string;
@@ -9659,6 +10452,7 @@ export interface components {
             integrationName: null | string;
             target: null | string;
             enabled: boolean;
+            filter: null | components["schemas"]["TagSelector"];
         };
         NotificationSubscriptionPageDto: {
             items: components["schemas"]["NotificationSubscriptionDto"][];
@@ -9814,6 +10608,8 @@ export interface components {
             layerOrder: number;
             /** @default true */
             isPrimarySchedule: boolean;
+            /** @default false */
+            isAllDay: boolean;
         };
         OnCallUserDto: {
             /** Format: int32 */
@@ -9834,6 +10630,9 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
+        };
+        ParseSaml2MetadataRequest: {
+            metadataXml: string;
         };
         PostmortemDto: {
             /** Format: int32 */
@@ -9976,14 +10775,9 @@ export interface components {
             slug: string;
             name: string;
             description: null | string;
-            imageUrl: null | string;
             status: components["schemas"]["ServiceStatus"];
             /** Format: int32 */
             displayOrder: number;
-            /** Format: int32 */
-            historyDaysDesktop: number;
-            /** Format: int32 */
-            historyDaysMobile: number;
         };
         PublicStatusPointDto: {
             /** Format: int64 */
@@ -10001,8 +10795,21 @@ export interface components {
             /** Format: int64 */
             upMinutes: number;
         };
+        /** @description Body of POST /api/v1/integrations/{id}/relay/redeem-invite. */
+        RedeemRelayInviteRequest: {
+            /** @description The relay's push endpoint; the register endpoint is derived from it. */
+            pushUrl: string;
+            /** @description An `inv_…` invite to redeem, or an `hvr_…` key to store as-is. */
+            inviteCode: null | string;
+        };
         RefreshRequest: {
             refreshToken: string;
+        };
+        RegisterDeviceRequest: {
+            platform: components["schemas"]["DevicePlatform"];
+            token: string;
+            deviceName: null | string;
+            pushPublicKey?: null | string;
         };
         ReorderFieldDefinitionsRequest: {
             orderedIds: number[];
@@ -10027,6 +10834,26 @@ export interface components {
         RotationsPreviewDto: {
             slots: components["schemas"]["OnCallSlotDto"][];
             gaps: components["schemas"]["CoverageGapDto"][];
+        };
+        Saml2MetadataResult: {
+            idpEntityId: string;
+            idpSsoUrl: string;
+            idpSigningCertificate: string;
+        };
+        Saml2ProviderConfigDto: {
+            id: string;
+            displayName: string;
+            idpEntityId: string;
+            idpSsoUrl: string;
+            hasSigningCertificate: boolean;
+            spEntityId: null | string;
+            allowedDomains: null | string;
+            defaultRole: string;
+            isEnabled: boolean;
+        };
+        Saml2ProviderInfo: {
+            id: string;
+            displayName: string;
         };
         SaveRotationsRequest: {
             layersToCreate: components["schemas"]["CreateOnCallLayerRequest"][];
@@ -10079,16 +10906,11 @@ export interface components {
             slug: string;
             name: string;
             description: null | string;
-            imageUrl: null | string;
             currentStatus: components["schemas"]["ServiceStatus"];
             defaultStatus: components["schemas"]["ServiceStatus"];
             isHidden: boolean;
             /** Format: int32 */
             displayOrder: number;
-            /** Format: int32 */
-            historyDaysDesktop: number;
-            /** Format: int32 */
-            historyDaysMobile: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -10112,7 +10934,6 @@ export interface components {
             slug: string;
             name: string;
             description: null | string;
-            imageUrl: null | string;
             currentStatus: components["schemas"]["ServiceStatus"];
             /** Format: int64 */
             lastUpdatedAt: number;
@@ -10191,6 +11012,17 @@ export interface components {
             key: string;
             value: null | string;
         };
+        /** @enum {unknown} */
+        TagOp: "Equals" | "In" | "NotIn" | "Exists";
+        TagSelector: {
+            allOf?: null | components["schemas"]["TagTerm"][];
+            anyOf?: null | components["schemas"]["TagTerm"][];
+        };
+        TagTerm: {
+            key: string;
+            op: components["schemas"]["TagOp"];
+            values?: null | string[];
+        };
         /** @description Body for the check Test endpoint — the candidate config to test, or null to use the persisted one. */
         TestCheckRequest: {
             typeDataJson: null | string;
@@ -10201,6 +11033,9 @@ export interface components {
         TestOidcRequest: {
             providerId: null | string;
             authority: null | string;
+        };
+        TestSaml2Request: {
+            providerId: null | string;
         };
         /** @enum {unknown} */
         ThresholdDirection: "HigherIsWorse" | "LowerIsWorse";
@@ -10253,6 +11088,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         UpdateFieldDefinitionRequest: {
             heading: null | string;
@@ -10295,6 +11132,8 @@ export interface components {
             /** Format: date-time */
             firstOccurrenceEndsAt: string;
             userIds: number[];
+            /** @default false */
+            isAllDay: boolean;
         };
         UpdateOnCallScheduleRequest: {
             name: null | string;
@@ -10324,15 +11163,10 @@ export interface components {
         UpdateServiceRequest: {
             name: null | string;
             description: null | string;
-            imageUrl: null | string;
             defaultStatus: null | components["schemas"]["ServiceStatus"];
             isHidden: null | boolean;
             /** Format: int32 */
             displayOrder: null | number;
-            /** Format: int32 */
-            historyDaysDesktop: null | number;
-            /** Format: int32 */
-            historyDaysMobile: null | number;
             /** Format: int32 */
             escalationPolicyId: null | number;
         };
@@ -10389,6 +11223,7 @@ export interface components {
             integrationId: null | string;
             target: null | string;
             enabled: boolean;
+            filter?: null | components["schemas"]["TagSelector"];
         };
         UpsertOidcProviderRequest: {
             id: string;
@@ -10398,6 +11233,17 @@ export interface components {
             clientSecret: null | string;
             redirectUri: null | string;
             scopes: string;
+            allowedDomains: null | string;
+            defaultRole: string;
+            isEnabled: boolean;
+        };
+        UpsertSaml2ProviderRequest: {
+            id: string;
+            displayName: string;
+            idpEntityId: string;
+            idpSsoUrl: string;
+            idpSigningCertificate: null | string;
+            spEntityId: null | string;
             allowedDomains: null | string;
             defaultRole: string;
             isEnabled: boolean;
