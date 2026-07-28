@@ -43,7 +43,7 @@ public sealed class ApnsPushTransport(HttpClient httpClient) : IPushTransport
         {
             Version = HttpVersion.Version20,
             VersionPolicy = HttpVersionPolicy.RequestVersionExact,
-            Content = new StringContent(BuildPayload(message), Encoding.UTF8, "application/json"),
+            Content = new StringContent(BuildPayload(message, config), Encoding.UTF8, "application/json"),
         };
         request.Headers.TryAddWithoutValidation("authorization", $"bearer {GetProviderToken(config)}");
         request.Headers.TryAddWithoutValidation("apns-topic", config.ApnsBundleId);
@@ -71,16 +71,24 @@ public sealed class ApnsPushTransport(HttpClient httpClient) : IPushTransport
         return PushSendResult.TransientFailure;
     }
 
-    private static string BuildPayload(PushMessage message)
+    private static string BuildPayload(PushMessage message, MobilePushConfig config)
     {
-        object sound = message.Critical
+        // `critical: 1` and `interruption-level: critical` both require Apple to have granted the app
+        // the Critical Alerts entitlement, which is requested through a separate form and approved
+        // case by case. Sending them without it does not degrade to a quiet notification: APNs rejects
+        // the push and nothing is delivered, which for a page is the worst outcome available. So the
+        // operator states whether the entitlement was granted, and until then a critical alert still
+        // gets time-sensitive — through Focus, though not through the silent switch.
+        var canBypassSilent = message.Critical && config.ApnsCriticalAlerts;
+
+        object sound = canBypassSilent
             ? new { critical = 1, name = "default", volume = 1.0 }
             : (object)"default";
 
         var aps = new Dictionary<string, object?>
         {
             ["sound"] = sound,
-            ["interruption-level"] = message.Critical ? "critical" : "time-sensitive",
+            ["interruption-level"] = canBypassSilent ? "critical" : "time-sensitive",
         };
 
         var payload = new Dictionary<string, object?> { ["aps"] = aps };

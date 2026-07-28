@@ -96,4 +96,13 @@ public sealed class MobilePushConfig
         HelpText = "On for TestFlight/App Store builds; off for development (sandbox) builds."
     )]
     public bool ApnsProduction { get; set; } = true;
+
+    [VisibleWhen("mode", "Direct")]
+    [ConfigField("App has Apple's Critical Alerts entitlement",
+        HelpText = "Only turn this on once Apple has approved com.apple.developer.usernotifications" +
+                   ".critical-alerts for the app. A critical page then bypasses silent mode and Focus. " +
+                   "With it on but the entitlement missing, APNs rejects the push outright and the page " +
+                   "is not delivered at all — worse than arriving quietly."
+    )]
+    public bool ApnsCriticalAlerts { get; set; }
 }
