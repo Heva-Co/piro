@@ -21,12 +21,17 @@ jobs:
         id: filter
         with:
           filters: |
+            # Every filter includes this workflow, so a change to CI actually exercises the jobs it
+            # changes. Without it a PR that only edits ci.yml skips every job and reports a green
+            # tick that proves nothing.
             backend:
               - 'src/**'
               - '*.slnx'
               - '*.sln'
+              - '.github/workflows/ci.yml'
             frontend:
               - 'apps/**'
+              - '.github/workflows/ci.yml'
             docker:
               - 'Dockerfile'
               - 'src/Piro.Worker/Dockerfile'
@@ -40,6 +45,7 @@ jobs:
               # changed, and a new project could break the release build.
               - '**/*.csproj'
               - '*.slnx'
+              - '.github/workflows/ci.yml'
 
   # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
@@ -93,22 +99,28 @@ jobs:
         working-directory: apps/web
         run: pnpm install
 
-      - name: Type check (web)
-        working-directory: apps/web
-        run: pnpm tsc --noEmit
-
+      # Build before the standalone type check, and not the other way round: Next generates the
+      # route-aware `PageProps`/`LayoutProps` globals into .next/types during the build, so a
+      # bare tsc run on a clean checkout cannot resolve them and fails on a page that uses one.
+      # `next build` type-checks the app itself, so this order also means a type error still
+      # fails the job, just from the build step instead.
       - name: Build (web)
         working-directory: apps/web
         run: pnpm build
+
+      # Now that the generated types exist, this catches anything outside the app router that
+      # `next build` does not cover.
+      - name: Type check (web)
+        working-directory: apps/web
+        run: pnpm tsc --noEmit
 
       - name: Install (admin)
         working-directory: apps/admin
         run: pnpm install
 
-      - name: Type check (admin)
-        working-directory: apps/admin
-        run: pnpm tsc --noEmit
-
+      # `pnpm build` here is `tsc -b && vite build`, so the type check is part of the build and
+      # needs no separate step. Project references make `-b` the accurate check anyway: a plain
+      # --noEmit run can under-report errors against a composite project's cached state.
       - name: Build (admin)
         working-directory: apps/admin
         run: pnpm build
