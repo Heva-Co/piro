@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Piro.Api.Middleware;
+using Piro.Api.Auth;
 using Piro.Api.OpenApi;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
@@ -145,6 +146,11 @@ builder.Services.AddOpenApi("v1", options =>
 builder.Services.AddSignalR()
     .AddJsonProtocol(opts =>
         opts.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+// Registered before AddInfrastructure so the DbContext sees an ICurrentUserAccessor and wires up
+// the audit interceptor. Without it, changes here would go unaudited (issue #17).
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserAccessor, HttpCurrentUserAccessor>();
+
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // JWT authentication, with an X-Api-Key header alternative that resolves to the same

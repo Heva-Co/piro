@@ -15,6 +15,7 @@ using Piro.Infrastructure.Checks;
 using Piro.Domain.Entities;
 using Piro.Domain.Enums;
 using Piro.Infrastructure.Alerts;
+using Piro.Infrastructure.Auditing;
 using Piro.Infrastructure.Auth;
 using Piro.Infrastructure.Integrations.Actions;
 using Piro.Infrastructure.Integrations;
@@ -46,7 +47,17 @@ public static class InfrastructureServiceExtensions
         var connectionString = configuration["Database:ConnectionString"]
             ?? throw new InvalidOperationException("Database:ConnectionString is required.");
 
-        services.AddDbContext<PiroDbContext>(opts => opts.UseNpgsql(connectionString));
+        // The audit interceptor is scoped (it reads the current request's user), so the context has
+        // to resolve it per instance rather than capturing a singleton. Hosts that never register an
+        // ICurrentUserAccessor — the Worker — get no interceptor and write no audit entries.
+        services.AddScoped<AuditSaveChangesInterceptor>();
+        services.AddDbContext<PiroDbContext>((provider, opts) =>
+        {
+            opts.UseNpgsql(connectionString);
+
+            if (provider.GetService<ICurrentUserAccessor>() is not null)
+                opts.AddInterceptors(provider.GetRequiredService<AuditSaveChangesInterceptor>());
+        });
 
         // ASP.NET Core Identity
         services.AddIdentity<AppUser, AppRole>(opts =>
