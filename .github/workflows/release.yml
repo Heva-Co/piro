@@ -168,7 +168,7 @@ jobs:
           # macos-latest because there is no forward-compatible arm64 alias, so this needs bumping
           # when the image is retired.
           - target: osx-arm64
-            runner: macos-26-arm64
+            runner: macos-26
           - target: win-x64
             runner: windows-latest
     steps:
