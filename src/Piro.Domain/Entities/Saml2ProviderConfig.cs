@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>Persisted configuration for a SAML 2.0 SSO identity provider.</summary>
-public class Saml2ProviderConfig
+public class Saml2ProviderConfig : IAuditable
 {
     /// <summary>Provider identifier: "okta", "keycloak", "azure", or any custom slug.</summary>
     public string Id { get; set; } = string.Empty;

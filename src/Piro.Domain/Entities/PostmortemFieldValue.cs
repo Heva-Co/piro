@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Piro.Domain.Entities;
 /// One row per report per active <see cref="PostmortemFieldDefinition"/>, inserted empty on report
 /// creation and filled in by the author.
 /// </summary>
-public class PostmortemFieldValue
+public class PostmortemFieldValue : IAuditable
 {
     public int Id { get; set; }
 

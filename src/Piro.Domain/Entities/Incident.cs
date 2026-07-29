@@ -1,9 +1,10 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
 /// <summary>A manually declared service disruption with a tracked investigation state.</summary>
-public class Incident
+public class Incident : IAuditable
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;

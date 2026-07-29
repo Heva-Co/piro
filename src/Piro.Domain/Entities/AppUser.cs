@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -9,7 +10,7 @@ namespace Piro.Domain.Entities;
 /// Ownership is determined by membership in the built-in "Owner" role — there is no
 /// separate <c>IsOwner</c> flag.
 /// </remarks>
-public class AppUser : IdentityUser<int>
+public class AppUser : IdentityUser<int>, IAuditable
 {
     /// <summary>Display name shown in the UI.</summary>
     public string Name { get; set; } = string.Empty;

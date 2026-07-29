@@ -1,10 +1,11 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
 /// <summary>A bearer token used for programmatic API access.</summary>
 /// <remarks>Only the SHA-256 hash of the raw key is stored. The raw key is shown once on creation.</remarks>
-public class ApiKey
+public class ApiKey : IAuditable
 {
     public int Id { get; set; }
 
@@ -14,6 +15,7 @@ public class ApiKey
     public string Name { get; set; } = string.Empty;
 
     /// <summary>SHA-256 hash of the raw API key.</summary>
+    [NotAudited]
     public string HashedKey { get; set; } = string.Empty;
 
     /// <summary>Partially redacted key shown in the UI (e.g. "pk_****abc").</summary>

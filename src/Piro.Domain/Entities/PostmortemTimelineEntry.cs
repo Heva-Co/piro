@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Piro.Domain.Entities;
 /// chronologically with the read-only events derived from the referenced incidents; only these entries
 /// are add/edit/deletable, and they live on the report, never written back onto the incident.
 /// </summary>
-public class PostmortemTimelineEntry
+public class PostmortemTimelineEntry : IAuditable
 {
     public int Id { get; set; }
 

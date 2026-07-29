@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>Junction granting a <see cref="Permission"/> to an <see cref="AppRole"/>.</summary>
-public class RolePermission
+public class RolePermission : IAuditable
 {
     public int RoleId { get; set; }
     public string PermissionId { get; set; } = string.Empty;

@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Piro.Domain.Entities;
 /// N:M — one report may cover several correlated incidents. Modeled on <see cref="IncidentService"/>.
 /// Referencing an incident leaves the incident entirely untouched.
 /// </summary>
-public class PostmortemIncident
+public class PostmortemIncident : IAuditable
 {
     public int PostmortemId { get; set; }
     public int IncidentId { get; set; }

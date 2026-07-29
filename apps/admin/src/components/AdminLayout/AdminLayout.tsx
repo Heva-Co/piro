@@ -10,6 +10,7 @@ import {
   CloudAlert,
   FileText,
   ClockAlert,
+  FileClock,
   ScrollText,
   Settings,
   Key,
@@ -76,6 +77,7 @@ const mainNavItems: NavItem[] = [
 const logsNavItems: NavItem[] = [
   { label: "System Logs", to: ROUTES.LOGS, icon: <ScrollText size={18} />, end: true },
   { label: "Delivery Logs", to: ROUTES.LOGS_DELIVERIES, icon: <Send size={18} /> },
+  { label: "Audit Log", to: ROUTES.LOGS_AUDIT, icon: <FileClock size={18} /> },
 ];
 
 const configNavItems: NavItem[] = [

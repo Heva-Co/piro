@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Piro.Domain.Entities;
 /// If <see cref="ReplacesUserId"/> is set, that user is removed from the final schedule during this period.
 /// If null, this is additional coverage (no replacement).
 /// </summary>
-public class OnCallOverride
+public class OnCallOverride : IAuditable
 {
     public int Id { get; set; }
     public int ScheduleId { get; set; }

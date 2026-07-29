@@ -151,6 +151,7 @@ export const ENDPOINTS = {
 
   // Logs
   LOGS: `${API_BASE}/logs`,
+  AUDIT_LOGS: `${API_BASE}/audit-logs`,
 
   // Global search
   SEARCH: `${API_BASE}/search`,
@@ -268,6 +269,7 @@ export const QUERY_KEYS = {
   SITE_CONFIG: ["site-config"] as const,
   EMAIL_CONFIG: ["email-config"] as const,
   LOGS: (params: object) => ["logs", params] as const,
+  AUDIT_LOGS: (params: object) => ["audit-logs", params] as const,
   ALERT_CONFIGS: (serviceSlug: string, checkSlug: string) =>
     ["alert-configs", serviceSlug, checkSlug] as const,
   INTEGRATIONS: ["integrations"] as const,

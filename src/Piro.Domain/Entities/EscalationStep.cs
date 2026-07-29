@@ -1,6 +1,8 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
-public class EscalationStep
+public class EscalationStep : IAuditable
 {
     public int Id { get; set; }
     public int PolicyId { get; set; }

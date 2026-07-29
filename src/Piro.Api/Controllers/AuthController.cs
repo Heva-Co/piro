@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Piro.Application.DTOs;
 using Piro.Application.Interfaces;
 using Piro.Application.Services;
+using Piro.Domain.Enums;
 using Piro.Infrastructure.Auth;
 
 namespace Piro.Api.Controllers;
@@ -12,7 +13,7 @@ namespace Piro.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
-public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService, IUserManagementService userService, IPasswordResetService passwordResetService) : ControllerBase
+public class AuthController(AuthService authService, ApiKeyService apiKeyService, IOidcService oidcService, IUserManagementService userService, IPasswordResetService passwordResetService, IAuditLogWriter auditLogWriter) : ControllerBase
 {
     /// <summary>Authenticates with email and password, returns JWT + refresh token.</summary>
     [HttpPost("sign-in")]
@@ -23,7 +24,29 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
         if (await oidcService.GetSsoOnlyModeAsync(ct))
             return StatusCode(423, new { title = "Password sign-in is disabled. Use SSO to sign in.", status = 423 });
 
-        return Ok(await authService.SignInAsync(request, ct));
+        // Audited here rather than inside AuthService: the caller's IP is a property of the request,
+        // and at this point there is no authenticated principal for ICurrentUserAccessor to resolve.
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        SignInResponse response;
+        try
+        {
+            response = await authService.SignInAsync(request, ct);
+        }
+        catch
+        {
+            // A rejected attempt is the one entry written with no verified actor — the email is only
+            // what the request claimed. Recorded before rethrowing so the failure still surfaces
+            // to the client unchanged.
+            await auditLogWriter.WriteAuthEventAsync(
+                AuditAction.LoginFailed, userId: string.Empty, request.Email, ipAddress, ct);
+            throw;
+        }
+
+        await auditLogWriter.WriteAuthEventAsync(
+            AuditAction.Login, response.User.Id.ToString(), response.User.Email, ipAddress, ct);
+
+        return Ok(response);
     }
 
     /// <summary>Invalidates the current refresh token.</summary>
@@ -38,6 +61,14 @@ public class AuthController(AuthService authService, ApiKeyService apiKeyService
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await authService.SignOutAsync(userId, request?.RefreshToken, ct);
+
+        await auditLogWriter.WriteAuthEventAsync(
+            AuditAction.Logout,
+            userId.ToString(),
+            User.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            ct);
+
         return NoContent();
     }
 

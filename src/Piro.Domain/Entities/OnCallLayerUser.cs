@@ -1,7 +1,9 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>A user in an <see cref="OnCallLayer"/> rotation, ordered by <see cref="Position"/>.</summary>
-public class OnCallLayerUser
+public class OnCallLayerUser : IAuditable
 {
     public int Id { get; set; }
     public int LayerId { get; set; }

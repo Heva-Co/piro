@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Piro.Domain.Entities;
 /// key. The composite PK <c>(ServiceId, TagId)</c> enforces one value per key per service at the database
 /// level, so a service can never hold two rows for the same key.
 /// </summary>
-public class ServiceTag
+public class ServiceTag : IAuditable
 {
     public int ServiceId { get; set; }
     public int TagId { get; set; }

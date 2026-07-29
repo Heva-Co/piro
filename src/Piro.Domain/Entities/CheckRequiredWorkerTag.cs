@@ -1,3 +1,5 @@
+using Piro.Domain.Auditing;
+
 namespace Piro.Domain.Entities;
 
 /// <summary>
@@ -9,7 +11,7 @@ namespace Piro.Domain.Entities;
 /// the same vocabulary workers advertise. The composite PK <c>(CheckId, TagId)</c> enforces one required
 /// value per key per check. An empty set means "run on any live worker" (today's behavior).
 /// </summary>
-public class CheckRequiredWorkerTag
+public class CheckRequiredWorkerTag : IAuditable
 {
     public int CheckId { get; set; }
     public int TagId { get; set; }

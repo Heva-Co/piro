@@ -1,10 +1,11 @@
 using Piro.Contracts;
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
 /// <summary>Rule that fires a notification when a check's dimension crosses a threshold.</summary>
-public class AlertConfig
+public class AlertConfig : IAuditable
 {
     public int Id { get; set; }
     public int CheckId { get; set; }

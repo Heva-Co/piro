@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace Piro.Domain.Entities;
 /// living in a table rather than an enum or columns means custom fields become possible later with no
 /// schema change. Separated from the per-report <see cref="PostmortemFieldValue"/> content.
 /// </summary>
-public class PostmortemFieldDefinition
+public class PostmortemFieldDefinition : IAuditable
 {
     public int Id { get; set; }
 

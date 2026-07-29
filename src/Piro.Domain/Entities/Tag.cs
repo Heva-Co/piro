@@ -1,4 +1,5 @@
 using Piro.Domain.Enums;
+using Piro.Domain.Auditing;
 
 namespace Piro.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace Piro.Domain.Entities;
 /// <c>tier:standard</c>), so it lives on the join tables rather than here. The <see cref="Source"/> is a
 /// property of the key (fixed by the namespace), so it lives here.
 /// </summary>
-public class Tag
+public class Tag : IAuditable
 {
     public int Id { get; set; }
 
