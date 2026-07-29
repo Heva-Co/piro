@@ -75,6 +75,9 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
     public DbSet<NotificationDeliveryLog> NotificationDeliveryLogs => Set<NotificationDeliveryLog>();
     public DbSet<NotificationSubscription> NotificationSubscriptions => Set<NotificationSubscription>();
 
+    // Audit trail (issue #17). Append-only: nothing in the codebase may update or remove a row.
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Identity must configure its tables before our custom configurations run
