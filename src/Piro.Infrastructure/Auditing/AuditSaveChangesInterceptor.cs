@@ -189,8 +189,9 @@ internal class AuditSaveChangesInterceptor(
     {
         var user = currentUserAccessor.Current!;
 
-        // UUIDv7 is time-ordered, which is what lets the listing sort by this column alone instead
-        // of aggregating CreatedAt per group.
+        // UUIDv7 rather than NewGuid for index locality: values written close in time stay close in
+        // the B-tree. It is not a reliable sort key on its own, since its time component only has
+        // millisecond precision — the feed orders by CreatedAt instead.
         var correlationId = Guid.CreateVersion7();
         var now = timeProvider.GetUtcNow().UtcDateTime;
 

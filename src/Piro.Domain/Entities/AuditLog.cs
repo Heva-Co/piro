@@ -26,9 +26,9 @@ public class AuditLog
     public long Id { get; set; }
 
     /// <summary>
-    /// Groups every entry written by one <c>SaveChanges</c>. A time-ordered UUIDv7, so ordering by
-    /// this column is equivalent to ordering by transaction time and needs no aggregate — that is
-    /// what makes group-paginated listing cheap.
+    /// Groups every entry written by one <c>SaveChanges</c>. A UUIDv7, so values are broadly
+    /// time-ordered and keep index locality, but only to millisecond precision — the feed therefore
+    /// sorts transactions by <see cref="CreatedAt"/> and uses this only as a tie-break.
     /// </summary>
     public Guid CorrelationId { get; set; }
 

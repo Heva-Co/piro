@@ -25,10 +25,8 @@ internal class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(l => l.OldValues).HasColumnType("text");
         builder.Property(l => l.NewValues).HasColumnType("text");
 
-        // The listing paginates over transactions, not rows, ordering by CorrelationId DESC. That
-        // works because the interceptor assigns UUIDv7, whose ordering is already chronological —
-        // so the feed's default sort is an index scan with no aggregate over CreatedAt. This same
-        // index then serves the lookup of every entry sharing a group.
+        // Fetches every entry sharing a transaction, and backs the GROUP BY that the feed's
+        // transaction-based pagination performs.
         builder.HasIndex(l => l.CorrelationId);
 
         // "What happened to this Service?" — the history of one specific row.
@@ -39,7 +37,7 @@ internal class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         // on the row for the same reason.
         builder.HasIndex(l => l.UserId);
 
-        // Date-range filtering, and the fallback ordering for any query that is not group-paginated.
+        // Date-range filtering, and the ordering the feed sorts transactions by.
         builder.HasIndex(l => l.CreatedAt);
     }
 }

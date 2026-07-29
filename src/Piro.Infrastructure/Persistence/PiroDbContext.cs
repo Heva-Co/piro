@@ -102,6 +102,11 @@ public class PiroDbContext(DbContextOptions<PiroDbContext> options)
         var now = DateTime.UtcNow;
         foreach (var entry in ChangeTracker.Entries())
         {
+            // An audit entry states when the change it records happened, so its CreatedAt is set by
+            // whoever writes it (from TimeProvider) and must not be restamped here.
+            if (entry.Entity is AuditLog)
+                continue;
+
             if (entry.State == EntityState.Added && entry.Properties.Any(p => p.Metadata.Name == "CreatedAt"))
                 entry.Property("CreatedAt").CurrentValue = now;
 

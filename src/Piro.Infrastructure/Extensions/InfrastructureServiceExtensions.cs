@@ -267,6 +267,11 @@ services.AddScoped<IIncidentRepository, IncidentRepository>();
         // Log repository
         services.AddScoped<ILogRepository, LogRepository>();
 
+        // Audit trail (issue #17). Reads go through the repository; the only writers are the
+        // interceptor registered alongside the DbContext and this writer, for auth events.
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IAuditLogWriter, AuditLogWriter>();
+
         // Global search (admin Cmd+K)
         services.AddScoped<ISearchRepository, SearchRepository>();
         services.AddScoped<SearchAppService>();
