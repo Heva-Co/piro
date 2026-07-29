@@ -618,6 +618,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns a paginated list of audit transactions, newest first. A page holds whole
+         *     transactions, so `totalCount` counts user actions rather than individual entries.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    entityType?: string;
+                    userId?: string;
+                    action?: components["schemas"]["AuditAction"];
+                    from?: string;
+                    to?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AuditLogPageDto"];
+                        "application/json": components["schemas"]["AuditLogPageDto"];
+                        "text/json": components["schemas"]["AuditLogPageDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/sign-in": {
         parameters: {
             query?: never;
@@ -1760,6 +1809,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/cli/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mints a one-time code for the signed-in user. Called by the `/cli-auth` screen only after
+         *     the user clicks Authorize — never on page load, or merely opening a link would grant a token.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CliAuthorizeBody"];
+                    "text/json": components["schemas"]["CliAuthorizeBody"];
+                    "application/*+json": components["schemas"]["CliAuthorizeBody"];
+                };
+            };
+            responses: {
+                /** @description The code and the state to echo back to the CLI. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CliAuthorizeResponse"];
+                    };
+                };
+                /** @description The callback is not a loopback address, or PKCE fields are missing. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/cli/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchanges a code plus its PKCE verifier for a session. Anonymous by design — the CLI has no
+         *     credential yet; the code and the verifier together are what prove the claim.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CliTokenBody"];
+                    "text/json": components["schemas"]["CliTokenBody"];
+                    "application/*+json": components["schemas"]["CliTokenBody"];
+                };
+            };
+            responses: {
+                /** @description An access token and a refresh token, labelled as a CLI session. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SignInResponse"];
+                    };
+                };
+                /** @description The code is unknown, expired, already used, or failed verification. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/config/plan": {
         parameters: {
             query?: never;
@@ -1871,7 +2028,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/config/export": {
+    "/api/v1/config/schema": {
         parameters: {
             query?: never;
             header?: never;
@@ -1881,7 +2038,45 @@ export interface paths {
         /**
          * Serializes the current services and checks as a v1 `piro.yaml`. Lossy by design: fields
          *     outside the schema and checks bound to an integration are commented, not silently dropped.
+         * @description Anonymous: a schema is public documentation of a file format, carries no data about the
+         *     instance beyond which check types exist, and an editor fetching it has no credential to send.
          */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                        "application/schema+json": unknown;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         get: {
             parameters: {
                 query?: never;
@@ -8682,6 +8877,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/resend-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-sends the invitation email to a user who has not accepted theirs yet. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/accept-invite": {
         parameters: {
             query?: never;
@@ -9667,6 +9918,42 @@ export interface components {
         };
         /** @enum {unknown} */
         ApiKeyStatus: "Active" | "Revoked";
+        /** @enum {unknown} */
+        AuditAction: "Create" | "Update" | "Delete" | "Login" | "LoginFailed" | "Logout";
+        AuditEntryDto: {
+            /** Format: int64 */
+            id: number;
+            action: components["schemas"]["AuditAction"];
+            entityType: string;
+            entityId: string;
+            entityLabel: null | string;
+            oldValues: null | string;
+            newValues: null | string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AuditLogPageDto: {
+            items: components["schemas"]["AuditTransactionDto"][];
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        AuditTransactionDto: {
+            /** Format: uuid */
+            correlationId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            userId: string;
+            userEmail: string;
+            ipAddress: null | string;
+            action: components["schemas"]["AuditAction"];
+            entityType: string;
+            entityLabel: null | string;
+            entries: components["schemas"]["AuditEntryDto"][];
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -9780,6 +10067,24 @@ export interface components {
             hasExecutor: boolean;
             singleRegionOnly: boolean;
         };
+        /** @description Body of `POST /api/v1/auth/cli/authorize`, sent by the consent screen. */
+        CliAuthorizeBody: {
+            redirectUri: string;
+            codeChallenge: string;
+            state: string;
+            clientLabel: null | string;
+        };
+        /** @description The one-time code the browser hands back to the CLI on the loopback redirect. */
+        CliAuthorizeResponse: {
+            code: string;
+            state: string;
+        };
+        /** @description Body of `POST /api/v1/auth/cli/token`, sent by the CLI. */
+        CliTokenBody: {
+            code: string;
+            codeVerifier: string;
+            redirectUri: string;
+        };
         CompleteSetupRequest: {
             email: string;
             password: string;
@@ -9832,6 +10137,7 @@ export interface components {
             validator?: null | string;
             optionsSource?: null | string;
             optionsDependsOn?: null | string;
+            acceptedAliases?: null | string[];
         };
         /** @enum {unknown} */
         ConfigFieldType: "String" | "Url" | "Email" | "Enum" | "Multiline" | "Number" | "Boolean" | "StringList" | "KeyValue" | "ObjectArray" | "Code" | "Markdown";

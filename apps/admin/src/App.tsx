@@ -47,6 +47,7 @@ import MaintenanceFormPage from "@/features/maintenances/pages/MaintenanceFormPa
 import MaintenanceDetailPage from "@/features/maintenances/pages/MaintenanceDetailPage";
 import LogsPage from "@/features/logs/pages/LogsPage";
 import DeliveryLogsPage from "@/features/delivery-logs/pages/DeliveryLogsPage";
+import AuditLogsPage from "@/features/audit-logs/pages/AuditLogsPage";
 import SiteConfigPage from "@/features/configuration/pages/SiteConfigPage";
 import EmailConfigPage from "@/features/configuration/pages/EmailConfigPage";
 import UsersPage from "@/features/configuration/pages/UsersPage";
@@ -154,6 +155,7 @@ export default function App() {
               {/* Logs */}
               <Route path={ROUTES.LOGS} element={<LogsPage />} />
               <Route path={ROUTES.LOGS_DELIVERIES} element={<DeliveryLogsPage />} />
+              <Route path={ROUTES.LOGS_AUDIT} element={<AuditLogsPage />} />
 
               {/* Configuration */}
               <Route path={ROUTES.CONFIG.SITE} element={<SiteConfigPage />} />
