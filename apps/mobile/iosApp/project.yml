@@ -19,12 +19,35 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
+    # heva's Apple Developer team. Committed rather than left to whoever opens Xcode, so an archive
+    # signs against the team that owns the co.heva.piro App ID no matter which machine builds it.
+    # A contributor building for the simulator does not need it to match — ad-hoc signing ignores it.
+    DEVELOPMENT_TEAM: GNUVS35QW5
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     # Gradle needs to shell out during the build phase; keep the script sandbox off.
     ENABLE_USER_SCRIPT_SANDBOXING: NO
 
 targets:
+  PiroNotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PiroNotificationService
+      # The extension decrypts on its own, in its own process, so it compiles the crypto directly
+      # rather than depending on the app target — an extension cannot import its host app.
+      - path: Piro/Push/PushKeyStore.swift
+      - path: Piro/Push/PushPayloadUnsealer.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: co.heva.piro.NotificationService
+        PRODUCT_NAME: PiroNotificationService
+        INFOPLIST_FILE: PiroNotificationService/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PiroNotificationService/PiroNotificationService.entitlements
+        # Extensions are memory- and time-limited; skipping the KMP framework keeps this one small,
+        # which is also why it does not reuse the app's Shared.framework.
+        SKIP_INSTALL: YES
+
   Piro:
     type: application
     platform: iOS
@@ -35,7 +58,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: co.heva.piro
         PRODUCT_NAME: Piro
         INFOPLIST_FILE: Piro/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Piro/Piro.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Where Gradle drops the built Shared.framework for the current CONFIGURATION/SDK.
         FRAMEWORK_SEARCH_PATHS:
@@ -45,16 +67,74 @@ targets:
           - $(inherited)
           - -framework
           - Shared
+      configs:
+        # aps-environment is a fixed string in a plist, so the two APNs environments need two files.
+        # A Release build — which is what TestFlight distributes — must ship `production`, or the app
+        # registers a sandbox token that production APNs refuses to deliver to: pushes then work in
+        # development and stop the moment the build comes from TestFlight.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Piro/Piro.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Piro/Piro.Release.entitlements
+    dependencies:
+      # Embeds the extension inside the app bundle; without this it is built but never shipped.
+      - target: PiroNotificationService
+
     preBuildScripts:
       - name: "Build Shared KMP framework (Gradle)"
         basedOnDependencyAnalysis: false
         script: |
           set -e
-          # Xcode's build environment has no JAVA_HOME/PATH java; fall back to Android Studio's JBR.
+          # Xcode's build environment inherits neither JAVA_HOME nor the shell PATH, so a JDK that works
+          # from a terminal is invisible here. Probe the usual homes in order and fail with something
+          # actionable rather than letting Gradle die with "Unable to locate a Java Runtime".
           if [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
-            if [ -x "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java" ]; then
-              export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-            fi
+            for candidate in \
+              "/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+              "/opt/homebrew/opt/openjdk@17" \
+              "/opt/homebrew/opt/openjdk" \
+              "/usr/local/opt/openjdk@17" \
+              "/usr/local/opt/openjdk"; do
+              if [ -x "$candidate/bin/java" ]; then export JAVA_HOME="$candidate"; break; fi
+            done
+          fi
+          # Last resort: ask macOS itself, which knows about JDKs installed as system packages.
+          if [ -z "$JAVA_HOME" ] && [ -x /usr/libexec/java_home ]; then
+            JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null)" && export JAVA_HOME
+          fi
+          if [ -z "$JAVA_HOME" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+            echo "error: no JDK found. Install one (brew install openjdk@17) or set JAVA_HOME." >&2
+            exit 1
           fi
           cd "$SRCROOT/.."
           ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+
+schemes:
+  # Runs the app in Release. Debug builds get aps-environment: development, so they register against
+  # the APNs sandbox and never receive pushes from a production Piro server — running Release is what
+  # makes push testable on a device, and breakpoints still work.
+  Piro (Release):
+    build:
+      targets:
+        Piro: [run, test, profile, analyze, archive]
+    run:
+      config: Release
+      # Without this, launching from Xcode and then locking the phone suspends the process before a
+      # push arrives. Waiting for the launch means the debugger attaches when the notification does.
+      debugEnabled: true
+    profile:
+      config: Release
+    archive:
+      config: Release
+
+  # Attaches to the notification service extension so a breakpoint in didReceive fires when a push
+  # lands. Xcode asks which app to run; pick Piro.
+  PiroNotificationService:
+    build:
+      targets:
+        PiroNotificationService: [run, profile, analyze]
+    run:
+      config: Release
+      debugEnabled: true
+    profile:
+      config: Release

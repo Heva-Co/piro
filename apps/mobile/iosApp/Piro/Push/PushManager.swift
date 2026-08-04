@@ -139,7 +139,15 @@ final class PushManager: NSObject, ObservableObject {
         armingDeadlineTask?.cancel() // a token arrived — the timeout is moot
         Task {
             do {
-                _ = try await api.registerDevice(platform: "Ios", token: token, deviceName: name)
+                // Publishing the public half is what makes the backend seal for this device (RFC 0017);
+                // the private half stays in the Keychain. Nil only if the Keychain refused to store a
+                // key, in which case the server sends unsealed rather than not sending at all — a
+                // readable page beats a silent one.
+                _ = try await api.registerDevice(
+                    platform: "iOS",
+                    token: token,
+                    deviceName: name,
+                    pushPublicKey: PushKeyStore.publicKeyBase64Url())
                 readiness = .registered
             } catch {
                 readiness = .failed
