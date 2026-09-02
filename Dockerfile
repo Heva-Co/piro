@@ -40,8 +40,12 @@ RUN dotnet publish src/Piro.Api/Piro.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install runtime tools for the container healthcheck and ICMP checks. On Linux,
+# System.Net.NetworkInformation.Ping falls back to the system ping utility when
+# the non-root process cannot open a raw socket directly.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
 
 # Non-root user for security
 RUN useradd --system --no-create-home appuser
