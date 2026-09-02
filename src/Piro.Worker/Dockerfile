@@ -40,6 +40,12 @@ RUN dotnet publish src/Piro.Worker/Piro.Worker.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Ping checks need the system ping utility when the non-root worker cannot open
+# a raw socket directly.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --system --no-create-home appuser
 USER appuser
 
