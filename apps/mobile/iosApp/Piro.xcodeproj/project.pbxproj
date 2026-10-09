@@ -8,12 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		0FDD73F4D0747D5AC3D3C264 /* ServerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B0ABB9E71DA75AF7F2F17B /* ServerStore.swift */; };
+		138DBD75D2EEDFBD77871946 /* PiroNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8FD8F0363AA4C1939F21DC1B /* PiroNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		242F1145BEDEBCE61674D46B /* PushKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A102BB9C35A654FDDE773E /* PushKeyStore.swift */; };
 		3E362161024CADEDDF3E71AA /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77E13EC31C62547DD9776B6A /* ProfileView.swift */; };
 		412326DD143D9404CB96F75C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69D0DAD9E92B4E5A1358A57C /* RootView.swift */; };
 		427D4D34D05F4D9906441FAC /* OnCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F616189395D2F7306DCAE4 /* OnCallView.swift */; };
+		47912A086EC64E9C1934AC8B /* PushPayloadUnsealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2220706C4FA925E7A3EF026 /* PushPayloadUnsealer.swift */; };
 		50731D9EED4EE54FDAB74899 /* PlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763682643898A70C06FE1F5B /* PlaceholderView.swift */; };
 		55FDBD0DB8DF78CB09A0E0FA /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C48FD355AD7B768D82C966 /* LoginView.swift */; };
 		572178D60FB2093056FFD8B0 /* ScheduleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DB19F63117BF01303A7881 /* ScheduleViewModel.swift */; };
+		5C198978EA01EBDCD8FD2DFB /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B760316313B14C728B1E192F /* NotificationService.swift */; };
 		5F88595A22F6441B81F704DA /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A6656F35212FB479CA497D /* DeepLinkRouter.swift */; };
 		61921A5CACB0E1D36D62C86C /* PiroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DF87ECBA4A4D253AACFC9F /* PiroApp.swift */; };
 		658D3AABA133865D1215D9B6 /* SSOAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D5026A1EEF3F8AB356A4B35 /* SSOAuthenticator.swift */; };
@@ -22,6 +26,7 @@
 		6F676B86C4B60FEE0A5FC4E0 /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E44A9B88A30DDFDE4B2192 /* SessionViewModel.swift */; };
 		7024C4CBF699AC1839469F68 /* AlertsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5AF99D6A78AE18F845F5057 /* AlertsViewModel.swift */; };
 		71DBFFBC524BCB03CB1EBCF0 /* AlertDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB8AB5C8DB22611C627AF39 /* AlertDetailView.swift */; };
+		738A6D3EC77B52819035E088 /* PushPayloadUnsealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2220706C4FA925E7A3EF026 /* PushPayloadUnsealer.swift */; };
 		74B88B7E663754DA66B3633D /* KotlinError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE467E739C89E65CD524D06 /* KotlinError.swift */; };
 		8274B5B5C8E88E4962FDFC8B /* PiroColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE46AD1A5BF6F16583727C51 /* PiroColors.swift */; };
 		8A4AE16AF0298BB7695AE315 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC895C8FF2205C8C52B6E1C /* ProfileViewModel.swift */; };
@@ -32,15 +37,41 @@
 		B278AEBD05ADED00B553DB6B /* ServiceLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */; };
 		B2C9C410F80081EFBFADCE1D /* AlertCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92FB1EFA2485E2081354C60C /* AlertCardView.swift */; };
 		BA005EDE62354F9727E36DE2 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DEE0D7847DC9CA0E51674A /* PushManager.swift */; };
+		C43BA87BADEADCB4C8B8FB63 /* PushKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A102BB9C35A654FDDE773E /* PushKeyStore.swift */; };
 		C6D90E297A7FBD24ACACD4D3 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056B84BBA5C207D5631A18CE /* AvatarView.swift */; };
 		D2CE07219C6B92D5CDF5C7CC /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0D60FE7E2C3DB7CFF1680D /* DateFormatting.swift */; };
 		DB953CE8A6B3ACBE901C6032 /* AlertDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D36995A74084B63BBC85976 /* AlertDetailViewModel.swift */; };
 		DBE0A330F49107E1E43E28B0 /* NotificationPreferenceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE3F434BD2AC1E27E922FED /* NotificationPreferenceRow.swift */; };
+		EC917A2419688CDF21F2CB17 /* SkeletonBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AF6673E2E8ED02C6A9446B /* SkeletonBar.swift */; };
 		ECAE739EDFC61B258C0A13FF /* GlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3356AE05FEC9631ECFCDD275 /* GlassCard.swift */; };
 		F27E7489AC6322EF3AFD0252 /* ProfileField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D8C10B3F353DBDBA5AA516 /* ProfileField.swift */; };
 		F73642C146DB79A7E7579894 /* PiroFlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5D4206DC27DA9CACECD1B1 /* PiroFlame.swift */; };
 		FA6A31ED560C1B87C92BDEFD /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA529AF2D178ED8107E65405 /* AppConfig.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D6C709D54D517C07EE63208F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 07279C4D4230F4EF8635CD26 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D1CCDB0F70F42F7329C71BCE;
+			remoteInfo = PiroNotificationService;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2D8A1D1FE9DB215944743544 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				138DBD75D2EEDFBD77871946 /* PiroNotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		01D8C10B3F353DBDBA5AA516 /* ProfileField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileField.swift; sourceTree = "<group>"; };
@@ -55,9 +86,11 @@
 		37D56ED11C9EE31FCA26CF5A /* Piro.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Piro.entitlements; sourceTree = "<group>"; };
 		3CE3F434BD2AC1E27E922FED /* NotificationPreferenceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreferenceRow.swift; sourceTree = "<group>"; };
 		3FC895C8FF2205C8C52B6E1C /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
+		47AF6673E2E8ED02C6A9446B /* SkeletonBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonBar.swift; sourceTree = "<group>"; };
 		58DB19F63117BF01303A7881 /* ScheduleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleViewModel.swift; sourceTree = "<group>"; };
 		5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLocator.swift; sourceTree = "<group>"; };
 		625F1EE13CA13BAAFBDE58A6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		662F838D22BDE6260051F574 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		69D0DAD9E92B4E5A1358A57C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		6CB8AB5C8DB22611C627AF39 /* AlertDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertDetailView.swift; sourceTree = "<group>"; };
 		6D5026A1EEF3F8AB356A4B35 /* SSOAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSOAuthenticator.swift; sourceTree = "<group>"; };
@@ -68,20 +101,36 @@
 		7E96033D789E6C309FBA079F /* MainTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTab.swift; sourceTree = "<group>"; };
 		82F616189395D2F7306DCAE4 /* OnCallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnCallView.swift; sourceTree = "<group>"; };
 		8E5D4206DC27DA9CACECD1B1 /* PiroFlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroFlame.swift; sourceTree = "<group>"; };
+		8FD8F0363AA4C1939F21DC1B /* PiroNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PiroNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		92FB1EFA2485E2081354C60C /* AlertCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCardView.swift; sourceTree = "<group>"; };
+		9B80C358B2C6C6C74B71688B /* PiroNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PiroNotificationService.entitlements; sourceTree = "<group>"; };
 		AE0D60FE7E2C3DB7CFF1680D /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
+		B760316313B14C728B1E192F /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		BE46AD1A5BF6F16583727C51 /* PiroColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroColors.swift; sourceTree = "<group>"; };
 		C217B54C3293533C5F33C653 /* PiroScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PiroScreen.swift; sourceTree = "<group>"; };
 		C2E44A9B88A30DDFDE4B2192 /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
 		C6DEE0D7847DC9CA0E51674A /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		D9471B6753362DB28C08FD43 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		E2220706C4FA925E7A3EF026 /* PushPayloadUnsealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushPayloadUnsealer.swift; sourceTree = "<group>"; };
+		E5C935F3B7EBC38D35AD93BA /* Piro.Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Piro.Release.entitlements; sourceTree = "<group>"; };
 		E723062807D400E2D6F41ED9 /* AlertsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsListView.swift; sourceTree = "<group>"; };
 		EA529AF2D178ED8107E65405 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		F3A102BB9C35A654FDDE773E /* PushKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushKeyStore.swift; sourceTree = "<group>"; };
 		F5AF99D6A78AE18F845F5057 /* AlertsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsViewModel.swift; sourceTree = "<group>"; };
 		FDE467E739C89E65CD524D06 /* KotlinError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KotlinError.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		04780B0768D58B4024257DAC /* PiroNotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				662F838D22BDE6260051F574 /* Info.plist */,
+				B760316313B14C728B1E192F /* NotificationService.swift */,
+				9B80C358B2C6C6C74B71688B /* PiroNotificationService.entitlements */,
+			);
+			path = PiroNotificationService;
+			sourceTree = "<group>";
+		};
 		10B14CD50B507B20235B0020 /* OnCall */ = {
 			isa = PBXGroup;
 			children = (
@@ -98,6 +147,7 @@
 				3356AE05FEC9631ECFCDD275 /* GlassCard.swift */,
 				FDE467E739C89E65CD524D06 /* KotlinError.swift */,
 				C217B54C3293533C5F33C653 /* PiroScreen.swift */,
+				47AF6673E2E8ED02C6A9446B /* SkeletonBar.swift */,
 				10C198668CBBC55B43704A02 /* SkeletonCard.swift */,
 			);
 			path = Support;
@@ -117,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				BDEFD919FCFD2275A553CD46 /* Piro */,
+				04780B0768D58B4024257DAC /* PiroNotificationService */,
 				C3E397762B087AA8627DE779 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -142,7 +193,9 @@
 		3F4F6C8C0DA239B2E3B46EA9 /* Push */ = {
 			isa = PBXGroup;
 			children = (
+				F3A102BB9C35A654FDDE773E /* PushKeyStore.swift */,
 				C6DEE0D7847DC9CA0E51674A /* PushManager.swift */,
+				E2220706C4FA925E7A3EF026 /* PushPayloadUnsealer.swift */,
 			);
 			path = Push;
 			sourceTree = "<group>";
@@ -171,6 +224,7 @@
 				625F1EE13CA13BAAFBDE58A6 /* Assets.xcassets */,
 				1963E6569447089C328596E3 /* Info.plist */,
 				37D56ED11C9EE31FCA26CF5A /* Piro.entitlements */,
+				E5C935F3B7EBC38D35AD93BA /* Piro.Release.entitlements */,
 				15DF87ECBA4A4D253AACFC9F /* PiroApp.swift */,
 				24B0ABB9E71DA75AF7F2F17B /* ServerStore.swift */,
 				5FDE5A79B1261DDC01D51CA3 /* ServiceLocator.swift */,
@@ -204,6 +258,7 @@
 			isa = PBXGroup;
 			children = (
 				0FA56F1D81DBE8F40393DB8B /* Piro.app */,
+				8FD8F0363AA4C1939F21DC1B /* PiroNotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -230,10 +285,12 @@
 				8C0BD025CD789B07AD47BB19 /* Build Shared KMP framework (Gradle) */,
 				1ED0A598E7CF1486F0727298 /* Sources */,
 				137D0DCBA045AD47285D9886 /* Resources */,
+				2D8A1D1FE9DB215944743544 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A9A62A2E3A8B8A0AA4286179 /* PBXTargetDependency */,
 			);
 			name = Piro;
 			packageProductDependencies = (
@@ -241,6 +298,23 @@
 			productName = Piro;
 			productReference = 0FA56F1D81DBE8F40393DB8B /* Piro.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D1CCDB0F70F42F7329C71BCE /* PiroNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B251EBFB0FA9F4ED32F62CCD /* Build configuration list for PBXNativeTarget "PiroNotificationService" */;
+			buildPhases = (
+				37DD0D3B1E20B85835CE1727 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PiroNotificationService;
+			packageProductDependencies = (
+			);
+			productName = PiroNotificationService;
+			productReference = 8FD8F0363AA4C1939F21DC1B /* PiroNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -252,6 +326,11 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					AE9E99BD1414C3B4E9B987B4 = {
+						DevelopmentTeam = GNUVS35QW5;
+						ProvisioningStyle = Automatic;
+					};
+					D1CCDB0F70F42F7329C71BCE = {
+						DevelopmentTeam = GNUVS35QW5;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -271,6 +350,7 @@
 			projectRoot = "";
 			targets = (
 				AE9E99BD1414C3B4E9B987B4 /* Piro */,
+				D1CCDB0F70F42F7329C71BCE /* PiroNotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -304,7 +384,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n# Xcode's build environment has no JAVA_HOME/PATH java; fall back to Android Studio's JBR.\nif [ -z \"$JAVA_HOME\" ] || [ ! -x \"$JAVA_HOME/bin/java\" ]; then\n  if [ -x \"/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\" ]; then\n    export JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\"\n  fi\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "set -e\n# Xcode's build environment inherits neither JAVA_HOME nor the shell PATH, so a JDK that works\n# from a terminal is invisible here. Probe the usual homes in order and fail with something\n# actionable rather than letting Gradle die with \"Unable to locate a Java Runtime\".\nif [ -z \"$JAVA_HOME\" ] || [ ! -x \"$JAVA_HOME/bin/java\" ]; then\n  for candidate in \\\n    \"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" \\\n    \"/opt/homebrew/opt/openjdk@17\" \\\n    \"/opt/homebrew/opt/openjdk\" \\\n    \"/usr/local/opt/openjdk@17\" \\\n    \"/usr/local/opt/openjdk\"; do\n    if [ -x \"$candidate/bin/java\" ]; then export JAVA_HOME=\"$candidate\"; break; fi\n  done\nfi\n# Last resort: ask macOS itself, which knows about JDKs installed as system packages.\nif [ -z \"$JAVA_HOME\" ] && [ -x /usr/libexec/java_home ]; then\n  JAVA_HOME=\"$(/usr/libexec/java_home 2>/dev/null)\" && export JAVA_HOME\nfi\nif [ -z \"$JAVA_HOME\" ] || [ ! -x \"$JAVA_HOME/bin/java\" ]; then\n  echo \"error: no JDK found. Install one (brew install openjdk@17) or set JAVA_HOME.\" >&2\n  exit 1\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -336,7 +416,9 @@
 				F27E7489AC6322EF3AFD0252 /* ProfileField.swift in Sources */,
 				3E362161024CADEDDF3E71AA /* ProfileView.swift in Sources */,
 				8A4AE16AF0298BB7695AE315 /* ProfileViewModel.swift in Sources */,
+				242F1145BEDEBCE61674D46B /* PushKeyStore.swift in Sources */,
 				BA005EDE62354F9727E36DE2 /* PushManager.swift in Sources */,
+				47912A086EC64E9C1934AC8B /* PushPayloadUnsealer.swift in Sources */,
 				412326DD143D9404CB96F75C /* RootView.swift in Sources */,
 				658D3AABA133865D1215D9B6 /* SSOAuthenticator.swift in Sources */,
 				9BEDEB3C98E27DFBDA514428 /* ScheduleView.swift in Sources */,
@@ -344,13 +426,50 @@
 				0FDD73F4D0747D5AC3D3C264 /* ServerStore.swift in Sources */,
 				B278AEBD05ADED00B553DB6B /* ServiceLocator.swift in Sources */,
 				6F676B86C4B60FEE0A5FC4E0 /* SessionViewModel.swift in Sources */,
+				EC917A2419688CDF21F2CB17 /* SkeletonBar.swift in Sources */,
 				9235D3D9EC2B4C02D9E46952 /* SkeletonCard.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37DD0D3B1E20B85835CE1727 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5C198978EA01EBDCD8FD2DFB /* NotificationService.swift in Sources */,
+				C43BA87BADEADCB4C8B8FB63 /* PushKeyStore.swift in Sources */,
+				738A6D3EC77B52819035E088 /* PushPayloadUnsealer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		A9A62A2E3A8B8A0AA4286179 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D1CCDB0F70F42F7329C71BCE /* PiroNotificationService */;
+			targetProxy = D6C709D54D517C07EE63208F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		53DE39F39CE5EBFE6B31EB0C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PiroNotificationService/PiroNotificationService.entitlements;
+				INFOPLIST_FILE = PiroNotificationService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.heva.piro.NotificationService;
+				PRODUCT_NAME = PiroNotificationService;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		5B639983B5B7817BB5611399 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -388,6 +507,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = GNUVS35QW5;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -448,6 +568,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = GNUVS35QW5;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -505,11 +626,29 @@
 			};
 			name = Debug;
 		};
+		C4E054C097938016CA4423E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PiroNotificationService/PiroNotificationService.entitlements;
+				INFOPLIST_FILE = PiroNotificationService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.heva.piro.NotificationService;
+				PRODUCT_NAME = PiroNotificationService;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		DC591190A7A94F714C204137 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Piro/Piro.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Piro/Piro.Release.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -549,6 +688,15 @@
 			buildConfigurations = (
 				A33E30E670776B17071D6598 /* Debug */,
 				DC591190A7A94F714C204137 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B251EBFB0FA9F4ED32F62CCD /* Build configuration list for PBXNativeTarget "PiroNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4E054C097938016CA4423E3 /* Debug */,
+				53DE39F39CE5EBFE6B31EB0C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The extension needs exactly one thing from the app: read access to the push private key. Sharing a
+  keychain access group is the narrowest way to grant that — narrower than an App Group, which would
+  share a whole container.
+-->
+<plist version="1.0">
+<dict>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)co.heva.piro</string>
+	</array>
+</dict>
+</plist>

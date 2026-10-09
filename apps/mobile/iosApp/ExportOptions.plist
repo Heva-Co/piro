@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Export options for a TestFlight / App Store build.
+
+      xcodebuild -exportArchive \
+        -archivePath build/Piro.xcarchive \
+        -exportOptionsPlist ExportOptions.plist \
+        -exportPath build/export
+
+  teamID is read from the DEVELOPMENT_TEAM build setting, so it is deliberately absent here: keeping
+  it in one place (project.yml) means the two cannot disagree. Pass -allowProvisioningUpdates on the
+  archive step and Xcode manages the distribution profile itself, matching CODE_SIGN_STYLE: Automatic.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TestFlight and the App Store are the same distribution channel; the build is promoted from
+         one to the other in App Store Connect, not re-exported. -->
+    <key>method</key>
+    <string>app-store-connect</string>
+
+    <key>signingStyle</key>
+    <string>automatic</string>
+
+    <!-- Symbols let App Store Connect symbolicate crash reports. Worth it: the alternative is
+         reading raw addresses out of a crash from a device you do not have. -->
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Bitcode is gone as of Xcode 14; stating it avoids a warning on some toolchains. -->
+    <key>compileBitcode</key>
+    <false/>
+
+    <!-- App Store builds are thinned by the store itself, so exporting a universal binary is right. -->
+    <key>stripSwiftSymbols</key>
+    <true/>
+</dict>
+</plist>

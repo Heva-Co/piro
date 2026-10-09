@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Release entitlements, used for archives: TestFlight and the App Store.
+
+  TestFlight builds are Release builds, so they register against *production* APNs, not the sandbox
+  the simulator and Xcode runs use. Shipping `development` here is why pushes work in development and
+  then silently stop once the build comes from TestFlight.
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>production</string>
+	<key>keychain-access-groups</key>
+	<array>
+		<!-- Shared with the notification service extension so it can read the push private key. The
+		     $(AppIdentifierPrefix) prefix is the Team ID, filled in at build time. -->
+		<string>$(AppIdentifierPrefix)co.heva.piro</string>
+	</array>
+</dict>
+</plist>
